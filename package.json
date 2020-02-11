@@ -1,0 +1,91 @@
+{
+    "name": "puppetter-test",
+    "version": "0.0.0",
+    "description": "My smashing module",
+    "repository": "hugomrdias/puppetter-test",
+    "author": "Hugo Dias <hugomrdias@gmail.com> (hugodias.me)",
+    "license": "MIT",
+    "main": "index.js",
+    "bin": "cli.js",
+    "engines": {
+        "node": ">=4"
+    },
+    "scripts": {
+        "test": "nyc ava",
+        "lint": "eslint --cache *.js src/*.js",
+        "validate": "run-p lint test",
+        "precommit": "yarn validate",
+        "version": "yarn changelog && git add changelog.md",
+        "changelog": "conventional-changelog -p angular -i changelog.md -s -r 0"
+    },
+    "files": [
+        "index.js",
+        "cli.js"
+    ],
+    "keywords": [
+        "cli-app",
+        "cli",
+        ""
+    ],
+    "dependencies": {
+        "assert": "^2.0.0",
+        "css-loader": "^3.4.2",
+        "glob": "^7.1.6",
+        "memory-fs": "^0.5.0",
+        "meow": "^6.0.0",
+        "merge-options": "^2.0.0",
+        "ora": "^4.0.3",
+        "playwright": "^0.10.0",
+        "polka": "^0.5.2",
+        "puppeteer-firefox": "^0.5.1",
+        "sirv": "^0.4.2",
+        "style-loader": "^1.1.3",
+        "tempy": "^0.3.0",
+        "webpack": "^4.41.5"
+    },
+    "devDependencies": {
+        "@commitlint/cli": "^7.2.1",
+        "@commitlint/config-conventional": "^7.1.2",
+        "ava": "^0.20.0",
+        "conventional-changelog-cli": "^1.3.3",
+        "eslint": "^4.7.1",
+        "eslint-config-halo": "^2.3.3",
+        "husky": "^1.1.2",
+        "lint-staged": "^8.0.3",
+        "mocha": "^7.0.1",
+        "mocha-pup": "^2.0.1",
+        "np": "^2.16.0",
+        "npm-run-all": "^4.1.1",
+        "puppeteer": "^2.1.1"
+    },
+    "husky": {
+        "hooks": {
+            "pre-commit": "lint-staged",
+            "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
+        }
+    },
+    "lint-staged": {
+        "*.js": [
+            "eslint --fix",
+            "git add"
+        ]
+    },
+    "commitlint": {
+        "extends": [
+            "@commitlint/config-conventional"
+        ]
+    },
+    "eslintConfig": {
+        "extends": "halo/plugins",
+        "parserOptions": {
+            "sourceType": "script"
+        }
+    },
+    "eslintIgnore": [
+        "node_modules",
+        "coverage",
+        "dist",
+        "storybook-static",
+        "typings"
+    ]
+}
