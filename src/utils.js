@@ -74,10 +74,37 @@ const extractErrorMessage = (arg) => {
     return undefined;
 };
 
+const messageTypeToConsoleFn = {
+    log: console.log,
+    warning: console.warn,
+    error: console.error,
+    info: console.info,
+    assert: console.assert,
+    debug: console.debug,
+    trace: console.trace,
+    dir: console.dir,
+    dirxml: console.dirxml,
+    profile: console.profile,
+    profileEnd: console.profileEnd,
+    startGroup: console.group,
+    startGroupCollapsed: console.groupCollapsed,
+    endGroup: console.groupEnd,
+    table: console.table,
+    count: console.count,
+    timeEnd: console.timeEnd
+
+    // we ignore calls to console.clear, as we don't want the page to clear our terminal
+    // clear: console.clear
+};
 const redirectConsole = async (msg) => {
+    const consoleFn = messageTypeToConsoleFn[msg.type()];
+
+    if (!consoleFn) {
+        return;
+    }
     const msgArgs = await Promise.all(msg.args().map(arg => extractErrorMessage(arg) || arg.jsonValue()));
 
-    console[msg._type].apply(console, msgArgs);
+    consoleFn.apply(console, msgArgs);
 };
 
 function toMegabytes(bytes) {
