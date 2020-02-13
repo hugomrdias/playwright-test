@@ -1,6 +1,6 @@
 {
     "name": "playwright-test",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "Run mocha or tape unit tests with playwright.",
     "repository": "hugomrdias/playwright-test",
     "author": "Hugo Dias <hugomrdias@gmail.com> (hugodias.me)",
