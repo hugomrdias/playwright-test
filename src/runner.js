@@ -3,19 +3,14 @@
 
 const fs = require('fs');
 const path = require('path');
+const getPort = require('get-port');
 const ora = require('ora');
-const pw = require('playwright');
 const tempy = require('tempy');
 const polka = require('polka');
 const sirv = require('sirv');
 const merge = require('merge-options');
-const {
-    runMocha,
-    runMochaWorker,
-    addWorker,
-    getCompiler,
-    redirectConsole
-} = require('./utils');
+const envPaths = require('env-paths')('playwright-test');
+const { redirectConsole, getPw } = require('./utils');
 
 const defaultOptions = {
     browser: 'chromium',
@@ -23,10 +18,8 @@ const defaultOptions = {
     incognito: false,
     extension: false,
     debug: false,
-    port: 3000,
-    url: 'http://localhost:3000/',
     files: [],
-    mochaOptions: {},
+    runnerOptions: {},
     webpackConfig: {}
 };
 
@@ -38,24 +31,38 @@ class MochaRunner {
         this.context = null;
         this.dir = tempy.directory();
         this.file = null;
-        this.compiler = getCompiler(
-            this.options.files,
-            this.dir,
-            this.options.mochaOptions,
-            this.options.webpackConfig
-        );
+        this.compiler = this.compiler();
+        this.port = 3000;
+        this.url = '';
+        this.stopped = false;
+        this.watching = false;
     }
 
     async launch() {
-        const spinner = ora('Setting up browser').start();
+        const spinner = ora({ text: 'Setting up browser' }).start();
+        const pw = await getPw(this.options.browser, envPaths.cache, spinner);
+
+        this.port = await getPort({ port: this.port });
+        this.url = 'http://localhost:' + this.port + '/';
 
         fs.copyFileSync(path.join(__dirname, './../static/index.html'), this.dir + '/index.html');
         fs.copyFileSync(path.join(__dirname, './../static/favicon.ico'), this.dir + '/favicon.ico');
         fs.copyFileSync(path.join(__dirname, './../static/manifest.json'), this.dir + '/manifest.json');
         fs.copyFileSync(path.join(__dirname, './../static/background.js'), this.dir + '/background.js');
 
-        this.server = (await polka().use(sirv(this.dir, { dev: true })).listen(this.options.port)).server;
-        this.browser = await pw[this.options.browser].launch({
+        this.server = (await polka()
+            .use(sirv(this.dir, {
+                dev: true,
+                setHeaders: (rsp, pathname) => {
+                    if (pathname === '/') {
+                        rsp.setHeader('Clear-Site-Data', '"cache", "cookies", "storage", "executionContexts"');
+                    }
+                }
+            }))
+            .listen(this.port))
+            .server;
+
+        this.browser = await pw.launch({
             headless: !this.options.extension && !this.options.debug,
             devtools: this.options.browser === 'chromium' && this.options.debug,
             args: this.options.extension ? [
@@ -65,7 +72,7 @@ class MochaRunner {
         });
 
         if (this.options.incognito) {
-            this.context = await this.browser.newContext(); // incognito
+            this.context = await this.browser.newContext();
         } else {
             this.context = this.browser.defaultContext();
         }
@@ -75,15 +82,33 @@ class MochaRunner {
             const backgroundPageTarget = targets.find(target => target.type() === 'background_page');
 
             this.page = await backgroundPageTarget.page();
+
+            // Open extension devtools window
+            const extPage = await this.context.newPage(`chrome://extensions/?id=${backgroundPageTarget._targetInfo.url.split('/')[2]}`);
+
+            const buttonHandle = await extPage.evaluateHandle('document.querySelector("body > extensions-manager").shadowRoot.querySelector("extensions-toolbar").shadowRoot.querySelector("#devMode")');
+
+            await buttonHandle.click();
+
+            const backgroundPageLink = await extPage.evaluateHandle('document.querySelector("body > extensions-manager").shadowRoot.querySelector("#viewManager > extensions-detail-view").shadowRoot.querySelector("#inspect-views > li:nth-child(2) > a")');
+
+            await backgroundPageLink.click();
         } else {
-            this.page = await this.context.newPage(this.options.url);
+            this.page = (await this.context.pages())[0];
+            this.page.goto(this.url);
         }
 
-        this.page.on('error', this.stop);
-        this.page.on('pageerror', this.stop);
+        this.page.on('error', (err) => {
+            console.error(err);
+            this.stop(true);
+        });
+        this.page.on('pageerror', (err) => {
+            console.error(err);
+            this.stop(true);
+        });
         this.page.on('console', redirectConsole);
 
-        spinner.succeed();
+        spinner.succeed('Setting up browser');
 
         return this;
     }
@@ -128,33 +153,23 @@ class MochaRunner {
     }
 
     async runTests() {
-        switch (this.options.mode) {
-            case 'main': {
-                await this.page.addScriptTag({
-                    type: 'text/javascript',
-                    url: this.file
-                });
+        //
+    }
 
-                this.page.evaluate(runMocha());
-                break;
-            }
-            case 'worker': {
-                this.page.evaluate(addWorker(this.file));
-                const run = new Promise((resolve) => {
-                    this.page.on('workercreated', (worker) => {
-                        setTimeout(() => {
-                            worker.evaluate(runMochaWorker());
-                            resolve();
-                        }, 1000);
-                    });
-                });
+    async waitForEnd() {
+        if (!this.options.debug) {
+            try {
+                await this.page.waitForFunction('window.testsEnded', { timeout: 0 });
+                const testsFailed = await this.page.evaluate('window.testsFailed');
 
-                await run;
-                break;
+                await this.stop(testsFailed > 0);
+            } catch (err) {
+                if (this.stopped) {
+                    // ignore if already stopped by a previous error
+                } else {
+                    throw err;
+                }
             }
-            default:
-                console.error('mode not supported');
-                break;
         }
     }
 
@@ -162,14 +177,10 @@ class MochaRunner {
         await this.launch();
         await this.compile();
         await this.runTests();
-        if (!this.options.debug) {
-            await this.page.waitForFunction('window.mochaFinished', { timeout: 0 });
-            await this.stop();
-        }
+        await this.waitForEnd();
     }
 
     async watch() {
-        // TODO: extension mode can't close page and create new one
         let lastHash = null;
 
         await this.launch();
@@ -202,18 +213,21 @@ class MochaRunner {
                 console.warn(info.warnings);
             }
 
-            if (this.page) {
-                await this.page.close();
-            }
-            this.page = await this.context.newPage(this.options.url);
-            this.page.on('console', redirectConsole);
+            await this.page.reload();
+
             this.file = info.assets[0].name;
             await this.runTests();
             lastHash = stats.hash;
         });
     }
 
-    async stop() {
+    async stop(fail) {
+        if (this.stopped) {
+            return;
+        }
+        this.stopped = true;
+
+        await this.page.close();
         await this.browser.close();
 
         const serverClose = new Promise((resolve, reject) => {
@@ -226,6 +240,12 @@ class MochaRunner {
         });
 
         await serverClose;
+        // eslint-disable-next-line unicorn/no-process-exit
+        process.exit(fail ? 1 : 0);
+    }
+
+    compiler() {
+        //
     }
 }
 

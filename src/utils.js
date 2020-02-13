@@ -1,32 +1,67 @@
-/* eslint-disable no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable no-undefined */
+/* eslint-disable global-require */
 'use strict';
 
-const merge = require('merge-options');
-const webpack = require('webpack');
+const path = require('path');
+const fs = require('fs');
+const globby = require('globby');
+const ignoreByDefault = require('ignore-by-default');
 
-// const pup = require('puppeteer');
-// const pupFire = require('puppeteer-firefox');
+const defaultIgnorePatterns = [...ignoreByDefault.directories(), '**/node_modules'];
 
-const runMocha = () => `
-window.mochaFinished = false
-mocha.run().on('end', () => {
-    window.mochaFinished = true
-})
-`;
+const hasExtension = (extensions, file) => extensions.includes(path.extname(file).slice(1));
 
-const runMochaWorker = () => `
-mocha.run().on('end', () => {
-    postMessage('end');
-})
-`;
+const buildExtensionPattern = extensions => (extensions.length === 1 ? extensions[0] : `{${extensions.join(',')}}`);
 
-const addWorker = filePath => `
-window.mochaFinished = false
-const w = new Worker("${filePath}");
-w.onmessage = function(e) {
-    window.mochaFinished = true
-}
-`;
+const defaultTestPatterns = (extensions) => {
+    const extensionPattern = buildExtensionPattern(extensions);
+
+    return [
+        `test.${extensionPattern}`,
+        `{src,source}/test.${extensionPattern}`,
+        `**/__tests__/**/*.${extensionPattern}`,
+        `**/*.spec.${extensionPattern}`,
+        `**/*.test.${extensionPattern}`,
+        `**/test-*.${extensionPattern}`,
+        `**/test/**/*.${extensionPattern}`,
+        `**/tests/**/*.${extensionPattern}`
+        // '!**/__tests__/**/__{helper,fixture}?(s)__/**/*',
+        // '!**/test?(s)/**/{helper,fixture}?(s)/**/*'
+    ];
+};
+
+const globFiles = (cwd, patterns) => {
+    const files = globby.sync(patterns, {
+        absolute: false,
+        braceExpansion: true,
+        caseSensitiveMatch: false,
+        cwd,
+        dot: false,
+        expandDirectories: false,
+        extglob: true,
+        followSymbolicLinks: true,
+        gitignore: false,
+        globstar: true,
+        ignore: defaultIgnorePatterns,
+        baseNameMatch: false,
+        onlyFiles: true,
+        stats: false,
+        unique: true
+    });
+
+    // Return absolute file paths. This has the side-effect of normalizing paths
+    // on Windows.
+    return files.map(file => path.join(cwd, file));
+};
+
+const findFiles = ({ cwd, extensions, filePatterns }) => (globFiles(cwd, filePatterns)).filter(file => hasExtension(extensions, file));
+
+const findTests = ({ cwd, extensions, filePatterns }) => (findFiles({
+    cwd,
+    extensions,
+    filePatterns
+})).filter(file => !path.basename(file).startsWith('_'));
 
 // workaround to get hidden description
 // jsonValue() on errors returns {}
@@ -39,70 +74,93 @@ const extractErrorMessage = (arg) => {
     return undefined;
 };
 
-const getCompiler = (files, outputDir, mochaOptions, webpackConfig) => {
-    const options = merge({
-        // reporter: 'html',
-        timeout: 5000,
-        colors: true,
-        ui: 'bdd'
-    }, mochaOptions);
-
-    const compiler = webpack({
-        mode: 'development',
-        // devtool: 'cheap-module-source-map',
-        output: {
-            // globalObject: 'self',
-            path: outputDir,
-            filename: 'bundle.[hash].js',
-            devtoolModuleFilenameTemplate: info =>
-                'file:///' + encodeURI(info.absoluteResourcePath)
-        },
-        entry: [
-            require.resolve('./mocha-setup.js'),
-            ...files
-        ],
-        node: {
-            'dgram': 'empty',
-            'fs': 'empty',
-            'net': 'empty',
-            'tls': 'empty',
-            'child_process': 'empty',
-            'console': false,
-            'global': true,
-            'process': true,
-            '__filename': 'mock',
-            '__dirname': 'mock',
-            'Buffer': true,
-            'setImmediate': true
-        },
-        plugins: [
-            // inject options to mocha-setup.js (in "static" folder)
-            new webpack.DefinePlugin({
-                'process.env': {
-                    MOCHA_UI: JSON.stringify(options.ui),
-                    MOCHA_COLORS: options.colors,
-                    MOCHA_REPORTER: JSON.stringify(options.reporter),
-                    MOCHA_TIMEOUT: options.timeout
-                }
-            })
-        ]
-
-    });
-
-    return compiler;
-};
-
 const redirectConsole = async (msg) => {
     const msgArgs = await Promise.all(msg.args().map(arg => extractErrorMessage(arg) || arg.jsonValue()));
 
     console[msg._type].apply(console, msgArgs);
 };
 
+function toMegabytes(bytes) {
+    const mb = bytes / 1024 / 1024;
+
+    return `${Math.round(mb * 10) / 10} Mb`;
+}
+
+async function downloadBrowser(browserInstance, spinner) {
+    const browser = browserInstance.name();
+    const browserType = browserInstance;
+
+    function onProgress(downloadedBytes, totalBytes) {
+        const perc = Math.round((downloadedBytes / totalBytes) * 100);
+
+        if (perc === 100) {
+            spinner.text = `Unpacking ${browser} ${browserType._revision}`;
+        } else {
+            spinner.text = `Downloading ${browser} ${browserType._revision} - ${toMegabytes(totalBytes)} ${perc}%`;
+        }
+    }
+
+    const fetcher = browserType._createBrowserFetcher();
+    const revisionInfo = fetcher.revisionInfo();
+
+    // Do nothing if the revision is already downloaded.
+    if (revisionInfo.local) {
+        return revisionInfo;
+    }
+
+    spinner.text = `Downloading ${browser} ${browserType._revision}`;
+    await fetcher.download(revisionInfo.revision, onProgress);
+    spinner.text = `Browser ${browser} cached to ${revisionInfo.folderPath}`;
+
+    return revisionInfo;
+}
+
+const getPw = async (browserName, cachePath, spinner) => {
+    const packageJson = require('playwright-core/package.json');
+    const { helper } = require('playwright-core//lib/helper');
+    const api = require('playwright-core//lib/api');
+    const { Chromium } = require('playwright-core/lib/server/chromium');
+    const { WebKit } = require('playwright-core/lib/server/webkit');
+    const { Firefox } = require('playwright-core/lib/server/firefox');
+
+    for (const className in api) {
+        if (typeof api[className] === 'function') {
+            helper.installApiHooks(className, api[className]);
+        }
+    }
+
+    if (!fs.existsSync(cachePath)) {
+        await fs.promises.mkdir(cachePath);
+    }
+    let browser = null;
+
+    switch (browserName) {
+        case 'chromium':
+            browser = new Chromium(cachePath, packageJson.playwright.chromium_revision);
+
+            break;
+        case 'webkit':
+            browser = new WebKit(cachePath, packageJson.playwright.webkit_revision);
+
+            break;
+        case 'firefox':
+            browser = new Firefox(cachePath, packageJson.playwright.firefox_revision);
+
+            break;
+
+        default:
+            throw new Error(`Browser ${browserName} not supported. Try chromium, webkit or firefox.`);
+    }
+
+    await downloadBrowser(browser, spinner);
+
+    return browser;
+};
+
 module.exports = {
-    runMocha,
-    runMochaWorker,
-    addWorker,
     extractErrorMessage,
-    getCompiler,
-    redirectConsole
+    redirectConsole,
+    defaultTestPatterns,
+    findTests,
+    getPw
 };

@@ -9,8 +9,9 @@ describe('Array', () => {
         });
 
         it('should fail  ', () => {
-            // console.log(chrome.browserAction);
-            assert.equal([1, 2, 3].indexOf(4), -1);
+            // console.log(chrome);
+            // localStorage.setItem('myCat', 'Tom');
+            assert.equal([1, 2, 3].indexOf(2), -1);
         });
     });
 });
