@@ -1,3 +1,12 @@
+## [0.0.4](https://github.com/hugomrdias/playwright-test/compare/v0.0.3...v0.0.4) (2020-02-13)
+
+
+### Bug Fixes
+
+* add static to npm and remove console ([ad51f85](https://github.com/hugomrdias/playwright-test/commit/ad51f8552a008fb06ffebe40b763929b3af576c5))
+
+
+
 ## [0.0.3](https://github.com/hugomrdias/playwright-test/compare/v0.0.2...v0.0.3) (2020-02-13)
 
 
