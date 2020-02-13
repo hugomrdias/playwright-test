@@ -19,6 +19,7 @@
         "changelog": "conventional-changelog -p angular -i changelog.md -s -r 0"
     },
     "files": [
+        "static",
         "src",
         "index.js",
         "cli.js"

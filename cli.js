@@ -75,7 +75,7 @@ const cli = meow(`
     }
 });
 
-console.log('TCL: cli', cli.flags, cli.input);
+// console.log('TCL: cli', cli.flags, cli.input);
 
 const files = findTests({
     cwd: cli.flags.cwd,
