@@ -44,6 +44,7 @@
         "resolve-cwd": "^3.0.0",
         "sirv": "^0.4.2",
         "tempy": "^0.4.0",
+        "playwright-core": "^0.10.0",
         "webpack": "^4.41.5"
     },
     "devDependencies": {
@@ -60,7 +61,6 @@
         "np": "^6.0.0",
         "npm-run-all": "^4.1.1",
         "nyc": "^15.0.0",
-        "playwright-core": "^0.10.0",
         "tape": "^4.13.0"
     },
     "husky": {
