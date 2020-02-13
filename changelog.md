@@ -1,3 +1,12 @@
+## [0.0.6](https://github.com/hugomrdias/playwright-test/compare/v0.0.5...v0.0.6) (2020-02-13)
+
+
+### Bug Fixes
+
+* console redirect ([04aa922](https://github.com/hugomrdias/playwright-test/commit/04aa922ad16e4c0c14dbe6f386a58ce4532f23c1))
+
+
+
 ## [0.0.5](https://github.com/hugomrdias/playwright-test/compare/v0.0.4...v0.0.5) (2020-02-13)
 
 
