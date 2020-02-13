@@ -1,3 +1,12 @@
+## [0.0.5](https://github.com/hugomrdias/playwright-test/compare/v0.0.4...v0.0.5) (2020-02-13)
+
+
+### Bug Fixes
+
+* dont close when in debug ([1e4a505](https://github.com/hugomrdias/playwright-test/commit/1e4a50595230a18066bcd3c89682294231e6ba21))
+
+
+
 ## [0.0.4](https://github.com/hugomrdias/playwright-test/compare/v0.0.3...v0.0.4) (2020-02-13)
 
 
