@@ -1,6 +1,6 @@
 {
     "name": "playwright-test",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "description": "Run mocha or tape unit tests with playwright.",
     "repository": "hugomrdias/playwright-test",
     "author": "Hugo Dias <hugomrdias@gmail.com> (hugodias.me)",
@@ -40,11 +40,11 @@
         "meow": "^6.0.0",
         "merge-options": "^2.0.0",
         "ora": "^4.0.3",
+        "playwright-core": "^0.10.0",
         "polka": "^0.5.2",
         "resolve-cwd": "^3.0.0",
         "sirv": "^0.4.2",
         "tempy": "^0.4.0",
-        "playwright-core": "^0.10.0",
         "webpack": "^4.41.5"
     },
     "devDependencies": {
