@@ -222,7 +222,7 @@ class MochaRunner {
     }
 
     async stop(fail) {
-        if (this.stopped) {
+        if (this.stopped || this.options.debug) {
             return;
         }
         this.stopped = true;
