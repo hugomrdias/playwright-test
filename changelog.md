@@ -1,3 +1,7 @@
+# [0.2.0](https://github.com/hugomrdias/playwright-test/compare/v0.1.0...v0.2.0) (2020-02-14)
+
+
+
 # [0.1.0](https://github.com/hugomrdias/playwright-test/compare/v0.0.6...v0.1.0) (2020-02-14)
 
 
