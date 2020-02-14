@@ -1,3 +1,12 @@
+# [0.1.0](https://github.com/hugomrdias/playwright-test/compare/v0.0.6...v0.1.0) (2020-02-14)
+
+
+### Features
+
+* assets, runner options, color, flow control ([6fffaf6](https://github.com/hugomrdias/playwright-test/commit/6fffaf63684e85a088dafcf6c30230db25e57625))
+
+
+
 ## [0.0.6](https://github.com/hugomrdias/playwright-test/compare/v0.0.5...v0.0.6) (2020-02-13)
 
 
