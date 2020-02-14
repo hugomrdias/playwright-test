@@ -1,6 +1,6 @@
 # playwright-test [![NPM Version](https://img.shields.io/npm/v/playwright-test.svg)](https://www.npmjs.com/package/playwright-test) [![NPM Downloads](https://img.shields.io/npm/dt/playwright-test.svg)](https://www.npmjs.com/package/playwright-test) [![NPM License](https://img.shields.io/npm/l/playwright-test.svg)](https://www.npmjs.com/package/playwright-test) [![Build Status](https://travis-ci.org/hugomrdias/playwright-test.svg?branch=master)](https://travis-ci.org/hugomrdias/playwright-test)
 
-> Run mocha or tape unit tests with playwright.
+> Run mocha or tape unit tests inside real browsers with playwright.
 
 
 ## Install
