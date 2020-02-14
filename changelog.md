@@ -1,3 +1,12 @@
+## [0.2.1](https://github.com/hugomrdias/playwright-test/compare/v0.2.0...v0.2.1) (2020-02-14)
+
+
+### Bug Fixes
+
+* revert to 0.10.0 ([7c57421](https://github.com/hugomrdias/playwright-test/commit/7c574211862a1b1d4e3bfc147dc6e30b29dec264))
+
+
+
 # [0.2.0](https://github.com/hugomrdias/playwright-test/compare/v0.1.0...v0.2.0) (2020-02-14)
 
 
