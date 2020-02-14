@@ -13,7 +13,7 @@ $ npm install playwright-test
 ## Usage
 
 ```bash
- Usage
+Usage
         $ playwright-test [input]
     Options
         --runner       Test runner. Options: mocha, tape. [Default: mocha]
@@ -23,15 +23,20 @@ $ npm install playwright-test
         --mode, -m     Run mode. Options: main, worker. [Default: main]
         --incognito    Use incognito window to run tests.
         --extension    Use extension to run tests.
-        --cwd          Current directory. [Default: '.']
+        --cwd          Current directory. [Default: process.cwd()]
         --extensions   Extensions to bundle. [Default: js,cjs,mjs]
+        --assets       Assets to be served by the http server. [Default: process.cwd()]
     Examples
         $ playwright-test test.js --runner tape
         $ playwright-test test/**/*.spec.js --debug
         $ playwright-test test/**/*.spec.js --browser webkit -mode worker --incognito --debug
+
     Extra arguments
         All arguments passed to the cli not listed above will be fowarded to the runner.
+        To send a `false` flag use --no-bail.
         $ playwright-test test.js --runner mocha --bail --grep 'should fail'
+
+        Check https://mochajs.org/api/mocha for `mocha` options or `npx mocha --help`.
 ```
 
 

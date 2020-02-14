@@ -3,6 +3,7 @@
 
 const webpack = require('webpack');
 const merge = require('merge-options');
+const delay = require('delay');
 const resolveCwd = require('resolve-cwd');
 const Runner = require('./runner');
 
@@ -23,6 +24,7 @@ mocha
   })
 `;
 
+// TODO: be more unique in the event data for cases that tests send messages
 const addWorker = filePath => `
 window.testsEnded = false
 window.testsFailed = 0
@@ -42,17 +44,16 @@ class MochaRunner extends Runner {
                     url: this.file
                 });
 
-                this.page.evaluate(runMocha());
+                await this.page.evaluate(runMocha());
                 break;
             }
             case 'worker': {
-                this.page.evaluate(addWorker(this.file));
+                await this.page.evaluate(addWorker(this.file));
                 const run = new Promise((resolve) => {
-                    this.page.on('workercreated', (worker) => {
-                        setTimeout(() => {
-                            worker.evaluate(runMochaWorker());
-                            resolve();
-                        }, 1000);
+                    this.page.on('workercreated', async (worker) => {
+                        await delay(1000);
+                        await worker.evaluate(runMochaWorker());
+                        resolve();
                     });
                 });
 
@@ -89,7 +90,7 @@ class MochaRunner extends Runner {
                 require.resolve('./setup-mocha.js'),
                 ...this.options.files
             ],
-            resolve: { alias: { tape: resolveCwd('mocha') } },
+            resolve: { alias: { 'mocha/mocha': resolveCwd('mocha/mocha.js') } },
             node: {
                 'dgram': 'empty',
                 'fs': 'empty',

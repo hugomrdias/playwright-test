@@ -10,7 +10,7 @@ const MochaRunner = require('./src/runner-mocha');
 const TapeRunner = require('./src/runner-tape');
 
 const cli = meow(`
-    Usage
+Usage
         $ playwright-test [input]
     Options
         --runner       Test runner. Options: mocha, tape. [Default: mocha]
@@ -20,8 +20,9 @@ const cli = meow(`
         --mode, -m     Run mode. Options: main, worker. [Default: main]
         --incognito    Use incognito window to run tests.
         --extension    Use extension to run tests.
-        --cwd          Current directory. [Default: '.']
+        --cwd          Current directory. [Default: process.cwd()]
         --extensions   Extensions to bundle. [Default: js,cjs,mjs]
+        --assets       Assets to be served by the http server. [Default: process.cwd()]
     Examples
         $ playwright-test test.js --runner tape
         $ playwright-test test/**/*.spec.js --debug
@@ -29,7 +30,10 @@ const cli = meow(`
 
     Extra arguments
         All arguments passed to the cli not listed above will be fowarded to the runner.
+        To send a \`false\` flag use --no-bail.
         $ playwright-test test.js --runner mocha --bail --grep 'should fail'
+
+        Check https://mochajs.org/api/mocha for \`mocha\` options or \`npx mocha --help\`.
 `, {
     flags: {
         runner: {
@@ -71,6 +75,10 @@ const cli = meow(`
         extensions: {
             type: 'array',
             default: ['js', 'cjs', 'mjs']
+        },
+        assets: {
+            type: 'string',
+            default: ''
         }
     }
 });
@@ -98,7 +106,8 @@ const runnerOptions = () => {
             'incognito',
             'extension',
             'cwd',
-            'extensions'
+            'extensions',
+            'assets'
         ];
 
         if (!localFlags.includes(key)) {
@@ -123,6 +132,8 @@ if (cli.flags.runner === 'tape') {
     Runner = TapeRunner;
 }
 const runner = new Runner({
+    cwd: cli.flags.cwd,
+    assets: cli.flags.assets,
     browser: cli.flags.browser,
     debug: cli.flags.debug,
     mode: cli.flags.mode,

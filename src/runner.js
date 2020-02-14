@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const getPort = require('get-port');
 const ora = require('ora');
+const kleur = require('kleur');
 const tempy = require('tempy');
 const polka = require('polka');
 const sirv = require('sirv');
@@ -40,6 +41,7 @@ class MochaRunner {
 
     async launch() {
         const spinner = ora({ text: 'Setting up browser' }).start();
+
         const pw = await getPw(this.options.browser, envPaths.cache, spinner);
 
         this.port = await getPort({ port: this.port });
@@ -59,6 +61,7 @@ class MochaRunner {
                     }
                 }
             }))
+            .use(sirv(path.join(this.options.cwd, this.options.assets), { dev: true }))
             .listen(this.port))
             .server;
 
@@ -93,34 +96,38 @@ class MochaRunner {
             const backgroundPageLink = await extPage.evaluateHandle('document.querySelector("body > extensions-manager").shadowRoot.querySelector("#viewManager > extensions-detail-view").shadowRoot.querySelector("#inspect-views > li:nth-child(2) > a")');
 
             await backgroundPageLink.click();
+        } else if (this.options.incognito) {
+            this.page = await this.context.newPage(this.url);
         } else {
             this.page = (await this.context.pages())[0];
-            this.page.goto(this.url);
+            await this.page.goto(this.url);
         }
 
         this.page.on('error', (err) => {
-            console.error(err);
+            console.error('\n', kleur.red(err));
             this.stop(true);
         });
         this.page.on('pageerror', (err) => {
-            console.error(err);
+            console.error('\n', kleur.red(err));
             this.stop(true);
         });
         this.page.on('console', redirectConsole);
-
         spinner.succeed('Setting up browser');
 
         return this;
     }
 
     async compile() {
-        const spinner = ora('Bundling tests').start();
+        const spinner = ora({
+            text: 'Bundling tests',
+            stream: process.stdout
+        }).start();
         const run = new Promise((resolve, reject) => {
             this.compiler.run((err, stats) => { // Stats Object
                 if (err) {
-                    console.error(err.stack || err);
+                    console.error('\n', kleur.red(err.stack || err));
                     if (err.details) {
-                        console.error(err.details);
+                        console.error(kleur.gray(err.details));
                     }
 
                     return reject(err);
@@ -130,7 +137,7 @@ class MochaRunner {
 
                 if (stats.hasErrors()) {
                     for (const error of info.errors) {
-                        console.error(error);
+                        console.error('\n', kleur.red(error));
                     }
 
                     return reject(new Error('stats errors'));
@@ -138,7 +145,7 @@ class MochaRunner {
 
                 if (stats.hasWarnings()) {
                     for (const warn of info.warnings) {
-                        console.warn(warn);
+                        console.warn('\n', kleur.yellow(warn));
                     }
                 }
 
@@ -158,26 +165,26 @@ class MochaRunner {
 
     async waitForEnd() {
         if (!this.options.debug) {
-            try {
-                await this.page.waitForFunction('window.testsEnded', { timeout: 0 });
-                const testsFailed = await this.page.evaluate('window.testsFailed');
+            await this.page.waitForFunction('window.testsEnded', { timeout: 0 });
+            const testsFailed = await this.page.evaluate('window.testsFailed');
 
-                await this.stop(testsFailed > 0);
-            } catch (err) {
-                if (this.stopped) {
-                    // ignore if already stopped by a previous error
-                } else {
-                    throw err;
-                }
-            }
+            await this.stop(testsFailed > 0);
         }
     }
 
     async run() {
-        await this.launch();
-        await this.compile();
-        await this.runTests();
-        await this.waitForEnd();
+        try {
+            await this.launch();
+            await this.compile();
+            await this.runTests();
+            await this.waitForEnd();
+        } catch (err) {
+            if (this.stopped) {
+                // ignore if already stopped by a previous error
+            } else {
+                throw err;
+            }
+        }
     }
 
     async watch() {
@@ -186,9 +193,9 @@ class MochaRunner {
         await this.launch();
         this.compiler.watch({}, async (err, stats) => {
             if (err) {
-                console.error(err.stack || err);
+                console.error('\n', kleur.red(err.stack || err));
                 if (err.details) {
-                    console.error(err.details);
+                    console.error(kleur.gray(err.details));
                 }
 
                 return;
@@ -203,14 +210,16 @@ class MochaRunner {
 
             if (stats.hasErrors()) {
                 for (const error of info.errors) {
-                    console.error(error);
+                    console.error('\n', kleur.red(error));
                 }
 
                 return;
             }
 
             if (stats.hasWarnings()) {
-                console.warn(info.warnings);
+                for (const warn of info.warnings) {
+                    console.warn('\n', kleur.yellow(warn));
+                }
             }
 
             await this.page.reload();
@@ -227,7 +236,7 @@ class MochaRunner {
         }
         this.stopped = true;
 
-        await this.page.close();
+        // await this.page.close();
         await this.browser.close();
 
         const serverClose = new Promise((resolve, reject) => {

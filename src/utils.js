@@ -5,6 +5,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const kleur = require('kleur');
 const globby = require('globby');
 const ignoreByDefault = require('ignore-by-default');
 
@@ -97,14 +98,40 @@ const messageTypeToConsoleFn = {
     // clear: console.clear
 };
 const redirectConsole = async (msg) => {
+    const type = msg.type();
     const consoleFn = messageTypeToConsoleFn[msg.type()];
 
     if (!consoleFn) {
         return;
     }
+    const text = msg.text();
+    const { url, lineNumber, columnNumber } = msg.location();
     const msgArgs = await Promise.all(msg.args().map(arg => extractErrorMessage(arg) || arg.jsonValue()));
 
-    consoleFn.apply(console, msgArgs);
+    if (msgArgs.length > 0) {
+        consoleFn.apply(console, msgArgs);
+    } else if (text) {
+        let color = 'white';
+
+        switch (type) {
+            case 'error':
+                color = 'red';
+                break;
+            case 'warning':
+                color = 'yellow';
+                break;
+            case 'info':
+            case 'debug':
+                color = 'blue';
+                break;
+            default:
+                break;
+        }
+
+        consoleFn(kleur[color](text));
+
+        console.info(kleur.gray(`${url}${lineNumber ? (':' + lineNumber) + (columnNumber ? ':' + columnNumber : '') : ''}`));
+    }
 };
 
 function toMegabytes(bytes) {

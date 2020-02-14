@@ -5,7 +5,7 @@ const webpack = require('webpack');
 const resolveCwd = require('resolve-cwd');
 const Runner = require('./runner');
 
-const runMocha = () => `
+const runTape = () => `
 window.testsEnded = false
 window.testsFailed = 0
 `;
@@ -20,11 +20,11 @@ w.onmessage = function(e) {
 }
 `;
 
-class MochaRunner extends Runner {
+class TapeRunner extends Runner {
     async runTests() {
         switch (this.options.mode) {
             case 'main': {
-                this.page.evaluate(runMocha());
+                this.page.evaluate(runTape());
                 await this.page.addScriptTag({
                     type: 'text/javascript',
                     url: this.file
@@ -83,4 +83,4 @@ class MochaRunner extends Runner {
     }
 }
 
-module.exports = MochaRunner;
+module.exports = TapeRunner;
