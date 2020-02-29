@@ -1,3 +1,12 @@
+# [0.3.0](https://github.com/hugomrdias/playwright-test/compare/v0.2.1...v0.3.0) (2020-02-29)
+
+
+### Features
+
+* benchmark, DEBUG, before script ([20de8eb](https://github.com/hugomrdias/playwright-test/commit/20de8eb5e993955fb1a99bc9cf3e773191999211))
+
+
+
 ## [0.2.1](https://github.com/hugomrdias/playwright-test/compare/v0.2.0...v0.2.1) (2020-02-14)
 
 
