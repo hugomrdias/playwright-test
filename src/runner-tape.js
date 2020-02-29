@@ -4,27 +4,12 @@
 const webpack = require('webpack');
 const resolveCwd = require('resolve-cwd');
 const Runner = require('./runner');
-
-const runTape = () => `
-window.testsEnded = false
-window.testsFailed = 0
-`;
-
-const addWorker = filePath => `
-window.testsEnded = false
-window.testsFailed = 0
-const w = new Worker("${filePath}");
-w.onmessage = function(e) {
-    window.testsEnded = true
-    window.testsFailed = e.data
-}
-`;
+const { addWorker } = require('./utils');
 
 class TapeRunner extends Runner {
     async runTests() {
         switch (this.options.mode) {
             case 'main': {
-                this.page.evaluate(runTape());
                 await this.page.addScriptTag({
                     type: 'text/javascript',
                     url: this.file
@@ -45,9 +30,7 @@ class TapeRunner extends Runner {
     compiler() {
         const compiler = webpack({
             mode: 'development',
-            // devtool: 'cheap-module-source-map',
             output: {
-                // globalObject: 'self',
                 path: this.dir,
                 filename: 'bundle.[hash].js',
                 devtoolModuleFilenameTemplate: info =>
@@ -73,8 +56,7 @@ class TapeRunner extends Runner {
                 'setImmediate': true
             },
             plugins: [
-                // inject options to mocha-setup.js (in "static" folder)
-                new webpack.DefinePlugin({ 'process.env': { TAPE_IS_WORKER: JSON.stringify(this.options.mode === 'worker') } })
+                new webpack.DefinePlugin({ 'process.env': JSON.stringify(this.env) })
             ]
 
         });

@@ -2,17 +2,19 @@
 
 const test = require('tape');
 
-const isWorker = process.env.TAPE_IS_WORKER;
+self.TAPE_RUN_FAIL = false;
 
 test.onFailure(() => {
-    self.testsFailed = 1;
+    self.TAPE_RUN_FAIL = true;
 });
 
 test.onFinish(() => {
-    if (isWorker) {
-        postMessage(self.testsFailed);
+    if (process.env.PW_TEST.mode === 'worker') {
+        postMessage({
+            'pwRunEnded': true,
+            'pwRunFailed':  self.TAPE_RUN_FAIL
+        });
     } else {
-        window.testsEnded = true;
+        self.pwTestController.end(self.TAPE_RUN_FAIL);
     }
 });
-

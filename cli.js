@@ -8,25 +8,34 @@ const camelCase = require('camelcase');
 const { findTests, defaultTestPatterns } = require('./src/utils');
 const MochaRunner = require('./src/runner-mocha');
 const TapeRunner = require('./src/runner-tape');
+const BenchmarkRunner = require('./src/runner-benchmark');
 
 const cli = meow(`
 Usage
-        $ playwright-test [input]
+    $ playwright-test [input]
+
     Options
-        --runner       Test runner. Options: mocha, tape. [Default: mocha]
+        --runner       Test runner. Options: mocha, tape, benchmark. [Default: mocha]
         --watch, -w    Watch files for changes and re-run tests.
         --browser, -b  Browser to run tests. Options: chromium, firefox, webkit. [Default: chromium]
         --debug, -d    Debug mode, keeps browser window open.
         --mode, -m     Run mode. Options: main, worker. [Default: main]
         --incognito    Use incognito window to run tests.
-        --extension    Use extension to run tests.
-        --cwd          Current directory. [Default: process.cwd()]
-        --extensions   Extensions to bundle. [Default: js,cjs,mjs]
+        --extension    Use extension background_page to run tests.
+        --before       Full path to a script to be loaded on a separate tab.
         --assets       Assets to be served by the http server. [Default: process.cwd()]
+        --cwd          Current directory. [Default: process.cwd()]
+        --extensions   File extensions allowed in the bundle. [Default: js,cjs,mjs]
     Examples
         $ playwright-test test.js --runner tape
         $ playwright-test test/**/*.spec.js --debug
         $ playwright-test test/**/*.spec.js --browser webkit -mode worker --incognito --debug
+
+        $ playwright-text benchmark.js --runner benchmark
+        # Use benchmark.js to run your benchmark see playwright-test/mocks/benchmark.js for an example.
+
+        $ playwright-test test/**/*.spec.js --debug --before ./mocks/before.js
+        # Run before.js in a separate tab check ./mocks/before.js for an example. Important: You need to call \`self.pwTestController.beforeEnd()\`, if you want the main tab to wait for the before script.
 
     Extra arguments
         All arguments passed to the cli not listed above will be fowarded to the runner.
@@ -34,6 +43,10 @@ Usage
         $ playwright-test test.js --runner mocha --bail --grep 'should fail'
 
         Check https://mochajs.org/api/mocha for \`mocha\` options or \`npx mocha --help\`.
+
+    Notes
+        DEBUG environmental variable is properly redirected to the browser. If you use 'debug' package for logging the following example will work as you expect.
+        $ DEBUG:app playwright-test test.js
 `, {
     flags: {
         runner: {
@@ -79,6 +92,10 @@ Usage
         assets: {
             type: 'string',
             default: ''
+        },
+        before: {
+            type: 'string',
+            default: ''
         }
     }
 });
@@ -107,7 +124,8 @@ const runnerOptions = () => {
             'extension',
             'cwd',
             'extensions',
-            'assets'
+            'assets',
+            'before'
         ];
 
         if (!localFlags.includes(key)) {
@@ -125,6 +143,9 @@ if (files.length === 0) {
 
 let Runner = null;
 
+if (cli.flags.runner === 'benchmark') {
+    Runner = BenchmarkRunner;
+}
 if (cli.flags.runner === 'mocha') {
     Runner = MochaRunner;
 }
@@ -140,7 +161,8 @@ const runner = new Runner({
     incognito: cli.flags.incognito,
     files,
     extension: cli.flags.extension,
-    runnerOptions: runnerOptions()
+    runnerOptions: runnerOptions(),
+    before: cli.flags.before
 });
 
 if (cli.flags.watch) {

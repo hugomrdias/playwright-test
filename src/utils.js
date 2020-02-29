@@ -171,8 +171,8 @@ async function downloadBrowser(browserInstance, spinner) {
 
 const getPw = async (browserName, cachePath, spinner) => {
     const packageJson = require('playwright-core/package.json');
-    const { helper } = require('playwright-core//lib/helper');
-    const api = require('playwright-core//lib/api');
+    const { helper } = require('playwright-core/lib/helper');
+    const api = require('playwright-core/lib/api');
     const { Chromium } = require('playwright-core/lib/server/chromium');
     const { WebKit } = require('playwright-core/lib/server/webkit');
     const { Firefox } = require('playwright-core/lib/server/firefox');
@@ -211,10 +211,59 @@ const getPw = async (browserName, cachePath, spinner) => {
     return browser;
 };
 
+const compile = async (compiler) => {
+    const run = new Promise((resolve, reject) => {
+        compiler.run((err, stats) => {
+            if (err) {
+                console.error('\n', kleur.red(err.stack || err));
+                if (err.details) {
+                    console.error(kleur.gray(err.details));
+                }
+
+                return reject(err);
+            }
+
+            const info = stats.toJson('normal');
+
+            if (stats.hasErrors()) {
+                for (const error of info.errors) {
+                    console.error('\n', kleur.red(error));
+                }
+
+                return reject(new Error('stats errors'));
+            }
+
+            if (stats.hasWarnings()) {
+                for (const warn of info.warnings) {
+                    console.warn('\n', kleur.yellow(warn));
+                }
+            }
+
+            resolve(info.assets[0].name);
+        });
+    });
+
+    const file = await run;
+
+    return file;
+};
+
+const addWorker = filePath => `
+const w = new Worker("${filePath}");
+w.onmessage = function(e) {
+    if(e.data.pwRunEnded) {
+        self.pwTestController.end(e.data.pwRunFailed)
+    }
+}
+`;
+
 module.exports = {
     extractErrorMessage,
     redirectConsole,
     defaultTestPatterns,
     findTests,
-    getPw
+    findFiles,
+    getPw,
+    compile,
+    addWorker
 };

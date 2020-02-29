@@ -2,43 +2,10 @@
 'use strict';
 
 const webpack = require('webpack');
-const merge = require('merge-options');
-const delay = require('delay');
-const resolveCwd = require('resolve-cwd');
 const Runner = require('./runner');
 const { addWorker } = require('./utils');
 
-const runMocha = () => `
-mocha
-  .run((f) =>{
-    self.pwTestController.end(f > 0)
-  })
-`;
-
-const runMochaWorker = () => `
-mocha
-  .run((f)=>{
-    postMessage({
-        "pwRunEnded": true,
-        "pwRunFailed": f > 0
-    })
-  })
-`;
-
-class MochaRunner extends Runner {
-    constructor(options = {}) {
-        super(merge({
-            runnerOptions: {
-                allowUncaught: false,
-                bail: true,
-                reporter: 'spec',
-                timeout: 5000,
-                color: true,
-                ui: 'bdd'
-            }
-        }, options));
-    }
-
+class BenchmarkRunner extends Runner {
     async runTests() {
         switch (this.options.mode) {
             case 'main': {
@@ -47,20 +14,10 @@ class MochaRunner extends Runner {
                     url: this.file
                 });
 
-                await this.page.evaluate(runMocha());
                 break;
             }
             case 'worker': {
-                await this.page.evaluate(addWorker(this.file));
-                const run = new Promise((resolve) => {
-                    this.page.on('workercreated', async (worker) => {
-                        await delay(1000);
-                        await worker.evaluate(runMochaWorker());
-                        resolve();
-                    });
-                });
-
-                await run;
+                this.page.evaluate(addWorker(this.file));
                 break;
             }
             default:
@@ -79,10 +36,10 @@ class MochaRunner extends Runner {
                     'file:///' + encodeURI(info.absoluteResourcePath)
             },
             entry: [
-                require.resolve('./setup-mocha.js'),
+                require.resolve('./setup-bench.js'),
                 ...this.options.files
             ],
-            resolve: { alias: { 'mocha/mocha': resolveCwd('mocha/mocha.js') } },
+            module: { noParse: /src\/benchmark.js/ },
             node: {
                 'dgram': 'empty',
                 'fs': 'empty',
@@ -107,4 +64,4 @@ class MochaRunner extends Runner {
     }
 }
 
-module.exports = MochaRunner;
+module.exports = BenchmarkRunner;
