@@ -1,3 +1,12 @@
+# [0.4.0](https://github.com/hugomrdias/playwright-test/compare/v0.3.0...v0.4.0) (2020-03-07)
+
+
+### Features
+
+* benchmarks can run as is no special require need ([2a6a6d6](https://github.com/hugomrdias/playwright-test/commit/2a6a6d675fa44c156f07ff34dd0d869c9585cf31))
+
+
+
 # [0.3.0](https://github.com/hugomrdias/playwright-test/compare/v0.2.1...v0.3.0) (2020-02-29)
 
 
