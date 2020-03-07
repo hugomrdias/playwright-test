@@ -1,8 +1,14 @@
 /* eslint-disable no-unused-expressions */
 'use strict';
 
-const BenchmarkManager = new self.BenchmarkManager();
-const suite = BenchmarkManager.createSuite();
+// const BenchmarkManager = new self.BenchmarkManager();
+// const suite = BenchmarkManager.createSuite();
+
+const Benchmark = require('benchmark');
+
+// import Benchmark from 'benchmark'
+
+const suite = new Benchmark.Suite();
 
 // add tests
 suite.add('RegExp#test', () => {
@@ -23,3 +29,4 @@ suite.add('RegExp#test', () => {
     })
 // run async
     .run({ 'async': true });
+

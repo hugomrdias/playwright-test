@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 'use strict';
 
+const path = require('path');
 const webpack = require('webpack');
 const Runner = require('./runner');
 const { addWorker } = require('./utils');
@@ -40,6 +41,7 @@ class BenchmarkRunner extends Runner {
                 ...this.options.files
             ],
             module: { noParse: /src\/benchmark.js/ },
+            resolve: { alias: { benchmark: path.resolve(__dirname, 'setup-bench.js') } },
             node: {
                 'dgram': 'empty',
                 'fs': 'empty',
