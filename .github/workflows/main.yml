@@ -29,7 +29,7 @@ jobs:
     - run: ./cli.js mocks/test.mocha.js
     - run: ./cli.js mocks/test.mocha.js --incognito
     - run: ./cli.js mocks/test.mocha.js --mode worker
-    - run: xvfb-run -a ./cli.js mocks/test.mocha.js --extention
+    - run: xvfb-run -a ./cli.js mocks/test.mocha.js --extension
     - run: ./cli.js mocks/test.tape.js --runner tape
     - run: ./cli.js mocks/benchmark.js --runner benchmark
 
