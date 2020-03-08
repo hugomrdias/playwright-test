@@ -17,24 +17,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+    - uses: actions/setup-node@v1
       with:
         node-version: '12.x'
-    - name: install required packages
+    - name: Install required packages
       run: |
         sudo apt-get update
         sudo apt-get install libgbm-dev
+        sudo apt-get install xvfb
     - run: yarn
     - run: ./cli.js mocks/test.mocha.js
+    - run: ./cli.js mocks/test.mocha.js --incognito
+    - run: ./cli.js mocks/test.mocha.js --mode worker
+    - run: xvfb-run -a ./cli.js mocks/test.mocha.js --extention
+    - run: ./cli.js mocks/test.tape.js --runner tape
+    - run: ./cli.js mocks/benchmark.js --runner benchmark
 
   chromium_macos:
     name: "Chromium Mac"
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+    - uses: actions/setup-node@v1
       with:
         node-version: '12.x'
     - run: yarn
@@ -45,8 +49,7 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+    - uses: actions/setup-node@v1
       with:
         node-version: '12.x'
     - run: yarn
@@ -58,11 +61,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+    - uses: actions/setup-node@v1
       with:
         node-version: '12.x'
-    - name: install required packages
+    - name: Install required packages
       run: |
         sudo apt-get update
         sudo apt-get install libwoff1 libopus0 libwebp6 libwebpdemux2 libenchant1c2a libgudev-1.0-0 libsecret-1-0 libhyphen0 libgdk-pixbuf2.0-0 libegl1 libgles2 libevent-2.1-6 libnotify4 libxslt1.1
@@ -75,11 +77,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+    - uses: actions/setup-node@v1
       with:
         node-version: '12.x'
-    - name: install required packages
+    - name: Install required packages
       run: |
         sudo apt-get update
         sudo apt-get install xvfb
