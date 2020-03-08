@@ -4,6 +4,7 @@
 name: Test
 env:
   CI: true
+  FORCE_COLOR: 1
 on:
   push:
     branches: [ master ]
@@ -26,7 +27,10 @@ jobs:
       uses: actions/setup-node@v1
       with:
         node-version: ${{ matrix.node-version }}
+    - name: install required packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install libgbm-dev
     - run: yarn
     - run: yarn lint
-    - run: sudo apt-get install libgbm
     - run: ./cli.js mocks/test.mocha.js
