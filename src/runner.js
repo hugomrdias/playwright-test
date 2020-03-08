@@ -84,7 +84,7 @@ class Runner {
                 `--disable-extensions-except=${this.dir}`,
                 `--load-extension=${this.dir}`
             ] : [],
-            dumpio: true
+            dumpio: process.env.PW_TEST_DUMPIO || false
         };
 
         // extension only works in incognito for now
