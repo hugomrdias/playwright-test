@@ -83,7 +83,8 @@ class Runner {
             args: this.options.extension ? [
                 `--disable-extensions-except=${this.dir}`,
                 `--load-extension=${this.dir}`
-            ] : []
+            ] : [],
+            dumpio: process.env.PW_TEST_DUMPIO || false
         };
 
         // extension only works in incognito for now
@@ -99,7 +100,7 @@ class Runner {
 
     async setupPage() {
         if (this.options.extension) {
-            const targets = await this.context.targets();
+            const targets = await this.browser.targets();
             const backgroundPageTarget = targets.find(target => target.type() === 'background_page');
 
             this.page = await backgroundPageTarget.page();

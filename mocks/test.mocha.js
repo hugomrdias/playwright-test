@@ -10,8 +10,7 @@ describe('Array', () => {
 
         it('should fail  ', () => {
             // console.log(chrome);
-            // localStorage.setItem('myCat', 'Tom');
-            assert.equal([1, 2, 3].indexOf(2), -1);
+            assert.equal([1, 2, 3].indexOf(2), 1);
         });
     });
 });
