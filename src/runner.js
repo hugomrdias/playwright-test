@@ -83,7 +83,8 @@ class Runner {
             args: this.options.extension ? [
                 `--disable-extensions-except=${this.dir}`,
                 `--load-extension=${this.dir}`
-            ] : []
+            ] : [],
+            dumpio: true
         };
 
         // extension only works in incognito for now
