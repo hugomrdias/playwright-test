@@ -183,6 +183,10 @@ const getPw = async (browserName, cachePath, spinner) => {
         }
     }
 
+    if (process.env.CI) {
+        cachePath = path.join(__dirname, '../.cache');
+    }
+
     if (!fs.existsSync(cachePath)) {
         await fs.promises.mkdir(cachePath);
     }
