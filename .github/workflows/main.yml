@@ -1,7 +1,7 @@
 # This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
 
-name: Test
+name: tests
 env:
   CI: true
   FORCE_COLOR: 1
@@ -12,25 +12,76 @@ on:
     branches: [ master ]
 
 jobs:
-  test:
-    name: Node ${{ matrix.node_version }} and ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        node_version: ['12.x']
-        os: [ubuntu-latest]
-        #node_version: ['10.x', '12.x', '13.']
-        #os: [ubuntu-latest, windows-latest, macOS-latest]
+  chromium_linux:
+    name: "Chromium Linux"
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v1
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: '12.x'
     - name: install required packages
       run: |
         sudo apt-get update
         sudo apt-get install libgbm-dev
     - run: yarn
-    - run: yarn lint
+    - run: ./cli.js mocks/test.mocha.js
+
+  chromium_macos:
+    name: "Chromium Mac"
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v1
+      with:
+        node-version: '12.x'
+    - run: yarn
+    - run: ./cli.js mocks/test.mocha.js
+
+  chromium_win:
+    name: "Chromium Win"
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v1
+      with:
+        node-version: '12.x'
+    - run: yarn
+    - run: ./cli.js mocks/test.mocha.js
+      shell: bash
+
+  webkit_linux:
+    name: "WebKit Linux"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v1
+      with:
+        node-version: '12.x'
+    - name: install required packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install libwoff1 libopus0 libwebp6 libwebpdemux2 libenchant1c2a libgudev-1.0-0 libsecret-1-0 libhyphen0 libgdk-pixbuf2.0-0 libegl1 libgles2 libevent-2.1-6 libnotify4 libxslt1.1
+        sudo apt-get install xvfb
+    - run: yarn
+    - run: ./cli.js mocks/test.mocha.js
+
+  firefox_linux:
+    name: "Firefox Linux"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v1
+      with:
+        node-version: '12.x'
+    - name: install required packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install xvfb
+    - run: yarn
     - run: ./cli.js mocks/test.mocha.js
