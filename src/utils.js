@@ -165,6 +165,7 @@ async function downloadBrowser(browserInstance, spinner) {
     spinner.text = `Downloading ${browser} ${browserType._revision}`;
     await fetcher.download(revisionInfo.revision, onProgress);
     spinner.text = `Browser ${browser} cached to ${revisionInfo.folderPath}`;
+    console.log(`Browser ${browser} cached to ${revisionInfo.folderPath}`);
 
     return revisionInfo;
 }
