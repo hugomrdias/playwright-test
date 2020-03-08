@@ -85,3 +85,5 @@ jobs:
         sudo apt-get install xvfb
     - run: yarn
     - run: ./cli.js mocks/test.mocha.js
+      env:
+        PW_TEST_DUMPIO: true
