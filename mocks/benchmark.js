@@ -1,9 +1,6 @@
 /* eslint-disable no-unused-expressions */
 'use strict';
 
-// const BenchmarkManager = new self.BenchmarkManager();
-// const suite = BenchmarkManager.createSuite();
-
 const Benchmark = require('benchmark');
 
 // import Benchmark from 'benchmark'
