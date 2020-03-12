@@ -31,7 +31,7 @@ Options
 Examples
     $ playwright-test test.js --runner tape
     $ playwright-test test/**/*.spec.js --debug
-    $ playwright-test test/**/*.spec.js --browser webkit -mode worker --incognito --debug
+    $ playwright-test test/**/*.spec.js --browser webkit --mode worker --incognito --debug
 
     $ playwright-text benchmark.js --runner benchmark
     # Use benchmark.js to run your benchmark see playwright-test/mocks/benchmark.js for an example.
