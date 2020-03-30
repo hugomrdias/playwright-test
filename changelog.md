@@ -1,3 +1,17 @@
+# [0.6.0](https://github.com/hugomrdias/playwright-test/compare/v0.5.0...v0.6.0) (2020-03-30)
+
+
+### Bug Fixes
+
+* a typo in readme ([#2](https://github.com/hugomrdias/playwright-test/issues/2)) ([73e3cf7](https://github.com/hugomrdias/playwright-test/commit/73e3cf797da343b7b5d809ad9f0143e19dd82e63))
+
+
+### Features
+
+* add support for zora and node flag ([5a7b962](https://github.com/hugomrdias/playwright-test/commit/5a7b962dbcb49b07b0030522e929a9686acf42e9))
+
+
+
 # [0.5.0](https://github.com/hugomrdias/playwright-test/compare/v0.4.0...v0.5.0) (2020-03-08)
 
 
