@@ -1,45 +1,33 @@
 /* eslint-disable no-console */
 'use strict';
 
+const path = require('path');
 const webpack = require('webpack');
-const merge = require('merge-options');
 const delay = require('delay');
-const resolveCwd = require('resolve-cwd');
-const webpackMerge = require('webpack-merge');
+const merge = require('webpack-merge');
 const Runner = require('./runner');
 const { addWorker, defaultWebpackConfig } = require('./utils');
 
-const runMocha = () => `
-mocha
-  .run((f) =>{
-    self.pwTestController.end(f > 0)
+const runZora = () => `
+zora
+  .report()
+  .then((f) =>{
+    self.pwTestController.end(!self.zora.pass)
   })
 `;
 
-const runMochaWorker = () => `
-mocha
-  .run((f)=>{
+const runZoraWorker = () => `
+zora
+  .report()
+  .then((f) =>{
     postMessage({
         "pwRunEnded": true,
-        "pwRunFailed": f > 0
+        "pwRunFailed": !self.zora.pass
     })
   })
 `;
 
-class MochaRunner extends Runner {
-    constructor(options = {}) {
-        super(merge({
-            runnerOptions: {
-                allowUncaught: false,
-                bail: true,
-                reporter: 'spec',
-                timeout: 5000,
-                color: true,
-                ui: 'bdd'
-            }
-        }, options));
-    }
-
+class ZoraRunner extends Runner {
     async runTests() {
         switch (this.options.mode) {
             case 'main': {
@@ -47,16 +35,15 @@ class MochaRunner extends Runner {
                     type: 'text/javascript',
                     url: this.file
                 });
-
-                await this.page.evaluate(runMocha());
+                await this.page.evaluate(runZora());
                 break;
             }
             case 'worker': {
-                await this.page.evaluate(addWorker(this.file));
+                this.page.evaluate(addWorker(this.file));
                 const run = new Promise((resolve) => {
                     this.page.on('workercreated', async (worker) => {
                         await delay(1000);
-                        await worker.evaluate(runMochaWorker());
+                        await worker.evaluate(runZoraWorker());
                         resolve();
                     });
                 });
@@ -71,14 +58,13 @@ class MochaRunner extends Runner {
     }
 
     compiler() {
-        const config = webpackMerge(
+        const config = merge(
             defaultWebpackConfig(this.dir, this.env, this.options),
             {
                 entry: [
-                    require.resolve('./setup-mocha.js'),
                     ...this.options.files
                 ],
-                resolve: { alias: { 'mocha/mocha': resolveCwd('mocha/mocha.js') } }
+                resolve: { alias: { zora$: path.resolve(__dirname, 'setup-zora.js') } }
             }
         );
 
@@ -86,4 +72,4 @@ class MochaRunner extends Runner {
     }
 }
 
-module.exports = MochaRunner;
+module.exports = ZoraRunner;

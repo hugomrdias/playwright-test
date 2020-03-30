@@ -32,6 +32,7 @@ jobs:
     - run: xvfb-run -a ./cli.js mocks/test.mocha.js --extension
     - run: ./cli.js mocks/test.tape.js --runner tape
     - run: ./cli.js mocks/benchmark.js --runner benchmark
+    - run: RUN_ONLY=true INDENT=true ./cli.js 'mocks/*.zora.js' --runner zora
 
   chromium_macos:
     name: "Chromium Mac"

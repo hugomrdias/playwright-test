@@ -9,13 +9,14 @@ const { findTests, defaultTestPatterns } = require('./src/utils');
 const MochaRunner = require('./src/runner-mocha');
 const TapeRunner = require('./src/runner-tape');
 const BenchmarkRunner = require('./src/runner-benchmark');
+const ZoraRunner = require('./src/runner-zora');
 
 const cli = meow(`
 Usage
     $ playwright-test [input]
 
     Options
-        --runner       Test runner. Options: mocha, tape, benchmark. [Default: mocha]
+        --runner       Test runner. Options: mocha, tape, benchmark and zora. [Default: mocha]
         --watch, -w    Watch files for changes and re-run tests.
         --browser, -b  Browser to run tests. Options: chromium, firefox, webkit. [Default: chromium]
         --debug, -d    Debug mode, keeps browser window open.
@@ -96,6 +97,10 @@ Usage
         before: {
             type: 'string',
             default: ''
+        },
+        node: {
+            type: 'boolean',
+            default: true
         }
     }
 });
@@ -125,7 +130,8 @@ const runnerOptions = () => {
             'cwd',
             'extensions',
             'assets',
-            'before'
+            'before',
+            'node'
         ];
 
         if (!localFlags.includes(key)) {
@@ -142,6 +148,10 @@ if (files.length === 0) {
 }
 
 let Runner = null;
+
+if (cli.flags.runner === 'zora') {
+    Runner = ZoraRunner;
+}
 
 if (cli.flags.runner === 'benchmark') {
     Runner = BenchmarkRunner;
@@ -162,7 +172,8 @@ const runner = new Runner({
     files,
     extension: cli.flags.extension,
     runnerOptions: runnerOptions(),
-    before: cli.flags.before
+    before: cli.flags.before,
+    node: cli.flags.node
 });
 
 if (cli.flags.watch) {

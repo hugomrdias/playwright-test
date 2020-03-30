@@ -1,6 +1,6 @@
 # playwright-test [![NPM Version](https://img.shields.io/npm/v/playwright-test.svg)](https://www.npmjs.com/package/playwright-test) [![NPM Downloads](https://img.shields.io/npm/dt/playwright-test.svg)](https://www.npmjs.com/package/playwright-test) [![NPM License](https://img.shields.io/npm/l/playwright-test.svg)](https://www.npmjs.com/package/playwright-test) ![tests](https://github.com/hugomrdias/playwright-test/workflows/tests/badge.svg)
 
-> Run mocha, tape and benchmark.js scripts inside real browsers with `playwright`.
+> Run mocha, zora, tape and benchmark.js scripts inside real browsers with `playwright`.
 
 
 ## Install
@@ -12,11 +12,11 @@ $ npm install playwright-test
 
 ## Usage
 
-```bash
+```console
 $ playwright-test [input]
 
 Options
-    --runner       Test runner. Options: mocha, tape, benchmark. [Default: mocha]
+    --runner       Test runner. Options: mocha, tape, benchmark and zora. [Default: mocha]
     --watch, -w    Watch files for changes and re-run tests.
     --browser, -b  Browser to run tests. Options: chromium, firefox, webkit. [Default: chromium]
     --debug, -d    Debug mode, keeps browser window open.

@@ -32,7 +32,8 @@
         "mocha",
         "tape",
         "benchmark",
-        "benchmark.js"
+        "benchmark.js",
+        "zora"
     ],
     "dependencies": {
         "camelcase": "^5.3.1",
@@ -50,7 +51,8 @@
         "resolve-cwd": "^3.0.0",
         "sirv": "^0.4.2",
         "tempy": "^0.4.0",
-        "webpack": "^4.41.5"
+        "webpack": "^4.41.5",
+        "webpack-merge": "^4.2.2"
     },
     "devDependencies": {
         "@commitlint/cli": "^8.3.5",
@@ -70,7 +72,9 @@
         "np": "^6.2.0",
         "npm-run-all": "^4.1.1",
         "nyc": "^15.0.0",
-        "tape": "^4.13.0"
+        "tap-spec": "^5.0.0",
+        "tape": "^4.13.0",
+        "zora": "^3.1.8"
     },
     "husky": {
         "hooks": {

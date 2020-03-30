@@ -8,6 +8,7 @@ const fs = require('fs');
 const kleur = require('kleur');
 const globby = require('globby');
 const ignoreByDefault = require('ignore-by-default');
+const webpack = require('webpack');
 
 const defaultIgnorePatterns = [...ignoreByDefault.directories(), '**/node_modules'];
 
@@ -261,6 +262,62 @@ w.onmessage = function(e) {
 }
 `;
 
+const defaultWebpackConfig = (dir, env, options) => {
+    return {
+        mode: 'development',
+        output: {
+            path: dir,
+            filename: 'bundle.[hash].js',
+            devtoolModuleFilenameTemplate: info =>
+                'file:///' + encodeURI(info.absoluteResourcePath)
+        },
+        node: options.node ? {
+            'dgram': 'empty',
+            'fs': 'empty',
+            'net': 'empty',
+            'tls': 'empty',
+            'child_process': 'empty',
+            'console': false,
+            'global': true,
+            'process': true,
+            '__filename': 'mock',
+            '__dirname': 'mock',
+            'Buffer': true,
+            'setImmediate': true
+        } : {
+            'global': true,
+            '__filename': 'mock',
+            '__dirname': 'mock',
+            'dgram': false,
+            'fs': false,
+            'net': false,
+            'tls': false,
+            'child_process': false,
+            'console': false,
+            'process': false,
+            'Buffer': false,
+            'setImmediate': false,
+            'os': false,
+            'assert': false,
+            'constants': false,
+            'events': false,
+            'http': false,
+            'path': false,
+            'querystring': false,
+            'stream': false,
+            'string_decoder': false,
+            'timers': false,
+            'url': false,
+            'util': false,
+            'crypto': false
+        },
+        plugins: [
+            new webpack.DefinePlugin({ 'process.env': JSON.stringify(env) })
+        ]
+
+    };
+};
+
 module.exports = {
     extractErrorMessage,
     redirectConsole,
@@ -269,5 +326,6 @@ module.exports = {
     findFiles,
     getPw,
     compile,
-    addWorker
+    addWorker,
+    defaultWebpackConfig
 };
