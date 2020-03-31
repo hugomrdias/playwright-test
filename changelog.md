@@ -1,3 +1,12 @@
+# [0.7.0](https://github.com/hugomrdias/playwright-test/compare/v0.6.0...v0.7.0) (2020-03-31)
+
+
+### Bug Fixes
+
+* fix watch mode and tape/bench ([41d7f24](https://github.com/hugomrdias/playwright-test/commit/41d7f2417328917990ebe45ec665518086070586))
+
+
+
 # [0.6.0](https://github.com/hugomrdias/playwright-test/compare/v0.5.0...v0.6.0) (2020-03-30)
 
 
