@@ -3,8 +3,9 @@
 
 const path = require('path');
 const webpack = require('webpack');
+const merge = require('webpack-merge');
 const Runner = require('./runner');
-const { addWorker } = require('./utils');
+const { addWorker, defaultWebpackConfig } = require('./utils');
 
 class BenchmarkRunner extends Runner {
     async runTests() {
@@ -28,41 +29,19 @@ class BenchmarkRunner extends Runner {
     }
 
     compiler() {
-        const compiler = webpack({
-            mode: 'development',
-            output: {
-                path: this.dir,
-                filename: 'bundle.[hash].js',
-                devtoolModuleFilenameTemplate: info =>
-                    'file:///' + encodeURI(info.absoluteResourcePath)
-            },
-            entry: [
-                require.resolve('./setup-bench.js'),
-                ...this.options.files
-            ],
-            module: { noParse: /src\/benchmark.js/ },
-            resolve: { alias: { benchmark: path.resolve(__dirname, 'setup-bench.js') } },
-            node: {
-                'dgram': 'empty',
-                'fs': 'empty',
-                'net': 'empty',
-                'tls': 'empty',
-                'child_process': 'empty',
-                'console': false,
-                'global': true,
-                'process': true,
-                '__filename': 'mock',
-                '__dirname': 'mock',
-                'Buffer': true,
-                'setImmediate': true
-            },
-            plugins: [
-                new webpack.DefinePlugin({ 'process.env': JSON.stringify(this.env) })
-            ]
+        const config = merge(
+            defaultWebpackConfig(this.dir, this.env, this.options),
+            {
+                entry: [
+                    require.resolve('./setup-bench.js'),
+                    ...this.options.files
+                ],
+                module: { noParse: /src\/benchmark.js/ },
+                resolve: { alias: { benchmark: path.resolve(__dirname, 'setup-bench.js') } }
+            }
+        );
 
-        });
-
-        return compiler;
+        return webpack(config);
     }
 }
 

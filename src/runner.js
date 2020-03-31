@@ -280,7 +280,10 @@ class Runner {
             }
 
             await this.page.reload();
-
+            await this.page.addScriptTag({
+                type: 'text/javascript',
+                url: 'setup.js'
+            });
             this.file = info.assets[0].name;
             await this.runTests();
             lastHash = stats.hash;

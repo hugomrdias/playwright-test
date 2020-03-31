@@ -2,9 +2,10 @@
 'use strict';
 
 const webpack = require('webpack');
+const merge = require('webpack-merge');
 const resolveCwd = require('resolve-cwd');
 const Runner = require('./runner');
-const { addWorker } = require('./utils');
+const { addWorker, defaultWebpackConfig } = require('./utils');
 
 class TapeRunner extends Runner {
     async runTests() {
@@ -28,40 +29,19 @@ class TapeRunner extends Runner {
     }
 
     compiler() {
-        const compiler = webpack({
-            mode: 'development',
-            output: {
-                path: this.dir,
-                filename: 'bundle.[hash].js',
-                devtoolModuleFilenameTemplate: info =>
-                    'file:///' + encodeURI(info.absoluteResourcePath)
-            },
-            entry: [
-                require.resolve('./setup-tape.js'),
-                ...this.options.files
-            ],
-            resolve: { alias: { tape: resolveCwd('tape') } },
-            node: {
-                'dgram': 'empty',
-                'fs': 'empty',
-                'net': 'empty',
-                'tls': 'empty',
-                'child_process': 'empty',
-                'console': false,
-                'global': true,
-                'process': true,
-                '__filename': 'mock',
-                '__dirname': 'mock',
-                'Buffer': true,
-                'setImmediate': true
-            },
-            plugins: [
-                new webpack.DefinePlugin({ 'process.env': JSON.stringify(this.env) })
-            ]
+        const config = merge(
+            defaultWebpackConfig(this.dir, this.env, this.options),
+            {
+                entry: [
+                    require.resolve('./setup-tape.js'),
+                    ...this.options.files
+                ],
+                resolve: { alias: { tape: resolveCwd('tape') } }
 
-        });
+            }
+        );
 
-        return compiler;
+        return webpack(config);
     }
 }
 
