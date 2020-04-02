@@ -131,15 +131,16 @@ class Runner {
             this.stop(true);
         });
         this.page.on('console', redirectConsole);
+    }
 
+    async runTests() {
         await this.page.addScriptTag({
             type: 'text/javascript',
             url: 'setup.js'
         });
-    }
-
-    async runTests() {
-        //
+        await this.page.evaluate(`
+        localStorage.debug = "${this.env.DEBUG}"
+        `);
     }
 
     async waitForTestsToEnd() {
@@ -280,10 +281,6 @@ class Runner {
             }
 
             await this.page.reload();
-            await this.page.addScriptTag({
-                type: 'text/javascript',
-                url: 'setup.js'
-            });
             this.file = info.assets[0].name;
             await this.runTests();
             lastHash = stats.hash;

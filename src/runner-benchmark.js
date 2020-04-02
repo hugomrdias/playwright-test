@@ -9,6 +9,7 @@ const { addWorker, defaultWebpackConfig } = require('./utils');
 
 class BenchmarkRunner extends Runner {
     async runTests() {
+        await super.runTests();
         switch (this.options.mode) {
             case 'main': {
                 await this.page.addScriptTag({
