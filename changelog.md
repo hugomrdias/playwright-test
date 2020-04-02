@@ -1,3 +1,12 @@
+## [0.7.1](https://github.com/hugomrdias/playwright-test/compare/v0.7.0...v0.7.1) (2020-04-02)
+
+
+### Bug Fixes
+
+* fix DEBUG and reload re-run ([b98f98c](https://github.com/hugomrdias/playwright-test/commit/b98f98ce647f7c96e0e9ec9aed8500272361ab8e))
+
+
+
 # [0.7.0](https://github.com/hugomrdias/playwright-test/compare/v0.6.0...v0.7.0) (2020-03-31)
 
 
