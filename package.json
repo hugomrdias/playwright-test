@@ -46,7 +46,7 @@
         "meow": "^6.1.0",
         "merge-options": "^2.0.0",
         "ora": "^4.0.3",
-        "playwright-core": "0.11.1",
+        "playwright-core": "0.16.0",
         "polka": "^0.5.2",
         "resolve-cwd": "^3.0.0",
         "sirv": "^0.4.2",
