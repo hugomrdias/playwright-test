@@ -51,7 +51,7 @@
         "resolve-cwd": "^3.0.0",
         "sirv": "^0.4.2",
         "tempy": "^0.5.0",
-        "webpack": "^4.42.1",
+        "webpack": "^5.3.0",
         "webpack-merge": "^4.2.2"
     },
     "devDependencies": {
