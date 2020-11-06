@@ -87,7 +87,8 @@ Usage
             default: process.cwd()
         },
         extensions: {
-            type: 'array',
+            type: 'string',
+            isMultiple: true,
             default: ['js', 'cjs', 'mjs']
         },
         assets: {
