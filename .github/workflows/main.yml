@@ -32,6 +32,7 @@ jobs:
     - run: ./cli.js mocks/test.tape.js --runner tape
     - run: ./cli.js mocks/benchmark.js --runner benchmark
     - run: RUN_ONLY=true INDENT=true ./cli.js 'mocks/*.zora.js' --runner zora
+    - run: ./cli.js mocks/test.mocha.js --browser firefox
 
   chromium_macos:
     name: "Chromium Mac"
@@ -43,6 +44,8 @@ jobs:
         node-version: '12.x'
     - run: yarn
     - run: yarn test
+    - run: ./cli.js mocks/test.mocha.js --browser firefox
+    - run: ./cli.js mocks/test.mocha.js --browser webkit
 
   chromium_win:
     name: "Chromium Win"
@@ -53,7 +56,11 @@ jobs:
       with:
         node-version: '12.x'
     - run: yarn
-    - run: ./cli.js mocks/test.mocha.js
+    - run: yarn test
+      shell: bash
+    - run: ./cli.js mocks/test.mocha.js --browser firefox
+      shell: bash
+    - run: ./cli.js mocks/test.mocha.js --browser webkit
       shell: bash
 
   webkit_linux:
