@@ -12,11 +12,15 @@ jobs:
   linux:
     name: "Linux"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        node: [12, 14]
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-node@v1
       with:
-        node-version: '12.x'
+        node-version: ${{ matrix.node }}
     - name: Install required packages
       run: |
         sudo apt-get update
@@ -31,11 +35,15 @@ jobs:
   macos:
     name: "Mac"
     runs-on: macos-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        node: [12, 14]
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-node@v1
       with:
-        node-version: '12.x'
+        node-version: ${{ matrix.node }}
     - run: yarn
     - run: yarn test
     - run: ./cli.js mocks/test.mocha.js --browser firefox
@@ -44,11 +52,15 @@ jobs:
   win:
     name: "Win"
     runs-on: windows-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        node: [12, 14]
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-node@v1
       with:
-        node-version: '12.x'
+        node-version: ${{ matrix.node }}
     - run: yarn
     - run: yarn test
       shell: bash
