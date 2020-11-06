@@ -185,7 +185,7 @@ const getPw = async (browserName, cachePath, spinner) => {
     }
 
     if (process.env.CI) {
-        cachePath = path.join(process.cwd(), '.cache');
+        cachePath = path.join(process.cwd(), 'node_modules', '.cache');
     }
 
     if (!fs.existsSync(cachePath)) {
