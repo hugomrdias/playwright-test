@@ -1,7 +1,7 @@
 {
     "name": "playwright-test",
     "version": "0.7.1",
-    "description": "Run mocha or tape unit tests inside real browsers with playwright.",
+    "description": "Run unit tests with several runners or benchmark inside real browsers with playwright.",
     "repository": "hugomrdias/playwright-test",
     "author": "Hugo Dias <hugomrdias@gmail.com> (hugodias.me)",
     "license": "MIT",
