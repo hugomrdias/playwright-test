@@ -24,7 +24,7 @@ jobs:
         sudo apt-get install xvfb
     - run: yarn
     - run: yarn lint
-    - run: yarn test
+    - run: xvfb-run -a yarn test
     - run: ./cli.js mocks/test.mocha.js
     - run: ./cli.js mocks/test.mocha.js --incognito
     - run: ./cli.js mocks/test.mocha.js --mode worker
