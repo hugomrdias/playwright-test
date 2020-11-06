@@ -9,8 +9,8 @@ on:
     branches: [ master ]
 
 jobs:
-  chromium_linux:
-    name: "Chromium Linux"
+  linux:
+    name: "Linux"
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -20,22 +20,16 @@ jobs:
     - name: Install required packages
       run: |
         sudo apt-get update
-        sudo apt-get install libgbm-dev
+        sudo apt-get install libgbm-dev libwoff1 libopus0 libwebp6 libwebpdemux2 libenchant1c2a libgudev-1.0-0 libsecret-1-0 libhyphen0 libgdk-pixbuf2.0-0 libegl1 libgles2 libevent-2.1-6 libnotify4 libxslt1.1
         sudo apt-get install xvfb
     - run: yarn
     - run: yarn lint
     - run: xvfb-run -a yarn test
-    - run: ./cli.js mocks/test.mocha.js
-    - run: ./cli.js mocks/test.mocha.js --incognito
-    - run: ./cli.js mocks/test.mocha.js --mode worker
-    - run: xvfb-run -a ./cli.js mocks/test.mocha.js --extension
-    - run: ./cli.js mocks/test.tape.js --runner tape
-    - run: ./cli.js mocks/benchmark.js --runner benchmark
-    - run: RUN_ONLY=true INDENT=true ./cli.js 'mocks/*.zora.js' --runner zora
     - run: ./cli.js mocks/test.mocha.js --browser firefox
+    - run: ./cli.js mocks/test.mocha.js --browser webkit
 
-  chromium_macos:
-    name: "Chromium Mac"
+  macos:
+    name: "Mac"
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
@@ -47,8 +41,8 @@ jobs:
     - run: ./cli.js mocks/test.mocha.js --browser firefox
     - run: ./cli.js mocks/test.mocha.js --browser webkit
 
-  chromium_win:
-    name: "Chromium Win"
+  win:
+    name: "Win"
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
@@ -62,34 +56,3 @@ jobs:
       shell: bash
     - run: ./cli.js mocks/test.mocha.js --browser webkit
       shell: bash
-
-  webkit_linux:
-    name: "WebKit Linux"
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-node@v1
-      with:
-        node-version: '12.x'
-    - name: Install required packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install libwoff1 libopus0 libwebp6 libwebpdemux2 libenchant1c2a libgudev-1.0-0 libsecret-1-0 libhyphen0 libgdk-pixbuf2.0-0 libegl1 libgles2 libevent-2.1-6 libnotify4 libxslt1.1
-        sudo apt-get install xvfb
-    - run: yarn
-    - run: ./cli.js mocks/test.mocha.js --browser webkit
-
-  firefox_linux:
-    name: "Firefox Linux"
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-node@v1
-      with:
-        node-version: '12.x'
-    - name: Install required packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install xvfb
-    - run: yarn
-    - run: ./cli.js mocks/test.mocha.js --browser firefox
