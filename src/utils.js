@@ -135,85 +135,26 @@ const redirectConsole = async (msg) => {
     }
 };
 
-function toMegabytes(bytes) {
-    const mb = bytes / 1024 / 1024;
-
-    return `${Math.round(mb * 10) / 10} Mb`;
-}
-
-async function downloadBrowser(browserInstance, spinner) {
-    const browser = browserInstance.name();
-    const browserType = browserInstance;
-
-    function onProgress(downloadedBytes, totalBytes) {
-        const perc = Math.round((downloadedBytes / totalBytes) * 100);
-
-        if (perc === 100) {
-            spinner.text = `Unpacking ${browser} ${browserType._revision}`;
-        } else {
-            spinner.text = `Downloading ${browser} ${browserType._revision} - ${toMegabytes(totalBytes)} ${perc}%`;
-        }
-    }
-
-    const fetcher = browserType._createBrowserFetcher();
-    const revisionInfo = fetcher.revisionInfo();
-
-    // Do nothing if the revision is already downloaded.
-    if (revisionInfo.local) {
-        return revisionInfo;
-    }
-
-    spinner.text = `Downloading ${browser} ${browserType._revision}`;
-    await fetcher.download(revisionInfo.revision, onProgress);
-    spinner.text = `Browser ${browser} cached to ${revisionInfo.folderPath}`;
-
-    return revisionInfo;
-}
-
-const getPw = async (browserName, cachePath, spinner) => {
-    const packageJson = require('playwright-core/package.json');
-    const { helper } = require('playwright-core/lib/helper');
-    const api = require('playwright-core/lib/api');
-    const { Chromium } = require('playwright-core/lib/server/chromium');
-    const { WebKit } = require('playwright-core/lib/server/webkit');
-    const { Firefox } = require('playwright-core/lib/server/firefox');
-
-    for (const className in api) {
-        if (typeof api[className] === 'function') {
-            helper.installApiHooks(className, api[className]);
-        }
-    }
+const getPw = async (browserName) => {
+    const cachePath = path.join(process.cwd(), 'node_modules', '.cache');
 
     if (process.env.CI) {
-        cachePath = path.join(process.cwd(), 'node_modules', '.cache');
+        process.env.PLAYWRIGHT_BROWSERS_PATH = cachePath;
     }
+    const { installBrowsersWithProgressBar } = require('playwright-core/lib/install/installer');
+    const { Playwright } = require('playwright-core/lib/server/playwright');
+    const { setupInProcess } = require('playwright-core/lib/inprocess');
+    const browsers = JSON.parse(fs.readFileSync('./node_modules/playwright-core/browsers.json').toString());
 
-    if (!fs.existsSync(cachePath)) {
-        await fs.promises.mkdir(cachePath);
-    }
-    let browser = null;
+    browsers.browsers[0].download = true; // chromium
+    browsers.browsers[1].download = true; // firefox
+    browsers.browsers[2].download = true; // webkit
+    fs.mkdirSync(cachePath, { recursive: true });
+    fs.writeFileSync(path.join(cachePath, 'browsers.json'), JSON.stringify(browsers, null, 2));
+    await installBrowsersWithProgressBar(cachePath);
+    const api = setupInProcess(new Playwright(cachePath, browsers.browsers));
 
-    switch (browserName) {
-        case 'chromium':
-            browser = new Chromium(cachePath, packageJson.playwright.chromium_revision);
-
-            break;
-        case 'webkit':
-            browser = new WebKit(cachePath, packageJson.playwright.webkit_revision);
-
-            break;
-        case 'firefox':
-            browser = new Firefox(cachePath, packageJson.playwright.firefox_revision);
-
-            break;
-
-        default:
-            throw new Error(`Browser ${browserName} not supported. Try chromium, webkit or firefox.`);
-    }
-
-    await downloadBrowser(browser, spinner);
-
-    return browser;
+    return api[browserName];
 };
 
 const compile = async (compiler) => {

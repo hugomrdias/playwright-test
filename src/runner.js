@@ -11,7 +11,7 @@ const tempy = require('tempy');
 const polka = require('polka');
 const sirv = require('sirv');
 const merge = require('merge-options');
-const envPaths = require('env-paths')('playwright-test');
+// const envPaths = require('env-paths')('playwright-test');
 const { redirectConsole, getPw, compile } = require('./utils');
 
 const defaultOptions = {
@@ -42,7 +42,7 @@ class Runner {
         );
     }
 
-    async launch(spinner) {
+    async launch() {
         // copy files to be served
         const files = [
             'index.html',
@@ -76,7 +76,7 @@ class Runner {
             .server;
 
         // download playwright if needed
-        const pw = await getPw(this.options.browser, envPaths.cache, spinner);
+        const pw = await getPw(this.options.browser);
         const pwOptions = {
             headless: !this.options.extension && !this.options.debug,
             devtools: this.options.browser === 'chromium' && this.options.debug,
@@ -87,12 +87,11 @@ class Runner {
             dumpio: process.env.PW_TEST_DUMPIO || false
         };
 
-        // extension only works in incognito for now
-        if (this.options.incognito || this.options.extension) {
+        if (this.options.incognito) {
             this.browser = await pw.launch(pwOptions);
             this.context = await this.browser.newContext();
         } else {
-            this.context = await pw.launchPersistent(undefined, pwOptions);
+            this.context = await pw.launchPersistentContext(tempy.directory(), pwOptions);
         }
 
         return this;
@@ -100,23 +99,26 @@ class Runner {
 
     async setupPage() {
         if (this.options.extension) {
-            const targets = await this.browser.targets();
-            const backgroundPageTarget = targets.find(target => target.type() === 'background_page');
+            const backgroundPages = await this.context.backgroundPages();
+            const backgroundPage = backgroundPages.length ?
+                backgroundPages[0] :
+                await this.context.waitForEvent('backgroundpage').then(event => event);
 
-            this.page = await backgroundPageTarget.page();
+            this.page = backgroundPage;
+            if (this.options.debug) {
+                // Open extension devtools window
+                const extPage = await this.context.newPage();
 
-            // Open extension devtools window
-            // const extPage = await this.context.newPage();
+                await extPage.goto(`chrome://extensions/?id=${this.page._mainFrame._initializer.url.split('/')[2]}`);
 
-            // await extPage.goto(`chrome://extensions/?id=${backgroundPageTarget._targetInfo.url.split('/')[2]}`);
+                const buttonHandle = await extPage.evaluateHandle('document.querySelector("body > extensions-manager").shadowRoot.querySelector("extensions-toolbar").shadowRoot.querySelector("#devMode")');
 
-            // const buttonHandle = await extPage.evaluateHandle('document.querySelector("body > extensions-manager").shadowRoot.querySelector("extensions-toolbar").shadowRoot.querySelector("#devMode")');
+                await buttonHandle.click();
 
-            // await buttonHandle.click();
+                const backgroundPageLink = await extPage.evaluateHandle('document.querySelector("body > extensions-manager").shadowRoot.querySelector("#viewManager > extensions-detail-view").shadowRoot.querySelector("#inspect-views > li:nth-child(2) > a")');
 
-            // const backgroundPageLink = await extPage.evaluateHandle('document.querySelector("body > extensions-manager").shadowRoot.querySelector("#viewManager > extensions-detail-view").shadowRoot.querySelector("#inspect-views > li:nth-child(2) > a")');
-
-            // await backgroundPageLink.click();
+                await backgroundPageLink.click();
+            }
         } else {
             this.page = await this.context.newPage();
             await this.page.goto(this.url);

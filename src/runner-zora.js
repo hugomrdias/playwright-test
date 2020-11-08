@@ -42,7 +42,7 @@ class ZoraRunner extends Runner {
             case 'worker': {
                 this.page.evaluate(addWorker(this.file));
                 const run = new Promise((resolve) => {
-                    this.page.on('workercreated', async (worker) => {
+                    this.page.on('worker', async (worker) => {
                         await delay(1000);
                         await worker.evaluate(runZoraWorker());
                         resolve();
