@@ -1,3 +1,19 @@
+# [1.0.0](https://github.com/hugomrdias/playwright-test/compare/v0.7.1...v1.0.0) (2020-11-09)
+
+
+### Bug Fixes
+
+* create ci cache folder inside node_modules ([#84](https://github.com/hugomrdias/playwright-test/issues/84)) ([d0a95cc](https://github.com/hugomrdias/playwright-test/commit/d0a95cc458d9f1f449e2590164e248df374a39f4))
+* update deps and fix problems ([#83](https://github.com/hugomrdias/playwright-test/issues/83)) ([89ab6c9](https://github.com/hugomrdias/playwright-test/commit/89ab6c94a1015a986a3142ad30dd19bd7e0f0068)), closes [#52](https://github.com/hugomrdias/playwright-test/issues/52)
+
+
+### Features
+
+* add cov support ([#87](https://github.com/hugomrdias/playwright-test/issues/87)) ([1c34cef](https://github.com/hugomrdias/playwright-test/commit/1c34cefbb9beb30977a6608db3026bafb3b357b8))
+* upgrade playwright to 1.5.2 ([0804e8b](https://github.com/hugomrdias/playwright-test/commit/0804e8b19e6b0d9dc72d2c7c71c33509da206ff8))
+
+
+
 ## [0.7.1](https://github.com/hugomrdias/playwright-test/compare/v0.7.0...v0.7.1) (2020-04-02)
 
 

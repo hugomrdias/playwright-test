@@ -1,6 +1,6 @@
 {
     "name": "playwright-test",
-    "version": "0.7.1",
+    "version": "1.0.0",
     "description": "Run unit tests with several runners or benchmark inside real browsers with playwright.",
     "repository": "hugomrdias/playwright-test",
     "author": "Hugo Dias <hugomrdias@gmail.com> (hugodias.me)",
