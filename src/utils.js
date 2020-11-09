@@ -144,7 +144,7 @@ const getPw = async (browserName) => {
     const { installBrowsersWithProgressBar } = require('playwright-core/lib/install/installer');
     const { Playwright } = require('playwright-core/lib/server/playwright');
     const { setupInProcess } = require('playwright-core/lib/inprocess');
-    const browsers = JSON.parse(fs.readFileSync('./node_modules/playwright-core/browsers.json').toString());
+    const browsers = require('playwright-core/browsers.json');
 
     browsers.browsers[0].download = true; // chromium
     browsers.browsers[1].download = true; // firefox

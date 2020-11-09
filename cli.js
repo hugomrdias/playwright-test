@@ -27,13 +27,17 @@ Usage
         --assets       Assets to be served by the http server. [Default: process.cwd()]
         --cwd          Current directory. [Default: process.cwd()]
         --extensions   File extensions allowed in the bundle. [Default: js,cjs,mjs]
+        --cov          Enable code coverage in instanbul format. Outputs '.nyc_output/out.json'.
     Examples
         $ playwright-test test.js --runner tape
         $ playwright-test test/**/*.spec.js --debug
         $ playwright-test test/**/*.spec.js --browser webkit -mode worker --incognito --debug
 
-        $ playwright-text benchmark.js --runner benchmark
+        $ playwright-test benchmark.js --runner benchmark
         # Use benchmark.js to run your benchmark see playwright-test/mocks/benchmark.js for an example.
+
+        $ playwright-test test --cov && npx nyc report --reporter=html
+        # Enable code coverage in istanbul format which can be used by nyc.
 
         $ playwright-test test/**/*.spec.js --debug --before ./mocks/before.js
         # Run before.js in a separate tab check ./mocks/before.js for an example. Important: You need to call \`self.pwTestController.beforeEnd()\`, if you want the main tab to wait for the before script.
@@ -102,6 +106,10 @@ Usage
         node: {
             type: 'boolean',
             default: true
+        },
+        cov: {
+            type: 'boolean',
+            default: false
         }
     }
 });
@@ -132,7 +140,8 @@ const runnerOptions = () => {
             'extensions',
             'assets',
             'before',
-            'node'
+            'node',
+            'cov'
         ];
 
         if (!localFlags.includes(key)) {
@@ -153,7 +162,6 @@ let Runner = null;
 if (cli.flags.runner === 'zora') {
     Runner = ZoraRunner;
 }
-
 if (cli.flags.runner === 'benchmark') {
     Runner = BenchmarkRunner;
 }
@@ -174,7 +182,8 @@ const runner = new Runner({
     extension: cli.flags.extension,
     runnerOptions: runnerOptions(),
     before: cli.flags.before,
-    node: cli.flags.node
+    node: cli.flags.node,
+    cov: cli.flags.cov
 });
 
 if (cli.flags.watch) {
