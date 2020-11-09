@@ -28,7 +28,7 @@ Usage
         --assets       Assets to be served by the http server. [Default: process.cwd()]
         --cwd          Current directory. [Default: process.cwd()]
         --extensions   File extensions allowed in the bundle. [Default: js,cjs,mjs]
-        --cov          Enable code coverage in instanbul format. Outputs '.nyc_output/out.json'.
+        --cov          Enable code coverage in istanbul format. Outputs '.nyc_output/out.json'.
     Examples
         $ playwright-test test.js --runner tape
         $ playwright-test test/**/*.spec.js --debug
