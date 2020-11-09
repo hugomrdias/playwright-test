@@ -55,6 +55,9 @@ Usage
         $ DEBUG:app playwright-test test.js
 ```
 
+## Run in CI 
+Check our CI config `.github/workflows/main.yml` and the playwright Github Action https://playwright.dev/#version=v1.5.2&path=docs%2Fci.md&q=github-actions
+
 
 ## License
 
