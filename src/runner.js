@@ -2,6 +2,7 @@
 'use strict';
 
 const fs = require('fs');
+const { promisify } = require('util');
 const path = require('path');
 const webpack = require('webpack');
 const getPort = require('get-port');
@@ -10,7 +11,13 @@ const kleur = require('kleur');
 const tempy = require('tempy');
 const polka = require('polka');
 const sirv = require('sirv');
+const V8ToIstanbul = require('v8-to-istanbul');
 const merge = require('merge-options');
+const pEachSeries = require('p-each-series');
+
+const writeFile = promisify(fs.writeFile);
+const mkdir = promisify(fs.mkdir);
+
 // const envPaths = require('env-paths')('playwright-test');
 const { redirectConsole, getPw, compile } = require('./utils');
 
@@ -20,6 +27,7 @@ const defaultOptions = {
     incognito: false,
     extension: false,
     debug: false,
+    cov: false,
     files: [],
     runnerOptions: {},
     webpackConfig: {}
@@ -122,6 +130,10 @@ class Runner {
         } else {
             this.page = await this.context.newPage();
             await this.page.goto(this.url);
+        }
+
+        if (this.options.cov) {
+            await this.page.coverage.startJSCoverage();
         }
 
         this.page.on('error', (err) => {
@@ -294,6 +306,33 @@ class Runner {
             return;
         }
         this.stopped = true;
+        if (this.options.cov) {
+            const coverage = await this.page.coverage.stopJSCoverage();
+            const entries = {};
+
+            await pEachSeries(coverage, async (entry) => {
+                const filePath = path.normalize(entry.url).replace('file:', '');
+
+                // remove test files
+                if (this.options.files.includes(filePath)) {
+                    return;
+                }
+
+                // remove random stuff
+                if (!fs.existsSync(filePath) || entry.url.includes('node_modules') || !entry.url.includes(process.cwd())) {
+                    return;
+                }
+                const converter = new V8ToIstanbul(filePath, 0, { source: entry.source });
+
+                await converter.load();
+                converter.applyCoverage(entry.functions);
+                const instanbul = converter.toIstanbul();
+
+                entries[filePath] = instanbul[filePath];
+            });
+            await mkdir(path.join(process.cwd(), '.nyc_output'), { recursive: true });
+            await writeFile(path.join(process.cwd(), '.nyc_output', 'out.json'), JSON.stringify(entries));
+        }
 
         await this.context.close();
 
@@ -307,6 +346,7 @@ class Runner {
         });
 
         await serverClose;
+
         // eslint-disable-next-line unicorn/no-process-exit
         process.exit(fail ? 1 : 0);
     }
