@@ -2,7 +2,7 @@
 'use strict';
 
 const fs = require('fs');
-const { writeFile, mkdir } = require('fs/promises');
+const { promisify } = require('util');
 const path = require('path');
 const webpack = require('webpack');
 const getPort = require('get-port');
@@ -14,6 +14,9 @@ const sirv = require('sirv');
 const V8ToIstanbul = require('v8-to-istanbul');
 const merge = require('merge-options');
 const pEachSeries = require('p-each-series');
+
+const writeFile = promisify(fs.writeFile);
+const mkdir = promisify(fs.mkdir);
 
 // const envPaths = require('env-paths')('playwright-test');
 const { redirectConsole, getPw, compile } = require('./utils');
