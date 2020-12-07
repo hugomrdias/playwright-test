@@ -235,8 +235,6 @@ w.onmessage = function(e) {
 `;
 
 const defaultWebpackConfig = (dir, env, options) => {
-    console.log('🚀 ~ file: utils.js ~ line 238 ~ defaultWebpackConfig ~ options', options);
-
     return {
         mode: 'development',
         output: {
