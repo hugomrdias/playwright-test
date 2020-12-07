@@ -9,5 +9,5 @@ console.log('\nRun before stuff');
 error('testing debug in before script');
 setTimeout(() => {
     console.log('done');
-    self.pwTestController.beforeEnd();
+    self.PW_TEST.beforeEnd();
 });

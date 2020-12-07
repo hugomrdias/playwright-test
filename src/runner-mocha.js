@@ -7,12 +7,12 @@ const delay = require('delay');
 const resolveCwd = require('resolve-cwd');
 const webpackMerge = require('webpack-merge');
 const Runner = require('./runner');
-const { addWorker, defaultWebpackConfig } = require('./utils');
+const { defaultWebpackConfig } = require('./utils');
 
 const runMocha = () => `
 mocha
   .run((f) =>{
-    self.pwTestController.end(f > 0)
+    self.PW_TEST.end(f > 0)
   })
 `;
 
@@ -44,16 +44,10 @@ class MochaRunner extends Runner {
         await super.runTests();
         switch (this.options.mode) {
             case 'main': {
-                await this.page.addScriptTag({
-                    type: 'text/javascript',
-                    url: this.file
-                });
-
                 await this.page.evaluate(runMocha());
                 break;
             }
             case 'worker': {
-                await this.page.evaluate(addWorker(this.file));
                 const run = new Promise((resolve) => {
                     this.page.on('worker', async (worker) => {
                         await delay(1000);

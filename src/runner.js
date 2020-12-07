@@ -1,3 +1,4 @@
+/* eslint-disable unicorn/no-process-exit */
 /* eslint-disable no-console */
 'use strict';
 
@@ -12,15 +13,22 @@ const tempy = require('tempy');
 const polka = require('polka');
 const sirv = require('sirv');
 const V8ToIstanbul = require('v8-to-istanbul');
-const merge = require('merge-options');
+const merge = require('merge-options').bind({ ignoreUndefined: true });
 const pEachSeries = require('p-each-series');
+const { redirectConsole, getPw, compile, addWorker } = require('./utils');
 
 const writeFile = promisify(fs.writeFile);
 const mkdir = promisify(fs.mkdir);
 
-// const envPaths = require('env-paths')('playwright-test');
-const { redirectConsole, getPw, compile } = require('./utils');
+/**
+ * @typedef {import('playwright-core').Page} Page
+ * @typedef {import('playwright-core').BrowserContext} Context
+ * @typedef {import('playwright-core').Browser} Browser
+ */
 
+/**
+ * @type {object}
+ */
 const defaultOptions = {
     browser: 'chromium',
     mode: 'main', // worker
@@ -28,6 +36,7 @@ const defaultOptions = {
     extension: false,
     debug: false,
     cov: false,
+    node: true,
     files: [],
     runnerOptions: {},
     webpackConfig: {}
@@ -37,8 +46,12 @@ class Runner {
     constructor(options = {}) {
         this.options = merge(defaultOptions, options);
         this.server = null;
+        /** @type {Browser} */
         this.browser = null;
+        /** @type {Context} */
         this.context = null;
+        /** @type {Page} */
+        this.page = null;
         this.dir = tempy.directory();
         this.file = null;
         this.url = '';
@@ -144,6 +157,10 @@ class Runner {
             console.error('\n', kleur.red(err));
             this.stop(true);
         });
+        this.page.on('crash', (err) => {
+            console.error('\n', kleur.red(err));
+            this.stop(true);
+        });
         this.page.on('console', redirectConsole);
     }
 
@@ -155,12 +172,31 @@ class Runner {
         await this.page.evaluate(`
         localStorage.debug = "${this.env.DEBUG}"
         `);
+
+        switch (this.options.mode) {
+            case 'main': {
+                await this.page.addScriptTag({
+                    type: 'text/javascript',
+                    url: this.file
+                });
+
+                break;
+            }
+            case 'worker': {
+                this.page.evaluate(addWorker(this.file));
+                break;
+            }
+            default:
+                console.error('mode not supported');
+                await this.stop(true);
+                break;
+        }
     }
 
     async waitForTestsToEnd() {
         if (!this.options.debug) {
-            await this.page.waitForFunction('self.pwTestController.ended === true', { timeout: 0 });
-            const testsFailed = await this.page.evaluate('self.pwTestController.failed');
+            await this.page.waitForFunction('self.PW_TEST.ended === true', { timeout: 0 });
+            const testsFailed = await this.page.evaluate('self.PW_TEST.failed');
 
             await this.stop(testsFailed);
         }
@@ -170,7 +206,7 @@ class Runner {
         let spinner = ora('Setting up browser').start();
 
         try {
-            await this.launch(spinner);
+            await this.launch();
             if (this.options.before) {
                 spinner.text = 'Running before script';
                 await this.runBefore();
@@ -195,7 +231,7 @@ class Runner {
                 // ignore if already stopped by a previous error
             } else {
                 spinner.fail(err.message);
-                throw err;
+                process.exit(1);
             }
         }
     }
@@ -204,6 +240,8 @@ class Runner {
         // setup before page
         this.pageBefore = await this.context.newPage();
         await this.pageBefore.goto(this.url + 'before.html');
+
+        // listen to errors
         this.pageBefore.on('error', (err) => {
             console.error('\n', kleur.dim('Before page '), kleur.red(err));
             this.stop(true);
@@ -212,6 +250,12 @@ class Runner {
             console.error('\n', kleur.dim('Before page '), kleur.red(err));
             this.stop(true);
         });
+        this.pageBefore.on('crash', (err) => {
+            console.error('\n', kleur.dim('Before page '), kleur.red(err));
+            this.stop(true);
+        });
+
+        // redirect console.log
         this.pageBefore.on('console', redirectConsole);
 
         // setup compiler
@@ -219,7 +263,7 @@ class Runner {
             mode: 'development',
             output: {
                 path: this.dir,
-                filename: 'before.[hash].js',
+                filename: 'before.[contenthash].js',
                 devtoolModuleFilenameTemplate: info =>
                     'file:///' + encodeURI(info.absoluteResourcePath)
             },
@@ -251,14 +295,14 @@ class Runner {
             url: await compile(compiler)
         });
 
-        await this.pageBefore.waitForFunction('self.pwTestController.beforeEnded', { timeout: 0 });
+        await this.pageBefore.waitForFunction('self.PW_TEST.beforeEnded', { timeout: 0 });
     }
 
     async watch() {
         let lastHash = null;
         const spinner = ora('Setting up browser').start();
 
-        await this.launch(spinner);
+        await this.launch();
         await this.setupPage();
         const compiler = this.compiler();
 
@@ -319,7 +363,7 @@ class Runner {
                 }
 
                 // remove random stuff
-                if (!fs.existsSync(filePath) || entry.url.includes('node_modules') || !entry.url.includes(process.cwd())) {
+                if (!fs.existsSync(filePath) || entry.url.includes('node_modules') || !entry.url.includes(this.options.cwd)) {
                     return;
                 }
                 const converter = new V8ToIstanbul(filePath, 0, { source: entry.source });
