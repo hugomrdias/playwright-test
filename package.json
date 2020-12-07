@@ -1,7 +1,7 @@
 {
     "name": "playwright-test",
     "version": "1.0.0",
-    "description": "Run unit tests with several runners or benchmark inside real browsers with playwright.",
+    "description": "Run mocha, zora, uvu, tape and benchmark.js scripts inside real browsers with playwright.",
     "repository": "hugomrdias/playwright-test",
     "author": "Hugo Dias <hugomrdias@gmail.com> (hugodias.me)",
     "license": "MIT",
@@ -15,10 +15,7 @@
     },
     "scripts": {
         "test": "uvu",
-        "lint": "eslint --cache *.js src/*.js",
-        "validate": "run-p lint test",
-        "version": "yarn changelog && git add changelog.md",
-        "changelog": "conventional-changelog -p angular -i changelog.md -s -r 0"
+        "lint": "eslint --cache *.js src/*.js"
     },
     "files": [
         "static",
@@ -68,7 +65,6 @@
         "@commitlint/config-conventional": "^11.0.0",
         "assert": "^2.0.0",
         "benchmark": "^2.1.4",
-        "conventional-changelog-cli": "^2.1.1",
         "debug": "^4.3.1",
         "eslint": "^4.7.1",
         "eslint-config-halo": "^2.3.3",
@@ -78,7 +74,6 @@
         "lint-staged": "^10.5.3",
         "mocha": "^8.2.1",
         "np": "^7.0.0",
-        "npm-run-all": "^4.1.1",
         "tap-spec": "^5.0.0",
         "tape": "^5.0.1",
         "uvu": "^0.5.1",
