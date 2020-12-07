@@ -22,4 +22,4 @@ class PwTestController {
     }
 }
 
-self.pwTestController = new PwTestController();
+self.PW_TEST = new PwTestController();

@@ -1,20 +1,34 @@
-/* eslint-disable no-console */
+/* eslint-disable camelcase */
 /* eslint-disable no-undefined */
 /* eslint-disable global-require */
+/* eslint-disable no-console */
 'use strict';
 
 const path = require('path');
 const fs = require('fs');
 const kleur = require('kleur');
 const globby = require('globby');
-const ignoreByDefault = require('ignore-by-default');
 const webpack = require('webpack');
+const camelCase = require('camelcase');
 
-const defaultIgnorePatterns = [...ignoreByDefault.directories(), '**/node_modules'];
+const defaultIgnorePatterns = [
+    '.git', // Git repository files, see <https://git-scm.com/>
+    '.log', // Log files emitted by tools such as `tsserver`, see <https://github.com/Microsoft/TypeScript/wiki/Standalone-Server-%28tsserver%29>
+    '.nyc_output', // Temporary directory where nyc stores coverage data, see <https://github.com/bcoe/nyc>
+    '.sass-cache', // Cache folder for node-sass, see <https://github.com/sass/node-sass>
+    'bower_components', // Where Bower packages are installed, see <http://bower.io/>
+    'coverage', // Standard output directory for code coverage reports, see <https://github.com/gotwarlost/istanbul>
+    'node_modules', // Where Node modules are installed, see <https://nodejs.org/>,
+    '**/node_modules',
+    '**/__tests__/**/__{helper,fixture}?(s)__/**/*',
+    '**/test?(s)/**/{helper,fixture}?(s)/**/*'
+];
 
-const hasExtension = (extensions, file) => extensions.includes(path.extname(file).slice(1));
+const hasExtension = (extensions, file) =>
+    extensions.includes(path.extname(file).slice(1));
 
-const buildExtensionPattern = extensions => (extensions.length === 1 ? extensions[0] : `{${extensions.join(',')}}`);
+const buildExtensionPattern = extensions =>
+    (extensions.length === 1 ? extensions[0] : `{${extensions.join(',')}}`);
 
 const defaultTestPatterns = (extensions) => {
     const extensionPattern = buildExtensionPattern(extensions);
@@ -28,8 +42,6 @@ const defaultTestPatterns = (extensions) => {
         `**/test-*.${extensionPattern}`,
         `**/test/**/*.${extensionPattern}`,
         `**/tests/**/*.${extensionPattern}`
-        // '!**/__tests__/**/__{helper,fixture}?(s)__/**/*',
-        // '!**/test?(s)/**/{helper,fixture}?(s)/**/*'
     ];
 };
 
@@ -40,7 +52,7 @@ const globFiles = (cwd, patterns) => {
         caseSensitiveMatch: false,
         cwd,
         dot: false,
-        expandDirectories: false,
+        expandDirectories: true,
         extglob: true,
         followSymbolicLinks: true,
         gitignore: false,
@@ -57,20 +69,26 @@ const globFiles = (cwd, patterns) => {
     return files.map(file => path.join(cwd, file));
 };
 
-const findFiles = ({ cwd, extensions, filePatterns }) => (globFiles(cwd, filePatterns)).filter(file => hasExtension(extensions, file));
+const findFiles = ({ cwd, extensions, filePatterns }) =>
+    globFiles(cwd, filePatterns).filter(file =>
+        hasExtension(extensions, file)
+    );
 
-const findTests = ({ cwd, extensions, filePatterns }) => (findFiles({
-    cwd,
-    extensions,
-    filePatterns
-})).filter(file => !path.basename(file).startsWith('_'));
+const findTests = ({ cwd, extensions, filePatterns }) =>
+    findFiles({
+        cwd,
+        extensions,
+        filePatterns
+    }).filter(file => !path.basename(file).startsWith('_'));
 
 // workaround to get hidden description
 // jsonValue() on errors returns {}
 const extractErrorMessage = (arg) => {
     // pup-firefox doesnt have this
     if (arg._remoteObject) {
-        return arg._remoteObject.subtype === 'error' ? arg._remoteObject.description : undefined;
+        return arg._remoteObject.subtype === 'error' ?
+            arg._remoteObject.description :
+            undefined;
     }
 
     return undefined;
@@ -107,7 +125,9 @@ const redirectConsole = async (msg) => {
     }
     const text = msg.text();
     const { url, lineNumber, columnNumber } = msg.location();
-    const msgArgs = await Promise.all(msg.args().map(arg => extractErrorMessage(arg) || arg.jsonValue()));
+    const msgArgs = await Promise.all(
+        msg.args().map(arg => extractErrorMessage(arg) || arg.jsonValue())
+    );
 
     if (msgArgs.length > 0) {
         consoleFn.apply(console, msgArgs);
@@ -131,7 +151,17 @@ const redirectConsole = async (msg) => {
 
         consoleFn(kleur[color](text));
 
-        console.info(kleur.gray(`${url}${lineNumber ? (':' + lineNumber) + (columnNumber ? ':' + columnNumber : '') : ''}`));
+        console.info(
+            kleur.gray(
+                `${url}${
+                    lineNumber ?
+                        ':' +
+                          lineNumber +
+                          (columnNumber ? ':' + columnNumber : '') :
+                        ''
+                }`
+            )
+        );
     }
 };
 
@@ -150,14 +180,17 @@ const getPw = async (browserName) => {
     browsers.browsers[1].download = true; // firefox
     browsers.browsers[2].download = true; // webkit
     fs.mkdirSync(cachePath, { recursive: true });
-    fs.writeFileSync(path.join(cachePath, 'browsers.json'), JSON.stringify(browsers, null, 2));
+    fs.writeFileSync(
+        path.join(cachePath, 'browsers.json'),
+        JSON.stringify(browsers, null, 2)
+    );
     await installBrowsersWithProgressBar(cachePath);
     const api = setupInProcess(new Playwright(cachePath, browsers.browsers));
 
     return api[browserName];
 };
 
-const compile = async (compiler) => {
+const compile = (compiler) => {
     const run = new Promise((resolve, reject) => {
         compiler.run((err, stats) => {
             if (err) {
@@ -189,74 +222,121 @@ const compile = async (compiler) => {
         });
     });
 
-    const file = await run;
-
-    return file;
+    return run;
 };
 
 const addWorker = filePath => `
 const w = new Worker("${filePath}");
 w.onmessage = function(e) {
     if(e.data.pwRunEnded) {
-        self.pwTestController.end(e.data.pwRunFailed)
+        self.PW_TEST.end(e.data.pwRunFailed)
     }
 }
 `;
 
 const defaultWebpackConfig = (dir, env, options) => {
+    console.log('🚀 ~ file: utils.js ~ line 238 ~ defaultWebpackConfig ~ options', options);
+
     return {
         mode: 'development',
         output: {
             path: dir,
-            filename: 'bundle.[hash].js',
-            devtoolModuleFilenameTemplate: info =>
-                'file:///' + encodeURI(info.absoluteResourcePath)
+            filename: 'bundle.[contenthash].js',
+            devtoolModuleFilenameTemplate: info => 'file://' + encodeURI(info.absoluteResourcePath)
         },
-        node: options.node ? {
-            'dgram': 'empty',
-            'fs': 'empty',
-            'net': 'empty',
-            'tls': 'empty',
-            'child_process': 'empty',
-            'console': false,
-            'global': true,
-            'process': true,
-            '__filename': 'mock',
-            '__dirname': 'mock',
-            'Buffer': true,
-            'setImmediate': true
-        } : {
-            'global': true,
-            '__filename': 'mock',
-            '__dirname': 'mock',
-            'dgram': false,
-            'fs': false,
-            'net': false,
-            'tls': false,
-            'child_process': false,
-            'console': false,
-            'process': false,
-            'Buffer': false,
-            'setImmediate': false,
-            'os': false,
-            'assert': false,
-            'constants': false,
-            'events': false,
-            'http': false,
-            'path': false,
-            'querystring': false,
-            'stream': false,
-            'string_decoder': false,
-            'timers': false,
-            'url': false,
-            'util': false,
-            'crypto': false
+        module: {
+            rules: [
+                {
+                    test: /\.mjs$/,
+                    include: /node_modules/,
+                    type: 'javascript/auto'
+                }
+            ]
         },
+        node: options.node ?
+            {
+                dgram: 'empty',
+                fs: 'empty',
+                net: 'empty',
+                tls: 'empty',
+                child_process: 'empty',
+                console: false,
+                global: true,
+                process: true,
+                __filename: 'mock',
+                __dirname: 'mock',
+                Buffer: true,
+                setImmediate: true
+            } :
+            {
+                global: true,
+                __filename: 'mock',
+                __dirname: 'mock',
+                dgram: false,
+                fs: false,
+                net: false,
+                tls: false,
+                child_process: false,
+                console: false,
+                process: false,
+                Buffer: false,
+                setImmediate: false,
+                os: false,
+                assert: false,
+                constants: false,
+                events: false,
+                http: false,
+                path: false,
+                querystring: false,
+                stream: false,
+                string_decoder: false,
+                timers: false,
+                url: false,
+                util: false,
+                crypto: false
+            },
         plugins: [
             new webpack.DefinePlugin({ 'process.env': JSON.stringify(env) })
         ]
-
     };
+};
+
+const runnerOptions = (flags) => {
+    const opts = {};
+
+    // eslint-disable-next-line guard-for-in
+    for (const key in flags) {
+        const value = flags[key];
+        const localFlags = [
+            'browser',
+            'runner',
+            'watch',
+            'debug',
+            'mode',
+            'incognito',
+            'extension',
+            'cwd',
+            'extensions',
+            'assets',
+            'before',
+            'node',
+            'cov',
+            '_',
+            'd',
+            'r',
+            'b',
+            'm',
+            'w',
+            'i',
+            'e'
+        ];
+
+        if (!localFlags.includes(key)) {
+            opts[camelCase(key)] = value;
+        }
+    }
+
+    return opts;
 };
 
 module.exports = {
@@ -268,5 +348,6 @@ module.exports = {
     getPw,
     compile,
     addWorker,
-    defaultWebpackConfig
+    defaultWebpackConfig,
+    runnerOptions
 };

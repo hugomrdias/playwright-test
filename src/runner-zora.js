@@ -6,13 +6,13 @@ const webpack = require('webpack');
 const delay = require('delay');
 const merge = require('webpack-merge');
 const Runner = require('./runner');
-const { addWorker, defaultWebpackConfig } = require('./utils');
+const { defaultWebpackConfig } = require('./utils');
 
 const runZora = () => `
 zora
   .report()
   .then((f) =>{
-    self.pwTestController.end(!self.zora.pass)
+    self.PW_TEST.end(!self.zora.pass)
   })
 `;
 
@@ -32,15 +32,10 @@ class ZoraRunner extends Runner {
         await super.runTests();
         switch (this.options.mode) {
             case 'main': {
-                await this.page.addScriptTag({
-                    type: 'text/javascript',
-                    url: this.file
-                });
                 await this.page.evaluate(runZora());
                 break;
             }
             case 'worker': {
-                this.page.evaluate(addWorker(this.file));
                 const run = new Promise((resolve) => {
                     this.page.on('worker', async (worker) => {
                         await delay(1000);

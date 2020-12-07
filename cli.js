@@ -3,192 +3,136 @@
 
 'use strict';
 
-const meow = require('meow');
-const camelCase = require('camelcase');
-const { findTests, defaultTestPatterns } = require('./src/utils');
+const sade = require('sade');
+const kleur = require('kleur');
+const pkg = require('./package.json');
+const { findTests, defaultTestPatterns, runnerOptions } = require('./src/utils');
+const UvuRunner = require('./src/runner-uvu');
 const MochaRunner = require('./src/runner-mocha');
 const TapeRunner = require('./src/runner-tape');
 const BenchmarkRunner = require('./src/runner-benchmark');
 const ZoraRunner = require('./src/runner-zora');
 
-const cli = meow(`
-Usage
-    $ playwright-test [input]
+const extra = `
+  ${kleur.bold('Examples')}
+    ${kleur.dim('$ playwright-test test.js --runner tape')}
+    ${kleur.dim('$ playwright-test test --debug')}
+    ${kleur.dim('$ playwright-test "test/**/*.spec.js" --browser webkit --mode worker --incognito --debug')}
 
-    Options
-        --runner       Test runner. Options: mocha, tape, benchmark and zora. [Default: mocha]
-        --watch, -w    Watch files for changes and re-run tests.
-        --browser, -b  Browser to run tests. Options: chromium, firefox, webkit. [Default: chromium]
-        --debug, -d    Debug mode, keeps browser window open.
-        --mode, -m     Run mode. Options: main, worker. [Default: main]
-        --incognito    Use incognito window to run tests.
-        --extension    Use extension background_page to run tests.
-        --before       Full path to a script to be loaded on a separate tab.
-        --assets       Assets to be served by the http server. [Default: process.cwd()]
-        --cwd          Current directory. [Default: process.cwd()]
-        --extensions   File extensions allowed in the bundle. [Default: js,cjs,mjs]
-        --cov          Enable code coverage in istanbul format. Outputs '.nyc_output/out.json'.
-    Examples
-        $ playwright-test test.js --runner tape
-        $ playwright-test test/**/*.spec.js --debug
-        $ playwright-test test/**/*.spec.js --browser webkit -mode worker --incognito --debug
+    ${kleur.dim('$ playwright-test bench.js --runner benchmark')}
+    ${kleur.gray('# Uses benchmark.js to run your benchmark see playwright-test/mocks/benchmark.js for an example.')}
 
-        $ playwright-test benchmark.js --runner benchmark
-        # Use benchmark.js to run your benchmark see playwright-test/mocks/benchmark.js for an example.
+    ${kleur.dim('$ playwright-test test --cov && npx nyc report --reporter=html')}
+    ${kleur.gray('# Enable code coverage in istanbul format which can be used by nyc.')}
 
-        $ playwright-test test --cov && npx nyc report --reporter=html
-        # Enable code coverage in istanbul format which can be used by nyc.
+    ${kleur.dim('$ playwright-test "test/**/*.spec.js" --debug --before ./mocks/before.js')}
+    ${kleur.gray('# Run a script in a separate tab check ./mocks/before.js for an example.\n    # Important: You need to call `self.PW_TEST.beforeEnd()` to start the main script.')}
 
-        $ playwright-test test/**/*.spec.js --debug --before ./mocks/before.js
-        # Run before.js in a separate tab check ./mocks/before.js for an example. Important: You need to call \`self.pwTestController.beforeEnd()\`, if you want the main tab to wait for the before script.
+  ${kleur.bold('Runner Options')}
+    All arguments passed to the cli not listed above will be fowarded to the runner.
+    ${kleur.dim('$ playwright-test test.js --runner mocha --bail --grep \'should fail\'')}
 
-    Extra arguments
-        All arguments passed to the cli not listed above will be fowarded to the runner.
-        To send a \`false\` flag use --no-bail.
-        $ playwright-test test.js --runner mocha --bail --grep 'should fail'
+    To send a \`false\` flag use --no-bail.
+    Check https://mochajs.org/api/mocha for \`mocha\` options or \`npx mocha --help\`.
 
-        Check https://mochajs.org/api/mocha for \`mocha\` options or \`npx mocha --help\`.
+  ${kleur.bold('Notes')}
+    DEBUG env var filtering for 'debug' package logging will work as expected.
+    ${kleur.dim('$ DEBUG:app playwright-test test.js')}
 
-    Notes
-        DEBUG environmental variable is properly redirected to the browser. If you use 'debug' package for logging the following example will work as you expect.
-        $ DEBUG:app playwright-test test.js
-`, {
-    flags: {
-        runner: {
-            type: 'string',
-            default: 'mocha'
-        },
-        watch: {
-            type: 'boolean',
-            default: false,
-            alias: 'w'
-        },
-        browser: {
-            type: 'string',
-            default: 'chromium',
-            alias: 'b'
-        },
-        debug: {
-            type: 'boolean',
-            default: false,
-            alias: 'd'
-        },
-        mode: {
-            type: 'string',
-            default: 'main',
-            alias: 'm'
-        },
-        incognito: {
-            type: 'boolean',
-            default: false
-        },
-        extension: {
-            type: 'boolean',
-            default: false
-        },
-        cwd: {
-            type: 'string',
-            default: process.cwd()
-        },
-        extensions: {
-            type: 'string',
-            isMultiple: true,
-            default: ['js', 'cjs', 'mjs']
-        },
-        assets: {
-            type: 'string',
-            default: ''
-        },
-        before: {
-            type: 'string',
-            default: ''
-        },
-        node: {
-            type: 'boolean',
-            default: true
-        },
-        cov: {
-            type: 'boolean',
-            default: false
+    Do not let your shell expand globs, always wrap them.
+    ${kleur.dim('$ playwright-test "test/**"')} GOOD
+    ${kleur.dim('$ playwright-test test/**')} BAD
+`;
+
+const sade2 = new Proxy(sade('playwright-test [files]', true), {
+    get: (target, prop, receiver) => {
+        const targetValue = Reflect.get(target, prop, receiver);
+
+        if (typeof targetValue === 'function') {
+            return function(...args) {
+                const out = targetValue.apply(this, args);
+
+                if (prop === 'help') {
+                    console.log(extra);
+                }
+
+                return out;
+            };
         }
+
+        return targetValue;
     }
 });
 
-// console.log('TCL: cli', cli.flags, cli.input);
+sade2
+    .version(pkg.version)
+    .describe('Run mocha, zora, uvu, tape and benchmark.js scripts inside real browsers with `playwright`.')
+    .option('-r, --runner', 'Test runner. Options: mocha, tape, benchmark and zora.', 'mocha')
+    .option('-b, --browser', 'Browser to run tests. Options: chromium, firefox, webkit.', 'chromium')
+    .option('-m, -mode', 'Run mode. Options: main, worker.', 'main')
+    .option('-d, --debug', 'Debug mode, keeps browser window open.')
+    .option('-w, --watch', 'Watch files for changes and re-run tests.')
+    .option('-i, --incognito', 'Use incognito window to run tests.')
+    .option('-e, --extension', ' Use extension background_page to run tests.')
+    .option('--cov', 'Enable code coverage in istanbul format. Outputs \'.nyc_output/out.json\'.')
+    .option('--before', 'Full path to a script to be loaded on a separate tab before the main script.')
+    .option('--assets', 'Assets to be served by the http server.', process.cwd())
+    .option('--cwd', 'Current directory.', process.cwd())
+    .option('--extensions', 'File extensions allowed in the bundle.', 'js,cjs,mjs')
+    .action((input, opts) => {
+        const extensions = opts.extensions.split(',');
+        const tests = findTests({
+            cwd: opts.cwd,
+            extensions: extensions,
+            filePatterns: input ? input : defaultTestPatterns(extensions)
+        });
 
-const files = findTests({
-    cwd: cli.flags.cwd,
-    extensions: cli.flags.extensions,
-    filePatterns: cli.input.length === 0 ? defaultTestPatterns(cli.flags.extensions) : cli.input
-});
-
-const runnerOptions = () => {
-    const opts = {};
-
-    // eslint-disable-next-line guard-for-in
-    for (const key in cli.flags) {
-        const value = cli.flags[key];
-        const localFlags = [
-            'browser',
-            'runner',
-            'watch',
-            'debug',
-            'mode',
-            'incognito',
-            'extension',
-            'cwd',
-            'extensions',
-            'assets',
-            'before',
-            'node',
-            'cov'
-        ];
-
-        if (!localFlags.includes(key)) {
-            opts[camelCase(key)] = value;
+        if (tests.length === 0) {
+            console.log('No test files were found.');
+            process.exit(0);
         }
-    }
 
-    return opts;
-};
+        let Runner = null;
 
-if (files.length === 0) {
-    console.log('No test files were found.');
-    process.exit(0);
-}
+        switch (opts.runner) {
+            case 'uvu':
+                Runner = UvuRunner;
+                break;
+            case 'zora':
+                Runner = ZoraRunner;
+                break;
+            case 'mocha':
+                Runner = MochaRunner;
+                break;
+            case 'tape':
+                Runner = TapeRunner;
+                break;
+            case 'benchmark':
+                Runner = BenchmarkRunner;
+                break;
+            default:
+                console.error('Runner not supported: ', opts.runner);
+                process.exit(1);
+        }
+        const runner = new Runner({
+            cwd: opts.cwd,
+            assets: opts.assets,
+            browser: opts.browser,
+            debug: opts.debug,
+            mode: opts.mode,
+            incognito: opts.incognito,
+            files: tests,
+            extension: opts.extension,
+            runnerOptions: runnerOptions(opts),
+            before: opts.before,
+            node: opts.node,
+            cov: opts.cov
+        });
 
-let Runner = null;
-
-if (cli.flags.runner === 'zora') {
-    Runner = ZoraRunner;
-}
-if (cli.flags.runner === 'benchmark') {
-    Runner = BenchmarkRunner;
-}
-if (cli.flags.runner === 'mocha') {
-    Runner = MochaRunner;
-}
-if (cli.flags.runner === 'tape') {
-    Runner = TapeRunner;
-}
-const runner = new Runner({
-    cwd: cli.flags.cwd,
-    assets: cli.flags.assets,
-    browser: cli.flags.browser,
-    debug: cli.flags.debug,
-    mode: cli.flags.mode,
-    incognito: cli.flags.incognito,
-    files,
-    extension: cli.flags.extension,
-    runnerOptions: runnerOptions(),
-    before: cli.flags.before,
-    node: cli.flags.node,
-    cov: cli.flags.cov
-});
-
-if (cli.flags.watch) {
-    runner.watch();
-} else {
-    runner.run();
-}
-
+        if (opts.watch) {
+            runner.watch();
+        } else {
+            runner.run();
+        }
+    })
+    .parse(process.argv);

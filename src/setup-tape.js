@@ -15,6 +15,6 @@ test.onFinish(() => {
             'pwRunFailed':  self.TAPE_RUN_FAIL
         });
     } else {
-        self.pwTestController.end(self.TAPE_RUN_FAIL);
+        self.PW_TEST.end(self.TAPE_RUN_FAIL);
     }
 });

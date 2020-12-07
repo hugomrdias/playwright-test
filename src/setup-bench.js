@@ -19,7 +19,7 @@ const signalFinished = () => {
             if (process.env.PW_TEST.mode === 'worker') {
                 postMessage({ 'pwRunEnded': true });
             } else {
-                self.pwTestController.end();
+                self.PW_TEST.end();
             }
         }, 1000);
     }
