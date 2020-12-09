@@ -12,12 +12,8 @@ class TapeRunner extends Runner {
         const config = merge(
             defaultWebpackConfig(this.dir, this.env, this.options),
             {
-                entry: [
-                    require.resolve('./setup-tape.js'),
-                    ...this.options.files
-                ],
+                entry: [require.resolve('./setup-tape.js'), ...this.tests],
                 resolve: { alias: { tape: resolveCwd('tape') } }
-
             }
         );
 

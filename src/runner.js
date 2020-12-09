@@ -6,6 +6,7 @@ const fs = require('fs');
 const { promisify } = require('util');
 const path = require('path');
 const webpack = require('webpack');
+const mergeWebpack = require('webpack-merge');
 const getPort = require('get-port');
 const ora = require('ora');
 const kleur = require('kleur');
@@ -15,7 +16,7 @@ const sirv = require('sirv');
 const V8ToIstanbul = require('v8-to-istanbul');
 const merge = require('merge-options').bind({ ignoreUndefined: true });
 const pEachSeries = require('p-each-series');
-const { redirectConsole, getPw, compile, addWorker } = require('./utils');
+const { redirectConsole, getPw, compile, addWorker, defaultWebpackConfig, findTests, defaultTestPatterns } = require('./utils');
 
 const writeFile = promisify(fs.writeFile);
 const mkdir = promisify(fs.mkdir);
@@ -30,15 +31,19 @@ const mkdir = promisify(fs.mkdir);
  * @type {object}
  */
 const defaultOptions = {
+    cwd: process.cwd(),
+    assets: '',
     browser: 'chromium',
+    debug: false,
     mode: 'main', // worker
     incognito: false,
+    input: null,
     extension: false,
-    debug: false,
-    cov: false,
-    node: true,
-    files: [],
     runnerOptions: {},
+    before: null,
+    node: true,
+    cov: false,
+    extensions: 'js,cjs,mjs',
     webpackConfig: {}
 };
 
@@ -61,6 +66,15 @@ class Runner {
             JSON.parse(JSON.stringify(process.env)),
             { PW_TEST: this.options }
         );
+        this.extensions = this.options.extensions.split(',');
+        this.tests = findTests({
+            cwd: this.options.cwd,
+            extensions: this.extensions,
+            filePatterns: this.options.input ? this.options.input : defaultTestPatterns(this.extensions)
+        });
+        if (this.tests.length === 0) {
+            this.stop(false, 'No test files were found.');
+        }
     }
 
     async launch() {
@@ -105,14 +119,15 @@ class Runner {
                 `--disable-extensions-except=${this.dir}`,
                 `--load-extension=${this.dir}`
             ] : [],
-            dumpio: process.env.PW_TEST_DUMPIO || false
+            dumpio: process.env.PW_TEST_DUMPIO || false,
+            env: { HUGO: 100 }
         };
 
         if (this.options.incognito) {
             this.browser = await pw.launch(pwOptions);
             this.context = await this.browser.newContext();
         } else {
-            this.context = await pw.launchPersistentContext(tempy.directory(), pwOptions);
+            this.context = await pw.launchPersistentContext(this.dir, pwOptions);
         }
 
         return this;
@@ -140,8 +155,11 @@ class Runner {
 
                 await backgroundPageLink.click();
             }
-        } else {
+        } else if (this.options.incognito) {
             this.page = await this.context.newPage();
+            await this.page.goto(this.url);
+        } else {
+            this.page = await this.context.pages()[0];
             await this.page.goto(this.url);
         }
 
@@ -149,18 +167,9 @@ class Runner {
             await this.page.coverage.startJSCoverage();
         }
 
-        this.page.on('error', (err) => {
-            console.error('\n', kleur.red(err));
-            this.stop(true);
-        });
-        this.page.on('pageerror', (err) => {
-            console.error('\n', kleur.red(err));
-            this.stop(true);
-        });
-        this.page.on('crash', (err) => {
-            console.error('\n', kleur.red(err));
-            this.stop(true);
-        });
+        this.page.on('error', err => this.stop(true, `\n${kleur.red(err)}`));
+        this.page.on('pageerror', err => this.stop(true, `\n${kleur.red(err)}`));
+        this.page.on('crash', err => this.stop(true, `\n${kleur.red(err)}`));
         this.page.on('console', redirectConsole);
     }
 
@@ -169,9 +178,7 @@ class Runner {
             type: 'text/javascript',
             url: 'setup.js'
         });
-        await this.page.evaluate(`
-        localStorage.debug = "${this.env.DEBUG}"
-        `);
+        await this.page.evaluate(`localStorage.debug = "${this.env.DEBUG}"`);
 
         switch (this.options.mode) {
             case 'main': {
@@ -187,8 +194,7 @@ class Runner {
                 break;
             }
             default:
-                console.error('mode not supported');
-                await this.stop(true);
+                await this.stop(true, 'mode not supported');
                 break;
         }
     }
@@ -227,12 +233,8 @@ class Runner {
                 });
             }
         } catch (err) {
-            if (this.stopped) {
-                // ignore if already stopped by a previous error
-            } else {
-                spinner.fail(err.message);
-                process.exit(1);
-            }
+            spinner.fail();
+            this.stop(true, err);
         }
     }
 
@@ -243,52 +245,29 @@ class Runner {
 
         // listen to errors
         this.pageBefore.on('error', (err) => {
-            console.error('\n', kleur.dim('Before page '), kleur.red(err));
-            this.stop(true);
+            this.stop(true, `\n${kleur.dim('Before page')} ${kleur.red(err)}`);
         });
         this.pageBefore.on('pageerror', (err) => {
-            console.error('\n', kleur.dim('Before page '), kleur.red(err));
-            this.stop(true);
+            this.stop(true, `\n${kleur.dim('Before page')} ${kleur.red(err)}`);
         });
         this.pageBefore.on('crash', (err) => {
-            console.error('\n', kleur.dim('Before page '), kleur.red(err));
-            this.stop(true);
+            this.stop(true, `\n${kleur.dim('Before page')} ${kleur.red(err)}`);
         });
 
         // redirect console.log
         this.pageBefore.on('console', redirectConsole);
 
         // setup compiler
-        const compiler = webpack({
-            mode: 'development',
-            output: {
-                path: this.dir,
-                filename: 'before.[contenthash].js',
-                devtoolModuleFilenameTemplate: info =>
-                    'file:///' + encodeURI(info.absoluteResourcePath)
-            },
-            entry: [
-                require.resolve('../static/setup.js'),
-                this.options.before
-            ],
-            node: {
-                'dgram': 'empty',
-                'fs': 'empty',
-                'net': 'empty',
-                'tls': 'empty',
-                'child_process': 'empty',
-                'console': false,
-                'global': true,
-                'process': true,
-                '__filename': 'mock',
-                '__dirname': 'mock',
-                'Buffer': true,
-                'setImmediate': true
-            },
-            plugins: [
-                new webpack.DefinePlugin({ 'process.env': JSON.stringify(this.env) })
-            ]
-        });
+        const config = mergeWebpack(
+            defaultWebpackConfig(this.dir, this.env, this.options, 'before'),
+            {
+                entry: [
+                    require.resolve('../static/setup.js'),
+                    require.resolve(this.options.before)
+                ]
+            }
+        );
+        const compiler = webpack(config);
 
         await this.pageBefore.addScriptTag({
             type: 'text/javascript',
@@ -345,12 +324,13 @@ class Runner {
         });
     }
 
-    async stop(fail) {
+    async stop(fail, msg) {
         if (this.stopped || this.options.debug) {
             return;
         }
         this.stopped = true;
-        if (this.options.cov) {
+
+        if (this.options.cov && this.page) {
             const coverage = await this.page.coverage.stopJSCoverage();
             const entries = {};
 
@@ -378,20 +358,28 @@ class Runner {
             await writeFile(path.join(process.cwd(), '.nyc_output', 'out.json'), JSON.stringify(entries));
         }
 
-        await this.context.close();
+        if (this.context) {
+            await this.context.close();
+        }
 
-        const serverClose = new Promise((resolve, reject) => {
-            this.server.close((err) => {
-                if (err) {
-                    return reject(err);
-                }
-                resolve();
+        if (this.server) {
+            const serverClose = new Promise((resolve, reject) => {
+                this.server.close((err) => {
+                    if (err) {
+                        return reject(err);
+                    }
+                    resolve();
+                });
             });
-        });
 
-        await serverClose;
+            await serverClose;
+        }
 
-        // eslint-disable-next-line unicorn/no-process-exit
+        if (fail && msg) {
+            console.error(msg);
+        } else if (msg) {
+            console.log(msg);
+        }
         process.exit(fail ? 1 : 0);
     }
 

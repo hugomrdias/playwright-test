@@ -34,11 +34,7 @@ class UvuRunner extends Runner {
     compiler() {
         const config = merge(
             defaultWebpackConfig(this.dir, this.env, this.options),
-            {
-                entry: [
-                    ...this.options.files
-                ]
-            }
+            { entry: this.tests }
         );
 
         return webpack(config);

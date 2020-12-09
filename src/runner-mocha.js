@@ -28,16 +28,21 @@ mocha
 
 class MochaRunner extends Runner {
     constructor(options = {}) {
-        super(merge({
-            runnerOptions: {
-                allowUncaught: false,
-                bail: true,
-                reporter: 'spec',
-                timeout: 5000,
-                color: true,
-                ui: 'bdd'
-            }
-        }, options));
+        super(
+            merge(
+                {
+                    runnerOptions: {
+                        allowUncaught: false,
+                        bail: true,
+                        reporter: 'spec',
+                        timeout: 5000,
+                        color: true,
+                        ui: 'bdd'
+                    }
+                },
+                options
+            )
+        );
     }
 
     async runTests() {
@@ -69,10 +74,7 @@ class MochaRunner extends Runner {
         const config = webpackMerge(
             defaultWebpackConfig(this.dir, this.env, this.options),
             {
-                entry: [
-                    require.resolve('./setup-mocha.js'),
-                    ...this.options.files
-                ],
+                entry: [require.resolve('./setup-mocha.js'), ...this.tests],
                 resolve: { alias: { 'mocha/mocha': resolveCwd('mocha/mocha.js') } }
             }
         );

@@ -14,7 +14,7 @@ class BenchmarkRunner extends Runner {
             {
                 entry: [
                     require.resolve('./setup-bench.js'),
-                    ...this.options.files
+                    ...this.tests
                 ],
                 module: { noParse: /src\/benchmark.js/ },
                 resolve: { alias: { benchmark: path.resolve(__dirname, 'setup-bench.js') } }

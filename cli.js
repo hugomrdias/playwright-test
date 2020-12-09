@@ -5,8 +5,10 @@
 
 const sade = require('sade');
 const kleur = require('kleur');
+const lilconfig = require('lilconfig');
+const merge = require('merge-options').bind({ ignoreUndefined: true });
 const pkg = require('./package.json');
-const { findTests, defaultTestPatterns, runnerOptions } = require('./src/utils');
+const { runnerOptions } = require('./src/utils');
 const UvuRunner = require('./src/runner-uvu');
 const MochaRunner = require('./src/runner-mocha');
 const TapeRunner = require('./src/runner-tape');
@@ -68,29 +70,19 @@ sade2
     .version(pkg.version)
     .describe('Run mocha, zora, uvu, tape and benchmark.js scripts inside real browsers with `playwright`.')
     .option('-r, --runner', 'Test runner. Options: mocha, tape, benchmark and zora.', 'mocha')
-    .option('-b, --browser', 'Browser to run tests. Options: chromium, firefox, webkit.', 'chromium')
-    .option('-m, -mode', 'Run mode. Options: main, worker.', 'main')
+    .option('-b, --browser', 'Browser to run tests. Options: chromium, firefox, webkit.  (default chromium)')
+    .option('-m, --mode', 'Run mode. Options: main, worker.  (default main)')
     .option('-d, --debug', 'Debug mode, keeps browser window open.')
     .option('-w, --watch', 'Watch files for changes and re-run tests.')
     .option('-i, --incognito', 'Use incognito window to run tests.')
-    .option('-e, --extension', ' Use extension background_page to run tests.')
+    .option('-e, --extension', 'Use extension background_page to run tests.')
     .option('--cov', 'Enable code coverage in istanbul format. Outputs \'.nyc_output/out.json\'.')
     .option('--before', 'Full path to a script to be loaded on a separate tab before the main script.')
-    .option('--assets', 'Assets to be served by the http server.', process.cwd())
-    .option('--cwd', 'Current directory.', process.cwd())
-    .option('--extensions', 'File extensions allowed in the bundle.', 'js,cjs,mjs')
+    .option('--assets', 'Assets to be served by the http server.  (default process.cwd())')
+    .option('--cwd', 'Current directory.  (default process.cwd())')
+    .option('--extensions', 'File extensions allowed in the bundle.  (default js,cjs,mjs)')
     .action((input, opts) => {
-        const extensions = opts.extensions.split(',');
-        const tests = findTests({
-            cwd: opts.cwd,
-            extensions: extensions,
-            filePatterns: input ? input : defaultTestPatterns(extensions)
-        });
-
-        if (tests.length === 0) {
-            console.log('No test files were found.');
-            process.exit(0);
-        }
+        const config = lilconfig.lilconfigSync('playwright-test').search();
 
         let Runner = null;
 
@@ -114,20 +106,23 @@ sade2
                 console.error('Runner not supported: ', opts.runner);
                 process.exit(1);
         }
-        const runner = new Runner({
-            cwd: opts.cwd,
-            assets: opts.assets,
-            browser: opts.browser,
-            debug: opts.debug,
-            mode: opts.mode,
-            incognito: opts.incognito,
-            files: tests,
-            extension: opts.extension,
-            runnerOptions: runnerOptions(opts),
-            before: opts.before,
-            node: opts.node,
-            cov: opts.cov
-        });
+        const runner = new Runner(merge(
+            config ? config.config : {},
+            {
+                cwd: opts.cwd,
+                assets: opts.assets,
+                browser: opts.browser,
+                debug: opts.debug,
+                mode: opts.mode,
+                incognito: opts.incognito,
+                input,
+                extension: opts.extension,
+                runnerOptions: runnerOptions(opts),
+                before: opts.before,
+                node: opts.node,
+                cov: opts.cov
+            }
+        ));
 
         if (opts.watch) {
             runner.watch();

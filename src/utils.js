@@ -234,12 +234,12 @@ w.onmessage = function(e) {
 }
 `;
 
-const defaultWebpackConfig = (dir, env, options) => {
+const defaultWebpackConfig = (dir, env, options, name = 'bundle') => {
     return {
         mode: 'development',
         output: {
             path: dir,
-            filename: 'bundle.[contenthash].js',
+            filename: `${name}.[contenthash].js`,
             devtoolModuleFilenameTemplate: info => 'file://' + encodeURI(info.absoluteResourcePath)
         },
         module: {

@@ -5,14 +5,20 @@
 
 ## Install
 
-```
+```shell
 $ npm install playwright-test
 ```
 
-
 ## Usage
+```shell
+$ playwright-test [files] [options]
+# or 
+$ pw-test [files] [options]
 
-```console
+```
+## Options
+
+```shell
 Description
     Run mocha, zora, uvu, tape and benchmark.js scripts inside real browsers with `playwright`.
 
@@ -26,7 +32,7 @@ Description
     -d, --debug        Debug mode, keeps browser window open.
     -w, --watch        Watch files for changes and re-run tests.
     -i, --incognito    Use incognito window to run tests.
-    -e, --extension     Use extension background_page to run tests.
+    -e, --extension    Use extension background_page to run tests.
     --cov              Enable code coverage in istanbul format. Outputs '.nyc_output/out.json'.
     --before           Full path to a script to be loaded on a separate tab before the main script.
     --assets           Assets to be served by the http server.  (default process.cwd())

@@ -57,9 +57,7 @@ class ZoraRunner extends Runner {
         const config = merge(
             defaultWebpackConfig(this.dir, this.env, this.options),
             {
-                entry: [
-                    ...this.options.files
-                ],
+                entry: this.tests,
                 resolve: { alias: { zora$: path.resolve(__dirname, 'setup-zora.js') } }
             }
         );
