@@ -41,7 +41,7 @@ jobs:
       with:
         node-version: ${{ matrix.node }}
     - run: yarn
-    - run: yarn test
+    - run: xvfb-run yarn test
     - run: ./cli.js mocks/test.mocha.js --browser firefox
     - run: ./cli.js mocks/test.mocha.js --browser webkit
 
