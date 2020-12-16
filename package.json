@@ -50,7 +50,7 @@
         "merge-options": "^3.0.4",
         "ora": "^5.1.0",
         "p-each-series": "^2.2.0",
-        "playwright-core": "1.6.2",
+        "playwright-core": "1.7.0",
         "polka": "^0.5.2",
         "resolve-cwd": "^3.0.0",
         "sade": "^1.7.4",
