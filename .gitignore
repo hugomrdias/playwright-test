@@ -12,3 +12,4 @@ node_modules
 .nyc_output
 coverage.lcov
 yarn-error.log
+yarn.lock
