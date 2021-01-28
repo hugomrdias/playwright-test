@@ -113,6 +113,7 @@ class Runner {
         // download playwright if needed
         const pw = await getPw(this.options.browser);
         const pwOptions = {
+            chromiumSandbox: false,
             headless: !this.options.extension && !this.options.debug,
             devtools: this.options.browser === 'chromium' && this.options.debug,
             args: this.options.extension ? [
