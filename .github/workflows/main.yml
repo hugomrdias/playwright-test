@@ -24,8 +24,7 @@ jobs:
     - uses: microsoft/playwright-github-action@v1
     - run: yarn
     - run: yarn lint
-    - run: xvfb-run -a npm run test
-    # - run: xvfb-run --auto-servernum npm run test
+    - run: xvfb-run -a yarn test
     - run: ./cli.js mocks/test.mocha.js --browser firefox
     - run: ./cli.js mocks/test.mocha.js --browser webkit
 
