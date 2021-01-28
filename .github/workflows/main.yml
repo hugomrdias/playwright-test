@@ -21,7 +21,7 @@ jobs:
     - uses: actions/setup-node@v1
       with:
         node-version: ${{ matrix.node }}
-    - uses: microsoft/playwright-github-action@v1.4.4
+    - uses: microsoft/playwright-github-action@v1
     - run: yarn
     - run: yarn lint
     - run: npx xvfb-maybe npm run test

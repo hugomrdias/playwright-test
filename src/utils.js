@@ -172,8 +172,7 @@ const getPw = async (browserName) => {
         process.env.PLAYWRIGHT_BROWSERS_PATH = cachePath;
     }
     const { installBrowsersWithProgressBar } = require('playwright-core/lib/install/installer');
-    const { Playwright } = require('playwright-core/lib/server/playwright');
-    const { setupInProcess } = require('playwright-core/lib/inprocess');
+    const setupInProcess = require('playwright-core/lib/inprocess');
     const browsers = require('playwright-core/browsers.json');
 
     browsers.browsers[0].download = true; // chromium
@@ -185,7 +184,7 @@ const getPw = async (browserName) => {
         JSON.stringify(browsers, null, 2)
     );
     await installBrowsersWithProgressBar(cachePath);
-    const api = setupInProcess(new Playwright(cachePath, browsers.browsers));
+    const api = setupInProcess;
 
     return api[browserName];
 };
