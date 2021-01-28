@@ -24,8 +24,7 @@ jobs:
     - uses: microsoft/playwright-github-action@v1
     - run: yarn
     - run: yarn lint
-    - run: export DISPLAY=:99
-    - run: Xvfb $DISPLAY -screen 0 1920x1080x24 & npm run test
+    - run: xvfb-run --auto-servernum npm run test
     - run: ./cli.js mocks/test.mocha.js --browser firefox
     - run: ./cli.js mocks/test.mocha.js --browser webkit
 
