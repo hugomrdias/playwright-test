@@ -11,7 +11,7 @@ on:
 jobs:
   linux:
     name: "Linux"
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: true
       matrix:
@@ -24,11 +24,7 @@ jobs:
     - uses: microsoft/playwright-github-action@v1
     - run: yarn
     - run: yarn lint
-    - run: sudo apt-get update
-    - run: sudo apt-get install xvfb
-    - run: Xvfb -ac :99 -screen 0 1280x1024x16 > /dev/null 2>&1 &
-    - run: export DISPLAY=:99.0
-    - run: npm run test
+    - run: xvfb-run --auto-servernum npm run test
     - run: ./cli.js mocks/test.mocha.js --browser firefox
     - run: ./cli.js mocks/test.mocha.js --browser webkit
 

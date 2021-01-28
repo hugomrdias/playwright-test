@@ -113,18 +113,13 @@ class Runner {
         // download playwright if needed
         const pw = await getPw(this.options.browser);
         const pwOptions = {
-            // chromiumSandbox: false,
             headless: !this.options.extension && !this.options.debug,
             devtools: this.options.browser === 'chromium' && this.options.debug,
             args: this.options.extension ? [
                 `--disable-extensions-except=${this.dir}`,
-                `--load-extension=${this.dir}`,
-                '--disable-gpu',
-                '--no-sandbox',
-                '--disable-setuid-sandbox'
+                `--load-extension=${this.dir}`
             ] : [],
-            dumpio: process.env.PW_TEST_DUMPIO || false,
-            env: { HUGO: 100 }
+            dumpio: process.env.PW_TEST_DUMPIO || false
         };
 
         if (this.options.incognito) {
