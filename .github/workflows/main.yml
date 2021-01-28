@@ -27,6 +27,7 @@ jobs:
     - run: sudo apt-get update
     - run: sudo apt-get install xvfb
     - run: Xvfb -ac :99 -screen 0 1280x1024x16 > /dev/null 2>&1 &
+    - run: export DISPLAY=:99.0
     - run: npm run test
     - run: ./cli.js mocks/test.mocha.js --browser firefox
     - run: ./cli.js mocks/test.mocha.js --browser webkit
