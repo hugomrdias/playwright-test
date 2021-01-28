@@ -24,7 +24,9 @@ jobs:
     - uses: microsoft/playwright-github-action@v1
     - run: yarn
     - run: yarn lint
-    - run: npm run test
+    - run: sudo apt get update
+    - run: sudo apt-get install xvfb
+    - run: xvfb-run -a --server-args="-screen 0 1280x800x24 -ac -nolisten tcp -dpi 96 +extension RANDR" npm run test
     - run: ./cli.js mocks/test.mocha.js --browser firefox
     - run: ./cli.js mocks/test.mocha.js --browser webkit
 

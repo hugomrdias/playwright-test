@@ -118,8 +118,10 @@ class Runner {
             devtools: this.options.browser === 'chromium' && this.options.debug,
             args: this.options.extension ? [
                 `--disable-extensions-except=${this.dir}`,
-                `--load-extension=${this.dir}`
-                // '--disable-setuid-sandbox'
+                `--load-extension=${this.dir}`,
+                '--disable-gpu',
+                '--no-sandbox',
+                '--disable-setuid-sandbox'
             ] : [],
             dumpio: process.env.PW_TEST_DUMPIO || false,
             env: { HUGO: 100 }
