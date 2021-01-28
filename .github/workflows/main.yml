@@ -25,8 +25,7 @@ jobs:
     - run: yarn
     - run: yarn lint
     - run: export DISPLAY=:99
-    - run: Xvfb $DISPLAY -screen 0 1920x1080x24
-    - run: npm run test
+    - run: Xvfb $DISPLAY -screen 0 1920x1080x24 & npm run test
     - run: ./cli.js mocks/test.mocha.js --browser firefox
     - run: ./cli.js mocks/test.mocha.js --browser webkit
 
