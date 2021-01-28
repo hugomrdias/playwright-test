@@ -119,8 +119,7 @@ class Runner {
                 `--disable-extensions-except=${this.dir}`,
                 `--load-extension=${this.dir}`
             ] : [],
-            dumpio: process.env.PW_TEST_DUMPIO || false,
-            env: { HUGO: 100 }
+            dumpio: process.env.PW_TEST_DUMPIO || false
         };
 
         if (this.options.incognito) {
