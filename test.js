@@ -40,48 +40,48 @@ test('mocha extension', async () => {
     assert.ok(proc.stdout.includes('3 passing'), 'process stdout');
 });
 
-test('tape', async () => {
-    const proc = await execa('./cli.js', ['mocks/test.tape.js', '--runner', 'tape']);
+// test('tape', async () => {
+//     const proc = await execa('./cli.js', ['mocks/test.tape.js', '--runner', 'tape']);
 
-    assert.is(proc.exitCode, 0, 'exit code');
-    assert.ok(proc.stdout.includes('# pass  2'), 'process stdout');
-});
+//     assert.is(proc.exitCode, 0, 'exit code');
+//     assert.ok(proc.stdout.includes('# pass  2'), 'process stdout');
+// });
 
-test('tape mode:worker', async () => {
-    const proc = await execa('./cli.js', ['mocks/test.tape.js', '--runner', 'tape', '--mode', 'worker']);
+// test('tape mode:worker', async () => {
+//     const proc = await execa('./cli.js', ['mocks/test.tape.js', '--runner', 'tape', '--mode', 'worker']);
 
-    assert.is(proc.exitCode, 0, 'exit code');
-    assert.ok(proc.stdout.includes('# pass  2'), 'process stdout');
-});
+//     assert.is(proc.exitCode, 0, 'exit code');
+//     assert.ok(proc.stdout.includes('# pass  2'), 'process stdout');
+// });
 
-test('zora', async () => {
-    const proc = await execa('./cli.js', ['mocks/*.zora.js', '--runner', 'zora'], {
-        env: {
-            'RUN_ONLY': true,
-            'INDENT': true
-        }
-    });
+// test('zora', async () => {
+//     const proc = await execa('./cli.js', ['mocks/*.zora.js', '--runner', 'zora'], {
+//         env: {
+//             'RUN_ONLY': true,
+//             'INDENT': true
+//         }
+//     });
 
-    assert.is(proc.exitCode, 0, 'exit code');
-    assert.ok(proc.stdout.includes('# success: 2'), 'process stdout');
-});
+//     assert.is(proc.exitCode, 0, 'exit code');
+//     assert.ok(proc.stdout.includes('# success: 2'), 'process stdout');
+// });
 
-test('zora mode:worker', async () => {
-    const proc = await execa('./cli.js', ['mocks/*.zora.js', '--runner', 'zora', '--mode', 'worker'], {
-        env: {
-            'RUN_ONLY': true,
-            'INDENT': true
-        }
-    });
+// test('zora mode:worker', async () => {
+//     const proc = await execa('./cli.js', ['mocks/*.zora.js', '--runner', 'zora', '--mode', 'worker'], {
+//         env: {
+//             'RUN_ONLY': true,
+//             'INDENT': true
+//         }
+//     });
 
-    assert.is(proc.exitCode, 0, 'exit code');
-    assert.ok(proc.stdout.includes('# success: 2'), 'process stdout');
-});
+//     assert.is(proc.exitCode, 0, 'exit code');
+//     assert.ok(proc.stdout.includes('# success: 2'), 'process stdout');
+// });
 
-test.skip('benchmark', async () => {
-    const proc = await execa('./cli.js', ['mocks/benchmark.js', '--runner', 'benchmark']);
+// test.skip('benchmark', async () => {
+//     const proc = await execa('./cli.js', ['mocks/benchmark.js', '--runner', 'benchmark']);
 
-    assert.is(proc.exitCode, 0, 'exit code');
-    assert.ok(proc.stdout.includes('Fastest is String#indexOf'), 'process stdout');
-});
+//     assert.is(proc.exitCode, 0, 'exit code');
+//     assert.ok(proc.stdout.includes('Fastest is String#indexOf'), 'process stdout');
+// });
 test.run();
