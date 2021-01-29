@@ -57,7 +57,7 @@ class Runner {
         this.context = null;
         /** @type {Page} */
         this.page = null;
-        this.dir = tempy.directory();
+        this.dir = path.join(__dirname, '../temp');// tempy.directory();
         this.file = null;
         this.url = '';
         this.stopped = false;
@@ -219,7 +219,8 @@ class Runner {
             await this.setupPage();
             spinner.succeed('Browser setup');
             spinner = ora('Bundling tests').start();
-            this.file = await compile(this.compiler());
+            this.file = await this.compiler();// await compile(this.compiler());
+            // this.file = await compile(this.compiler());
             spinner.succeed();
             await this.runTests();
             await this.waitForTestsToEnd();
