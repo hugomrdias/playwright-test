@@ -1,10 +1,12 @@
 'use strict';
 
-const { createHarness } = require('zora/dist/bundle/index');
+const { createHarness } = require('zora');
 
 const harness = createHarness({
-    indent: process.env.INDENT === 'true',
-    runOnly: process.env.RUN_ONLY === 'true'
+    // indent: process.env.INDENT === 'true',
+    // runOnly: process.env.RUN_ONLY === 'true'
+    // indent: true,
+    // runOnly: true
 });
 
 self.zora = harness;

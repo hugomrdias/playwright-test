@@ -57,7 +57,7 @@ class Runner {
         this.context = null;
         /** @type {Page} */
         this.page = null;
-        this.dir = tempy.directory();
+        this.dir = path.join(__dirname, '../temp');// tempy.directory();
         this.file = null;
         this.url = '';
         this.stopped = false;
@@ -173,16 +173,13 @@ class Runner {
     }
 
     async runTests() {
-        await this.page.addScriptTag({
-            type: 'text/javascript',
-            url: 'setup.js'
-        });
+        await this.page.addScriptTag({ url: 'setup.js' });
         await this.page.evaluate(`localStorage.debug = "${this.env.DEBUG}"`);
 
         switch (this.options.mode) {
             case 'main': {
                 await this.page.addScriptTag({
-                    type: 'text/javascript',
+                    type: 'module',
                     url: this.file
                 });
 
@@ -219,7 +216,8 @@ class Runner {
             await this.setupPage();
             spinner.succeed('Browser setup');
             spinner = ora('Bundling tests').start();
-            this.file = await compile(this.compiler());
+            // this.file = await compile(this.compiler());
+            this.file = await this.compiler();
             spinner.succeed();
             await this.runTests();
             await this.waitForTestsToEnd();
@@ -232,6 +230,7 @@ class Runner {
                 });
             }
         } catch (err) {
+            console.log('🚀 ~ file: runner.js ~ line 291 ~ Runner ~ run ~ err', err);
             spinner.fail();
             this.stop(true, err);
         }

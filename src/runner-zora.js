@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
 const webpack = require('webpack');
 const delay = require('delay');
@@ -53,16 +54,67 @@ class ZoraRunner extends Runner {
         }
     }
 
-    compiler() {
-        const config = merge(
-            defaultWebpackConfig(this.dir, this.env, this.options),
-            {
-                entry: this.tests,
-                resolve: { alias: { zora$: path.resolve(__dirname, 'setup-zora.js') } }
-            }
-        );
+    async compiler() {
+        // const config = merge(
+        //     defaultWebpackConfig(this.dir, this.env, this.options),
+        //     {
+        //         entry: this.tests,
+        //         resolve: { alias: { zora$: path.resolve(__dirname, 'setup-zora.js') } }
+        //     }
+        // );
+        const inFile = path.join(__dirname, '../temp/in.js');
 
-        return webpack(config);
+        fs.writeFileSync(inFile, `
+${this.tests.map((t, index) => `import test${index} from '${t}'`).join('\n')}
+`);
+
+        // return webpack(config);
+        const rollup = require('rollup');
+        const { nodeResolve } = require('@rollup/plugin-node-resolve');
+        const commonjs = require('@rollup/plugin-commonjs');
+        const alias = require('@rollup/plugin-alias');
+        const bundle = await rollup.rollup({
+            input: [inFile],
+            plugins: [
+                alias({
+
+                    entries: [{
+                        find: 'zora',
+                        customResolver: function(mod, importer) {
+                            if (importer.includes('playwright-test/src/setup-zora.js')) {
+                                return null;
+                            }
+
+                            return this.resolve(
+                                path.resolve(__dirname, 'setup-zora.js'),
+                                importer,
+                                { skipSelf: true }
+                            );
+                        }
+                    }]
+                }),
+                nodeResolve({
+                    mainFields: ['browser', 'module', 'main'],
+                    preferBuiltins: false
+
+                }),
+                commonjs({ requireReturnsDefault: 'auto' })
+            ]
+        });
+
+        console.log(bundle.watchFiles); // an array of file names this bundle depends on
+        // or write the bundle to disk
+        await bundle.write({
+            dir: path.join(this.dir, 'pw_tests'),
+            // format: 'umd',
+            exports: 'auto',
+            sourcemap: 'inline'
+        });
+
+        // closes the bundle
+        await bundle.close();
+
+        return 'pw_tests/in.js';
     }
 }
 
