@@ -5,8 +5,6 @@
 const fs = require('fs');
 const { promisify } = require('util');
 const path = require('path');
-const webpack = require('webpack');
-const mergeWebpack = require('webpack-merge');
 const getPort = require('get-port');
 const ora = require('ora');
 const kleur = require('kleur');
@@ -15,8 +13,7 @@ const polka = require('polka');
 const sirv = require('sirv');
 const V8ToIstanbul = require('v8-to-istanbul');
 const merge = require('merge-options').bind({ ignoreUndefined: true });
-const pEachSeries = require('p-each-series');
-const { redirectConsole, getPw, compile, addWorker, defaultWebpackConfig, findTests, defaultTestPatterns } = require('./utils');
+const { redirectConsole, getPw, addWorker, findTests, defaultTestPatterns } = require('./utils');
 
 const writeFile = promisify(fs.writeFile);
 const mkdir = promisify(fs.mkdir);
@@ -57,7 +54,7 @@ class Runner {
         this.context = null;
         /** @type {Page} */
         this.page = null;
-        this.dir = path.join(__dirname, '../temp');// tempy.directory();
+        this.dir = tempy.directory();
         this.file = null;
         this.url = '';
         this.stopped = false;
@@ -173,19 +170,12 @@ class Runner {
     }
 
     async runTests() {
-        await this.page.addScriptTag({
-            type: 'text/javascript',
-            url: 'setup.js'
-        });
+        await this.page.addScriptTag({ url: 'setup.js' });
         await this.page.evaluate(`localStorage.debug = "${this.env.DEBUG}"`);
 
         switch (this.options.mode) {
             case 'main': {
-                await this.page.addScriptTag({
-                    type: 'text/javascript',
-                    url: this.file
-                });
-
+                await this.page.addScriptTag({ url: this.file });
                 break;
             }
             case 'worker': {
@@ -213,14 +203,13 @@ class Runner {
         try {
             await this.launch();
             if (this.options.before) {
-                spinner.text = 'Running before script';
                 await this.runBefore();
             }
             await this.setupPage();
             spinner.succeed('Browser setup');
+
             spinner = ora('Bundling tests').start();
-            this.file = await this.compiler();// await compile(this.compiler());
-            // this.file = await compile(this.compiler());
+            await this.compiler();
             spinner.succeed();
             await this.runTests();
             await this.waitForTestsToEnd();
@@ -233,8 +222,9 @@ class Runner {
                 });
             }
         } catch (err) {
-            spinner.fail();
-            this.stop(true, err);
+            console.log(err);
+            spinner.fail('Bundling tests failed.');
+            this.stop(true, kleur.red(err));
         }
     }
 
@@ -256,72 +246,29 @@ class Runner {
 
         // redirect console.log
         this.pageBefore.on('console', redirectConsole);
-
-        // setup compiler
-        const config = mergeWebpack(
-            defaultWebpackConfig(this.dir, this.env, this.options, 'before'),
-            {
-                entry: [
-                    require.resolve('../static/setup.js'),
-                    require.resolve(this.options.before)
-                ]
-            }
-        );
-        const compiler = webpack(config);
-
-        await this.pageBefore.addScriptTag({
-            type: 'text/javascript',
-            url: await compile(compiler)
-        });
+        try {
+            await this.compiler('before');
+            await this.pageBefore.addScriptTag({ url: this.file });
+        } catch (err) {
+            this.stop(true, kleur.red(err));
+        }
 
         await this.pageBefore.waitForFunction('self.PW_TEST.beforeEnded', { timeout: 0 });
     }
 
     async watch() {
-        let lastHash = null;
         const spinner = ora('Setting up browser').start();
 
         await this.launch();
+        if (this.options.before) {
+            spinner.text = 'Running before script';
+            await this.runBefore();
+        }
         await this.setupPage();
-        const compiler = this.compiler();
 
         spinner.succeed();
-        compiler.watch({}, async (err, stats) => {
-            if (err) {
-                console.error('\n', kleur.red(err.stack || err));
-                if (err.details) {
-                    console.error(kleur.gray(err.details));
-                }
 
-                return;
-            }
-            const info = stats.toJson('normal');
-
-            if (stats.hash === lastHash) {
-                console.log('Skip for hash: ', stats.hash);
-
-                return;
-            }
-
-            if (stats.hasErrors()) {
-                for (const error of info.errors) {
-                    console.error('\n', kleur.red(error));
-                }
-
-                return;
-            }
-
-            if (stats.hasWarnings()) {
-                for (const warn of info.warnings) {
-                    console.warn('\n', kleur.yellow(warn));
-                }
-            }
-
-            await this.page.reload();
-            this.file = info.assets[0].name;
-            await this.runTests();
-            lastHash = stats.hash;
-        });
+        this.compiler('watch');
     }
 
     async stop(fail, msg) {
@@ -334,26 +281,31 @@ class Runner {
             const coverage = await this.page.coverage.stopJSCoverage();
             const entries = {};
 
-            await pEachSeries(coverage, async (entry) => {
-                const filePath = path.normalize(entry.url).replace('file:', '');
+            for (const entry of coverage) {
+                const filePath = path.join(this.dir, entry.url.replace(this.url, ''));
 
-                // remove test files
-                if (this.options.files.includes(filePath)) {
-                    return;
+                if (filePath.includes(this.file)) {
+                    const converter = new V8ToIstanbul(filePath, 0, { source: entry.source });
+
+                    // eslint-disable-next-line no-await-in-loop
+                    await converter.load();
+                    converter.applyCoverage(entry.functions);
+                    const instanbul = converter.toIstanbul();
+
+                    // eslint-disable-next-line guard-for-in
+                    for (const key in instanbul) {
+                        // remove random stuff
+                        if (
+                            !key.includes('node_modules') &&
+                            !this.tests.includes(key) &&
+                            !key.includes('playwright-test/src') &&
+                            !key.includes(path.join(this.dir, 'in.js'))
+                        ) {
+                            entries[key] = instanbul[key];
+                        }
+                    }
                 }
-
-                // remove random stuff
-                if (!fs.existsSync(filePath) || entry.url.includes('node_modules') || !entry.url.includes(this.options.cwd)) {
-                    return;
-                }
-                const converter = new V8ToIstanbul(filePath, 0, { source: entry.source });
-
-                await converter.load();
-                converter.applyCoverage(entry.functions);
-                const instanbul = converter.toIstanbul();
-
-                entries[filePath] = instanbul[filePath];
-            });
+            }
             await mkdir(path.join(process.cwd(), '.nyc_output'), { recursive: true });
             await writeFile(path.join(process.cwd(), '.nyc_output', 'out.json'), JSON.stringify(entries));
         }
@@ -383,7 +335,8 @@ class Runner {
         process.exit(fail ? 1 : 0);
     }
 
-    compiler() {
+    // eslint-disable-next-line no-unused-vars
+    async compiler(mode) {
         //
     }
 }

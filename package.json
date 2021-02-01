@@ -42,8 +42,9 @@
     "dependencies": {
         "buffer": "^6.0.3",
         "camelcase": "^6.2.0",
-        "delay": "^4.4.0",
-        "esbuild": "^0.8.36",
+        "delay": "^5.0.0",
+        "esbuild": "^0.8.39",
+        "fresh-tape": "^5.1.1",
         "get-port": "^5.1.1",
         "globby": "^11.0.2",
         "kleur": "^4.1.4",
@@ -51,20 +52,17 @@
         "lodash": "^4.17.20",
         "merge-options": "^3.0.4",
         "ora": "^5.3.0",
-        "p-each-series": "^2.2.0",
         "path-browserify": "^1.0.1",
         "playwright-core": "1.8.0",
         "polka": "^0.5.2",
         "process": "^0.11.10",
-        "resolve-cwd": "^3.0.0",
+        "readable-stream": "^3.6.0",
         "sade": "^1.7.4",
-        "sirv": "^1.0.10",
+        "sirv": "^1.0.11",
         "source-map-support": "^0.5.19",
         "strip-ansi": "^6.0.0",
         "tempy": "^1.0.0",
-        "v8-to-istanbul": "^7.1.0",
-        "webpack": "^4.42.1",
-        "webpack-merge": "^4.2.2"
+        "v8-to-istanbul": "^7.1.0"
     },
     "devDependencies": {
         "@commitlint/cli": "^11.0.0",
@@ -74,7 +72,6 @@
         "debug": "^4.3.1",
         "eslint": "^4.7.1",
         "eslint-config-halo": "^2.3.3",
-        "esm": "^3.2.25",
         "execa": "^5.0.0",
         "husky": "^4.3.8",
         "lint-staged": "^10.5.3",
@@ -111,8 +108,9 @@
         "node_modules",
         "coverage",
         "dist",
-        "storybook-static",
-        "typings",
-        "src/benchmark.js"
+        "src/vendor/benchmark.js",
+        "src/vendor/source-map-support.js",
+        "node-globals.js",
+        "mocks"
     ]
 }

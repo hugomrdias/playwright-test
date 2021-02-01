@@ -11,7 +11,7 @@ test('sum', () => {
 });
 
 test('sum', async () => {
-    await delay(2000);
+    await delay(100);
     assert.type(() => {}, 'function');
     assert.is(3, 3);
 });

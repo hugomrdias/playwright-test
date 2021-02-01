@@ -1,3 +1,4 @@
+/* eslint-disable valid-jsdoc */
 /* eslint-disable camelcase */
 /* eslint-disable no-undefined */
 /* eslint-disable global-require */
@@ -6,10 +7,14 @@
 
 const path = require('path');
 const fs = require('fs');
+const esbuild = require('esbuild');
 const kleur = require('kleur');
 const globby = require('globby');
-const webpack = require('webpack');
 const camelCase = require('camelcase');
+const merge = require('merge-options').bind({
+    ignoreUndefined: true,
+    concatArrays: true
+});
 
 const defaultIgnorePatterns = [
     '.git', // Git repository files, see <https://git-scm.com/>
@@ -134,6 +139,9 @@ const redirectConsole = async (msg) => {
     } else if (text) {
         let color = 'white';
 
+        if (text.includes('Synchronous XMLHttpRequest on the main thread is deprecated')) {
+            return;
+        }
         switch (type) {
             case 'error':
                 color = 'red';
@@ -189,41 +197,6 @@ const getPw = async (browserName) => {
     return api[browserName];
 };
 
-const compile = (compiler) => {
-    const run = new Promise((resolve, reject) => {
-        compiler.run((err, stats) => {
-            if (err) {
-                console.error('\n', kleur.red(err.stack || err));
-                if (err.details) {
-                    console.error(kleur.gray(err.details));
-                }
-
-                return reject(err);
-            }
-
-            const info = stats.toJson('normal');
-
-            if (stats.hasErrors()) {
-                for (const error of info.errors) {
-                    console.error('\n', kleur.red(error));
-                }
-
-                return reject(new Error('stats errors'));
-            }
-
-            if (stats.hasWarnings()) {
-                for (const warn of info.warnings) {
-                    console.warn('\n', kleur.yellow(warn));
-                }
-            }
-
-            resolve(info.assets[0].name);
-        });
-    });
-
-    return run;
-};
-
 const addWorker = filePath => `
 const w = new Worker("${filePath}");
 w.onmessage = function(e) {
@@ -232,71 +205,6 @@ w.onmessage = function(e) {
     }
 }
 `;
-
-const defaultWebpackConfig = (dir, env, options, name = 'bundle') => {
-    return {
-        mode: 'development',
-        output: {
-            path: dir,
-            filename: `${name}.[contenthash].js`,
-            devtoolModuleFilenameTemplate: info => 'file://' + encodeURI(info.absoluteResourcePath)
-        },
-        module: {
-            rules: [
-                {
-                    test: /\.mjs$/,
-                    include: /node_modules/,
-                    type: 'javascript/auto'
-                }
-            ]
-        },
-        node: options.node ?
-            {
-                dgram: 'empty',
-                fs: 'empty',
-                net: 'empty',
-                tls: 'empty',
-                child_process: 'empty',
-                console: false,
-                global: true,
-                process: true,
-                __filename: 'mock',
-                __dirname: 'mock',
-                Buffer: true,
-                setImmediate: true
-            } :
-            {
-                global: true,
-                __filename: 'mock',
-                __dirname: 'mock',
-                dgram: false,
-                fs: false,
-                net: false,
-                tls: false,
-                child_process: false,
-                console: false,
-                process: false,
-                Buffer: false,
-                setImmediate: false,
-                os: false,
-                assert: false,
-                constants: false,
-                events: false,
-                http: false,
-                path: false,
-                querystring: false,
-                stream: false,
-                string_decoder: false,
-                timers: false,
-                url: false,
-                util: false,
-                crypto: false
-            },
-        plugins: [
-            new webpack.DefinePlugin({ 'process.env': JSON.stringify(env) })
-        ]
-    };
-};
 
 const runnerOptions = (flags) => {
     const opts = {};
@@ -336,6 +244,83 @@ const runnerOptions = (flags) => {
     return opts;
 };
 
+/**
+ * Build the bundle
+ *
+ * @param {import("./runner")} runner
+ * @param {any} config - Runner esbuild config
+ * @param {string} tmpl
+ */
+const build = async (runner, config = {}, tmpl = '', mode = 'bundle') => {
+    const outName = `${mode}-out.js`;
+    const infile = path.join(runner.dir, 'in.js');
+    const outfile = path.join(runner.dir, outName);
+    const sourceMapSupport = require.resolve('./vendor/source-map-support');
+    const nodeGlobalsInject = path.join(__dirname, 'node-globals.js');
+    const nodePlugin = {
+        name: 'node built ins',
+        setup(build) {
+            build.onResolve({ filter: /^path$/ }, () => {
+                return { path: require.resolve('path-browserify') };
+            });
+        }
+    };
+
+    // watch mode
+    const watch = {
+        onRebuild: async (error) => {
+            if (!error) {
+                await runner.page.reload();
+                runner.file = outName;
+                await runner.runTests();
+            }
+        }
+    };
+
+    // main script template
+    let infileContent = `
+'use strict'
+require('${sourceMapSupport}').install();
+
+${tmpl}
+
+${runner.tests.map(t => `require('${t}')`).join('\n')}
+`;
+
+    // before script template
+    if (mode === 'before') {
+        infileContent = `
+'use strict'
+require('${sourceMapSupport}').install();
+
+require('${require.resolve('../static/setup.js')}')
+require('${require.resolve(path.join(runner.options.cwd, runner.options.before))}')
+`;
+    }
+
+    fs.writeFileSync(infile, infileContent);
+    await esbuild.build(merge(
+        {
+            entryPoints: [infile],
+            bundle: true,
+            sourcemap: 'inline',
+            plugins: [nodePlugin],
+            outfile,
+            inject: [nodeGlobalsInject],
+            watch: mode === 'watch' ? watch : false,
+            define: {
+                'PW_TEST_ENV': JSON.stringify(runner.env),
+                'PW_TEST_SOURCEMAP': runner.options.debug ? 'false' : 'true'
+            }
+        },
+        config
+    ));
+
+    runner.file = outName;
+
+    return outName;
+};
+
 module.exports = {
     extractErrorMessage,
     redirectConsole,
@@ -343,8 +328,7 @@ module.exports = {
     findTests,
     findFiles,
     getPw,
-    compile,
     addWorker,
-    defaultWebpackConfig,
-    runnerOptions
+    runnerOptions,
+    build
 };

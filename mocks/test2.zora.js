@@ -1,7 +1,7 @@
-'use strict';
+// 'use strict';
 
-const { test, only } = require('zora');
-// import {test, only} from 'zora';
+// const { test, only } = require('zora');
+import {test, only} from 'zora';
 
 test('some grouped assertions', (t) => {
     t.ok(true, 'true is truthy');

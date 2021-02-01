@@ -8,14 +8,14 @@ test('mocha', async () => {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js']);
 
     assert.is(proc.exitCode, 0, 'exit code');
-    assert.ok(proc.stdout.includes('3 passing'), 'process stdout');
+    assert.ok(proc.stdout.includes('5 passing'), 'process stdout');
 });
 
 test('mocha with DEBUG=app', async () => {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js'], { env: { DEBUG: 'app' } });
 
     assert.is(proc.exitCode, 0, 'exit code');
-    assert.ok(proc.stdout.includes('3 passing'), 'process stdout');
+    assert.ok(proc.stdout.includes('5 passing'), 'process stdout');
     assert.ok(proc.stdout.includes('app test pass'), 'debug output');
 });
 
@@ -23,21 +23,21 @@ test('mocha incognito', async () => {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--incognito']);
 
     assert.is(proc.exitCode, 0, 'exit code');
-    assert.ok(proc.stdout.includes('3 passing'), 'process stdout');
+    assert.ok(proc.stdout.includes('5 passing'), 'process stdout');
 });
 
 test('mocha mode:worker', async () => {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--mode', 'worker']);
 
     assert.is(proc.exitCode, 0, 'exit code');
-    assert.ok(proc.stdout.includes('3 passing'), 'process stdout');
+    assert.ok(proc.stdout.includes('5 passing'), 'process stdout');
 });
 
-test('mocha extension', async () => {
+test.skip('mocha extension', async () => {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--extension']);
 
     assert.is(proc.exitCode, 0, 'exit code');
-    assert.ok(proc.stdout.includes('3 passing'), 'process stdout');
+    assert.ok(proc.stdout.includes('5 passing'), 'process stdout');
 });
 
 test('tape', async () => {

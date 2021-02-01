@@ -1,3 +1,5 @@
+'use strict';
+
 const SourceMapConsumer = require('source-map').SourceMapConsumer;
 const path = require('path');
 
@@ -134,9 +136,8 @@ function supportRelativeURL(file, url, tweak) {
 
         return protocol + path.resolve(dir.slice(protocol.length), url).replace(/\\/g, '/');
     }
-
-    if (tweak) {
-        return '.' + path.resolve(dir.slice(protocol.length), url);
+    if (tweak && PW_TEST_SOURCEMAP === true) {
+        return 'file://' + path.resolve(dir.slice(protocol.length), url);
     }
 
     return protocol + path.resolve(dir.slice(protocol.length), url);

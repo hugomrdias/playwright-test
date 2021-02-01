@@ -1,14 +1,10 @@
 /* eslint-disable no-console */
 'use strict';
 
-const fs = require('fs');
 const path = require('path');
-const esbuild = require('esbuild');
-const webpack = require('webpack');
 const delay = require('delay');
-const merge = require('webpack-merge');
 const Runner = require('./runner');
-const { defaultWebpackConfig } = require('./utils');
+const { build } = require('./utils');
 
 const runZora = () => `
 zora
@@ -55,48 +51,17 @@ class ZoraRunner extends Runner {
         }
     }
 
-    async compiler() {
-        // const config = merge(
-        //     defaultWebpackConfig(this.dir, this.env, this.options),
-        //     {
-        //         entry: this.tests,
-        //         resolve: { alias: { zora$: path.resolve(__dirname, 'setup-zora.js') } }
-        //     }
-        // );
-
-        // return webpack(config);
-
-        const nodePlugin = {
-            name: 'node built ins',
+    compiler(mode = 'bundle') {
+        const plugin = {
+            name: 'swap zora',
             setup(build) {
-                build.onResolve({ filter: /^zora$/ }, (args) => {
+                build.onResolve({ filter: /^zora$/ }, () => {
                     return { path: path.join(__dirname, 'setup-zora.js') };
-                });
-                build.onResolve({ filter: /^path$/ }, (args) => {
-                    return { path: require.resolve('path-browserify') };
                 });
             }
         };
 
-        fs.writeFileSync(path.join(__dirname, '../temp/in.js'), `'use strict'
-
-        require('${require.resolve('./setup-zora.js')}')
-        ${this.tests.map(t => `require('${t}')`).join('\n')}
-                `);
-        await esbuild.build({
-            entryPoints: [path.join(__dirname, '../temp/in.js')],
-            bundle: true,
-            sourcemap: true,
-            plugins: [nodePlugin],
-            outfile: path.join(__dirname, '../temp/out.js'),
-            define: {
-                'process.env.INDENT': 'true',
-                'process.env.RUN_ONLY': 'true',
-                'PW_CWD': JSON.stringify(process.cwd())
-            }
-        });
-
-        return 'out.js';
+        return build(this, { plugins: [plugin] }, '', mode);
     }
 }
 

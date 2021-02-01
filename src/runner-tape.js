@@ -1,23 +1,26 @@
 /* eslint-disable no-console */
 'use strict';
 
-const webpack = require('webpack');
-const merge = require('webpack-merge');
-const resolveCwd = require('resolve-cwd');
 const Runner = require('./runner');
-const { defaultWebpackConfig } = require('./utils');
+const { build } = require('./utils');
 
 class TapeRunner extends Runner {
-    compiler() {
-        const config = merge(
-            defaultWebpackConfig(this.dir, this.env, this.options),
-            {
-                entry: [require.resolve('./setup-tape.js'), ...this.tests],
-                resolve: { alias: { tape: resolveCwd('tape') } }
+    compiler(mode = 'bundle') {
+        const plugin = {
+            name: 'swap tape',
+            setup(build) {
+                build.onResolve({ filter: /^tape$/ }, () => {
+                    return { path: require.resolve('fresh-tape') };
+                });
             }
-        );
+        };
 
-        return webpack(config);
+        return build(
+            this,
+            { plugins: [plugin] },
+            `require('${require.resolve('./setup-tape.js')}')`,
+            mode
+        );
     }
 }
 
