@@ -1,5 +1,3 @@
-/* eslint-disable */
-
 import delay from 'delay'
 
 export const good = async () => {
