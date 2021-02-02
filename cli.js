@@ -120,7 +120,8 @@ sade2
                 runnerOptions: runnerOptions(opts),
                 before: opts.before,
                 node: opts.node,
-                cov: opts.cov
+                cov: opts.cov,
+                extensions: opts.extensions
             }
         ));
 

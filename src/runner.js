@@ -3,7 +3,6 @@
 'use strict';
 
 const fs = require('fs');
-const { promisify } = require('util');
 const path = require('path');
 const getPort = require('get-port');
 const ora = require('ora');
@@ -11,12 +10,15 @@ const kleur = require('kleur');
 const tempy = require('tempy');
 const polka = require('polka');
 const sirv = require('sirv');
-const V8ToIstanbul = require('v8-to-istanbul');
 const merge = require('merge-options').bind({ ignoreUndefined: true });
-const { redirectConsole, getPw, addWorker, findTests, defaultTestPatterns } = require('./utils');
-
-const writeFile = promisify(fs.writeFile);
-const mkdir = promisify(fs.mkdir);
+const {
+    redirectConsole,
+    getPw,
+    addWorker,
+    findTests,
+    defaultTestPatterns,
+    createCov
+} = require('./utils');
 
 /**
  * @typedef {import('playwright-core').Page} Page
@@ -24,9 +26,6 @@ const mkdir = promisify(fs.mkdir);
  * @typedef {import('playwright-core').Browser} Browser
  */
 
-/**
- * @type {object}
- */
 const defaultOptions = {
     cwd: process.cwd(),
     assets: '',
@@ -40,8 +39,8 @@ const defaultOptions = {
     before: null,
     node: true,
     cov: false,
-    extensions: 'js,cjs,mjs',
-    webpackConfig: {}
+    extensions: 'js,cjs,mjs,ts,tsx',
+    buildConfig: {}
 };
 
 class Runner {
@@ -59,15 +58,14 @@ class Runner {
         this.url = '';
         this.stopped = false;
         this.watching = false;
-        this.env = merge(
-            JSON.parse(JSON.stringify(process.env)),
-            { PW_TEST: this.options }
-        );
+        this.env = merge(JSON.parse(JSON.stringify(process.env)), { PW_TEST: this.options });
         this.extensions = this.options.extensions.split(',');
         this.tests = findTests({
             cwd: this.options.cwd,
             extensions: this.extensions,
-            filePatterns: this.options.input ? this.options.input : defaultTestPatterns(this.extensions)
+            filePatterns: this.options.input ?
+                this.options.input :
+                defaultTestPatterns(this.extensions)
         });
         if (this.tests.length === 0) {
             this.stop(false, 'No test files were found.');
@@ -86,44 +84,61 @@ class Runner {
         ];
 
         for (const file of files) {
-            fs.copyFileSync(path.join(__dirname, './../static', file), path.join(this.dir, file));
+            fs.copyFileSync(
+                path.join(__dirname, './../static', file),
+                path.join(this.dir, file)
+            );
         }
 
         // setup http server
         const port = await getPort({ port: 3000 });
 
         this.url = 'http://localhost:' + port + '/';
-        this.server = (await polka()
-            .use(sirv(this.dir, {
-                dev: true,
-                setHeaders: (rsp, pathname) => {
-                    if (pathname === '/') {
-                        rsp.setHeader('Clear-Site-Data', '"cache", "cookies", "storage"');
-                        // rsp.setHeader('Clear-Site-Data', '"cache", "cookies", "storage", "executionContexts"');
-                    }
-                }
-            }))
-            .use(sirv(path.join(this.options.cwd, this.options.assets), { dev: true }))
-            .listen(port))
-            .server;
+        this.server = (
+            await polka()
+                .use(
+                    sirv(this.dir, {
+                        dev: true,
+                        setHeaders: (rsp, pathname) => {
+                            if (pathname === '/') {
+                                rsp.setHeader(
+                                    'Clear-Site-Data',
+                                    '"cache", "cookies", "storage"'
+                                );
+                                // rsp.setHeader('Clear-Site-Data', '"cache", "cookies", "storage", "executionContexts"');
+                            }
+                        }
+                    })
+                )
+                .use(
+                    sirv(path.join(this.options.cwd, this.options.assets), { dev: true })
+                )
+                .listen(port)
+        ).server;
 
         // download playwright if needed
         const pw = await getPw(this.options.browser);
         const pwOptions = {
             headless: !this.options.extension && !this.options.debug,
             devtools: this.options.browser === 'chromium' && this.options.debug,
-            args: this.options.extension ? [
-                `--disable-extensions-except=${this.dir}`,
-                `--load-extension=${this.dir}`
-            ] : [],
+            args: this.options.extension ?
+                [
+                    `--disable-extensions-except=${this.dir}`,
+                    `--load-extension=${this.dir}`
+                ] :
+                [],
             dumpio: process.env.PW_TEST_DUMPIO || false
         };
 
+        // create context
         if (this.options.incognito) {
             this.browser = await pw.launch(pwOptions);
             this.context = await this.browser.newContext();
         } else {
-            this.context = await pw.launchPersistentContext(this.dir, pwOptions);
+            this.context = await pw.launchPersistentContext(
+                this.dir,
+                pwOptions
+            );
         }
 
         return this;
@@ -134,20 +149,30 @@ class Runner {
             const backgroundPages = await this.context.backgroundPages();
             const backgroundPage = backgroundPages.length ?
                 backgroundPages[0] :
-                await this.context.waitForEvent('backgroundpage').then(event => event);
+                await this.context
+                    .waitForEvent('backgroundpage')
+                    .then(event => event);
 
             this.page = backgroundPage;
             if (this.options.debug) {
                 // Open extension devtools window
                 const extPage = await this.context.newPage();
 
-                await extPage.goto(`chrome://extensions/?id=${this.page._mainFrame._initializer.url.split('/')[2]}`);
+                await extPage.goto(
+                    `chrome://extensions/?id=${
+                        this.page._mainFrame._initializer.url.split('/')[2]
+                    }`
+                );
 
-                const buttonHandle = await extPage.evaluateHandle('document.querySelector("body > extensions-manager").shadowRoot.querySelector("extensions-toolbar").shadowRoot.querySelector("#devMode")');
+                const buttonHandle = await extPage.evaluateHandle(
+                    'document.querySelector("body > extensions-manager").shadowRoot.querySelector("extensions-toolbar").shadowRoot.querySelector("#devMode")'
+                );
 
                 await buttonHandle.click();
 
-                const backgroundPageLink = await extPage.evaluateHandle('document.querySelector("body > extensions-manager").shadowRoot.querySelector("#viewManager > extensions-detail-view").shadowRoot.querySelector("#inspect-views > li:nth-child(2) > a")');
+                const backgroundPageLink = await extPage.evaluateHandle(
+                    'document.querySelector("body > extensions-manager").shadowRoot.querySelector("#viewManager > extensions-detail-view").shadowRoot.querySelector("#inspect-views > li:nth-child(2) > a")'
+                );
 
                 await backgroundPageLink.click();
             }
@@ -163,10 +188,13 @@ class Runner {
             await this.page.coverage.startJSCoverage();
         }
 
-        this.page.on('error', err => this.stop(true, `\n${kleur.red(err)}`));
-        this.page.on('pageerror', err => this.stop(true, `\n${kleur.red(err)}`));
-        this.page.on('crash', err => this.stop(true, `\n${kleur.red(err)}`));
         this.page.on('console', redirectConsole);
+        this.page.on('error', err => this.stop(true, `\n${kleur.red(err)}`));
+        this.page.on('pageerror', (err) => {
+            console.error(err);
+            this.stop(true, `\n${kleur.red('Uncaught exception happened within the page. Run with --debug.')}`);
+        });
+        this.page.on('crash', err => this.stop(true, `\n${kleur.red(err)}`));
     }
 
     async runTests() {
@@ -190,10 +218,18 @@ class Runner {
 
     async waitForTestsToEnd() {
         if (!this.options.debug) {
-            await this.page.waitForFunction('self.PW_TEST.ended === true', { timeout: 0 });
-            const testsFailed = await this.page.evaluate('self.PW_TEST.failed');
+            try {
+                await this.page.waitForFunction(() => self.PW_TEST.ended === true);
+                const testsFailed = await this.page.evaluate('self.PW_TEST.failed');
 
-            await this.stop(testsFailed);
+                await this.stop(testsFailed);
+            } catch (err) {
+                if (err.message.includes('Protocol error (Runtime.callFunctionOn): Target closed')) {
+                    console.error(kleur.yellow('Browser was closed by an uncaught error.'));
+                } else {
+                    throw err;
+                }
+            }
         }
     }
 
@@ -223,7 +259,7 @@ class Runner {
             }
         } catch (err) {
             console.log(err);
-            spinner.fail('Bundling tests failed.');
+            spinner.fail('Running tests failed.');
             this.stop(true, kleur.red(err));
         }
     }
@@ -279,35 +315,8 @@ class Runner {
 
         if (this.options.cov && this.page) {
             const coverage = await this.page.coverage.stopJSCoverage();
-            const entries = {};
 
-            for (const entry of coverage) {
-                const filePath = path.join(this.dir, entry.url.replace(this.url, ''));
-
-                if (filePath.includes(this.file)) {
-                    const converter = new V8ToIstanbul(filePath, 0, { source: entry.source });
-
-                    // eslint-disable-next-line no-await-in-loop
-                    await converter.load();
-                    converter.applyCoverage(entry.functions);
-                    const instanbul = converter.toIstanbul();
-
-                    // eslint-disable-next-line guard-for-in
-                    for (const key in instanbul) {
-                        // remove random stuff
-                        if (
-                            !key.includes('node_modules') &&
-                            !this.tests.includes(key) &&
-                            !key.includes('playwright-test/src') &&
-                            !key.includes(path.join(this.dir, 'in.js'))
-                        ) {
-                            entries[key] = instanbul[key];
-                        }
-                    }
-                }
-            }
-            await mkdir(path.join(process.cwd(), '.nyc_output'), { recursive: true });
-            await writeFile(path.join(process.cwd(), '.nyc_output', 'out.json'), JSON.stringify(entries));
+            await createCov(this, coverage);
         }
 
         if (this.context) {

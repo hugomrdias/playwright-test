@@ -7,14 +7,20 @@
 
 const path = require('path');
 const fs = require('fs');
+const { promisify } = require('util');
 const esbuild = require('esbuild');
 const kleur = require('kleur');
 const globby = require('globby');
+const ora = require('ora');
 const camelCase = require('camelcase');
+const V8ToIstanbul = require('v8-to-istanbul');
 const merge = require('merge-options').bind({
     ignoreUndefined: true,
     concatArrays: true
 });
+
+const writeFile = promisify(fs.writeFile);
+const mkdir = promisify(fs.mkdir);
 
 const defaultIgnorePatterns = [
     '.git', // Git repository files, see <https://git-scm.com/>
@@ -250,6 +256,7 @@ const runnerOptions = (flags) => {
  * @param {import("./runner")} runner
  * @param {any} config - Runner esbuild config
  * @param {string} tmpl
+ * @param {"bundle" | "before" | "watch"} mode
  */
 const build = async (runner, config = {}, tmpl = '', mode = 'bundle') => {
     const outName = `${mode}-out.js`;
@@ -303,6 +310,7 @@ require('${require.resolve(path.join(runner.options.cwd, runner.options.before))
         {
             entryPoints: [infile],
             bundle: true,
+            mainFields: ['browser', 'module', 'main'],
             sourcemap: 'inline',
             plugins: [nodePlugin],
             outfile,
@@ -313,12 +321,55 @@ require('${require.resolve(path.join(runner.options.cwd, runner.options.before))
                 'PW_TEST_SOURCEMAP': runner.options.debug ? 'false' : 'true'
             }
         },
-        config
+        config,
+        runner.options.buildConfig
     ));
 
     runner.file = outName;
 
     return outName;
+};
+
+/**
+ *
+ * @param {import("./runner")} runner
+ * @param {any} coverage
+ */
+const createCov = async (runner, coverage) => {
+    const spinner = ora('Generating code coverage.').start();
+    const entries = {};
+    const { cwd } = runner.options;
+
+    for (const entry of coverage) {
+        const filePath = path.join(runner.dir, entry.url.replace(runner.url, ''));
+
+        if (filePath.includes(runner.file)) {
+            const converter = new V8ToIstanbul(filePath, 0, { source: entry.source });
+
+            // eslint-disable-next-line no-await-in-loop
+            await converter.load();
+            converter.applyCoverage(entry.functions);
+            const instanbul = converter.toIstanbul();
+
+            // eslint-disable-next-line guard-for-in
+            for (const key in instanbul) {
+                // remove random stuff
+                if (
+                    !key.includes('node_modules') &&
+                    !runner.tests.includes(key) &&
+                    !key.includes('playwright-test/src') &&
+                    !key.includes(path.join(runner.dir, 'in.js'))
+                ) {
+                    entries[key] = instanbul[key];
+                }
+            }
+        }
+    }
+    const covPath = path.join(cwd, '.nyc_output');
+
+    await mkdir(covPath, { recursive: true });
+    await writeFile(path.join(covPath, 'out.json'), JSON.stringify(entries));
+    spinner.succeed('Code coverage generated, run "npx nyc report".');
 };
 
 module.exports = {
@@ -330,5 +381,6 @@ module.exports = {
     getPw,
     addWorker,
     runnerOptions,
-    build
+    build,
+    createCov
 };
