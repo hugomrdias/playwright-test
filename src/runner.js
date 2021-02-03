@@ -219,7 +219,7 @@ class Runner {
     async waitForTestsToEnd() {
         if (!this.options.debug) {
             try {
-                await this.page.waitForFunction(() => self.PW_TEST.ended === true);
+                await this.page.waitForFunction(() => self.PW_TEST.ended === true, undefined, { timeout: 0 });
                 const testsFailed = await this.page.evaluate('self.PW_TEST.failed');
 
                 await this.stop(testsFailed);
