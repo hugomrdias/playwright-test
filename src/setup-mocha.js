@@ -6,5 +6,5 @@
 require('mocha/mocha');
 
 // env variables injected via webpack.DefinePlugin
-mocha.setup(PW_TEST_ENV.PW_TEST.runnerOptions);
+mocha.setup(process.env.PW_TEST.runnerOptions);
 

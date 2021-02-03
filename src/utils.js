@@ -288,7 +288,7 @@ const build = async (runner, config = {}, tmpl = '', mode = 'bundle') => {
     let infileContent = `
 'use strict'
 require('${sourceMapSupport}').install();
-
+process.env = ${JSON.stringify(runner.env)}
 ${tmpl}
 
 ${runner.tests.map(t => `require('${t}')`).join('\n')}
@@ -299,6 +299,7 @@ ${runner.tests.map(t => `require('${t}')`).join('\n')}
         infileContent = `
 'use strict'
 require('${sourceMapSupport}').install();
+process.env = ${JSON.stringify(runner.env)}
 
 require('${require.resolve('../static/setup.js')}')
 require('${require.resolve(path.join(runner.options.cwd, runner.options.before))}')
@@ -316,10 +317,7 @@ require('${require.resolve(path.join(runner.options.cwd, runner.options.before))
             outfile,
             inject: [nodeGlobalsInject],
             watch: mode === 'watch' ? watch : false,
-            define: {
-                'PW_TEST_ENV': JSON.stringify(runner.env),
-                'PW_TEST_SOURCEMAP': runner.options.debug ? 'false' : 'true'
-            }
+            define: { 'PW_TEST_SOURCEMAP': runner.options.debug ? 'false' : 'true' }
         },
         config,
         runner.options.buildConfig

@@ -17,7 +17,7 @@ const signalFinished = () => {
     if (runningCount === 0) {
         setTimeout(() => {
             // eslint-disable-next-line no-undef
-            if (PW_TEST_ENV.PW_TEST.mode === 'worker') {
+            if (process.env.PW_TEST.mode === 'worker') {
                 postMessage({ 'pwRunEnded': true });
             } else {
                 self.PW_TEST.end();

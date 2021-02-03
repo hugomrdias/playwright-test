@@ -10,7 +10,7 @@ test.onFailure(() => {
 
 test.onFinish(() => {
     // eslint-disable-next-line no-undef
-    if (PW_TEST_ENV.PW_TEST.mode === 'worker') {
+    if (process.env.PW_TEST.mode === 'worker') {
         postMessage({
             'pwRunEnded': true,
             'pwRunFailed':  self.TAPE_RUN_FAIL

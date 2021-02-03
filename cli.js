@@ -115,7 +115,7 @@ sade2
                 debug: opts.debug,
                 mode: opts.mode,
                 incognito: opts.incognito,
-                input,
+                input: [input, ...opts._],
                 extension: opts.extension,
                 runnerOptions: runnerOptions(opts),
                 before: opts.before,
