@@ -185,6 +185,9 @@ class Runner {
         }
 
         if (this.options.cov) {
+            if (this.options.browser !== 'chromium') {
+                await this.stop(true, kleur.red('\nCoverage is only supported in chromium'));
+            }
             await this.page.coverage.startJSCoverage();
         }
 
@@ -260,7 +263,7 @@ class Runner {
         } catch (err) {
             console.log(err);
             spinner.fail('Running tests failed.');
-            this.stop(true, kleur.red(err));
+            await this.stop(true, kleur.red(err));
         }
     }
 
@@ -286,7 +289,7 @@ class Runner {
             await this.compiler('before');
             await this.pageBefore.addScriptTag({ url: this.file });
         } catch (err) {
-            this.stop(true, kleur.red(err));
+            await this.stop(true, kleur.red(err));
         }
 
         await this.pageBefore.waitForFunction('self.PW_TEST.beforeEnded', { timeout: 0 });
@@ -313,7 +316,7 @@ class Runner {
         }
         this.stopped = true;
 
-        if (this.options.cov && this.page) {
+        if (this.options.cov && this.page && this.page.coverage) {
             const coverage = await this.page.coverage.stopJSCoverage();
 
             await createCov(this, coverage);

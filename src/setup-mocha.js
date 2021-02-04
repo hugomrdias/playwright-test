@@ -5,6 +5,20 @@
 // mocha library itself, to have it set up on global
 require('mocha/mocha');
 
-// env variables injected via webpack.DefinePlugin
-mocha.setup(process.env.PW_TEST.runnerOptions);
+const {
+    allowUncaught,
+    bail,
+    reporter,
+    timeout,
+    color,
+    ui
+} = process.env.PW_TEST.runnerOptions;
 
+mocha.setup({
+    allowUncaught,
+    bail,
+    reporter,
+    timeout,
+    color,
+    ui
+});

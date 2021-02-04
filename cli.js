@@ -3,6 +3,7 @@
 
 'use strict';
 
+const path = require('path');
 const sade = require('sade');
 const kleur = require('kleur');
 const lilconfig = require('lilconfig');
@@ -81,8 +82,18 @@ sade2
     .option('--assets', 'Assets to be served by the http server.  (default process.cwd())')
     .option('--cwd', 'Current directory.  (default process.cwd())')
     .option('--extensions', 'File extensions allowed in the bundle.  (default js,cjs,mjs)')
+    .option('--config', 'Path to the config file')
     .action((input, opts) => {
-        const config = lilconfig.lilconfigSync('playwright-test').search();
+        let config;
+
+        if (opts.config) {
+            config = lilconfig.lilconfigSync('playwright-test').load(path.resolve(opts.config));
+        } else {
+            config = lilconfig.lilconfigSync('playwright-test').search();
+            if (!config) {
+                config = lilconfig.lilconfigSync('pw-test').search();
+            }
+        }
 
         let Runner = null;
 

@@ -232,6 +232,7 @@ const runnerOptions = (flags) => {
             'before',
             'node',
             'cov',
+            'config',
             '_',
             'd',
             'r',
