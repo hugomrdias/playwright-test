@@ -38,6 +38,7 @@ Description
     --assets           Assets to be served by the http server.  (default process.cwd())
     --cwd              Current directory.  (default process.cwd())
     --extensions       File extensions allowed in the bundle.  (default js,cjs,mjs)
+    --config           Path to the config file
     -v, --version      Displays current version
     -h, --help         Displays this message
 
@@ -71,6 +72,21 @@ Description
     Do not let your shell expand globs, always wrap them.
     $ playwright-test "test/**" GOOD
     $ playwright-test test/** BAD
+```
+## Config
+Configuration can be done with cli flags or config files.
+```js
+'package.json', // using property `pw-test` or `playwright-test`
+`.playwright-testrc.json`,
+`.playwright-testrc.js`,
+`playwright-test.config.js`,
+`.playwright-testrc.cjs`,
+`playwright-test.config.cjs`,
+`.pw-testrc.json`,
+`.pw-testrc.js`,
+`pw-test.config.js`,
+`.pw-testrc.cjs`,
+`pw-test.config.cjs`,
 ```
 
 ## Run in CI 
