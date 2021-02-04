@@ -43,7 +43,7 @@
         "buffer": "^6.0.3",
         "camelcase": "^6.2.0",
         "delay": "^5.0.0",
-        "esbuild": "^0.8.39",
+        "esbuild": "^0.8.40",
         "fresh-tape": "^5.1.1",
         "get-port": "^5.1.1",
         "globby": "^11.0.2",

@@ -228,7 +228,7 @@ class Runner {
                 await this.stop(testsFailed);
             } catch (err) {
                 if (err.message.includes('Protocol error (Runtime.callFunctionOn): Target closed')) {
-                    console.error(kleur.yellow('Browser was closed by an uncaught error.'));
+                    console.error(kleur.yellow('\nBrowser was closed by an uncaught error.'));
                 } else {
                     throw err;
                 }

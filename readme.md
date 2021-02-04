@@ -34,7 +34,7 @@ Description
     -i, --incognito    Use incognito window to run tests.
     -e, --extension    Use extension background_page to run tests.
     --cov              Enable code coverage in istanbul format. Outputs '.nyc_output/out.json'.
-    --before           Full path to a script to be loaded on a separate tab before the main script.
+    --before           Path to a script to be loaded on a separate tab before the main script.
     --assets           Assets to be served by the http server.  (default process.cwd())
     --cwd              Current directory.  (default process.cwd())
     --extensions       File extensions allowed in the bundle.  (default js,cjs,mjs)

@@ -78,7 +78,7 @@ sade2
     .option('-i, --incognito', 'Use incognito window to run tests.')
     .option('-e, --extension', 'Use extension background_page to run tests.')
     .option('--cov', 'Enable code coverage in istanbul format. Outputs \'.nyc_output/out.json\'.')
-    .option('--before', 'Full path to a script to be loaded on a separate tab before the main script.')
+    .option('--before', 'Path to a script to be loaded on a separate tab before the main script.')
     .option('--assets', 'Assets to be served by the http server.  (default process.cwd())')
     .option('--cwd', 'Current directory.  (default process.cwd())')
     .option('--extensions', 'File extensions allowed in the bundle.  (default js,cjs,mjs)')
