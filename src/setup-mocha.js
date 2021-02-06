@@ -11,7 +11,8 @@ const {
     reporter,
     timeout,
     color,
-    ui
+    ui,
+    grep
 } = process.env.PW_TEST.runnerOptions;
 
 mocha.setup({
@@ -20,5 +21,6 @@ mocha.setup({
     reporter,
     timeout,
     color,
-    ui
+    ui,
+    grep
 });
