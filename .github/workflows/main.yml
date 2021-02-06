@@ -12,15 +12,8 @@ jobs:
   linux:
     name: "Linux"
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: true
-      matrix:
-        node: [14]
     steps:
     - uses: actions/checkout@v2
-    - uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node }}
     - uses: microsoft/playwright-github-action@v1
     - run: npm install
     - run: npm run lint
@@ -31,15 +24,8 @@ jobs:
   macos:
     name: "Mac"
     runs-on: macos-latest
-    strategy:
-      fail-fast: true
-      matrix:
-        node: [12, 14]
     steps:
     - uses: actions/checkout@v2
-    - uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node }}
     - run: npm install
     - run: npm test
     - run: ./cli.js mocks/test.mocha.js --browser firefox
@@ -48,15 +34,8 @@ jobs:
   win:
     name: "Win"
     runs-on: windows-latest
-    strategy:
-      fail-fast: true
-      matrix:
-        node: [12, 14]
     steps:
     - uses: actions/checkout@v2
-    - uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node }}
     - run: npm install
     - run: npm test
       shell: bash
