@@ -91,7 +91,10 @@ class Runner {
         }
 
         // setup http server
-        const port = await getPort({ port: 3000 });
+        const port = await getPort({
+            port: [3000, 3001, 3002],
+            host: 'localhost'
+        });
 
         this.url = 'http://localhost:' + port + '/';
         this.server = (
@@ -113,7 +116,7 @@ class Runner {
                 .use(
                     sirv(path.join(this.options.cwd, this.options.assets), { dev: true })
                 )
-                .listen(port)
+                .listen(port, 'localhost')
         ).server;
 
         // download playwright if needed
