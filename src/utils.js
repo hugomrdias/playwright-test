@@ -290,6 +290,7 @@ const build = async (runner, config = {}, tmpl = '', mode = 'bundle') => {
 'use strict'
 require('${sourceMapSupport}').install();
 process.env = ${JSON.stringify(runner.env)}
+
 ${tmpl}
 
 ${runner.tests.map(t => `require('${t}')`).join('\n')}

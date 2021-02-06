@@ -1,6 +1,6 @@
 'use strict';
 
-const test = require('tape');
+const test = require('fresh-tape');
 
 self.TAPE_RUN_FAIL = false;
 
