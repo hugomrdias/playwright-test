@@ -197,7 +197,7 @@ const getPw = async (browserName) => {
         path.join(cachePath, 'browsers.json'),
         JSON.stringify(browsers, null, 2)
     );
-    await installBrowsersWithProgressBar(cachePath);
+    await installBrowsersWithProgressBar(cachePath, [browserName]);
     const api = setupInProcess;
 
     return api[browserName];
