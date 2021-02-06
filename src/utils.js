@@ -182,9 +182,6 @@ const redirectConsole = async (msg) => {
 const getPw = async (browserName) => {
     const cachePath = path.join(process.cwd(), 'node_modules', '.cache');
 
-    // if (process.env.CI) {
-    //     process.env.PLAYWRIGHT_BROWSERS_PATH = cachePath;
-    // }
     const { installBrowsersWithProgressBar } = require('playwright-core/lib/install/installer');
     const setupInProcess = require('playwright-core/lib/inprocess');
     const browsers = require('playwright-core/browsers.json');
@@ -266,7 +263,6 @@ const build = async (runner, config = {}, tmpl = '', mode = 'bundle') => {
     const sourceMapSupport = path.join(__dirname, 'vendor/source-map-support.js');
     const nodeGlobalsInject = path.join(__dirname, 'node-globals.js');
 
-    console.log(runner.tests);
     const nodePlugin = {
         name: 'node built ins',
         setup(build) {
