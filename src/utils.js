@@ -182,9 +182,9 @@ const redirectConsole = async (msg) => {
 const getPw = async (browserName) => {
     const cachePath = path.join(process.cwd(), 'node_modules', '.cache');
 
-    if (process.env.CI) {
-        process.env.PLAYWRIGHT_BROWSERS_PATH = cachePath;
-    }
+    // if (process.env.CI) {
+    //     process.env.PLAYWRIGHT_BROWSERS_PATH = cachePath;
+    // }
     const { installBrowsersWithProgressBar } = require('playwright-core/lib/install/installer');
     const setupInProcess = require('playwright-core/lib/inprocess');
     const browsers = require('playwright-core/browsers.json');
@@ -302,11 +302,11 @@ ${runner.tests.map(t => `require('${t.replace(/\\/g, '/')}')`).join('\n')}
     if (mode === 'before') {
         infileContent = `
 'use strict'
-require('${sourceMapSupport}').install();
+require('${sourceMapSupport.replace(/\\/g, '/')}').install();
 process.env = ${JSON.stringify(runner.env)}
 
-require('${require.resolve('../static/setup.js')}')
-require('${require.resolve(path.join(runner.options.cwd, runner.options.before))}')
+require('${require.resolve('../static/setup.js').replace(/\\/g, '/')}')
+require('${require.resolve(path.join(runner.options.cwd, runner.options.before)).replace(/\\/g, '/')}')
 `;
     }
 
