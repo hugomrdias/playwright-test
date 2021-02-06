@@ -290,12 +290,12 @@ const build = async (runner, config = {}, tmpl = '', mode = 'bundle') => {
     // main script template
     let infileContent = `
 'use strict'
-require('${sourceMapSupport.replace('\\', '\\\\')}').install();
+require('${sourceMapSupport.replace(/\\/g, '/')}').install();
 process.env = ${JSON.stringify(runner.env)}
 
 ${tmpl}
 
-${runner.tests.map(t => `require('${t.replace('\\', '\\\\')}')`).join('\n')}
+${runner.tests.map(t => `require('${t.replace(/\\/g, '/')}')`).join('\n')}
 `;
 
     // before script template

@@ -18,7 +18,7 @@ class TapeRunner extends Runner {
         return build(
             this,
             { plugins: [plugin] },
-            `require('${require.resolve('./setup-tape.js')}')`,
+            `require('${require.resolve('./setup-tape.js').replace(/\\/g, '/')}')`,
             mode
         );
     }
