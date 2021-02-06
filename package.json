@@ -54,7 +54,6 @@
         "playwright-core": "1.8.0",
         "polka": "^0.5.2",
         "process": "^0.11.10",
-        "readable-stream": "^3.6.0",
         "sade": "^1.7.4",
         "sirv": "^1.0.11",
         "source-map-support": "^0.5.19",

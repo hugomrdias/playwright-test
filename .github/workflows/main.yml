@@ -22,9 +22,9 @@ jobs:
       with:
         node-version: ${{ matrix.node }}
     - uses: microsoft/playwright-github-action@v1
-    - run: yarn
-    - run: yarn lint
-    - run: xvfb-run -a yarn test
+    - run: npm install
+    - run: npm run lint
+    - run: xvfb-run -a npm run test
     - run: ./cli.js mocks/test.mocha.js --browser firefox
     - run: ./cli.js mocks/test.mocha.js --browser webkit
 
@@ -40,8 +40,8 @@ jobs:
     - uses: actions/setup-node@v1
       with:
         node-version: ${{ matrix.node }}
-    - run: yarn
-    - run: yarn test
+    - run: npm install
+    - run: npm test
     - run: ./cli.js mocks/test.mocha.js --browser firefox
     - run: ./cli.js mocks/test.mocha.js --browser webkit
 
@@ -57,8 +57,8 @@ jobs:
     - uses: actions/setup-node@v1
       with:
         node-version: ${{ matrix.node }}
-    - run: yarn
-    - run: yarn test
+    - run: npm install
+    - run: npm test
       shell: bash
     - run: ./cli.js mocks/test.mocha.js --browser firefox
       shell: bash
