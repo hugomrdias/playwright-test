@@ -265,6 +265,8 @@ const build = async (runner, config = {}, tmpl = '', mode = 'bundle') => {
     const outfile = path.join(runner.dir, outName);
     const sourceMapSupport = path.join(__dirname, 'vendor/source-map-support.js');
     const nodeGlobalsInject = path.join(__dirname, 'node-globals.js');
+
+    console.log(runner.tests);
     const nodePlugin = {
         name: 'node built ins',
         setup(build) {
