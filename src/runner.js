@@ -54,6 +54,7 @@ class Runner {
         /** @type {Page} */
         this.page = null;
         this.dir = tempy.directory();
+        this.browserDir = tempy.directory();
         this.file = null;
         this.url = '';
         this.stopped = false;
@@ -139,7 +140,7 @@ class Runner {
             this.context = await this.browser.newContext();
         } else {
             this.context = await pw.launchPersistentContext(
-                this.dir,
+                this.browserDir,
                 pwOptions
             );
         }
@@ -236,7 +237,7 @@ class Runner {
                 ) {
                     console.error(kleur.yellow('\nBrowser was closed by an uncaught error.'));
                 } else {
-                    throw err;
+                    this.stop(true, kleur.red(err));
                 }
             }
         }
