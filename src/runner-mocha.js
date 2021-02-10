@@ -62,7 +62,7 @@ class MochaRunner extends Runner {
                 break;
             }
             default:
-                console.error('mode not supported');
+                await this.stop(true, 'mode not supported');
                 break;
         }
     }

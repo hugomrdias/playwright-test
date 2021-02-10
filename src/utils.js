@@ -5,6 +5,7 @@
 /* eslint-disable no-console */
 'use strict';
 
+const { createServer } = require('net');
 const path = require('path');
 const fs = require('fs');
 const { promisify } = require('util');
@@ -12,6 +13,9 @@ const esbuild = require('esbuild');
 const kleur = require('kleur');
 const globby = require('globby');
 const ora = require('ora');
+const sirv = require('sirv');
+const polka = require('polka');
+const { premove } = require('premove/sync');
 const camelCase = require('camelcase');
 const V8ToIstanbul = require('v8-to-istanbul');
 const merge = require('merge-options').bind({
@@ -136,11 +140,17 @@ const redirectConsole = async (msg) => {
     }
     const text = msg.text();
     const { url, lineNumber, columnNumber } = msg.location();
-    const msgArgs = await Promise.all(
-        msg.args().map(arg => extractErrorMessage(arg) || arg.jsonValue())
-    );
+    let msgArgs;
 
-    if (msgArgs.length > 0) {
+    try {
+        msgArgs = await Promise.all(
+            msg.args().map(arg => extractErrorMessage(arg) || arg.jsonValue())
+        );
+    } catch (err) {
+        // ignore error runner was probably force stopped
+    }
+
+    if (msgArgs && msgArgs.length > 0) {
         consoleFn.apply(console, msgArgs);
     } else if (text) {
         let color = 'white';
@@ -329,6 +339,7 @@ require('${require.resolve(path.join(runner.options.cwd, runner.options.before))
 };
 
 /**
+ * Create coverage report in istanbul JSON format
  *
  * @param {import("./runner")} runner
  * @param {any} coverage
@@ -365,10 +376,76 @@ const createCov = async (runner, coverage) => {
     }
     const covPath = path.join(cwd, '.nyc_output');
 
+    premove(covPath);
     await mkdir(covPath, { recursive: true });
-    await writeFile(path.join(covPath, 'out.json'), JSON.stringify(entries));
+
+    await writeFile(path.join(covPath, 'coverage-pw.json'), JSON.stringify(entries));
     spinner.succeed('Code coverage generated, run "npx nyc report".');
 };
+
+/**
+ * Get a free port
+ *
+ * @param {number} port
+ * @param {string} host
+ * @returns {Promise<number>}
+ */
+function getPort(port = 3000, host = '127.0.0.1') {
+    const server = createServer();
+
+    return new Promise((resolve, reject) => {
+        server.on('error', (err) => {
+            // @ts-ignore
+            if (err.code === 'EADDRINUSE' || err.code === 'EACCES') {
+                server.listen(0, host);
+            } else {
+                reject(err);
+            }
+        });
+        server.on('listening', () => {
+            // @ts-ignore
+            const { port } = server.address();
+
+            server.close(() => resolve(port));
+        });
+        server.listen(port, host);
+    });
+}
+
+const createPolka = runner => new Promise(async (resolve, reject) => {
+    const host = '127.0.0.1';
+    const port = await getPort(3000, host);
+    const url = `http://${host}:${port}/`;
+
+    const { server } = polka()
+        .use(
+            sirv(runner.dir, {
+                dev: true,
+                setHeaders: (rsp, pathname) => {
+                    if (pathname === '/') {
+                        rsp.setHeader(
+                            'Clear-Site-Data',
+                            '"cache", "cookies", "storage"'
+                        );
+                        // rsp.setHeader('Clear-Site-Data', '"cache", "cookies", "storage", "executionContexts"');
+                    }
+                }
+            })
+        )
+        .use(
+            sirv(path.join(runner.options.cwd, runner.options.assets), { dev: true })
+        )
+        .listen(port, host, (err) => {
+            if (err) {
+                reject(err);
+
+                return;
+            }
+            runner.url = url;
+            runner.server = server;
+            resolve();
+        });
+});
 
 module.exports = {
     extractErrorMessage,
@@ -380,5 +457,6 @@ module.exports = {
     addWorker,
     runnerOptions,
     build,
-    createCov
+    createCov,
+    createPolka
 };

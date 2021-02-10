@@ -4,12 +4,10 @@
 
 const fs = require('fs');
 const path = require('path');
-const getPort = require('get-port');
 const ora = require('ora');
 const kleur = require('kleur');
 const tempy = require('tempy');
-const polka = require('polka');
-const sirv = require('sirv');
+const { premove } = require('premove/sync');
 const merge = require('merge-options').bind({ ignoreUndefined: true });
 const {
     redirectConsole,
@@ -17,7 +15,8 @@ const {
     addWorker,
     findTests,
     defaultTestPatterns,
-    createCov
+    createCov,
+    createPolka
 } = require('./utils');
 
 /**
@@ -92,33 +91,7 @@ class Runner {
         }
 
         // setup http server
-        const port = await getPort({
-            port: [3000, 3001, 3002],
-            host: 'localhost'
-        });
-
-        this.url = 'http://localhost:' + port + '/';
-        this.server = (
-            await polka()
-                .use(
-                    sirv(this.dir, {
-                        dev: true,
-                        setHeaders: (rsp, pathname) => {
-                            if (pathname === '/') {
-                                rsp.setHeader(
-                                    'Clear-Site-Data',
-                                    '"cache", "cookies", "storage"'
-                                );
-                                // rsp.setHeader('Clear-Site-Data', '"cache", "cookies", "storage", "executionContexts"');
-                            }
-                        }
-                    })
-                )
-                .use(
-                    sirv(path.join(this.options.cwd, this.options.assets), { dev: true })
-                )
-                .listen(port, 'localhost')
-        ).server;
+        await createPolka(this);
 
         // download playwright if needed
         const pw = await getPw(this.options.browser);
@@ -190,18 +163,18 @@ class Runner {
 
         if (this.options.cov) {
             if (this.options.browser !== 'chromium') {
-                await this.stop(true, kleur.red('\nCoverage is only supported in chromium'));
+                await this.stop(true, 'Coverage is only supported in chromium');
             }
             await this.page.coverage.startJSCoverage();
         }
 
-        this.page.on('console', redirectConsole);
-        this.page.on('error', err => this.stop(true, `\n${kleur.red(err)}`));
+        this.page.on('crash', err => this.stop(true, err));
+        this.page.on('error', err => this.stop(true, err));
         this.page.on('pageerror', (err) => {
             console.error(err);
-            this.stop(true, `\n${kleur.red('Uncaught exception happened within the page. Run with --debug.')}`);
+            this.stop(true, 'Uncaught exception happened within the page. Run with --debug.');
         });
-        this.page.on('crash', err => this.stop(true, `\n${kleur.red(err)}`));
+        this.page.on('console', redirectConsole);
     }
 
     async runTests() {
@@ -237,7 +210,7 @@ class Runner {
                 ) {
                     console.error(kleur.yellow('\nBrowser was closed by an uncaught error.'));
                 } else {
-                    this.stop(true, kleur.red(err));
+                    this.stop(true, err);
                 }
             }
         }
@@ -270,7 +243,7 @@ class Runner {
         } catch (err) {
             console.log(err);
             spinner.fail('Running tests failed.');
-            await this.stop(true, kleur.red(err));
+            await this.stop(true, err);
         }
     }
 
@@ -280,14 +253,14 @@ class Runner {
         await this.pageBefore.goto(this.url + 'before.html');
 
         // listen to errors
+        this.pageBefore.on('crash', (err) => {
+            this.stop(true, `Before page:\n ${err}`);
+        });
         this.pageBefore.on('error', (err) => {
-            this.stop(true, `\n${kleur.dim('Before page')} ${kleur.red(err)}`);
+            this.stop(true, `Before page:\n ${err}`);
         });
         this.pageBefore.on('pageerror', (err) => {
-            this.stop(true, `\n${kleur.dim('Before page')} ${kleur.red(err)}`);
-        });
-        this.pageBefore.on('crash', (err) => {
-            this.stop(true, `\n${kleur.dim('Before page')} ${kleur.red(err)}`);
+            this.stop(true, `Before page:\n ${err}`);
         });
 
         // redirect console.log
@@ -296,7 +269,7 @@ class Runner {
             await this.compiler('before');
             await this.pageBefore.addScriptTag({ url: this.file });
         } catch (err) {
-            await this.stop(true, kleur.red(err));
+            await this.stop(true, err);
         }
 
         await this.pageBefore.waitForFunction('self.PW_TEST.beforeEnded', { timeout: 0 });
@@ -324,9 +297,7 @@ class Runner {
         this.stopped = true;
 
         if (this.options.cov && this.page && this.page.coverage) {
-            const coverage = await this.page.coverage.stopJSCoverage();
-
-            await createCov(this, coverage);
+            await createCov(this, await this.page.coverage.stopJSCoverage());
         }
 
         if (this.context) {
@@ -346,8 +317,11 @@ class Runner {
             await serverClose;
         }
 
+        premove(this.dir);
+        premove(this.browserDir);
+
         if (fail && msg) {
-            console.error(msg);
+            console.error(kleur.red('\n' + msg));
         } else if (msg) {
             console.log(msg);
         }
