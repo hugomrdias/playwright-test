@@ -327,7 +327,10 @@ require('${require.resolve(path.join(runner.options.cwd, runner.options.before))
             outfile,
             inject: [nodeGlobalsInject],
             watch: mode === 'watch' ? watch : false,
-            define: { 'PW_TEST_SOURCEMAP': runner.options.debug ? 'false' : 'true' }
+            define: {
+                'global': 'globalThis',
+                'PW_TEST_SOURCEMAP': runner.options.debug ? 'false' : 'true'
+            }
         },
         config,
         runner.options.buildConfig
