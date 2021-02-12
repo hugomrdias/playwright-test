@@ -94,6 +94,9 @@ class Runner {
         await createPolka(this);
 
         // download playwright if needed
+        if (!['chromium', 'firefox', 'webkit'].includes(String(this.options.browser))) {
+            throw new Error(`Browser not supported: ${this.options.browser}`);
+        }
         const pw = await getPw(this.options.browser);
         const pwOptions = {
             headless: !this.options.extension && !this.options.debug,
@@ -241,7 +244,6 @@ class Runner {
                 });
             }
         } catch (err) {
-            console.log(err);
             spinner.fail('Running tests failed.');
             await this.stop(true, err);
         }
@@ -321,7 +323,7 @@ class Runner {
         premove(this.browserDir);
 
         if (fail && msg) {
-            console.error(kleur.red('\n' + msg));
+            console.error(msg);
         } else if (msg) {
             console.log(msg);
         }

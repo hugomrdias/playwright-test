@@ -16,6 +16,18 @@ const TapeRunner = require('./src/runner-tape');
 const BenchmarkRunner = require('./src/runner-benchmark');
 const ZoraRunner = require('./src/runner-zora');
 
+// Handle any uncaught errors
+process.once('uncaughtException', (err, origin) => {
+    if (!origin || origin === 'uncaughtException') {
+        console.error(err);
+        process.exit(1);
+    }
+});
+process.once('unhandledRejection', (err) => {
+    console.error(err);
+    process.exit(1);
+});
+
 const extra = `
   ${kleur.bold('Examples')}
     ${kleur.dim('$ playwright-test test.js --runner tape')}
