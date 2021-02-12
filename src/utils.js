@@ -351,6 +351,9 @@ const createCov = async (runner, coverage) => {
     const spinner = ora('Generating code coverage.').start();
     const entries = {};
     const { cwd } = runner.options;
+    const TestExclude = require('test-exclude');
+    const exclude = new TestExclude();
+    const f = exclude.globSync().map(f => path.resolve(f));
 
     for (const entry of coverage) {
         const filePath = path.join(runner.dir, entry.url.replace(runner.url, ''));
@@ -365,13 +368,7 @@ const createCov = async (runner, coverage) => {
 
             // eslint-disable-next-line guard-for-in
             for (const key in instanbul) {
-                // remove random stuff
-                if (
-                    !key.includes('node_modules') &&
-                    !runner.tests.includes(key) &&
-                    !key.includes('playwright-test/src') &&
-                    !key.includes(path.join(runner.dir, 'in.js'))
-                ) {
+                if (f.includes(key)) {
                     entries[key] = instanbul[key];
                 }
             }
