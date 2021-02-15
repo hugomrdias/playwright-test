@@ -1,6 +1,6 @@
 'use strict';
 
-const test = require('tape');
+const test = require('fresh-tape');
 
 self.TAPE_RUN_FAIL = false;
 
@@ -9,6 +9,7 @@ test.onFailure(() => {
 });
 
 test.onFinish(() => {
+    // eslint-disable-next-line no-undef
     if (process.env.PW_TEST.mode === 'worker') {
         postMessage({
             'pwRunEnded': true,

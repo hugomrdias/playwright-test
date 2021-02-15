@@ -3,6 +3,7 @@
 
 'use strict';
 
+const path = require('path');
 const sade = require('sade');
 const kleur = require('kleur');
 const lilconfig = require('lilconfig');
@@ -14,6 +15,18 @@ const MochaRunner = require('./src/runner-mocha');
 const TapeRunner = require('./src/runner-tape');
 const BenchmarkRunner = require('./src/runner-benchmark');
 const ZoraRunner = require('./src/runner-zora');
+
+// Handle any uncaught errors
+process.once('uncaughtException', (err, origin) => {
+    if (!origin || origin === 'uncaughtException') {
+        console.error(err);
+        process.exit(1);
+    }
+});
+process.once('unhandledRejection', (err) => {
+    console.error(err);
+    process.exit(1);
+});
 
 const extra = `
   ${kleur.bold('Examples')}
@@ -76,13 +89,23 @@ sade2
     .option('-w, --watch', 'Watch files for changes and re-run tests.')
     .option('-i, --incognito', 'Use incognito window to run tests.')
     .option('-e, --extension', 'Use extension background_page to run tests.')
-    .option('--cov', 'Enable code coverage in istanbul format. Outputs \'.nyc_output/out.json\'.')
-    .option('--before', 'Full path to a script to be loaded on a separate tab before the main script.')
+    .option('--cov', 'Enable code coverage in istanbul format. Outputs \'.nyc_output/coverage-pw.json\'.')
+    .option('--before', 'Path to a script to be loaded on a separate tab before the main script.')
     .option('--assets', 'Assets to be served by the http server.  (default process.cwd())')
     .option('--cwd', 'Current directory.  (default process.cwd())')
-    .option('--extensions', 'File extensions allowed in the bundle.  (default js,cjs,mjs)')
+    .option('--extensions', 'File extensions allowed in the bundle.  (default js,cjs,mjs,ts,tsx)')
+    .option('--config', 'Path to the config file')
     .action((input, opts) => {
-        const config = lilconfig.lilconfigSync('playwright-test').search();
+        let config;
+
+        if (opts.config) {
+            config = lilconfig.lilconfigSync('playwright-test').load(path.resolve(opts.config));
+        } else {
+            config = lilconfig.lilconfigSync('playwright-test').search();
+            if (!config) {
+                config = lilconfig.lilconfigSync('pw-test').search();
+            }
+        }
 
         let Runner = null;
 
@@ -115,12 +138,13 @@ sade2
                 debug: opts.debug,
                 mode: opts.mode,
                 incognito: opts.incognito,
-                input,
+                input: [input, ...opts._],
                 extension: opts.extension,
                 runnerOptions: runnerOptions(opts),
                 before: opts.before,
                 node: opts.node,
-                cov: opts.cov
+                cov: opts.cov,
+                extensions: opts.extensions
             }
         ));
 

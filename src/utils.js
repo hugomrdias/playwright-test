@@ -1,15 +1,30 @@
+/* eslint-disable valid-jsdoc */
 /* eslint-disable camelcase */
 /* eslint-disable no-undefined */
 /* eslint-disable global-require */
 /* eslint-disable no-console */
 'use strict';
 
+const { createServer } = require('net');
 const path = require('path');
 const fs = require('fs');
+const { promisify } = require('util');
+const esbuild = require('esbuild');
 const kleur = require('kleur');
 const globby = require('globby');
-const webpack = require('webpack');
+const ora = require('ora');
+const sirv = require('sirv');
+const polka = require('polka');
+const { premove } = require('premove/sync');
 const camelCase = require('camelcase');
+const V8ToIstanbul = require('v8-to-istanbul');
+const merge = require('merge-options').bind({
+    ignoreUndefined: true,
+    concatArrays: true
+});
+
+const writeFile = promisify(fs.writeFile);
+const mkdir = promisify(fs.mkdir);
 
 const defaultIgnorePatterns = [
     '.git', // Git repository files, see <https://git-scm.com/>
@@ -125,15 +140,24 @@ const redirectConsole = async (msg) => {
     }
     const text = msg.text();
     const { url, lineNumber, columnNumber } = msg.location();
-    const msgArgs = await Promise.all(
-        msg.args().map(arg => extractErrorMessage(arg) || arg.jsonValue())
-    );
+    let msgArgs;
 
-    if (msgArgs.length > 0) {
+    try {
+        msgArgs = await Promise.all(
+            msg.args().map(arg => extractErrorMessage(arg) || arg.jsonValue())
+        );
+    } catch (err) {
+        // ignore error runner was probably force stopped
+    }
+
+    if (msgArgs && msgArgs.length > 0) {
         consoleFn.apply(console, msgArgs);
     } else if (text) {
         let color = 'white';
 
+        if (text.includes('Synchronous XMLHttpRequest on the main thread is deprecated')) {
+            return;
+        }
         switch (type) {
             case 'error':
                 color = 'red';
@@ -168,9 +192,6 @@ const redirectConsole = async (msg) => {
 const getPw = async (browserName) => {
     const cachePath = path.join(process.cwd(), 'node_modules', '.cache');
 
-    if (process.env.CI) {
-        process.env.PLAYWRIGHT_BROWSERS_PATH = cachePath;
-    }
     const { installBrowsersWithProgressBar } = require('playwright-core/lib/install/installer');
     const setupInProcess = require('playwright-core/lib/inprocess');
     const browsers = require('playwright-core/browsers.json');
@@ -183,45 +204,10 @@ const getPw = async (browserName) => {
         path.join(cachePath, 'browsers.json'),
         JSON.stringify(browsers, null, 2)
     );
-    await installBrowsersWithProgressBar(cachePath);
+    await installBrowsersWithProgressBar(cachePath, [browserName]);
     const api = setupInProcess;
 
     return api[browserName];
-};
-
-const compile = (compiler) => {
-    const run = new Promise((resolve, reject) => {
-        compiler.run((err, stats) => {
-            if (err) {
-                console.error('\n', kleur.red(err.stack || err));
-                if (err.details) {
-                    console.error(kleur.gray(err.details));
-                }
-
-                return reject(err);
-            }
-
-            const info = stats.toJson('normal');
-
-            if (stats.hasErrors()) {
-                for (const error of info.errors) {
-                    console.error('\n', kleur.red(error));
-                }
-
-                return reject(new Error('stats errors'));
-            }
-
-            if (stats.hasWarnings()) {
-                for (const warn of info.warnings) {
-                    console.warn('\n', kleur.yellow(warn));
-                }
-            }
-
-            resolve(info.assets[0].name);
-        });
-    });
-
-    return run;
 };
 
 const addWorker = filePath => `
@@ -232,71 +218,6 @@ w.onmessage = function(e) {
     }
 }
 `;
-
-const defaultWebpackConfig = (dir, env, options, name = 'bundle') => {
-    return {
-        mode: 'development',
-        output: {
-            path: dir,
-            filename: `${name}.[contenthash].js`,
-            devtoolModuleFilenameTemplate: info => 'file://' + encodeURI(info.absoluteResourcePath)
-        },
-        module: {
-            rules: [
-                {
-                    test: /\.mjs$/,
-                    include: /node_modules/,
-                    type: 'javascript/auto'
-                }
-            ]
-        },
-        node: options.node ?
-            {
-                dgram: 'empty',
-                fs: 'empty',
-                net: 'empty',
-                tls: 'empty',
-                child_process: 'empty',
-                console: false,
-                global: true,
-                process: true,
-                __filename: 'mock',
-                __dirname: 'mock',
-                Buffer: true,
-                setImmediate: true
-            } :
-            {
-                global: true,
-                __filename: 'mock',
-                __dirname: 'mock',
-                dgram: false,
-                fs: false,
-                net: false,
-                tls: false,
-                child_process: false,
-                console: false,
-                process: false,
-                Buffer: false,
-                setImmediate: false,
-                os: false,
-                assert: false,
-                constants: false,
-                events: false,
-                http: false,
-                path: false,
-                querystring: false,
-                stream: false,
-                string_decoder: false,
-                timers: false,
-                url: false,
-                util: false,
-                crypto: false
-            },
-        plugins: [
-            new webpack.DefinePlugin({ 'process.env': JSON.stringify(env) })
-        ]
-    };
-};
 
 const runnerOptions = (flags) => {
     const opts = {};
@@ -318,6 +239,7 @@ const runnerOptions = (flags) => {
             'before',
             'node',
             'cov',
+            'config',
             '_',
             'd',
             'r',
@@ -336,6 +258,195 @@ const runnerOptions = (flags) => {
     return opts;
 };
 
+/**
+ * Build the bundle
+ *
+ * @param {import("./runner")} runner
+ * @param {any} config - Runner esbuild config
+ * @param {string} tmpl
+ * @param {"bundle" | "before" | "watch"} mode
+ */
+const build = async (runner, config = {}, tmpl = '', mode = 'bundle') => {
+    const outName = `${mode}-out.js`;
+    const infile = path.join(runner.dir, 'in.js');
+    const outfile = path.join(runner.dir, outName);
+    const sourceMapSupport = path.join(__dirname, 'vendor/source-map-support.js');
+    const nodeGlobalsInject = path.join(__dirname, 'node-globals.js');
+
+    const nodePlugin = {
+        name: 'node built ins',
+        setup(build) {
+            build.onResolve({ filter: /^path$/ }, () => {
+                return { path: require.resolve('path-browserify') };
+            });
+        }
+    };
+
+    // watch mode
+    const watch = {
+        onRebuild: async (error) => {
+            if (!error) {
+                await runner.page.reload();
+                runner.file = outName;
+                await runner.runTests();
+            }
+        }
+    };
+
+    // main script template
+    let infileContent = `
+'use strict'
+require('${sourceMapSupport.replace(/\\/g, '/')}').install();
+process.env = ${JSON.stringify(runner.env)}
+
+${tmpl}
+
+${runner.tests.map(t => `require('${t.replace(/\\/g, '/')}')`).join('\n')}
+`;
+
+    // before script template
+    if (mode === 'before') {
+        infileContent = `
+'use strict'
+require('${sourceMapSupport.replace(/\\/g, '/')}').install();
+process.env = ${JSON.stringify(runner.env)}
+
+require('${require.resolve('../static/setup.js').replace(/\\/g, '/')}')
+require('${require.resolve(path.join(runner.options.cwd, runner.options.before)).replace(/\\/g, '/')}')
+`;
+    }
+
+    fs.writeFileSync(infile, infileContent);
+    await esbuild.build(merge(
+        {
+            entryPoints: [infile],
+            bundle: true,
+            mainFields: ['browser', 'module', 'main'],
+            sourcemap: 'inline',
+            plugins: [nodePlugin],
+            outfile,
+            inject: [nodeGlobalsInject],
+            watch: mode === 'watch' ? watch : false,
+            define: {
+                'global': 'globalThis',
+                'PW_TEST_SOURCEMAP': runner.options.debug ? 'false' : 'true'
+            }
+        },
+        config,
+        runner.options.buildConfig
+    ));
+
+    runner.file = outName;
+
+    return outName;
+};
+
+/**
+ * Create coverage report in istanbul JSON format
+ *
+ * @param {import("./runner")} runner
+ * @param {any} coverage
+ */
+const createCov = async (runner, coverage) => {
+    const spinner = ora('Generating code coverage.').start();
+    const entries = {};
+    const { cwd } = runner.options;
+    const TestExclude = require('test-exclude');
+    const exclude = new TestExclude();
+    const f = exclude.globSync().map(f => path.resolve(f));
+
+    for (const entry of coverage) {
+        const filePath = path.join(runner.dir, entry.url.replace(runner.url, ''));
+
+        if (filePath.includes(runner.file)) {
+            const converter = new V8ToIstanbul(filePath, 0, { source: entry.source });
+
+            // eslint-disable-next-line no-await-in-loop
+            await converter.load();
+            converter.applyCoverage(entry.functions);
+            const instanbul = converter.toIstanbul();
+
+            // eslint-disable-next-line guard-for-in
+            for (const key in instanbul) {
+                if (f.includes(key)) {
+                    entries[key] = instanbul[key];
+                }
+            }
+        }
+    }
+    const covPath = path.join(cwd, '.nyc_output');
+
+    premove(covPath);
+    await mkdir(covPath, { recursive: true });
+
+    await writeFile(path.join(covPath, 'coverage-pw.json'), JSON.stringify(entries));
+    spinner.succeed('Code coverage generated, run "npx nyc report".');
+};
+
+/**
+ * Get a free port
+ *
+ * @param {number} port
+ * @param {string} host
+ * @returns {Promise<number>}
+ */
+function getPort(port = 3000, host = '127.0.0.1') {
+    const server = createServer();
+
+    return new Promise((resolve, reject) => {
+        server.on('error', (err) => {
+            // @ts-ignore
+            if (err.code === 'EADDRINUSE' || err.code === 'EACCES') {
+                server.listen(0, host);
+            } else {
+                reject(err);
+            }
+        });
+        server.on('listening', () => {
+            // @ts-ignore
+            const { port } = server.address();
+
+            server.close(() => resolve(port));
+        });
+        server.listen(port, host);
+    });
+}
+
+const createPolka = runner => new Promise(async (resolve, reject) => {
+    const host = '127.0.0.1';
+    const port = await getPort(3000, host);
+    const url = `http://${host}:${port}/`;
+
+    const { server } = polka()
+        .use(
+            sirv(runner.dir, {
+                dev: true,
+                setHeaders: (rsp, pathname) => {
+                    if (pathname === '/') {
+                        rsp.setHeader(
+                            'Clear-Site-Data',
+                            '"cache", "cookies", "storage"'
+                        );
+                        // rsp.setHeader('Clear-Site-Data', '"cache", "cookies", "storage", "executionContexts"');
+                    }
+                }
+            })
+        )
+        .use(
+            sirv(path.join(runner.options.cwd, runner.options.assets), { dev: true })
+        )
+        .listen(port, host, (err) => {
+            if (err) {
+                reject(err);
+
+                return;
+            }
+            runner.url = url;
+            runner.server = server;
+            resolve();
+        });
+});
+
 module.exports = {
     extractErrorMessage,
     redirectConsole,
@@ -343,8 +454,9 @@ module.exports = {
     findTests,
     findFiles,
     getPw,
-    compile,
     addWorker,
-    defaultWebpackConfig,
-    runnerOptions
+    runnerOptions,
+    build,
+    createCov,
+    createPolka
 };

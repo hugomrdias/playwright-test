@@ -1,13 +1,10 @@
 /* eslint-disable no-console */
 'use strict';
 
-const webpack = require('webpack');
 const merge = require('merge-options');
 const delay = require('delay');
-const resolveCwd = require('resolve-cwd');
-const webpackMerge = require('webpack-merge');
 const Runner = require('./runner');
-const { defaultWebpackConfig } = require('./utils');
+const { build } = require('./utils');
 
 const runMocha = () => `
 mocha
@@ -65,21 +62,18 @@ class MochaRunner extends Runner {
                 break;
             }
             default:
-                console.error('mode not supported');
+                await this.stop(true, 'mode not supported');
                 break;
         }
     }
 
-    compiler() {
-        const config = webpackMerge(
-            defaultWebpackConfig(this.dir, this.env, this.options),
-            {
-                entry: [require.resolve('./setup-mocha.js'), ...this.tests],
-                resolve: { alias: { 'mocha/mocha': resolveCwd('mocha/mocha.js') } }
-            }
+    compiler(mode = 'bundle') {
+        return build(
+            this,
+            {},
+            `require('${require.resolve('./setup-mocha.js').replace(/\\/g, '/')}')`,
+            mode
         );
-
-        return webpack(config);
     }
 }
 

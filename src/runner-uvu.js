@@ -1,11 +1,9 @@
 /* eslint-disable no-console */
 'use strict';
 
-const webpack = require('webpack');
-const merge = require('webpack-merge');
 const strip = require('strip-ansi');
 const Runner = require('./runner');
-const { defaultWebpackConfig } = require('./utils');
+const { build } = require('./utils');
 
 const run = pass => `
 self.PW_TEST.end(${pass})
@@ -31,13 +29,8 @@ class UvuRunner extends Runner {
         });
     }
 
-    compiler() {
-        const config = merge(
-            defaultWebpackConfig(this.dir, this.env, this.options),
-            { entry: this.tests }
-        );
-
-        return webpack(config);
+    compiler(mode = 'bundle') {
+        return build(this, {}, '', mode);
     }
 }
 

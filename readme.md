@@ -33,11 +33,12 @@ Description
     -w, --watch        Watch files for changes and re-run tests.
     -i, --incognito    Use incognito window to run tests.
     -e, --extension    Use extension background_page to run tests.
-    --cov              Enable code coverage in istanbul format. Outputs '.nyc_output/out.json'.
-    --before           Full path to a script to be loaded on a separate tab before the main script.
+    --cov              Enable code coverage in istanbul format. Outputs '.nyc_output/coverage-pw.json'.
+    --before           Path to a script to be loaded on a separate tab before the main script.
     --assets           Assets to be served by the http server.  (default process.cwd())
     --cwd              Current directory.  (default process.cwd())
-    --extensions       File extensions allowed in the bundle.  (default js,cjs,mjs)
+    --extensions       File extensions allowed in the bundle.  (default js,cjs,mjs,ts,tsx)
+    --config           Path to the config file
     -v, --version      Displays current version
     -h, --help         Displays this message
 
@@ -71,6 +72,21 @@ Description
     Do not let your shell expand globs, always wrap them.
     $ playwright-test "test/**" GOOD
     $ playwright-test test/** BAD
+```
+## Config
+Configuration can be done with cli flags or config files.
+```js
+'package.json', // using property `pw-test` or `playwright-test`
+`.playwright-testrc.json`,
+`.playwright-testrc.js`,
+`playwright-test.config.js`,
+`.playwright-testrc.cjs`,
+`playwright-test.config.cjs`,
+`.pw-testrc.json`,
+`.pw-testrc.js`,
+`pw-test.config.js`,
+`.pw-testrc.cjs`,
+`pw-test.config.cjs`,
 ```
 
 ## Run in CI 

@@ -2,11 +2,9 @@
 'use strict';
 
 const path = require('path');
-const webpack = require('webpack');
 const delay = require('delay');
-const merge = require('webpack-merge');
 const Runner = require('./runner');
-const { defaultWebpackConfig } = require('./utils');
+const { build } = require('./utils');
 
 const runZora = () => `
 zora
@@ -48,21 +46,22 @@ class ZoraRunner extends Runner {
                 break;
             }
             default:
-                console.error('mode not supported');
+                await this.stop(true, 'mode not supported');
                 break;
         }
     }
 
-    compiler() {
-        const config = merge(
-            defaultWebpackConfig(this.dir, this.env, this.options),
-            {
-                entry: this.tests,
-                resolve: { alias: { zora$: path.resolve(__dirname, 'setup-zora.js') } }
+    compiler(mode = 'bundle') {
+        const plugin = {
+            name: 'swap zora',
+            setup(build) {
+                build.onResolve({ filter: /^zora$/ }, () => {
+                    return { path: path.join(__dirname, 'setup-zora.js') };
+                });
             }
-        );
+        };
 
-        return webpack(config);
+        return build(this, { plugins: [plugin] }, '', mode);
     }
 }
 
