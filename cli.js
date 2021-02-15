@@ -89,11 +89,11 @@ sade2
     .option('-w, --watch', 'Watch files for changes and re-run tests.')
     .option('-i, --incognito', 'Use incognito window to run tests.')
     .option('-e, --extension', 'Use extension background_page to run tests.')
-    .option('--cov', 'Enable code coverage in istanbul format. Outputs \'.nyc_output/out.json\'.')
+    .option('--cov', 'Enable code coverage in istanbul format. Outputs \'.nyc_output/coverage-pw.json\'.')
     .option('--before', 'Path to a script to be loaded on a separate tab before the main script.')
     .option('--assets', 'Assets to be served by the http server.  (default process.cwd())')
     .option('--cwd', 'Current directory.  (default process.cwd())')
-    .option('--extensions', 'File extensions allowed in the bundle.  (default js,cjs,mjs)')
+    .option('--extensions', 'File extensions allowed in the bundle.  (default js,cjs,mjs,ts,tsx)')
     .option('--config', 'Path to the config file')
     .action((input, opts) => {
         let config;
