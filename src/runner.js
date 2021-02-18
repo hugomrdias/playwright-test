@@ -164,7 +164,7 @@ class Runner {
             await this.page.goto(this.url);
         }
 
-        if (this.options.cov) {
+        if (this.options.cov && this.options.mode === 'main') {
             if (this.options.browser !== 'chromium') {
                 await this.stop(true, 'Coverage is only supported in chromium');
             }
@@ -298,7 +298,7 @@ class Runner {
         }
         this.stopped = true;
 
-        if (this.options.cov && this.page && this.page.coverage) {
+        if (this.options.cov && this.options.mode === 'main' && this.page && this.page.coverage) {
             await createCov(this, await this.page.coverage.stopJSCoverage());
         }
 

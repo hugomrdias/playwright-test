@@ -15,7 +15,6 @@ const globby = require('globby');
 const ora = require('ora');
 const sirv = require('sirv');
 const polka = require('polka');
-const { premove } = require('premove/sync');
 const camelCase = require('camelcase');
 const V8ToIstanbul = require('v8-to-istanbul');
 const merge = require('merge-options').bind({
@@ -376,7 +375,6 @@ const createCov = async (runner, coverage) => {
     }
     const covPath = path.join(cwd, '.nyc_output');
 
-    premove(covPath);
     await mkdir(covPath, { recursive: true });
 
     await writeFile(path.join(covPath, 'coverage-pw.json'), JSON.stringify(entries));
