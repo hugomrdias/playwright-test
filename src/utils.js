@@ -189,8 +189,6 @@ const redirectConsole = async (msg) => {
 };
 
 const getPw = async (browserName) => {
-    // const cachePath = path.join(process.cwd(), 'node_modules', '.cache');
-
     const { installBrowsersWithProgressBar } = require('playwright-core/lib/install/installer');
     const setupInProcess = require('playwright-core/lib/inprocess');
     const browsers = require('playwright-core/browsers.json');
@@ -199,11 +197,6 @@ const getPw = async (browserName) => {
     browsers.browsers[0].download = true; // chromium
     browsers.browsers[1].download = true; // firefox
     browsers.browsers[2].download = true; // webkit
-    // fs.mkdirSync(cachePath, { recursive: true });
-    // fs.writeFileSync(
-    //     path.join(cachePath, 'browsers.json'),
-    //     JSON.stringify(browsers, null, 2)
-    // );
 
     fs.writeFileSync(
         browsersPath,
