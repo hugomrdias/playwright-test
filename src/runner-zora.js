@@ -52,10 +52,19 @@ class ZoraRunner extends Runner {
     }
 
     compiler(mode = 'bundle') {
+        /**
+         * @type {import('esbuild').Plugin} build
+         */
         const plugin = {
             name: 'swap zora',
             setup(build) {
-                build.onResolve({ filter: /^zora$/ }, () => {
+                build.onResolve({ filter: /^zora$/ }, (args) => {
+                    const setupPath = path.normalize('playwright-test/src/setup-zora.js');
+
+                    if (args.importer.endsWith(setupPath)) {
+                        return;
+                    }
+
                     return { path: path.join(__dirname, 'setup-zora.js') };
                 });
             }
