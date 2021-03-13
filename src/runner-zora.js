@@ -59,7 +59,9 @@ class ZoraRunner extends Runner {
             name: 'swap zora',
             setup(build) {
                 build.onResolve({ filter: /^zora$/ }, (args) => {
-                    if (args.importer.endsWith('playwright-test/src/setup-zora.js')) {
+                    const setupPath = path.normalize('playwright-test/src/setup-zora.js');
+
+                    if (args.importer.endsWith(setupPath)) {
                         return;
                     }
 
