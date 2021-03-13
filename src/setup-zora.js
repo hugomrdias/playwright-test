@@ -1,6 +1,6 @@
 'use strict';
 
-const { createHarness } = require('zora/dist/bundle/index');
+const { createHarness } = require('zora');
 
 const harness = createHarness({
     // eslint-disable-next-line no-undef
