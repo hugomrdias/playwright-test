@@ -33,7 +33,7 @@ test('mocha mode:worker', async () => {
     assert.ok(proc.stdout.includes('5 passing'), 'process stdout');
 });
 
-test.skip('mocha extension', async () => {
+test('mocha extension', async () => {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--extension']);
 
     assert.is(proc.exitCode, 0, 'exit code');
