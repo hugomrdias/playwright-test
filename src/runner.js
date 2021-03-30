@@ -94,7 +94,11 @@ class Runner {
         await createPolka(this);
 
         // download playwright if needed
-        if (!['chromium', 'firefox', 'webkit'].includes(String(this.options.browser))) {
+        if (
+            !['chromium', 'firefox', 'webkit'].includes(
+                String(this.options.browser)
+            )
+        ) {
             throw new Error(`Browser not supported: ${this.options.browser}`);
         }
         const pw = await getPw(this.options.browser);
@@ -127,11 +131,10 @@ class Runner {
     async setupPage() {
         if (this.options.extension) {
             const backgroundPages = await this.context.backgroundPages();
+            /** @type {Page} */
             const backgroundPage = backgroundPages.length ?
                 backgroundPages[0] :
-                await this.context
-                    .waitForEvent('backgroundpage')
-                    .then(event => event);
+                await this.context.waitForEvent('backgroundpage');
 
             this.page = backgroundPage;
             if (this.options.debug) {
@@ -160,7 +163,7 @@ class Runner {
             this.page = await this.context.newPage();
             await this.page.goto(this.url);
         } else {
-            this.page = await this.context.pages()[0];
+            this.page = this.context.pages()[0];
             await this.page.goto(this.url);
         }
 
@@ -175,7 +178,10 @@ class Runner {
         this.page.on('error', err => this.stop(true, err));
         this.page.on('pageerror', (err) => {
             console.error(err);
-            this.stop(true, 'Uncaught exception happened within the page. Run with --debug.');
+            this.stop(
+                true,
+                'Uncaught exception happened within the page. Run with --debug.'
+            );
         });
         this.page.on('console', redirectConsole);
     }
@@ -202,16 +208,33 @@ class Runner {
     async waitForTestsToEnd() {
         if (!this.options.debug) {
             try {
-                await this.page.waitForFunction(() => self.PW_TEST.ended === true, undefined, { timeout: 0 });
-                const testsFailed = await this.page.evaluate('self.PW_TEST.failed');
+                await this.page.waitForFunction(
+                    () => self.PW_TEST.ended === true,
+                    undefined,
+                    {
+                        timeout: 0,
+                        polling: 100 // need to be polling raf doesnt work in extensions
+                    }
+                );
+                const testsFailed = await this.page.evaluate(
+                    'self.PW_TEST.failed'
+                );
 
                 await this.stop(testsFailed);
             } catch (err) {
                 if (
-                    err.message.includes('Protocol error (Runtime.callFunctionOn): Target closed') ||
-                    err.message.includes('Protocol error (Runtime.callFunctionOn): Browser closed')
+                    err.message.includes(
+                        'Protocol error (Runtime.callFunctionOn): Target closed'
+                    ) ||
+                    err.message.includes(
+                        'Protocol error (Runtime.callFunctionOn): Browser closed'
+                    )
                 ) {
-                    console.error(kleur.yellow('\nBrowser was closed by an uncaught error.'));
+                    console.error(
+                        kleur.yellow(
+                            '\nBrowser was closed by an uncaught error.'
+                        )
+                    );
                 } else {
                     this.stop(true, err);
                 }
@@ -298,7 +321,12 @@ class Runner {
         }
         this.stopped = true;
 
-        if (this.options.cov && this.options.mode === 'main' && this.page && this.page.coverage) {
+        if (
+            this.options.cov &&
+            this.options.mode === 'main' &&
+            this.page &&
+            this.page.coverage
+        ) {
             await createCov(this, await this.page.coverage.stopJSCoverage());
         }
 
