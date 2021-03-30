@@ -44,14 +44,14 @@ test('tape', async () => {
     const proc = await execa('./cli.js', ['mocks/test.tape.js', '--runner', 'tape']);
 
     assert.is(proc.exitCode, 0, 'exit code');
-    assert.ok(proc.stdout.includes('# pass  2'), 'process stdout');
+    assert.ok(proc.stdout.includes('# pass  5'), 'process stdout');
 });
 
 test('tape mode:worker', async () => {
     const proc = await execa('./cli.js', ['mocks/test.tape.js', '--runner', 'tape', '--mode', 'worker']);
 
     assert.is(proc.exitCode, 0, 'exit code');
-    assert.ok(proc.stdout.includes('# pass  2'), 'process stdout');
+    assert.ok(proc.stdout.includes('# pass  5'), 'process stdout');
 });
 
 test('zora', async () => {
