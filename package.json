@@ -60,7 +60,7 @@
         "strip-ansi": "^6.0.0",
         "tempy": "^1.0.1",
         "test-exclude": "^6.0.0",
-        "v8-to-istanbul": "hugomrdias/v8-to-istanbul#fix/undefined-line"
+        "@hd-forks/v8-to-istanbul": "7.1.1"
     },
     "devDependencies": {
         "assert": "^2.0.0",
