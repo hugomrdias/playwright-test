@@ -1,21 +1,22 @@
-'use strict';
+// @ts-nocheck
+'use strict'
 
-const test = require('fresh-tape');
+const test = require('fresh-tape')
 
-self.TAPE_RUN_FAIL = false;
+self.TAPE_RUN_FAIL = false
 
 test.onFailure(() => {
-    self.TAPE_RUN_FAIL = true;
-});
+  self.TAPE_RUN_FAIL = true
+})
 
 test.onFinish(() => {
-    // eslint-disable-next-line no-undef
-    if (process.env.PW_TEST.mode === 'worker') {
-        postMessage({
-            'pwRunEnded': true,
-            'pwRunFailed':  self.TAPE_RUN_FAIL
-        });
-    } else {
-        self.PW_TEST.end(self.TAPE_RUN_FAIL);
-    }
-});
+  // eslint-disable-next-line no-undef
+  if (process.env.PW_TEST.mode === 'worker') {
+    postMessage({
+      pwRunEnded: true,
+      pwRunFailed: self.TAPE_RUN_FAIL,
+    })
+  } else {
+    self.PW_TEST.end(self.TAPE_RUN_FAIL)
+  }
+})

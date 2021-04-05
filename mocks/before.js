@@ -1,13 +1,13 @@
-'use strict';
+'use strict'
 
-const debug = require('debug');
+const debug = require('debug')
 
-const error = debug('app:error');
+const error = debug('app:error')
 
-console.log('\nRun before stuff');
+console.log('\nRun before stuff')
 
-error('testing debug in before script');
+error('testing debug in before script')
 setTimeout(() => {
-    console.log('done');
-    self.PW_TEST.beforeEnd();
-});
+  console.log('done')
+  self.PW_TEST.beforeEnd()
+})

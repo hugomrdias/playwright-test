@@ -1,19 +1,19 @@
-'use strict';
+'use strict'
 
-const { test } = require('zora');
-
-test('a first sub test', (t) => {
-    t.ok(true);
-
-    t.test('inside', (t) => {
-        t.ok(true);
-    });
-});
+const { test } = require('zora')
 
 test('a first sub test', (t) => {
-    t.ok(true);
+  t.ok(true)
 
-    t.test('inside', (t) => {
-        t.ok(false, 'oh no!');
-    });
-});
+  t.test('inside', (t) => {
+    t.ok(true)
+  })
+})
+
+test('a first sub test', (t) => {
+  t.ok(true)
+
+  t.test('inside', (t) => {
+    t.ok(false, 'oh no!')
+  })
+})

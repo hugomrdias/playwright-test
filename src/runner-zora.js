@@ -1,10 +1,9 @@
 /* eslint-disable no-console */
-'use strict';
+'use strict'
 
-const path = require('path');
-const delay = require('delay');
-const Runner = require('./runner');
-const { build } = require('./utils');
+const path = require('path')
+const Runner = require('./runner')
+const { build } = require('./utils')
 
 const runZora = () => `
 zora
@@ -12,7 +11,7 @@ zora
   .then((f) =>{
     self.PW_TEST.end(!self.zora.pass)
   })
-`;
+`
 
 const runZoraWorker = () => `
 zora
@@ -23,55 +22,57 @@ zora
         "pwRunFailed": !self.zora.pass
     })
   })
-`;
+`
 
 class ZoraRunner extends Runner {
-    async runTests() {
-        await super.runTests();
-        switch (this.options.mode) {
-            case 'main': {
-                await this.page.evaluate(runZora());
-                break;
-            }
-            case 'worker': {
-                const run = new Promise((resolve) => {
-                    this.page.on('worker', async (worker) => {
-                        await delay(1000);
-                        await worker.evaluate(runZoraWorker());
-                        resolve();
-                    });
-                });
+  /**
+   * @param {import("playwright-core").Page} page
+   * @param {string} file
+   */
+  async runTests(page, file) {
+    await super.runTests(page, file)
+    switch (this.options.mode) {
+      case 'main': {
+        await page.evaluate(runZora())
+        break
+      }
+      case 'worker': {
+        const worker = await page.waitForEvent('worker')
+        await worker.evaluate(runZoraWorker())
+        break
+      }
+      default:
+        throw Error('mode not supported')
+    }
+  }
 
-                await run;
-                break;
-            }
-            default:
-                await this.stop(true, 'mode not supported');
-                break;
-        }
+  /**
+   * Compile tests
+   *
+   * @param {"before" | "bundle" | "watch"} mode
+   * @returns {Promise<string>} file to be loaded in the page
+   */
+  compiler(mode = 'bundle') {
+    /**
+     * @type {import('esbuild').Plugin} build
+     */
+    const plugin = {
+      name: 'swap zora',
+      setup(build) {
+        build.onResolve({ filter: /^zora$/ }, (args) => {
+          const setupPath = path.normalize('playwright-test/src/setup-zora.js')
+
+          if (args.importer.endsWith(setupPath)) {
+            return
+          }
+
+          return { path: path.join(__dirname, 'setup-zora.js') }
+        })
+      },
     }
 
-    compiler(mode = 'bundle') {
-        /**
-         * @type {import('esbuild').Plugin} build
-         */
-        const plugin = {
-            name: 'swap zora',
-            setup(build) {
-                build.onResolve({ filter: /^zora$/ }, (args) => {
-                    const setupPath = path.normalize('playwright-test/src/setup-zora.js');
-
-                    if (args.importer.endsWith(setupPath)) {
-                        return;
-                    }
-
-                    return { path: path.join(__dirname, 'setup-zora.js') };
-                });
-            }
-        };
-
-        return build(this, { plugins: [plugin] }, '', mode);
-    }
+    return build(this, { plugins: [plugin] }, '', mode)
+  }
 }
 
-module.exports = ZoraRunner;
+module.exports = ZoraRunner

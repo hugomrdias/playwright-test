@@ -1,13 +1,14 @@
-'use strict';
+'use strict'
 
-const { createHarness } = require('zora');
+const { createHarness } = require('zora')
 
 const harness = createHarness({
-    // eslint-disable-next-line no-undef
-    indent: process.env.INDENT === 'true',
-    // eslint-disable-next-line no-undef
-    runOnly: process.env.RUN_ONLY === 'true'
-});
+  // eslint-disable-next-line no-undef
+  indent: process.env.INDENT === 'true',
+  // eslint-disable-next-line no-undef
+  runOnly: process.env.RUN_ONLY === 'true',
+})
 
-self.zora = harness;
-module.exports = harness;
+// @ts-ignore
+self.zora = harness
+module.exports = harness
