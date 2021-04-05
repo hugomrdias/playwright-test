@@ -1,37 +1,47 @@
 /* eslint-disable no-console */
-'use strict';
+'use strict'
 
-const strip = require('strip-ansi');
-const Runner = require('./runner');
-const { build } = require('./utils');
+const strip = require('strip-ansi')
+const Runner = require('./runner')
+const { build } = require('./utils')
 
-const run = pass => `
+const run = (/** @type {boolean} */ pass) => `
 self.PW_TEST.end(${pass})
-`;
+`
 
 class UvuRunner extends Runner {
-    async runTests() {
-        await super.runTests();
+  /**
+   * @param {import("playwright-core").Page} page
+   * @param {string} file
+   */
+  async runTests(page, file) {
+    await super.runTests(page, file)
 
-        let total = 0;
-        let passed = 0;
+    let total = 0
+    let passed = 0
 
-        this.page.on('console', async (msg) => {
-            const txt = msg.text();
+    page.on('console', async (msg) => {
+      const txt = msg.text()
 
-            if (txt.includes('  Total: ')) {
-                total = Number(txt.replace('Total:', '').trim());
-            }
-            if (txt.includes('  Passed: ')) {
-                passed = Number(strip(txt.replace('Passed:', '').trim()));
-                await this.page.evaluate(run(total !== passed));
-            }
-        });
-    }
+      if (txt.includes('  Total: ')) {
+        total = Number(txt.replace('Total:', '').trim())
+      }
+      if (txt.includes('  Passed: ')) {
+        passed = Number(strip(txt.replace('Passed:', '').trim()))
+        await page.evaluate(run(total !== passed))
+      }
+    })
+  }
 
-    compiler(mode = 'bundle') {
-        return build(this, {}, '', mode);
-    }
+  /**
+   * Compile tests
+   *
+   * @param {"before" | "bundle" | "watch"} mode
+   * @returns {Promise<string>} file to be loaded in the page
+   */
+  compiler(mode = 'bundle') {
+    return build(this, {}, '', mode)
+  }
 }
 
-module.exports = UvuRunner;
+module.exports = UvuRunner

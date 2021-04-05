@@ -1,17 +1,16 @@
 /* eslint-disable no-console */
-'use strict';
+'use strict'
 
-const merge = require('merge-options');
-const delay = require('delay');
-const Runner = require('./runner');
-const { build } = require('./utils');
+const merge = require('merge-options')
+const Runner = require('./runner')
+const { build } = require('./utils')
 
 const runMocha = () => `
 mocha
   .run((f) =>{
     self.PW_TEST.end(f > 0)
   })
-`;
+`
 
 const runMochaWorker = () => `
 mocha
@@ -21,60 +20,62 @@ mocha
         "pwRunFailed": f > 0
     })
   })
-`;
+`
 
 class MochaRunner extends Runner {
-    constructor(options = {}) {
-        super(
-            merge(
-                {
-                    runnerOptions: {
-                        allowUncaught: false,
-                        bail: true,
-                        reporter: 'spec',
-                        timeout: 5000,
-                        color: true,
-                        ui: 'bdd'
-                    }
-                },
-                options
-            )
-        );
-    }
+  constructor(options = {}) {
+    super(
+      merge(
+        {
+          runnerOptions: {
+            allowUncaught: false,
+            bail: true,
+            reporter: 'spec',
+            timeout: 5000,
+            color: true,
+            ui: 'bdd',
+          },
+        },
+        options
+      )
+    )
+  }
 
-    async runTests() {
-        await super.runTests();
-        switch (this.options.mode) {
-            case 'main': {
-                await this.page.evaluate(runMocha());
-                break;
-            }
-            case 'worker': {
-                const run = new Promise((resolve) => {
-                    this.page.on('worker', async (worker) => {
-                        await delay(1000);
-                        await worker.evaluate(runMochaWorker());
-                        resolve();
-                    });
-                });
-
-                await run;
-                break;
-            }
-            default:
-                await this.stop(true, 'mode not supported');
-                break;
-        }
+  /**
+   * @param {import("playwright-core").Page} page
+   * @param {string} file
+   */
+  async runTests(page, file) {
+    await super.runTests(page, file)
+    switch (this.options.mode) {
+      case 'main': {
+        await page.evaluate(runMocha())
+        break
+      }
+      case 'worker': {
+        const worker = await page.waitForEvent('worker')
+        await worker.evaluate(runMochaWorker())
+        break
+      }
+      default:
+        throw Error('mode not supported')
     }
+  }
 
-    compiler(mode = 'bundle') {
-        return build(
-            this,
-            {},
-            `require('${require.resolve('./setup-mocha.js').replace(/\\/g, '/')}')`,
-            mode
-        );
-    }
+  /**
+   * Compile tests
+   *
+   * @param {"before" | "bundle" | "watch"} mode
+   * @returns {Promise<string>} file to be loaded in the page
+   */
+  compiler(mode = 'bundle') {
+    return build(
+      this,
+      {},
+      `require('${require.resolve('./setup-mocha.js').replace(/\\/g, '/')}')`,
+      mode
+    )
+  }
 }
 
-module.exports = MochaRunner;
+module.exports = MochaRunner

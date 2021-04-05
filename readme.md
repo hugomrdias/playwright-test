@@ -2,7 +2,6 @@
 
 > Run mocha, zora, uvu, tape and benchmark.js scripts inside real browsers with `playwright`.
 
-
 ## Install
 
 ```shell
@@ -10,12 +9,14 @@ $ npm install playwright-test
 ```
 
 ## Usage
+
 ```shell
 $ playwright-test [files] [options]
-# or 
+# or
 $ pw-test [files] [options]
 
 ```
+
 ## Options
 
 ```shell
@@ -73,8 +74,11 @@ Description
     $ playwright-test "test/**" GOOD
     $ playwright-test test/** BAD
 ```
+
 ## Config
+
 Configuration can be done with cli flags or config files.
+
 ```js
 'package.json', // using property `pw-test` or `playwright-test`
 `.playwright-testrc.json`,
@@ -89,9 +93,30 @@ Configuration can be done with cli flags or config files.
 `pw-test.config.cjs`,
 ```
 
-## Run in CI 
-Check our CI config `.github/workflows/main.yml` and the playwright Github Action https://playwright.dev/#version=v1.5.2&path=docs%2Fci.md&q=github-actions
+Interface
 
+```ts
+export interface RunnerOptions {
+  cwd?: string
+  assets?: string
+  browser?: 'chromium' | 'firefox' | 'webkit'
+  debug?: boolean
+  mode?: 'main' | 'worker'
+  incognito?: boolean
+  input?: string[]
+  extension?: boolean
+  runnerOptions?: any
+  before?: string
+  cov?: false
+  extensions?: string
+  // esbuild options @see https://esbuild.github.io/api/#simple-options
+  buildConfig: BuildOptions
+}
+```
+
+## Run in CI
+
+Check our CI config `.github/workflows/main.yml` and the playwright [Github Action](https://playwright.dev/docs/ci/#github-actions)
 
 ## License
 
