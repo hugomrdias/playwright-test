@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: microsoft/playwright-github-action@v1
-      - run: npm install
+      - uses: bahmutov/npm-install@v1
       - run: npm run lint
       - run: xvfb-run -a npm run test
       - run: ./cli.js mocks/test.mocha.js --browser firefox
@@ -26,7 +26,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
-      - run: npm install
+      - uses: bahmutov/npm-install@v1
       - run: npm test
       - run: ./cli.js mocks/test.mocha.js --browser firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
@@ -36,7 +36,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
-      - run: npm install
+      - uses: bahmutov/npm-install@v1
       - run: npm test
       - run: ./cli.js mocks/test.mocha.js --browser firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
