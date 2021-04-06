@@ -220,35 +220,21 @@ class Runner {
     }
   }
 
-  /**
-   * Wait for tests to finish
-   *
-   * @param {Page} page
-   */
-  async waitForTestsToEnd(page) {
-    await page.waitForFunction(
-      // @ts-ignore
-      () => self.PW_TEST.ended === true,
-      undefined,
-      {
-        timeout: 0,
-        polling: 100, // need to be polling raf doesnt work in extensions
-      }
-    )
-    const testsFailed = await page.evaluate('self.PW_TEST.failed')
-
-    await this.stop(testsFailed)
-  }
-
   async run() {
     let spinner = ora('Setting up browser').start()
 
     try {
+      // get the context
       const context = await this.launch()
+
+      // run the before script
       if (this.options.before) {
         await this.runBefore(context)
       }
+
+      // get the page
       const page = await this.setupPage(context)
+
       // uncaught rejections
       page.on('pageerror', (err) => {
         console.error(err)
@@ -259,9 +245,12 @@ class Runner {
       })
       spinner.succeed('Browser setup')
 
+      // bundle tests
       spinner = ora('Bundling tests').start()
       const file = await this.compiler()
       spinner.succeed()
+
+      // run tests
       await this.runTests(page, file)
 
       // Re run on page reload
@@ -270,10 +259,25 @@ class Runner {
           await this.runTests(page, file)
         })
       } else {
-        await this.waitForTestsToEnd(page)
+        // wait for the tests
+        await page.waitForFunction(
+          // @ts-ignore
+          () => self.PW_TEST.ended === true,
+          undefined,
+          {
+            timeout: 0,
+            polling: 100, // need to be polling raf doesnt work in extensions
+          }
+        )
+        const testsFailed = await page.evaluate('self.PW_TEST.failed')
+
+        // coverage
         if (this.options.cov && page.coverage) {
           await createCov(this, await page.coverage.stopJSCoverage(), file)
         }
+
+        // exit
+        await this.stop(testsFailed)
       }
     } catch (err) {
       spinner.fail('Running tests failed.')
