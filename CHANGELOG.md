@@ -1,5 +1,12 @@
 # Changelog
 
+### [3.0.1](https://www.github.com/hugomrdias/playwright-test/compare/v3.0.0...v3.0.1) (2021-04-07)
+
+
+### Bug Fixes
+
+* do not delete tmp browser dir to avoid race ([b56b11c](https://www.github.com/hugomrdias/playwright-test/commit/b56b11ca7531cc586400c8e8306679911cc23e63))
+
 ## [3.0.0](https://www.github.com/hugomrdias/playwright-test/compare/v2.1.0...v3.0.0) (2021-04-06)
 
 
