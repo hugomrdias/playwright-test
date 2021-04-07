@@ -353,7 +353,7 @@ class Runner {
     await serverClose
 
     premove(this.dir)
-    premove(this.browserDir)
+    // premove(this.browserDir)
 
     if (fail && msg) {
       console.error(msg)
