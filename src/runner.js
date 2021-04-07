@@ -212,7 +212,8 @@ class Runner {
         break
       }
       case 'worker': {
-        await page.evaluate(addWorker(file))
+        // do not await for the promise because we will wait for the 'worker' event after
+        page.evaluate(addWorker(file))
         break
       }
       default:
