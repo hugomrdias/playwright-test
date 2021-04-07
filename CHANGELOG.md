@@ -1,5 +1,12 @@
 # Changelog
 
+### [3.0.2](https://www.github.com/hugomrdias/playwright-test/compare/v3.0.1...v3.0.2) (2021-04-07)
+
+
+### Bug Fixes
+
+* dont wait for worker because we will wait for the event after ([d62c005](https://www.github.com/hugomrdias/playwright-test/commit/d62c005af4a38e233995e2204f085c3647917994))
+
 ### [3.0.1](https://www.github.com/hugomrdias/playwright-test/compare/v3.0.0...v3.0.1) (2021-04-07)
 
 
