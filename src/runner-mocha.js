@@ -3,6 +3,7 @@
 
 const merge = require('merge-options')
 const Runner = require('./runner')
+const waitFor = require('p-wait-for')
 const { build } = require('./utils')
 
 const runMocha = () => `
@@ -54,6 +55,8 @@ class MochaRunner extends Runner {
       }
       case 'worker': {
         const worker = await page.waitForEvent('worker')
+        // @ts-ignore
+        await waitFor(() => worker.evaluate(() => self.mocha !== undefined))
         await worker.evaluate(runMochaWorker())
         break
       }

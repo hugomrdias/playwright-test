@@ -3,6 +3,7 @@
 
 const path = require('path')
 const Runner = require('./runner')
+const waitFor = require('p-wait-for')
 const { build } = require('./utils')
 
 const runZora = () => `
@@ -38,6 +39,8 @@ class ZoraRunner extends Runner {
       }
       case 'worker': {
         const worker = await page.waitForEvent('worker')
+        // @ts-ignore
+        await waitFor(() => worker.evaluate(() => self.zora !== undefined))
         await worker.evaluate(runZoraWorker())
         break
       }
