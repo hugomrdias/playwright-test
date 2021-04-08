@@ -222,7 +222,7 @@ class Runner {
   }
 
   async run() {
-    let spinner = ora('Setting up browser').start()
+    let spinner = ora(`Setting up ${this.options.browser}`).start()
 
     try {
       // get the context
@@ -244,7 +244,7 @@ class Runner {
           'Uncaught exception happened within the page. Run with --debug.'
         )
       })
-      spinner.succeed('Browser setup')
+      spinner.succeed(`${this.options.browser} set up`)
 
       // bundle tests
       spinner = ora('Bundling tests').start()
@@ -309,7 +309,7 @@ class Runner {
   }
 
   async watch() {
-    const spinner = ora('Setting up browser').start()
+    const spinner = ora(`Setting up ${this.options.browser}`).start()
 
     const context = await this.launch()
     if (this.options.before) {
