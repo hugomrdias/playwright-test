@@ -1,5 +1,13 @@
 # Changelog
 
+### [3.0.4](https://www.github.com/hugomrdias/playwright-test/compare/v3.0.3...v3.0.4) (2021-04-08)
+
+
+### Bug Fixes
+
+* print out the name of the browser during setup ([#178](https://www.github.com/hugomrdias/playwright-test/issues/178)) ([5393493](https://www.github.com/hugomrdias/playwright-test/commit/53934934d6514ae08907b5410910ed886e21a537))
+* wait for runner to me in the global scope inside workers ([7de86a4](https://www.github.com/hugomrdias/playwright-test/commit/7de86a4d0aa0b6961b2adfb90608425aaca5bc5d))
+
 ### [3.0.3](https://www.github.com/hugomrdias/playwright-test/compare/v3.0.2...v3.0.3) (2021-04-08)
 
 
