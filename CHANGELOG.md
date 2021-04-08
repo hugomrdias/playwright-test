@@ -1,5 +1,12 @@
 # Changelog
 
+### [3.0.3](https://www.github.com/hugomrdias/playwright-test/compare/v3.0.2...v3.0.3) (2021-04-08)
+
+
+### Bug Fixes
+
+* **deps:** bump esbuild from 0.11.5 to 0.11.6 ([#176](https://www.github.com/hugomrdias/playwright-test/issues/176)) ([46bf3f2](https://www.github.com/hugomrdias/playwright-test/commit/46bf3f24ef292e78027a6e3b1c3fa022a3a6c632))
+
 ### [3.0.2](https://www.github.com/hugomrdias/playwright-test/compare/v3.0.1...v3.0.2) (2021-04-07)
 
 
