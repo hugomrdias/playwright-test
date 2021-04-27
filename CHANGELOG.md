@@ -1,5 +1,12 @@
 # Changelog
 
+### [3.0.7](https://www.github.com/hugomrdias/playwright-test/compare/v3.0.6...v3.0.7) (2021-04-27)
+
+
+### Bug Fixes
+
+* pin esbuild version again ([#194](https://www.github.com/hugomrdias/playwright-test/issues/194)) ([9f3ece7](https://www.github.com/hugomrdias/playwright-test/commit/9f3ece77bc50c346d200b3801619124a9993a9ce))
+
 ### [3.0.6](https://www.github.com/hugomrdias/playwright-test/compare/v3.0.5...v3.0.6) (2021-04-27)
 
 
