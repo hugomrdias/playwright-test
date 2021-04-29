@@ -964,10 +964,10 @@ es6-object-assign@^1.1.0:
   resolved "https://registry.yarnpkg.com/es6-object-assign/-/es6-object-assign-1.1.0.tgz#c2c3582656247c39ea107cb1e6652b6f9f24523c"
   integrity sha1-wsNYJlYkfDnqEHyx5mUrb58kUjw=
 
-esbuild@0.11.5:
-  version "0.11.5"
-  resolved "https://registry.yarnpkg.com/esbuild/-/esbuild-0.11.5.tgz#25b18a2ff2fb9580683edce26a48f64c08c2f2df"
-  integrity sha512-aRs6jAE+bVRp1tyfzUugAw1T/Y0Fwzp4Z2ROikF3h+UifoD5QlEbEYQGc6orNnnSIRhWR5VWBH7LozlAumaLHg==
+esbuild@0.11.16:
+  version "0.11.16"
+  resolved "https://registry.yarnpkg.com/esbuild/-/esbuild-0.11.16.tgz#435f00474fb21e70f59a545b85e4cfc7ba106485"
+  integrity sha512-34ZWjo4ouvM5cDe7uRoM9GFuMyEmpH9fnVYmomvS1cq9ED9d/0ZG1r+p4P2VbX7ihjv36zA2SWTmP8Zmt/EANA==
 
 escalade@^3.1.1:
   version "3.1.1"
