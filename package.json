@@ -47,7 +47,7 @@
   "dependencies": {
     "@hd-forks/v8-to-istanbul": "7.1.1",
     "camelcase": "^6.2.0",
-    "esbuild": "0.11.5",
+    "esbuild": "0.11.18",
     "fresh-tape": "^5.1.1",
     "globby": "^11.0.3",
     "kleur": "^4.1.4",
