@@ -1,5 +1,21 @@
 # Changelog
 
+## [4.0.0](https://www.github.com/hugomrdias/playwright-test/compare/v3.0.8...v4.0.0) (2021-05-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* esbuild 0.11.20 and pw 1.11.0
+
+### Features
+
+* update pw and esbuild ([bbc5268](https://www.github.com/hugomrdias/playwright-test/commit/bbc5268eca56d4a0aa75f05afde5b77d4a880114))
+
+
+### Bug Fixes
+
+* for major ([556f54e](https://www.github.com/hugomrdias/playwright-test/commit/556f54e38552089672689b66c845e6f23a4372cf))
+
 ### [3.0.8](https://www.github.com/hugomrdias/playwright-test/compare/v3.0.7...v3.0.8) (2021-05-12)
 
 
