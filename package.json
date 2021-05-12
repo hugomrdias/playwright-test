@@ -65,7 +65,7 @@
     "sirv": "^1.0.11",
     "source-map": "0.6.1",
     "stream-browserify": "^3.0.0",
-    "strip-ansi": "^6.0.0",
+    "strip-ansi": "^7.0.0",
     "tape": "^5.2.2",
     "tempy": "^1.0.1",
     "test-exclude": "^6.0.0"

@@ -377,6 +377,11 @@ ansi-regex@^5.0.0:
   resolved "https://registry.yarnpkg.com/ansi-regex/-/ansi-regex-5.0.0.tgz#388539f55179bf39339c81af30a654d69f87cb75"
   integrity sha512-bY6fj56OUQ0hU1KjFNDQuJFezqKdrAyFdIevADiqrWHwSlbmBNMHp5ak2f40Pm8JTFyM2mqxkG6ngkHO11f/lg==
 
+ansi-regex@^6.0.0:
+  version "6.0.0"
+  resolved "https://registry.yarnpkg.com/ansi-regex/-/ansi-regex-6.0.0.tgz#ecc7f5933cbe5ac7b33e209a5ff409ab1669c6b2"
+  integrity sha512-tAaOSrWCHF+1Ear1Z4wnJCXA9GGox4K6Ic85a5qalES2aeEwQGr7UC93mwef49536PkCYjzkp0zIxfFvexJ6zQ==
+
 ansi-styles@^2.2.1:
   version "2.2.1"
   resolved "https://registry.yarnpkg.com/ansi-styles/-/ansi-styles-2.2.1.tgz#b432dd3358b634cf75e1e4664368240533c1ddbe"
@@ -1393,31 +1398,6 @@ foreach@^2.0.5:
   version "2.0.5"
   resolved "https://registry.yarnpkg.com/foreach/-/foreach-2.0.5.tgz#0bee005018aeb260d0a3af3ae658dd0136ec1b99"
   integrity sha1-C+4AUBiusmDQo6865ljdATbsG5k=
-
-fresh-tape@^5.1.1:
-  version "5.1.1"
-  resolved "https://registry.yarnpkg.com/fresh-tape/-/fresh-tape-5.1.1.tgz#8e309007c1f1855a19ac2713f433816090629788"
-  integrity sha512-TkGbLtSneqfD0HwmEApOHH0mOi1UpSCV32IEEMbAq1PQweH1Wr70GGjgfFZtJUEhKGA5HrWHj2F/4Db3L3WTnw==
-  dependencies:
-    call-bind "^1.0.0"
-    deep-equal "^2.0.5"
-    defined "^1.0.0"
-    dotignore "^0.1.2"
-    for-each "^0.3.3"
-    glob "^7.1.6"
-    has "^1.0.3"
-    inherits "^2.0.4"
-    is-regex "^1.1.1"
-    minimist "^1.2.5"
-    object-inspect "^1.9.0"
-    object-is "^1.1.4"
-    object.assign "^4.1.2"
-    path-pony "^1.0.0"
-    readable-stream "https://registry.npmjs.org/@leichtgewicht/readable-stream/-/readable-stream-3.6.0.tgz"
-    resolve "^1.19.0"
-    resumer-through2 "https://registry.npmjs.org/resumer-through2/-/resumer-through2-1.0.1.tgz"
-    string.prototype.trim "^1.2.3"
-    through2 "https://registry.npmjs.org/@leichtgewicht/through2/-/through2-4.0.2.tgz"
 
 fs.realpath@^1.0.0:
   version "1.0.0"
@@ -2440,13 +2420,6 @@ path-parse@^1.0.6:
   resolved "https://registry.yarnpkg.com/path-parse/-/path-parse-1.0.6.tgz#d62dbb5679405d72c4737ec58600e9ddcf06d24c"
   integrity sha512-GSmOT2EbHrINBf9SR7CDELwlJ8AENk3Qn7OikK4nFYAu3Ote2+JYNVvkpAEQm3/TLNEJFD/xZJjzyxg3KBWOzw==
 
-path-pony@^1.0.0:
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/path-pony/-/path-pony-1.0.0.tgz#4b515f6b8e2a742dd125a14d463cbc2c5d17e77a"
-  integrity sha512-sVixf+GLENqzeJL9QhQVBKYLFmO15Z7F/jSLd4Q2y/O4pF/3SdcLR42Rka5K/Ro4ufUhvd5DVU2F1hOn2iL66w==
-  dependencies:
-    path-browserify "^1.0.1"
-
 path-type@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/path-type/-/path-type-2.0.0.tgz#f012ccb8415b7096fc2daa1054c3d72389594c73"
@@ -2635,17 +2608,6 @@ read-pkg@^2.0.0:
     normalize-package-data "^2.3.2"
     path-type "^2.0.0"
 
-"readable-stream@2 || 3", readable-stream@3.6.0, readable-stream@^3.4.0, readable-stream@^3.5.0, "readable-stream@https://registry.npmjs.org/@leichtgewicht/readable-stream/-/readable-stream-3.6.0.tgz":
-  version "3.6.0"
-  resolved "https://registry.npmjs.org/@leichtgewicht/readable-stream/-/readable-stream-3.6.0.tgz#25682c94346526abc8c8b1ece125b52a7247bb2e"
-  dependencies:
-    browser-util-inspect "^0.2.0"
-    buffer "^5.6.0"
-    events "^3.1.0"
-    inherits "^2.0.3"
-    string_decoder "^1.1.1"
-    util-deprecate "^1.0.1"
-
 readable-stream@2.2.9:
   version "2.2.9"
   resolved "https://registry.yarnpkg.com/readable-stream/-/readable-stream-2.2.9.tgz#cf78ec6f4a6d1eb43d26488cac97f042e74b7fc8"
@@ -2658,6 +2620,17 @@ readable-stream@2.2.9:
     process-nextick-args "~1.0.6"
     string_decoder "~1.0.0"
     util-deprecate "~1.0.1"
+
+readable-stream@^3.4.0, readable-stream@^3.5.0:
+  version "3.6.0"
+  resolved "https://registry.npmjs.org/@leichtgewicht/readable-stream/-/readable-stream-3.6.0.tgz#25682c94346526abc8c8b1ece125b52a7247bb2e"
+  dependencies:
+    browser-util-inspect "^0.2.0"
+    buffer "^5.6.0"
+    events "^3.1.0"
+    inherits "^2.0.3"
+    string_decoder "^1.1.1"
+    util-deprecate "^1.0.1"
 
 readable-stream@~1.0.31:
   version "1.0.34"
@@ -2737,7 +2710,7 @@ resolve-from@^4.0.0:
   resolved "https://registry.yarnpkg.com/resolve-from/-/resolve-from-4.0.0.tgz#4abcd852ad32dd7baabfe9b40e00a36db5f392e6"
   integrity sha512-pb/MYmXstAkysRFx8piNI1tGFNQIFA3vkE3Gq4EuA1dF6gHp/+vgZqsCGJapvy8N3Q+4o7FwvquPJcnZ7RYy4g==
 
-resolve@^1.10.0, resolve@^1.10.1, resolve@^1.13.1, resolve@^1.17.0, resolve@^1.19.0:
+resolve@^1.10.0, resolve@^1.10.1, resolve@^1.13.1, resolve@^1.17.0:
   version "1.20.0"
   resolved "https://registry.yarnpkg.com/resolve/-/resolve-1.20.0.tgz#629a013fb3f70755d6f0b7935cc1c2c5378b1975"
   integrity sha512-wENBPt4ySzg4ybFQW2TT1zMQucPK95HSh/nq2CFTZVOGut2+pQvSsgtda4d26YrYcr067wjbmzOG8byDPBX63A==
@@ -2760,19 +2733,6 @@ restore-cursor@^3.1.0:
   dependencies:
     onetime "^5.1.0"
     signal-exit "^3.0.2"
-
-resumer-through2@^1.0.0:
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/resumer-through2/-/resumer-through2-1.0.0.tgz#04b9a3c8811d97bd4831e4d9ea82a4c5cd96c5e8"
-  integrity sha512-c10dQkuekQh2GQ7V1b3mHUNnB4vi6DCi7jGeJ7DVlHveYPNdYxFFSlB0pTJpbQ0YDrtRaCKgpNz6u70947bxbg==
-  dependencies:
-    through2 "2 || 3"
-
-"resumer-through2@https://registry.npmjs.org/resumer-through2/-/resumer-through2-1.0.1.tgz":
-  version "1.0.1"
-  resolved "https://registry.npmjs.org/resumer-through2/-/resumer-through2-1.0.1.tgz#8d2786cc845f69de48f6593afa3d8aaeebcf1602"
-  dependencies:
-    through2 "https://registry.npmjs.org/@leichtgewicht/through2/-/through2-4.0.2.tgz"
 
 resumer@^0.0.0:
   version "0.0.0"
@@ -3011,7 +2971,7 @@ string-width@^4.1.0, string-width@^4.2.0:
     is-fullwidth-code-point "^3.0.0"
     strip-ansi "^6.0.0"
 
-string.prototype.trim@^1.2.3, string.prototype.trim@^1.2.4:
+string.prototype.trim@^1.2.4:
   version "1.2.4"
   resolved "https://registry.yarnpkg.com/string.prototype.trim/-/string.prototype.trim-1.2.4.tgz#6014689baf5efaf106ad031a5fa45157666ed1bd"
   integrity sha512-hWCk/iqf7lp0/AgTF7/ddO1IWtSNPASjlzCicV5irAVdE1grjsneK26YG6xACMBEdCvO8fUST0UzDMh/2Qy+9Q==
@@ -3091,6 +3051,13 @@ strip-ansi@^6.0.0:
   integrity sha512-AuvKTrTfQNYNIctbR1K/YGTR1756GycPsg7b9bdV9Duqur4gv6aKqHXah67Z8ImS7WEz5QVcOtlfW2rZEugt6w==
   dependencies:
     ansi-regex "^5.0.0"
+
+strip-ansi@^7.0.0:
+  version "7.0.0"
+  resolved "https://registry.yarnpkg.com/strip-ansi/-/strip-ansi-7.0.0.tgz#1dc49b980c3a4100366617adac59327eefdefcb0"
+  integrity sha512-UhDTSnGF1dc0DRbUqr1aXwNoY3RgVkSWG8BrpnuFIxhP57IqbS7IRta2Gfiavds4yCxc5+fEAVVOgBZWnYkvzg==
+  dependencies:
+    ansi-regex "^6.0.0"
 
 strip-bom@^3.0.0:
   version "3.0.0"
@@ -3223,14 +3190,6 @@ text-table@^0.2.0:
   resolved "https://registry.yarnpkg.com/text-table/-/text-table-0.2.0.tgz#7f5ee823ae805207c00af2df4a84ec3fcfa570b4"
   integrity sha1-f17oI66AUgfACvLfSoTsP8+lcLQ=
 
-"through2@2 || 3":
-  version "3.0.2"
-  resolved "https://registry.yarnpkg.com/through2/-/through2-3.0.2.tgz#99f88931cfc761ec7678b41d5d7336b5b6a07bf4"
-  integrity sha512-enaDQ4MUyP2W6ZyT6EsMzqBPZaM/avg8iuo+l2d3QCs0J+6RaqkHV/2/lOwDTueBHeJ/2LG9lrLW3d5rWPucuQ==
-  dependencies:
-    inherits "^2.0.4"
-    readable-stream "2 || 3"
-
 through2@^2.0.0, through2@^2.0.1:
   version "2.0.5"
   resolved "https://registry.yarnpkg.com/through2/-/through2-2.0.5.tgz#01c1e39eb31d07cb7d03a96a70823260b23132cd"
@@ -3238,12 +3197,6 @@ through2@^2.0.0, through2@^2.0.1:
   dependencies:
     readable-stream "~2.3.6"
     xtend "~4.0.1"
-
-through2@^4.0.2, "through2@https://registry.npmjs.org/@leichtgewicht/through2/-/through2-4.0.2.tgz":
-  version "4.0.2"
-  resolved "https://registry.npmjs.org/@leichtgewicht/through2/-/through2-4.0.2.tgz#ea39512757acd2dab1be4ff1eeb1e43708aa7333"
-  dependencies:
-    readable-stream "https://registry.npmjs.org/@leichtgewicht/readable-stream/-/readable-stream-3.6.0.tgz"
 
 through@2, through@^2.3.8, through@~2.3.4:
   version "2.3.8"
