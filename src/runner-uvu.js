@@ -15,8 +15,6 @@ class UvuRunner extends Runner {
    * @param {string} file
    */
   async runTests(page, file) {
-    await super.runTests(page, file)
-
     let total = 0
     let passed = 0
 
@@ -31,6 +29,8 @@ class UvuRunner extends Runner {
         await page.evaluate(run(total !== passed))
       }
     })
+
+    await super.runTests(page, file)
   }
 
   /**
