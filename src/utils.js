@@ -12,7 +12,7 @@ const ora = require('ora')
 const sirv = require('sirv')
 const polka = require('polka')
 const camelCase = require('camelcase')
-const V8ToIstanbul = require('@hd-forks/v8-to-istanbul')
+const V8ToIstanbul = require('v8-to-istanbul')
 const merge = require('merge-options').bind({
   ignoreUndefined: true,
   concatArrays: true,
