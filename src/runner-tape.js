@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 'use strict'
-
+const path = require('path')
 const Runner = require('./runner')
 const { build } = require('./utils')
 
@@ -20,15 +20,21 @@ class TapeRunner extends Runner {
     const plugin = {
       name: 'swap tape',
       setup(build) {
-        build.onResolve({ filter: /^tape$/ }, () => {
-          return { path: require.resolve('fresh-tape') }
+        build.onResolve({ filter: /^stream$/ }, () => {
+          return { path: require.resolve('stream-browserify') }
+        })
+        build.onResolve({ filter: /^fs$/ }, () => {
+          return { path: require.resolve('./empty-fs.js') }
         })
       },
     }
 
     return build(
       this,
-      { plugins: [plugin] },
+      {
+        plugins: [plugin],
+        inject: [path.join(__dirname, 'node-globals-buffer.js')],
+      },
       `require('${require.resolve('./setup-tape.js').replace(/\\/g, '/')}')`,
       mode
     )

@@ -104,7 +104,7 @@ sade2
   )
   .option(
     '-r, --runner',
-    'Test runner. Options: mocha, tape, benchmark and zora.',
+    'Test runner. Options: mocha, tape, zora, uvu and benchmark.',
     'mocha'
   )
   .option(

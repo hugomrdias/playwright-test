@@ -338,7 +338,6 @@ const build = async (runner, config = {}, tmpl = '', mode = 'bundle') => {
   const infile = path.join(runner.dir, 'in.js')
   const outfile = path.join(runner.dir, outName)
   const sourceMapSupport = path.join(__dirname, 'vendor/source-map-support.js')
-  const nodeGlobalsInject = path.join(__dirname, 'node-globals.js')
 
   /** @type {ESBuildPlugin} */
   const nodePlugin = {
@@ -394,7 +393,6 @@ require('${require
     sourcemap: 'inline',
     plugins: [nodePlugin],
     outfile,
-    inject: [nodeGlobalsInject],
     watch: mode === 'watch' ? watch : false,
     define: {
       global: 'globalThis',
