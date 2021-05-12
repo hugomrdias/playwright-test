@@ -1,5 +1,13 @@
 # Changelog
 
+### [3.0.8](https://www.github.com/hugomrdias/playwright-test/compare/v3.0.7...v3.0.8) (2021-05-12)
+
+
+### Bug Fixes
+
+* fix race in uvu runner ([#205](https://www.github.com/hugomrdias/playwright-test/issues/205)) ([a01f815](https://www.github.com/hugomrdias/playwright-test/commit/a01f815cb83a8e47ba3f80c62a33ef9f00508bae))
+* use tape instead of fresh-tape ([#206](https://www.github.com/hugomrdias/playwright-test/issues/206)) ([713b264](https://www.github.com/hugomrdias/playwright-test/commit/713b264c722aa2bd931f32f1457450898a13cda0))
+
 ### [3.0.7](https://www.github.com/hugomrdias/playwright-test/compare/v3.0.6...v3.0.7) (2021-04-27)
 
 
