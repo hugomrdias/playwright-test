@@ -74,7 +74,15 @@ class ZoraRunner extends Runner {
       },
     }
 
-    return build(this, { plugins: [plugin] }, '', mode)
+    return build(
+      this,
+      {
+        plugins: [plugin],
+        inject: [path.join(__dirname, 'node-globals.js')],
+      },
+      '',
+      mode
+    )
   }
 }
 

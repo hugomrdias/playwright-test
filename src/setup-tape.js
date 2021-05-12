@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use strict'
 
-const test = require('fresh-tape')
+const test = require('tape')
 
 self.TAPE_RUN_FAIL = false
 

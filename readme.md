@@ -27,7 +27,7 @@ Description
     $ playwright-test [files] [options]
 
   Options
-    -r, --runner       Test runner. Options: mocha, tape, benchmark and zora.  (default mocha)
+    -r, --runner       Test runner. Options: mocha, tape, zora, uvu and benchmark.  (default mocha)
     -b, --browser      Browser to run tests. Options: chromium, firefox, webkit.  (default chromium)
     -m, --mode         Run mode. Options: main, worker.  (default main)
     -d, --debug        Debug mode, keeps browser window open.

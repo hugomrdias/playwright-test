@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 'use strict'
 
+const path = require('path')
 const strip = require('strip-ansi')
 const Runner = require('./runner')
 const { build } = require('./utils')
@@ -40,7 +41,12 @@ class UvuRunner extends Runner {
    * @returns {Promise<string>} file to be loaded in the page
    */
   compiler(mode = 'bundle') {
-    return build(this, {}, '', mode)
+    return build(
+      this,
+      { inject: [path.join(__dirname, 'node-globals.js')] },
+      '',
+      mode
+    )
   }
 }
 
