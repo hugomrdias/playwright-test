@@ -331,7 +331,7 @@ function runnerOptions(flags) {
  * @param {import("./runner")} runner
  * @param {ESBuildOptions} config - Runner esbuild config
  * @param {string} tmpl
- * @param {"bundle" | "before" | "watch"} mode
+ * @param {"bundle" | "before" | "watch" | "sw"} mode
  */
 const build = async (runner, config = {}, tmpl = '', mode = 'bundle') => {
   const outName = `${mode}-out.js`
@@ -380,6 +380,26 @@ process.env = ${JSON.stringify(runner.env)}
 require('${require.resolve('../static/setup.js').replace(/\\/g, '/')}')
 require('${require
       .resolve(path.join(runner.options.cwd, runner.options.before))
+      .replace(/\\/g, '/')}')
+`
+  }
+
+  // sw script template
+  if (mode === 'sw' && runner.options.sw) {
+    infileContent = `
+'use strict'
+// require('${sourceMapSupport.replace(/\\/g, '/')}').install();
+// process.env = ${JSON.stringify(runner.env)}
+self.addEventListener('install', (event) => {
+  console.log('V1 install done')
+})
+
+self.addEventListener('activate', (event) => {
+  console.log('V1 now ready to handle fetches!')
+  return self.clients.claim()
+})
+require('${require
+      .resolve(path.join(runner.options.cwd, runner.options.sw))
       .replace(/\\/g, '/')}')
 `
   }
@@ -486,7 +506,7 @@ function getPort(port = 3000, host = '127.0.0.1') {
  * @param {import('./runner')} runner
  */
 async function createPolka(runner) {
-  const host = '127.0.0.1'
+  const host = 'localhost'
   const port = await getPort(3000, host)
   const url = `http://${host}:${port}/`
   return new Promise((resolve, reject) => {

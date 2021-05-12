@@ -15,6 +15,7 @@ const {
   defaultTestPatterns,
   createCov,
   createPolka,
+  build,
 } = require('./utils')
 
 /**
@@ -205,6 +206,16 @@ class Runner {
   async runTests(page, file) {
     await page.addScriptTag({ url: 'setup.js' })
     await page.evaluate(`localStorage.debug = "${this.env.DEBUG}"`)
+    if (this.options.sw) {
+      await build(this, {}, '', 'sw')
+      await page.evaluate(async () => {
+        try {
+          await navigator.serviceWorker.register('/sw-out.js')
+        } catch (err) {
+          return console.log('Boo!', err)
+        }
+      })
+    }
 
     switch (this.options.mode) {
       case 'main': {

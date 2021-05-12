@@ -16,6 +16,7 @@ export interface RunnerOptions {
   extension: boolean
   runnerOptions: any
   before?: string
+  sw?: string
   cov: false
   extensions: string
   buildConfig: BuildOptions
