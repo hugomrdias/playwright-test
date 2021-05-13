@@ -33,7 +33,7 @@ self.addEventListener('activate', (event) => {
   return self.clients.claim()
 })
 
-import "${path.join(runner.options.cwd, entry)}"
+import "${path.join(runner.options.cwd, entry).replace(/\\/g, '/')}"
 `
 
   fs.writeFileSync(infile, infileContent)
