@@ -19,7 +19,7 @@ const merge = require('merge-options').bind({
 })
 
 /**
- * @typedef {import('./types').RunnerOptions } RunnerOptions
+ * @typedef {import('../types').RunnerOptions } RunnerOptions
  * @typedef {import('esbuild').Plugin} ESBuildPlugin
  * @typedef {import('esbuild').BuildOptions} ESBuildOptions
  */
@@ -239,7 +239,7 @@ async function redirectConsole(msg) {
 /**
  * @template {RunnerOptions["browser"]} TBrowser
  * @param {TBrowser} browserName
- * @returns {Promise<import('playwright-core').BrowserType<import('./types').PwResult<TBrowser>>>}
+ * @returns {Promise<import('playwright-core').BrowserType<import('../types').PwResult<TBrowser>>>}
  */
 async function getPw(browserName) {
   if (!['chromium', 'firefox', 'webkit'].includes(String(browserName))) {
@@ -328,16 +328,19 @@ function runnerOptions(flags) {
 /**
  * Build the bundle
  *
- * @param {import("./runner")} runner
+ * @param {import("../runner")} runner
  * @param {ESBuildOptions} config - Runner esbuild config
  * @param {string} tmpl
- * @param {"bundle" | "before" | "watch" | "sw"} mode
+ * @param {"bundle" | "before" | "watch"} mode
  */
 const build = async (runner, config = {}, tmpl = '', mode = 'bundle') => {
   const outName = `${mode}-out.js`
   const infile = path.join(runner.dir, 'in.js')
   const outfile = path.join(runner.dir, outName)
-  const sourceMapSupport = path.join(__dirname, 'vendor/source-map-support.js')
+  const sourceMapSupport = path.join(
+    __dirname,
+    '../vendor/source-map-support.js'
+  )
 
   /** @type {ESBuildPlugin} */
   const nodePlugin = {
@@ -384,26 +387,6 @@ require('${require
 `
   }
 
-  // sw script template
-  if (mode === 'sw' && runner.options.sw) {
-    infileContent = `
-'use strict'
-// require('${sourceMapSupport.replace(/\\/g, '/')}').install();
-// process.env = ${JSON.stringify(runner.env)}
-self.addEventListener('install', (event) => {
-  console.log('V1 install done')
-})
-
-self.addEventListener('activate', (event) => {
-  console.log('V1 now ready to handle fetches!')
-  return self.clients.claim()
-})
-require('${require
-      .resolve(path.join(runner.options.cwd, runner.options.sw))
-      .replace(/\\/g, '/')}')
-`
-  }
-
   fs.writeFileSync(infile, infileContent)
   /** @type {ESBuildOptions} */
   const defaultOptions = {
@@ -413,6 +396,7 @@ require('${require
     sourcemap: 'inline',
     plugins: [nodePlugin],
     outfile,
+    inject: [path.join(__dirname, 'inject-process.js')],
     watch: mode === 'watch' ? watch : false,
     define: {
       global: 'globalThis',
@@ -427,7 +411,7 @@ require('${require
 /**
  * Create coverage report in istanbul JSON format
  *
- * @param {import("./runner")} runner
+ * @param {import("../runner")} runner
  * @param {any} coverage
  * @param {string} file
  */
@@ -503,7 +487,7 @@ function getPort(port = 3000, host = '127.0.0.1') {
 }
 
 /**
- * @param {import('./runner')} runner
+ * @param {import('../runner')} runner
  */
 async function createPolka(runner) {
   const host = 'localhost'

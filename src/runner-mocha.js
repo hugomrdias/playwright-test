@@ -1,7 +1,6 @@
 /* eslint-disable no-console */
 'use strict'
 
-const path = require('path')
 const merge = require('merge-options')
 const Runner = require('./runner')
 const waitFor = require('p-wait-for')
@@ -75,9 +74,7 @@ class MochaRunner extends Runner {
   compiler(mode = 'bundle') {
     return build(
       this,
-      {
-        inject: [path.join(__dirname, 'node-globals.js')],
-      },
+      {},
       `require('${require.resolve('./setup-mocha.js').replace(/\\/g, '/')}')`,
       mode
     )

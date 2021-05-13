@@ -17,7 +17,7 @@
   "scripts": {
     "prepare": "tsc && copyfiles 'src/**/*.d.ts' dist",
     "test": "uvu",
-    "lint": "eslint **/*.js && prettier --check *.{js,ts,yml,json} --ignore-path .gitignore && tsc"
+    "lint": "eslint '**/*.js' && prettier --check *.{js,json} --ignore-path .gitignore && tsc"
   },
   "files": [
     "dist/src/runner.d.ts",
@@ -101,7 +101,7 @@
     "dist",
     "src/vendor/benchmark.js",
     "src/vendor/source-map-support.js",
-    "node-globals.js",
+    "src/utils/inject-process.js",
     "node-globals-buffer.js",
     "mocks"
   ],
