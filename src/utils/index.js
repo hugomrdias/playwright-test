@@ -19,7 +19,7 @@ const merge = require('merge-options').bind({
 })
 
 /**
- * @typedef {import('./types').RunnerOptions } RunnerOptions
+ * @typedef {import('../types').RunnerOptions } RunnerOptions
  * @typedef {import('esbuild').Plugin} ESBuildPlugin
  * @typedef {import('esbuild').BuildOptions} ESBuildOptions
  */
@@ -239,7 +239,7 @@ async function redirectConsole(msg) {
 /**
  * @template {RunnerOptions["browser"]} TBrowser
  * @param {TBrowser} browserName
- * @returns {Promise<import('playwright-core').BrowserType<import('./types').PwResult<TBrowser>>>}
+ * @returns {Promise<import('playwright-core').BrowserType<import('../types').PwResult<TBrowser>>>}
  */
 async function getPw(browserName) {
   if (!['chromium', 'firefox', 'webkit'].includes(String(browserName))) {
@@ -328,7 +328,7 @@ function runnerOptions(flags) {
 /**
  * Build the bundle
  *
- * @param {import("./runner")} runner
+ * @param {import("../runner")} runner
  * @param {ESBuildOptions} config - Runner esbuild config
  * @param {string} tmpl
  * @param {"bundle" | "before" | "watch"} mode
@@ -337,7 +337,10 @@ const build = async (runner, config = {}, tmpl = '', mode = 'bundle') => {
   const outName = `${mode}-out.js`
   const infile = path.join(runner.dir, 'in.js')
   const outfile = path.join(runner.dir, outName)
-  const sourceMapSupport = path.join(__dirname, 'vendor/source-map-support.js')
+  const sourceMapSupport = path.join(
+    __dirname,
+    '../vendor/source-map-support.js'
+  )
 
   /** @type {ESBuildPlugin} */
   const nodePlugin = {
@@ -393,6 +396,7 @@ require('${require
     sourcemap: 'inline',
     plugins: [nodePlugin],
     outfile,
+    inject: [path.join(__dirname, 'inject-process.js')],
     watch: mode === 'watch' ? watch : false,
     define: {
       global: 'globalThis',
@@ -407,7 +411,7 @@ require('${require
 /**
  * Create coverage report in istanbul JSON format
  *
- * @param {import("./runner")} runner
+ * @param {import("../runner")} runner
  * @param {any} coverage
  * @param {string} file
  */
@@ -483,10 +487,10 @@ function getPort(port = 3000, host = '127.0.0.1') {
 }
 
 /**
- * @param {import('./runner')} runner
+ * @param {import('../runner')} runner
  */
 async function createPolka(runner) {
-  const host = '127.0.0.1'
+  const host = 'localhost'
   const port = await getPort(3000, host)
   const url = `http://${host}:${port}/`
   return new Promise((resolve, reject) => {

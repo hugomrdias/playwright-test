@@ -112,4 +112,16 @@ test.skip('benchmark', async () => {
   assert.is(proc.exitCode, 0, 'exit code')
   assert.ok(proc.stdout.includes('Fastest is String#indexOf'), 'process stdout')
 })
+
+test('sw', async () => {
+  const proc = await execa('./cli.js', [
+    'mocks/sw/sw-test.js',
+    '--sw',
+    'mocks/sw/sw.js',
+    '--config',
+    'mocks/sw/sw.config.js',
+  ])
+
+  assert.is(proc.exitCode, 0, 'exit code')
+})
 test.run()

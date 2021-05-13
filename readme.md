@@ -36,6 +36,7 @@ Description
     -e, --extension    Use extension background_page to run tests.
     --cov              Enable code coverage in istanbul format. Outputs '.nyc_output/coverage-pw.json'.
     --before           Path to a script to be loaded on a separate tab before the main script.
+    --sw               Path to a script to be loaded in a service worker.
     --assets           Assets to be served by the http server.  (default process.cwd())
     --cwd              Current directory.  (default process.cwd())
     --extensions       File extensions allowed in the bundle.  (default js,cjs,mjs,ts,tsx)
@@ -107,10 +108,12 @@ export interface RunnerOptions {
   extension?: boolean
   runnerOptions?: any
   before?: string
+  sw?: string
   cov?: false
   extensions?: string
   // esbuild options @see https://esbuild.github.io/api/#simple-options
   buildConfig: BuildOptions
+  buildSWConfig: BuildOptions
 }
 ```
 

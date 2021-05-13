@@ -16,6 +16,7 @@ const {
   createCov,
   createPolka,
 } = require('./utils')
+const { compileSw } = require('./utils/build-sw')
 
 /**
  * @typedef {import('playwright-core').Page} Page
@@ -39,9 +40,11 @@ const defaultOptions = {
   extension: false,
   runnerOptions: {},
   before: undefined,
+  sw: undefined,
   cov: false,
   extensions: 'js,cjs,mjs,ts,tsx',
   buildConfig: {},
+  buildSWConfig: {},
 }
 
 class Runner {
@@ -205,6 +208,13 @@ class Runner {
   async runTests(page, file) {
     await page.addScriptTag({ url: 'setup.js' })
     await page.evaluate(`localStorage.debug = "${this.env.DEBUG}"`)
+    if (this.options.sw) {
+      await compileSw(this, {
+        entry: this.options.sw,
+        out: 'sw-out.js',
+      })
+      await page.evaluate(() => navigator.serviceWorker.register('/sw-out.js'))
+    }
 
     switch (this.options.mode) {
       case 'main': {

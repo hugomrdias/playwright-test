@@ -124,6 +124,7 @@ sade2
     '--before',
     'Path to a script to be loaded on a separate tab before the main script.'
   )
+  .option('--sw', 'Path to a script to be loaded in a service worker.')
   .option(
     '--assets',
     'Assets to be served by the http server.  (default process.cwd())'
@@ -182,6 +183,7 @@ sade2
         extension: opts.extension,
         runnerOptions: runnerOptions(opts),
         before: opts.before,
+        sw: opts.sw,
         node: opts.node,
         cov: opts.cov,
         extensions: opts.extensions,

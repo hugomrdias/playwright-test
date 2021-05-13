@@ -16,9 +16,11 @@ export interface RunnerOptions {
   extension: boolean
   runnerOptions: any
   before?: string
+  sw?: string
   cov: false
   extensions: string
   buildConfig: BuildOptions
+  buildSWConfig: BuildOptions
 }
 
 export type PwResult<TBrowser> = TBrowser extends 'webkit'
