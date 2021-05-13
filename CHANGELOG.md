@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.1.0](https://www.github.com/hugomrdias/playwright-test/compare/v4.0.0...v4.1.0) (2021-05-13)
+
+
+### Features
+
+* experimental sw support ([#211](https://www.github.com/hugomrdias/playwright-test/issues/211)) ([ba0a469](https://www.github.com/hugomrdias/playwright-test/commit/ba0a4695e4519a582d414ee8b97a8bb929279487))
+
 ## [4.0.0](https://www.github.com/hugomrdias/playwright-test/compare/v3.0.8...v4.0.0) (2021-05-12)
 
 
