@@ -20,8 +20,6 @@ describe('Array', () => {
     })
 
     it('should return "good"', async () => {
-      const out = await fetch('/favicon.ico')
-      console.log(await out.text())
       assert.strictEqual(await good(), 'good')
     })
 
