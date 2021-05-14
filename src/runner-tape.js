@@ -1,13 +1,13 @@
 /* eslint-disable no-console */
 
-import { join, dirname } from 'path'
+import path from 'path'
 import { Runner } from './runner.js'
 import { build } from './utils/index.js'
 import { createRequire } from 'module'
 import { fileURLToPath } from 'url'
 
 const require = createRequire(import.meta.url)
-const __dirname = dirname(fileURLToPath(import.meta.url))
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 /**
  * @typedef {import('esbuild').Plugin} EsbuildPlugin
  */
@@ -37,7 +37,7 @@ class TapeRunner extends Runner {
       this,
       {
         plugins: [plugin],
-        inject: [join(__dirname, 'node-globals-buffer.js')],
+        inject: [path.join(__dirname, 'node-globals-buffer.js')],
       },
       `require('${require.resolve('./setup-tape.js').replace(/\\/g, '/')}')`,
       mode

@@ -1,11 +1,11 @@
 /* eslint-disable no-console */
 
-import { dirname, join } from 'path'
+import path from 'path'
 import { fileURLToPath } from 'url'
 import { Runner } from './runner.js'
 import { build } from './utils/index.js'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export class BenchmarkRunner extends Runner {
   /**
@@ -20,7 +20,7 @@ export class BenchmarkRunner extends Runner {
       name: 'swap benchmark',
       setup(build) {
         build.onResolve({ filter: /^benchmark$/ }, () => {
-          return { path: join(__dirname, 'setup-bench.js') }
+          return { path: path.join(__dirname, 'setup-bench.js') }
         })
       },
     }

@@ -1,9 +1,10 @@
 /* eslint-disable no-console */
 
 import { writeFileSync } from 'fs'
-import { join } from 'path'
+import path from 'path'
 import { build } from 'esbuild'
 import mergeOptions from 'merge-options'
+import { fileURLToPath } from 'url'
 
 const merge = mergeOptions.bind({
   ignoreUndefined: true,
@@ -26,15 +27,15 @@ const merge = mergeOptions.bind({
  * }} opts - Runner esbuild config
  */
 export async function compileSw(runner, { out, entry }) {
-  const outfile = join(runner.dir, out)
-  const infile = join(runner.dir, 'in.js')
+  const outfile = path.join(runner.dir, out)
+  const infile = path.join(runner.dir, 'in.js')
   const infileContent = `
 process.env = ${JSON.stringify(runner.env)}
 self.addEventListener('activate', (event) => {
   return self.clients.claim()
 })
 
-import "${join(runner.options.cwd, entry).replace(/\\/g, '/')}"
+import "${path.join(runner.options.cwd, entry).replace(/\\/g, '/')}"
 `
 
   writeFileSync(infile, infileContent)
@@ -44,7 +45,12 @@ import "${join(runner.options.cwd, entry).replace(/\\/g, '/')}"
     bundle: true,
     format: 'esm',
     sourcemap: 'inline',
-    inject: [join(__dirname, 'inject-process.js')],
+    inject: [
+      path.join(
+        path.dirname(fileURLToPath(import.meta.url)),
+        'inject-process.js'
+      ),
+    ],
     outfile,
     define: {
       global: 'globalThis',

@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 
 import { copyFileSync } from 'fs'
-import { join } from 'path'
+import path from 'path'
 import ora from 'ora'
 import { directory } from 'tempy'
 import { premove } from 'premove/sync'
@@ -17,7 +17,6 @@ import {
 import { compileSw } from './utils/build-sw.js'
 import mergeOptions from 'merge-options'
 import { fileURLToPath } from 'node:url'
-import path from 'node:path'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -60,8 +59,8 @@ export class Runner {
   constructor(options = {}) {
     /** @type {RunnerOptions} */
     this.options = merge(defaultOptions, options)
-    /** @type {import('polka').Polka["server"] | null} */
-    this.server = null
+    /** @type {import('polka').Polka["server"] | undefined} */
+    this.server = undefined
     this.dir = directory()
     this.browserDir = directory()
     this.url = ''
@@ -95,7 +94,10 @@ export class Runner {
     ]
 
     for (const file of files) {
-      copyFileSync(join(__dirname, './../static', file), join(this.dir, file))
+      copyFileSync(
+        path.join(__dirname, './../static', file),
+        path.join(this.dir, file)
+      )
     }
 
     // setup http server
@@ -136,15 +138,15 @@ export class Runner {
    */
   async setupPage(context) {
     if (this.options.extension && this.options.browser !== 'chromium') {
-      throw Error('Extension testing is only supported in chromium')
+      throw new Error('Extension testing is only supported in chromium')
     }
 
     if (this.options.cov && this.options.browser !== 'chromium') {
-      throw Error('Coverage is only supported in chromium')
+      throw new Error('Coverage is only supported in chromium')
     }
 
     if (this.options.cov && this.options.mode !== 'main') {
-      throw Error(
+      throw new Error(
         'Coverage is only supported in the main thread use mode:"main" '
       )
     }
@@ -152,12 +154,13 @@ export class Runner {
     if (this.options.extension) {
       const context = /** @type {ChromiumBrowserContext} */ (this.context)
       const backgroundPages = await context.backgroundPages()
-      this.page = backgroundPages.length
-        ? backgroundPages[0]
-        : await context.waitForEvent('backgroundpage')
+      this.page =
+        backgroundPages.length > 0
+          ? backgroundPages[0]
+          : await context.waitForEvent('backgroundpage')
 
       if (!this.page) {
-        throw Error('Could not find the background page for the extension.')
+        throw new Error('Could not find the background page for the extension.')
       }
 
       if (this.options.debug) {
@@ -229,7 +232,7 @@ export class Runner {
         break
       }
       default:
-        throw Error('mode not supported')
+        throw new Error('mode not supported')
     }
   }
 
@@ -292,9 +295,9 @@ export class Runner {
         // exit
         await this.stop(testsFailed)
       }
-    } catch (err) {
+    } catch (error) {
       spinner.fail('Running tests failed.')
-      await this.stop(true, err)
+      await this.stop(true, error)
     }
   }
 
@@ -373,6 +376,7 @@ export class Runner {
     } else if (msg) {
       console.log(msg)
     }
+    // eslint-disable-next-line unicorn/no-process-exit
     process.exit(fail ? 1 : 0)
   }
 

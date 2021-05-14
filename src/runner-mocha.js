@@ -63,7 +63,7 @@ class MochaRunner extends Runner {
         break
       }
       default:
-        throw Error('mode not supported')
+        throw new Error('mode not supported')
     }
   }
 

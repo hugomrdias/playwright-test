@@ -150,8 +150,6 @@ function extractErrorMessage(arg) {
       ? arg._remoteObject.description
       : undefined
   }
-
-  return undefined
 }
 
 /** @type {Record<string, any>} */
@@ -196,7 +194,7 @@ export async function redirectConsole(msg) {
     msgArgs = await Promise.all(
       msg.args().map((arg) => extractErrorMessage(arg) || arg.jsonValue())
     )
-  } catch (err) {
+  } catch {
     // ignore error runner was probably force stopped
   }
 
@@ -268,7 +266,7 @@ export async function getPw(browserName) {
   // @ts-ignore
   browsers.browsers[2].download = true // webkit
 
-  fs.writeFileSync(browsersPath, JSON.stringify(browsers, null, 2))
+  fs.writeFileSync(browsersPath, JSON.stringify(browsers, undefined, 2))
   await installBrowsersWithProgressBar([browserName])
   const api = setupInProcess.default
 
@@ -430,7 +428,7 @@ export async function createCov(runner, coverage, file) {
   const TestExclude = require('test-exclude')
   const exclude = new TestExclude()
   // @ts-ignore
-  const f = exclude.globSync().map((f) => path.resolve(f))
+  const f = new Set(exclude.globSync().map((f) => path.resolve(f)))
 
   for (const entry of coverage) {
     const filePath = path.join(runner.dir, entry.url.replace(runner.url, ''))
@@ -446,7 +444,7 @@ export async function createCov(runner, coverage, file) {
 
       // eslint-disable-next-line guard-for-in
       for (const key in instanbul) {
-        if (f.includes(key)) {
+        if (f.has(key)) {
           // @ts-ignore
           entries[key] = instanbul[key]
         }

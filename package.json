@@ -80,6 +80,7 @@
     "copyfiles": "^2.4.1",
     "debug": "^4.3.1",
     "delay": "^5.0.0",
+    "eslint-plugin-unicorn": "^32.0.1",
     "execa": "^5.0.0",
     "hd-scripts": "^0.1.1",
     "mocha": "^8.4.0",
@@ -95,11 +96,16 @@
     "*.js": "eslint --fix"
   },
   "eslintConfig": {
-    "extends": "./node_modules/hd-scripts/eslint/index.js",
+    "extends": [
+      "./node_modules/hd-scripts/eslint/index.js",
+      "plugin:unicorn/recommended"
+    ],
     "parserOptions": {
       "sourceType": "module"
     },
     "rules": {
+      "unicorn/prefer-node-protocol": "off",
+      "unicorn/prevent-abbreviations": "off",
       "import/extensions": [
         "error",
         "ignorePackages"
@@ -111,6 +117,7 @@
     "coverage",
     "dist",
     "src/vendor/benchmark.js",
+    "src/setup-bench.js",
     "src/vendor/source-map-support.js",
     "mocks"
   ],

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 
-import { resolve } from 'path'
+import path from 'path'
 import sade from 'sade'
 import kleur from 'kleur'
 import { lilconfigSync } from 'lilconfig'
@@ -141,7 +141,7 @@ sade2
     let config
 
     if (opts.config) {
-      config = lilconfigSync('playwright-test').load(resolve(opts.config))
+      config = lilconfigSync('playwright-test').load(path.resolve(opts.config))
     } else {
       config = lilconfigSync('playwright-test').search()
       if (!config) {
@@ -149,7 +149,7 @@ sade2
       }
     }
 
-    let Runner = null
+    let Runner
 
     switch (opts.runner) {
       case 'uvu':
@@ -168,7 +168,7 @@ sade2
         Runner = BenchmarkRunner
         break
       default:
-        console.error('Runner not supported: ', opts.runner)
+        console.error('Runner not supported:', opts.runner)
         process.exit(1)
     }
     const runner = new Runner(
