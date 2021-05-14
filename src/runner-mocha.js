@@ -1,10 +1,12 @@
 /* eslint-disable no-console */
-'use strict'
 
-const merge = require('merge-options')
-const Runner = require('./runner')
-const waitFor = require('p-wait-for')
-const { build } = require('./utils')
+import merge from 'merge-options'
+import { Runner } from './runner.js'
+import waitFor from 'p-wait-for'
+import { build } from './utils/index.js'
+import { createRequire } from 'module'
+
+const require = createRequire(import.meta.url)
 
 const runMocha = () => `
 mocha
@@ -81,4 +83,4 @@ class MochaRunner extends Runner {
   }
 }
 
-module.exports = MochaRunner
+export default MochaRunner

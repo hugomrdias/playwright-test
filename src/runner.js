@@ -1,13 +1,11 @@
 /* eslint-disable no-console */
-'use strict'
 
-const fs = require('fs')
-const path = require('path')
-const ora = require('ora')
-const tempy = require('tempy')
-const { premove } = require('premove/sync')
-const merge = require('merge-options').bind({ ignoreUndefined: true })
-const {
+import { copyFileSync } from 'fs'
+import { join } from 'path'
+import ora from 'ora'
+import { directory } from 'tempy'
+import { premove } from 'premove/sync'
+import {
   redirectConsole,
   getPw,
   addWorker,
@@ -15,8 +13,15 @@ const {
   defaultTestPatterns,
   createCov,
   createPolka,
-} = require('./utils')
-const { compileSw } = require('./utils/build-sw')
+} from './utils/index.js'
+import { compileSw } from './utils/build-sw.js'
+import mergeOptions from 'merge-options'
+import { fileURLToPath } from 'node:url'
+import path from 'node:path'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+const merge = mergeOptions.bind({ ignoreUndefined: true })
 
 /**
  * @typedef {import('playwright-core').Page} Page
@@ -47,7 +52,7 @@ const defaultOptions = {
   buildSWConfig: {},
 }
 
-class Runner {
+export class Runner {
   /**
    *
    * @param {Partial<import('./types').RunnerOptions>} [options]
@@ -57,8 +62,8 @@ class Runner {
     this.options = merge(defaultOptions, options)
     /** @type {import('polka').Polka["server"] | null} */
     this.server = null
-    this.dir = tempy.directory()
-    this.browserDir = tempy.directory()
+    this.dir = directory()
+    this.browserDir = directory()
     this.url = ''
     this.stopped = false
     this.watching = false
@@ -90,10 +95,7 @@ class Runner {
     ]
 
     for (const file of files) {
-      fs.copyFileSync(
-        path.join(__dirname, './../static', file),
-        path.join(this.dir, file)
-      )
+      copyFileSync(join(__dirname, './../static', file), join(this.dir, file))
     }
 
     // setup http server
@@ -385,5 +387,3 @@ class Runner {
     throw new Error('abstract method')
   }
 }
-
-module.exports = Runner

@@ -5,14 +5,16 @@
   "repository": "hugomrdias/playwright-test",
   "author": "Hugo Dias <hugomrdias@gmail.com> (hugodias.me)",
   "license": "MIT",
+  "type": "module",
   "main": "src/runner.js",
   "types": "dist/src/runner.d.ts",
+  "exports": "./index.js",
   "bin": {
     "playwright-test": "cli.js",
     "pw-test": "cli.js"
   },
   "engines": {
-    "node": ">=12"
+    "node": "^12.20.0 || ^14.13.1 || >=16.0.0"
   },
   "scripts": {
     "prepare": "tsc && copyfiles 'src/**/*.d.ts' dist",
@@ -93,7 +95,16 @@
     "*.js": "eslint --fix"
   },
   "eslintConfig": {
-    "extends": "./node_modules/hd-scripts/eslint/index.js"
+    "extends": "./node_modules/hd-scripts/eslint/index.js",
+    "parserOptions": {
+      "sourceType": "module"
+    },
+    "rules": {
+      "import/extensions": [
+        "error",
+        "ignorePackages"
+      ]
+    }
   },
   "eslintIgnore": [
     "node_modules",
@@ -101,8 +112,6 @@
     "dist",
     "src/vendor/benchmark.js",
     "src/vendor/source-map-support.js",
-    "src/utils/inject-process.js",
-    "node-globals-buffer.js",
     "mocks"
   ],
   "prettier": "hd-scripts/prettier.config.js"

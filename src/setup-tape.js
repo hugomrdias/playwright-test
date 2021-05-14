@@ -1,15 +1,14 @@
 // @ts-nocheck
-'use strict'
 
-const test = require('tape')
+import { onFailure, onFinish } from 'tape'
 
 self.TAPE_RUN_FAIL = false
 
-test.onFailure(() => {
+onFailure(() => {
   self.TAPE_RUN_FAIL = true
 })
 
-test.onFinish(() => {
+onFinish(() => {
   // eslint-disable-next-line no-undef
   if (process.env.PW_TEST.mode === 'worker') {
     postMessage({

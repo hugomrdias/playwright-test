@@ -1,19 +1,25 @@
 /* eslint-disable no-console */
-'use strict'
 
-const { createServer } = require('net')
-const path = require('path')
-const fs = require('fs')
-const { promisify } = require('util')
-const esbuild = require('esbuild')
-const kleur = require('kleur')
-const globby = require('globby')
-const ora = require('ora')
-const sirv = require('sirv')
-const polka = require('polka')
-const camelCase = require('camelcase')
-const V8ToIstanbul = require('v8-to-istanbul')
-const merge = require('merge-options').bind({
+import mergeOptions from 'merge-options'
+import path from 'path'
+import fs from 'fs'
+import kleur from 'kleur'
+import camelCase from 'camelcase'
+import sirv from 'sirv'
+import esbuild from 'esbuild'
+import V8ToIstanbul from 'v8-to-istanbul'
+import { promisify } from 'util'
+import globby from 'globby'
+import ora from 'ora'
+import { createServer } from 'http'
+import polka from 'polka'
+import { createRequire } from 'module'
+import { fileURLToPath } from 'url'
+
+const require = createRequire(import.meta.url)
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+const merge = mergeOptions.bind({
   ignoreUndefined: true,
   concatArrays: true,
 })
@@ -58,7 +64,7 @@ function buildExtensionPattern(extensions) {
 /**
  * @param {string[]} extensions
  */
-function defaultTestPatterns(extensions) {
+export function defaultTestPatterns(extensions) {
   const extensionPattern = buildExtensionPattern(extensions)
 
   return [
@@ -123,7 +129,7 @@ function findFiles({ cwd, extensions, filePatterns }) {
  * @param {string[]} options.extensions
  * @param {string[]} options.filePatterns
  */
-function findTests({ cwd, extensions, filePatterns }) {
+export function findTests({ cwd, extensions, filePatterns }) {
   return findFiles({
     cwd,
     extensions,
@@ -175,7 +181,7 @@ const messageTypeToConsoleFn = {
 /**
  * @param {import('playwright-core').ConsoleMessage} msg
  */
-async function redirectConsole(msg) {
+export async function redirectConsole(msg) {
   const type = msg.type()
   const consoleFn = messageTypeToConsoleFn[type]
 
@@ -241,18 +247,19 @@ async function redirectConsole(msg) {
  * @param {TBrowser} browserName
  * @returns {Promise<import('playwright-core').BrowserType<import('../types').PwResult<TBrowser>>>}
  */
-async function getPw(browserName) {
+export async function getPw(browserName) {
   if (!['chromium', 'firefox', 'webkit'].includes(String(browserName))) {
     throw new Error(`Browser not supported: ${browserName}`)
   }
   const {
     installBrowsersWithProgressBar,
     // @ts-ignore
-  } = require('playwright-core/lib/install/installer')
+  } = await import('playwright-core/lib/install/installer.js')
   // @ts-ignore
-  const setupInProcess = require('playwright-core/lib/inprocess')
-  const browsers = require('playwright-core/browsers.json')
+  const setupInProcess = await import('playwright-core/lib/inprocess.js')
+  // const browsers = await import('playwright-core/browsers.json')
   const browsersPath = require.resolve('playwright-core/browsers.json')
+  const browsers = JSON.parse(fs.readFileSync(browsersPath, 'utf-8'))
 
   // @ts-ignore
   browsers.browsers[0].download = true // chromium
@@ -263,7 +270,7 @@ async function getPw(browserName) {
 
   fs.writeFileSync(browsersPath, JSON.stringify(browsers, null, 2))
   await installBrowsersWithProgressBar([browserName])
-  const api = setupInProcess
+  const api = setupInProcess.default
 
   return api[browserName]
 }
@@ -271,7 +278,7 @@ async function getPw(browserName) {
 /**
  * @param {string} filePath
  */
-function addWorker(filePath) {
+export function addWorker(filePath) {
   return `
 const w = new Worker("${filePath}");
 w.onmessage = function(e) {
@@ -285,7 +292,7 @@ w.onmessage = function(e) {
 /**
  * @param {{ [x: string]: any; }} flags
  */
-function runnerOptions(flags) {
+export function runnerOptions(flags) {
   const opts = {}
 
   // eslint-disable-next-line guard-for-in
@@ -328,12 +335,12 @@ function runnerOptions(flags) {
 /**
  * Build the bundle
  *
- * @param {import("../runner")} runner
+ * @param {import("../runner").Runner} runner
  * @param {ESBuildOptions} config - Runner esbuild config
  * @param {string} tmpl
  * @param {"bundle" | "before" | "watch"} mode
  */
-const build = async (runner, config = {}, tmpl = '', mode = 'bundle') => {
+export async function build(runner, config = {}, tmpl = '', mode = 'bundle') {
   const outName = `${mode}-out.js`
   const infile = path.join(runner.dir, 'in.js')
   const outfile = path.join(runner.dir, outName)
@@ -411,11 +418,11 @@ require('${require
 /**
  * Create coverage report in istanbul JSON format
  *
- * @param {import("../runner")} runner
+ * @param {import("../runner").Runner} runner
  * @param {any} coverage
  * @param {string} file
  */
-const createCov = async (runner, coverage, file) => {
+export async function createCov(runner, coverage, file) {
   const spinner = ora('Generating code coverage.').start()
   const entries = {}
   const { cwd } = runner.options
@@ -487,9 +494,9 @@ function getPort(port = 3000, host = '127.0.0.1') {
 }
 
 /**
- * @param {import('../runner')} runner
+ * @param {import('../runner').Runner} runner
  */
-async function createPolka(runner) {
+export async function createPolka(runner) {
   const host = 'localhost'
   const port = await getPort(3000, host)
   const url = `http://${host}:${port}/`
@@ -527,18 +534,4 @@ async function createPolka(runner) {
         resolve(true)
       })
   })
-}
-
-module.exports = {
-  extractErrorMessage,
-  redirectConsole,
-  defaultTestPatterns,
-  findTests,
-  findFiles,
-  getPw,
-  addWorker,
-  runnerOptions,
-  build,
-  createCov,
-  createPolka,
 }

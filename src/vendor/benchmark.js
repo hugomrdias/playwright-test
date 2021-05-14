@@ -3342,7 +3342,6 @@
       }))
   } else {
     const Benchmark = runInContext()
-
     // Check for `exports` after `define` in case a build optimizer adds an `exports` object.
     if (freeExports && freeModule) {
       // Export for Node.js.

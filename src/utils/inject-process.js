@@ -1,3 +1,3 @@
 // @ts-nocheck
-export const process = require('process/browser')
+export { default as process } from 'process/browser'
 // https://github.com/ionic-team/rollup-plugin-node-polyfills

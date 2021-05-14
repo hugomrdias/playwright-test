@@ -1,10 +1,9 @@
 // @ts-nocheck
-'use strict'
 
 /* eslint-disable no-undef */
 
 // mocha library itself, to have it set up on global
-require('mocha/mocha')
+import 'mocha/mocha'
 
 const {
   allowUncaught,

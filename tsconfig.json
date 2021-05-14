@@ -1,7 +1,8 @@
 {
   "extends": "hd-scripts/tsconfig.json",
   "compilerOptions": {
-    "outDir": "dist"
+    "outDir": "dist",
+    "module": "ES2020"
   },
-  "include": ["src", "test.js", "cli.js", "package.json"]
+  "include": ["src", "src/utils", "test.js", "cli.js", "package.json"]
 }

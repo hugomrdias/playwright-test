@@ -1,10 +1,12 @@
 /* eslint-disable no-console */
-'use strict'
 
-const path = require('path')
-const Runner = require('./runner')
-const waitFor = require('p-wait-for')
-const { build } = require('./utils')
+import { normalize, join, dirname } from 'path'
+import { Runner } from './runner.js'
+import waitFor from 'p-wait-for'
+import { build } from './utils/index.js'
+import { fileURLToPath } from 'url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 const runZora = () => `
 zora
@@ -63,13 +65,13 @@ class ZoraRunner extends Runner {
       name: 'swap zora',
       setup(build) {
         build.onResolve({ filter: /^zora$/ }, (args) => {
-          const setupPath = path.normalize('playwright-test/src/setup-zora.js')
+          const setupPath = normalize('playwright-test/src/setup-zora.js')
 
           if (args.importer.endsWith(setupPath)) {
             return
           }
 
-          return { path: path.join(__dirname, 'setup-zora.js') }
+          return { path: join(__dirname, 'setup-zora.js') }
         })
       },
     }
@@ -85,4 +87,4 @@ class ZoraRunner extends Runner {
   }
 }
 
-module.exports = ZoraRunner
+export default ZoraRunner

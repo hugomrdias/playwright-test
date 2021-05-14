@@ -1,13 +1,12 @@
 // @ts-nocheck
 /* eslint-disable new-cap */
-'use strict'
 
 // Run benchmarkjs in the browser https://github.com/bestiejs/benchmark.js/issues/128#issuecomment-271615298
 // const process = require('process');
 const _ = require('lodash')
-const Benchmark = require('./vendor/benchmark')
+require('./vendor/benchmark')
 
-const BenchmarkSpecial = Benchmark.runInContext({
+const BenchmarkSpecial = globalThis.Benchmark.runInContext({
   _,
   process,
 })
@@ -55,6 +54,6 @@ const proxy = new Proxy(BenchmarkSpecial, {
   },
 })
 
-self.Benchmark = proxy
+globalThis.Benchmark = proxy
 module.exports = proxy
 exports.Benchmark = proxy
