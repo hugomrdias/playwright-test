@@ -1,5 +1,16 @@
 # Changelog
 
+## [5.0.0](https://www.github.com/hugomrdias/playwright-test/compare/v4.1.0...v5.0.0) (2021-05-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* move to esm (#216)
+
+### Features
+
+* move to esm ([#216](https://www.github.com/hugomrdias/playwright-test/issues/216)) ([20bd6bd](https://www.github.com/hugomrdias/playwright-test/commit/20bd6bdba579991393ec4b044f696514d4bd7118))
+
 ## [4.1.0](https://www.github.com/hugomrdias/playwright-test/compare/v4.0.0...v4.1.0) (2021-05-13)
 
 
