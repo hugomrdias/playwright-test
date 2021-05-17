@@ -1,9 +1,8 @@
 /* eslint-disable no-console */
-'use strict'
 
-const strip = require('strip-ansi')
-const Runner = require('./runner')
-const { build } = require('./utils')
+import strip from 'strip-ansi'
+import { Runner } from './runner.js'
+import { build } from './utils/index.js'
 
 const run = (/** @type {boolean} */ pass) => `
 self.PW_TEST.end(${pass})
@@ -44,4 +43,4 @@ class UvuRunner extends Runner {
   }
 }
 
-module.exports = UvuRunner
+export default UvuRunner

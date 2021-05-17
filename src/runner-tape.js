@@ -1,9 +1,13 @@
 /* eslint-disable no-console */
-'use strict'
-const path = require('path')
-const Runner = require('./runner')
-const { build } = require('./utils')
 
+import path from 'path'
+import { Runner } from './runner.js'
+import { build } from './utils/index.js'
+import { createRequire } from 'module'
+import { fileURLToPath } from 'url'
+
+const require = createRequire(import.meta.url)
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 /**
  * @typedef {import('esbuild').Plugin} EsbuildPlugin
  */
@@ -41,4 +45,4 @@ class TapeRunner extends Runner {
   }
 }
 
-module.exports = TapeRunner
+export default TapeRunner

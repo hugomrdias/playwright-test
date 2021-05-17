@@ -1,20 +1,22 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 
-'use strict'
+import path from 'path'
+import sade from 'sade'
+import kleur from 'kleur'
+import { lilconfigSync } from 'lilconfig'
+import mergeOptions from 'merge-options'
+import { runnerOptions } from './src/utils/index.js'
+import UvuRunner from './src/runner-uvu.js'
+import MochaRunner from './src/runner-mocha.js'
+import TapeRunner from './src/runner-tape.js'
+import { BenchmarkRunner } from './src/runner-benchmark.js'
+import ZoraRunner from './src/runner-zora.js'
+import fs from 'fs'
 
-const path = require('path')
-const sade = require('sade')
-const kleur = require('kleur')
-const lilconfig = require('lilconfig')
-const merge = require('merge-options').bind({ ignoreUndefined: true })
-const pkg = require('./package.json')
-const { runnerOptions } = require('./src/utils')
-const UvuRunner = require('./src/runner-uvu')
-const MochaRunner = require('./src/runner-mocha')
-const TapeRunner = require('./src/runner-tape')
-const BenchmarkRunner = require('./src/runner-benchmark')
-const ZoraRunner = require('./src/runner-zora')
+const { version } = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+
+const merge = mergeOptions.bind({ ignoreUndefined: true })
 
 // Handle any uncaught errors
 process.once('uncaughtException', (
@@ -98,7 +100,7 @@ const sade2 = new Proxy(sade('playwright-test [files]', true), {
 })
 
 sade2
-  .version(pkg.version)
+  .version(version)
   .describe(
     'Run mocha, zora, uvu, tape and benchmark.js scripts inside real browsers with `playwright`.'
   )
@@ -139,17 +141,15 @@ sade2
     let config
 
     if (opts.config) {
-      config = lilconfig
-        .lilconfigSync('playwright-test')
-        .load(path.resolve(opts.config))
+      config = lilconfigSync('playwright-test').load(path.resolve(opts.config))
     } else {
-      config = lilconfig.lilconfigSync('playwright-test').search()
+      config = lilconfigSync('playwright-test').search()
       if (!config) {
-        config = lilconfig.lilconfigSync('pw-test').search()
+        config = lilconfigSync('pw-test').search()
       }
     }
 
-    let Runner = null
+    let Runner
 
     switch (opts.runner) {
       case 'uvu':
@@ -168,7 +168,7 @@ sade2
         Runner = BenchmarkRunner
         break
       default:
-        console.error('Runner not supported: ', opts.runner)
+        console.error('Runner not supported:', opts.runner)
         process.exit(1)
     }
     const runner = new Runner(

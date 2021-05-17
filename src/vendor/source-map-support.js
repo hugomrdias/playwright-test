@@ -1,8 +1,8 @@
 // @ts-nocheck
 'use strict'
 
-const SourceMapConsumer = require('source-map').SourceMapConsumer
-const path = require('path')
+import { SourceMapConsumer } from 'source-map'
+import { dirname, resolve } from 'path'
 
 let fs
 
@@ -16,7 +16,7 @@ try {
   /* nop */
 }
 
-const { Buffer } = require('buffer')
+import { Buffer } from 'buffer'
 
 /**
  * Requires a module which is protected against bundler minification.
@@ -141,7 +141,7 @@ function supportRelativeURL(file, url, tweak) {
   if (!file) {
     return url
   }
-  const dir = path.dirname(file)
+  const dir = dirname(file)
   const match = /^\w+:\/\/[^\/]*/.exec(dir)
   let protocol = match ? match[0] : ''
   const startPath = dir.slice(protocol.length)
@@ -151,15 +151,14 @@ function supportRelativeURL(file, url, tweak) {
     protocol += '/'
 
     return (
-      protocol +
-      path.resolve(dir.slice(protocol.length), url).replace(/\\/g, '/')
+      protocol + resolve(dir.slice(protocol.length), url).replace(/\\/g, '/')
     )
   }
   if (tweak && PW_TEST_SOURCEMAP === true) {
-    return 'file://' + path.resolve(dir.slice(protocol.length), url)
+    return 'file://' + resolve(dir.slice(protocol.length), url)
   }
 
-  return protocol + path.resolve(dir.slice(protocol.length), url)
+  return protocol + resolve(dir.slice(protocol.length), url)
 }
 
 function retrieveSourceMapURL(source) {
@@ -633,12 +632,16 @@ function shimEmitUncaughtException() {
 const originalRetrieveFileHandlers = retrieveFileHandlers.slice(0)
 const originalRetrieveMapHandlers = retrieveMapHandlers.slice(0)
 
-exports.wrapCallSite = wrapCallSite
-exports.getErrorSource = getErrorSource
-exports.mapSourcePosition = mapSourcePosition
-exports.retrieveSourceMap = retrieveSourceMap
+const _wrapCallSite = wrapCallSite
+export { _wrapCallSite as wrapCallSite }
+const _getErrorSource = getErrorSource
+export { _getErrorSource as getErrorSource }
+const _mapSourcePosition = mapSourcePosition
+export { _mapSourcePosition as mapSourcePosition }
+const _retrieveSourceMap = retrieveSourceMap
+export { _retrieveSourceMap as retrieveSourceMap }
 
-exports.install = function (options) {
+export function install(options) {
   options = options || {}
 
   if (options.environment) {
@@ -736,7 +739,7 @@ exports.install = function (options) {
   }
 }
 
-exports.resetRetrieveHandlers = function () {
+export function resetRetrieveHandlers() {
   retrieveFileHandlers.length = 0
   retrieveMapHandlers.length = 0
 

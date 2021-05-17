@@ -1,10 +1,12 @@
 /* eslint-disable no-console */
-'use strict'
 
-const fs = require('fs')
-const path = require('path')
-const esbuild = require('esbuild')
-const merge = require('merge-options').bind({
+import { writeFileSync } from 'fs'
+import path from 'path'
+import { build } from 'esbuild'
+import mergeOptions from 'merge-options'
+import { fileURLToPath } from 'url'
+
+const merge = mergeOptions.bind({
   ignoreUndefined: true,
   concatArrays: true,
 })
@@ -18,13 +20,13 @@ const merge = require('merge-options').bind({
 /**
  * Build the bundle
  *
- * @param {import("../runner")} runner
+ * @param {import("../runner").Runner} runner
  * @param {{
  * out: string,
  * entry: string
  * }} opts - Runner esbuild config
  */
-async function compileSw(runner, { out, entry }) {
+export async function compileSw(runner, { out, entry }) {
   const outfile = path.join(runner.dir, out)
   const infile = path.join(runner.dir, 'in.js')
   const infileContent = `
@@ -36,24 +38,25 @@ self.addEventListener('activate', (event) => {
 import "${path.join(runner.options.cwd, entry).replace(/\\/g, '/')}"
 `
 
-  fs.writeFileSync(infile, infileContent)
+  writeFileSync(infile, infileContent)
   /** @type {ESBuildOptions} */
   const defaultOptions = {
     entryPoints: [infile],
     bundle: true,
     format: 'esm',
     sourcemap: 'inline',
-    inject: [path.join(__dirname, 'inject-process.js')],
+    inject: [
+      path.join(
+        path.dirname(fileURLToPath(import.meta.url)),
+        'inject-process.js'
+      ),
+    ],
     outfile,
     define: {
       global: 'globalThis',
     },
   }
-  await esbuild.build(merge(defaultOptions, runner.options.buildSWConfig))
+  await build(merge(defaultOptions, runner.options.buildSWConfig))
 
   return out
-}
-
-module.exports = {
-  compileSw,
 }

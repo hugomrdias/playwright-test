@@ -1,11 +1,13 @@
 /* eslint-disable no-console */
-'use strict'
 
-const path = require('path')
-const Runner = require('./runner')
-const { build } = require('./utils')
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { Runner } from './runner.js'
+import { build } from './utils/index.js'
 
-class BenchmarkRunner extends Runner {
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+export class BenchmarkRunner extends Runner {
   /**
    * Compile tests
    *
@@ -26,5 +28,3 @@ class BenchmarkRunner extends Runner {
     return build(this, { plugins: [plugin] })
   }
 }
-
-module.exports = BenchmarkRunner

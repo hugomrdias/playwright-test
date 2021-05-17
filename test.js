@@ -1,14 +1,12 @@
-'use strict'
-
-const { test } = require('uvu')
-const assert = require('uvu/assert')
-const execa = require('execa')
+import { test } from 'uvu'
+import { is, ok } from 'uvu/assert'
+import execa from 'execa'
 
 test('mocha', async () => {
   const proc = await execa('./cli.js', ['mocks/test.mocha.js'])
 
-  assert.is(proc.exitCode, 0, 'exit code')
-  assert.ok(proc.stdout.includes('5 passing'), 'process stdout')
+  is(proc.exitCode, 0, 'exit code')
+  ok(proc.stdout.includes('5 passing'), 'process stdout')
 })
 
 test('mocha with DEBUG=app', async () => {
@@ -16,16 +14,16 @@ test('mocha with DEBUG=app', async () => {
     env: { DEBUG: 'app' },
   })
 
-  assert.is(proc.exitCode, 0, 'exit code')
-  assert.ok(proc.stdout.includes('5 passing'), 'process stdout')
-  assert.ok(proc.stdout.includes('app test pass'), 'debug output')
+  is(proc.exitCode, 0, 'exit code')
+  ok(proc.stdout.includes('5 passing'), 'process stdout')
+  ok(proc.stdout.includes('app test pass'), 'debug output')
 })
 
 test('mocha incognito', async () => {
   const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--incognito'])
 
-  assert.is(proc.exitCode, 0, 'exit code')
-  assert.ok(proc.stdout.includes('5 passing'), 'process stdout')
+  is(proc.exitCode, 0, 'exit code')
+  ok(proc.stdout.includes('5 passing'), 'process stdout')
 })
 
 test('mocha mode:worker', async () => {
@@ -35,15 +33,15 @@ test('mocha mode:worker', async () => {
     'worker',
   ])
 
-  assert.is(proc.exitCode, 0, 'exit code')
-  assert.ok(proc.stdout.includes('5 passing'), 'process stdout')
+  is(proc.exitCode, 0, 'exit code')
+  ok(proc.stdout.includes('5 passing'), 'process stdout')
 })
 
 test('mocha extension', async () => {
   const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--extension'])
 
-  assert.is(proc.exitCode, 0, 'exit code')
-  assert.ok(proc.stdout.includes('5 passing'), 'process stdout')
+  is(proc.exitCode, 0, 'exit code')
+  ok(proc.stdout.includes('5 passing'), 'process stdout')
 })
 
 test('tape', async () => {
@@ -53,8 +51,8 @@ test('tape', async () => {
     'tape',
   ])
 
-  assert.is(proc.exitCode, 0, 'exit code')
-  assert.ok(proc.stdout.includes('# pass  5'), 'process stdout')
+  is(proc.exitCode, 0, 'exit code')
+  ok(proc.stdout.includes('# pass  5'), 'process stdout')
 })
 
 test('tape mode:worker', async () => {
@@ -66,8 +64,8 @@ test('tape mode:worker', async () => {
     'worker',
   ])
 
-  assert.is(proc.exitCode, 0, 'exit code')
-  assert.ok(proc.stdout.includes('# pass  5'), 'process stdout')
+  is(proc.exitCode, 0, 'exit code')
+  ok(proc.stdout.includes('# pass  5'), 'process stdout')
 })
 
 test('zora', async () => {
@@ -82,8 +80,8 @@ test('zora', async () => {
     }
   )
 
-  assert.is(proc.exitCode, 0, 'exit code')
-  assert.ok(proc.stdout.includes('# success: 2'), 'process stdout')
+  is(proc.exitCode, 0, 'exit code')
+  ok(proc.stdout.includes('# success: 2'), 'process stdout')
 })
 
 test('zora mode:worker', async () => {
@@ -98,8 +96,8 @@ test('zora mode:worker', async () => {
     }
   )
 
-  assert.is(proc.exitCode, 0, 'exit code')
-  assert.ok(proc.stdout.includes('# success: 2'), 'process stdout')
+  is(proc.exitCode, 0, 'exit code')
+  ok(proc.stdout.includes('# success: 2'), 'process stdout')
 })
 
 test.skip('benchmark', async () => {
@@ -109,8 +107,8 @@ test.skip('benchmark', async () => {
     'benchmark',
   ])
 
-  assert.is(proc.exitCode, 0, 'exit code')
-  assert.ok(proc.stdout.includes('Fastest is String#indexOf'), 'process stdout')
+  is(proc.exitCode, 0, 'exit code')
+  ok(proc.stdout.includes('Fastest is String#indexOf'), 'process stdout')
 })
 
 test('sw', async () => {
@@ -122,6 +120,6 @@ test('sw', async () => {
     'mocks/sw/sw.config.js',
   ])
 
-  assert.is(proc.exitCode, 0, 'exit code')
+  is(proc.exitCode, 0, 'exit code')
 })
 test.run()

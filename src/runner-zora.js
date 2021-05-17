@@ -1,10 +1,12 @@
 /* eslint-disable no-console */
-'use strict'
 
-const path = require('path')
-const Runner = require('./runner')
-const waitFor = require('p-wait-for')
-const { build } = require('./utils')
+import path from 'path'
+import { Runner } from './runner.js'
+import waitFor from 'p-wait-for'
+import { build } from './utils/index.js'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const runZora = () => `
 zora
@@ -45,7 +47,7 @@ class ZoraRunner extends Runner {
         break
       }
       default:
-        throw Error('mode not supported')
+        throw new Error('mode not supported')
     }
   }
 
@@ -85,4 +87,4 @@ class ZoraRunner extends Runner {
   }
 }
 
-module.exports = ZoraRunner
+export default ZoraRunner

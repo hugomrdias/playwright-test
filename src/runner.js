@@ -1,13 +1,11 @@
 /* eslint-disable no-console */
-'use strict'
 
-const fs = require('fs')
-const path = require('path')
-const ora = require('ora')
-const tempy = require('tempy')
-const { premove } = require('premove/sync')
-const merge = require('merge-options').bind({ ignoreUndefined: true })
-const {
+import { copyFileSync } from 'fs'
+import path from 'path'
+import ora from 'ora'
+import { directory } from 'tempy'
+import { premove } from 'premove/sync'
+import {
   redirectConsole,
   getPw,
   addWorker,
@@ -15,8 +13,14 @@ const {
   defaultTestPatterns,
   createCov,
   createPolka,
-} = require('./utils')
-const { compileSw } = require('./utils/build-sw')
+} from './utils/index.js'
+import { compileSw } from './utils/build-sw.js'
+import mergeOptions from 'merge-options'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+const merge = mergeOptions.bind({ ignoreUndefined: true })
 
 /**
  * @typedef {import('playwright-core').Page} Page
@@ -47,7 +51,7 @@ const defaultOptions = {
   buildSWConfig: {},
 }
 
-class Runner {
+export class Runner {
   /**
    *
    * @param {Partial<import('./types').RunnerOptions>} [options]
@@ -55,10 +59,10 @@ class Runner {
   constructor(options = {}) {
     /** @type {RunnerOptions} */
     this.options = merge(defaultOptions, options)
-    /** @type {import('polka').Polka["server"] | null} */
-    this.server = null
-    this.dir = tempy.directory()
-    this.browserDir = tempy.directory()
+    /** @type {import('polka').Polka["server"] | undefined} */
+    this.server = undefined
+    this.dir = directory()
+    this.browserDir = directory()
     this.url = ''
     this.stopped = false
     this.watching = false
@@ -90,7 +94,7 @@ class Runner {
     ]
 
     for (const file of files) {
-      fs.copyFileSync(
+      copyFileSync(
         path.join(__dirname, './../static', file),
         path.join(this.dir, file)
       )
@@ -134,15 +138,15 @@ class Runner {
    */
   async setupPage(context) {
     if (this.options.extension && this.options.browser !== 'chromium') {
-      throw Error('Extension testing is only supported in chromium')
+      throw new Error('Extension testing is only supported in chromium')
     }
 
     if (this.options.cov && this.options.browser !== 'chromium') {
-      throw Error('Coverage is only supported in chromium')
+      throw new Error('Coverage is only supported in chromium')
     }
 
     if (this.options.cov && this.options.mode !== 'main') {
-      throw Error(
+      throw new Error(
         'Coverage is only supported in the main thread use mode:"main" '
       )
     }
@@ -150,12 +154,13 @@ class Runner {
     if (this.options.extension) {
       const context = /** @type {ChromiumBrowserContext} */ (this.context)
       const backgroundPages = await context.backgroundPages()
-      this.page = backgroundPages.length
-        ? backgroundPages[0]
-        : await context.waitForEvent('backgroundpage')
+      this.page =
+        backgroundPages.length > 0
+          ? backgroundPages[0]
+          : await context.waitForEvent('backgroundpage')
 
       if (!this.page) {
-        throw Error('Could not find the background page for the extension.')
+        throw new Error('Could not find the background page for the extension.')
       }
 
       if (this.options.debug) {
@@ -227,7 +232,7 @@ class Runner {
         break
       }
       default:
-        throw Error('mode not supported')
+        throw new Error('mode not supported')
     }
   }
 
@@ -290,9 +295,9 @@ class Runner {
         // exit
         await this.stop(testsFailed)
       }
-    } catch (err) {
+    } catch (error) {
       spinner.fail('Running tests failed.')
-      await this.stop(true, err)
+      await this.stop(true, error)
     }
   }
 
@@ -371,6 +376,7 @@ class Runner {
     } else if (msg) {
       console.log(msg)
     }
+    // eslint-disable-next-line unicorn/no-process-exit
     process.exit(fail ? 1 : 0)
   }
 
@@ -385,5 +391,3 @@ class Runner {
     throw new Error('abstract method')
   }
 }
-
-module.exports = Runner
