@@ -83,7 +83,7 @@
     "eslint-plugin-unicorn": "^32.0.1",
     "execa": "^5.0.0",
     "hd-scripts": "^0.1.1",
-    "mocha": "^8.4.0",
+    "mocha": "^9.0.1",
     "tap-spec": "^5.0.0",
     "uvu": "^0.5.1",
     "zora": "^4.0.2"
