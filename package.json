@@ -49,7 +49,7 @@
   "dependencies": {
     "buffer": "^6.0.3",
     "camelcase": "^6.2.0",
-    "esbuild": "0.11.23",
+    "esbuild": "0.12.12",
     "globby": "^11.0.3",
     "kleur": "^4.1.4",
     "lilconfig": "^2.0.2",
