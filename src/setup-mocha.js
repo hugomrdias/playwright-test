@@ -3,7 +3,7 @@
 /* eslint-disable no-undef */
 
 // mocha library itself, to have it set up on global
-import 'mocha/mocha'
+import mocha from 'mocha'
 
 const {
   allowUncaught,

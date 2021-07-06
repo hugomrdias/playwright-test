@@ -1,12 +1,17 @@
 /* eslint-disable no-console */
 
+import path from 'path'
 import merge from 'merge-options'
 import { Runner } from './runner.js'
 import waitFor from 'p-wait-for'
 import { build } from './utils/index.js'
 import { createRequire } from 'module'
-
+import { fileURLToPath } from 'url'
+/**
+ * @typedef {import('esbuild').Plugin} EsbuildPlugin
+ */
 const require = createRequire(import.meta.url)
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const runMocha = () => `
 mocha
@@ -74,9 +79,22 @@ class MochaRunner extends Runner {
    * @returns {Promise<string>} file to be loaded in the page
    */
   compiler(mode = 'bundle') {
+    /** @type {EsbuildPlugin} */
+    const plugin = {
+      name: 'swap tape',
+
+      setup(build) {
+        build.onResolve({ filter: /^stream$/ }, () => {
+          return { path: require.resolve('stream-browserify') }
+        })
+      },
+    }
     return build(
       this,
-      {},
+      {
+        plugins: [plugin],
+        inject: [path.join(__dirname, 'node-globals-buffer.js')],
+      },
       `require('${require.resolve('./setup-mocha.js').replace(/\\/g, '/')}')`,
       mode
     )
