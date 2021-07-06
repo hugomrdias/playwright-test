@@ -1,61 +1,60 @@
-import { test } from 'uvu'
-import { is, ok } from 'uvu/assert'
+import { test } from 'zora'
 import execa from 'execa'
 
-test('mocha', async () => {
+test('mocha', async (t) => {
   const proc = await execa('./cli.js', ['mocks/test.mocha.js'])
 
-  is(proc.exitCode, 0, 'exit code')
-  ok(proc.stdout.includes('5 passing'), 'process stdout')
+  t.is(proc.exitCode, 0, 'exit code')
+  t.ok(proc.stdout.includes('5 passing'), 'process stdout')
 })
 
-test('mocha with DEBUG=app', async () => {
+test('mocha with DEBUG=app', async (t) => {
   const proc = await execa('./cli.js', ['mocks/test.mocha.js'], {
     env: { DEBUG: 'app' },
   })
 
-  is(proc.exitCode, 0, 'exit code')
-  ok(proc.stdout.includes('5 passing'), 'process stdout')
-  ok(proc.stdout.includes('app test pass'), 'debug output')
+  t.is(proc.exitCode, 0, 'exit code')
+  t.ok(proc.stdout.includes('5 passing'), 'process stdout')
+  t.ok(proc.stdout.includes('app test pass'), 'debug output')
 })
 
-test('mocha incognito', async () => {
+test('mocha incognito', async (t) => {
   const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--incognito'])
 
-  is(proc.exitCode, 0, 'exit code')
-  ok(proc.stdout.includes('5 passing'), 'process stdout')
+  t.is(proc.exitCode, 0, 'exit code')
+  t.ok(proc.stdout.includes('5 passing'), 'process stdout')
 })
 
-test('mocha mode:worker', async () => {
+test('mocha mode:worker', async (t) => {
   const proc = await execa('./cli.js', [
     'mocks/test.mocha.js',
     '--mode',
     'worker',
   ])
 
-  is(proc.exitCode, 0, 'exit code')
-  ok(proc.stdout.includes('5 passing'), 'process stdout')
+  t.is(proc.exitCode, 0, 'exit code')
+  t.ok(proc.stdout.includes('5 passing'), 'process stdout')
 })
 
-test('mocha extension', async () => {
+test('mocha extension', async (t) => {
   const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--extension'])
 
-  is(proc.exitCode, 0, 'exit code')
-  ok(proc.stdout.includes('5 passing'), 'process stdout')
+  t.is(proc.exitCode, 0, 'exit code')
+  t.ok(proc.stdout.includes('5 passing'), 'process stdout')
 })
 
-test('tape', async () => {
+test('tape', async (t) => {
   const proc = await execa('./cli.js', [
     'mocks/test.tape.js',
     '--runner',
     'tape',
   ])
 
-  is(proc.exitCode, 0, 'exit code')
-  ok(proc.stdout.includes('# pass  5'), 'process stdout')
+  t.is(proc.exitCode, 0, 'exit code')
+  t.ok(proc.stdout.includes('# pass  5'), 'process stdout')
 })
 
-test('tape mode:worker', async () => {
+test('tape mode:worker', async (t) => {
   const proc = await execa('./cli.js', [
     'mocks/test.tape.js',
     '--runner',
@@ -64,11 +63,11 @@ test('tape mode:worker', async () => {
     'worker',
   ])
 
-  is(proc.exitCode, 0, 'exit code')
-  ok(proc.stdout.includes('# pass  5'), 'process stdout')
+  t.is(proc.exitCode, 0, 'exit code')
+  t.ok(proc.stdout.includes('# pass  5'), 'process stdout')
 })
 
-test('zora', async () => {
+test('zora', async (t) => {
   const proc = await execa(
     './cli.js',
     ['mocks/*.zora.js', '--runner', 'zora'],
@@ -80,11 +79,11 @@ test('zora', async () => {
     }
   )
 
-  is(proc.exitCode, 0, 'exit code')
-  ok(proc.stdout.includes('# success: 2'), 'process stdout')
+  t.is(proc.exitCode, 0, 'exit code')
+  t.ok(proc.stdout.includes('# success: 2'), 'process stdout')
 })
 
-test('zora mode:worker', async () => {
+test('zora mode:worker', async (t) => {
   const proc = await execa(
     './cli.js',
     ['mocks/*.zora.js', '--runner', 'zora', '--mode', 'worker'],
@@ -96,22 +95,22 @@ test('zora mode:worker', async () => {
     }
   )
 
-  is(proc.exitCode, 0, 'exit code')
-  ok(proc.stdout.includes('# success: 2'), 'process stdout')
+  t.is(proc.exitCode, 0, 'exit code')
+  t.ok(proc.stdout.includes('# success: 2'), 'process stdout')
 })
 
-test.skip('benchmark', async () => {
-  const proc = await execa('./cli.js', [
-    'mocks/benchmark.js',
-    '--runner',
-    'benchmark',
-  ])
+// test.skip('benchmark', async () => {
+//   const proc = await execa('./cli.js', [
+//     'mocks/benchmark.js',
+//     '--runner',
+//     'benchmark',
+//   ])
 
-  is(proc.exitCode, 0, 'exit code')
-  ok(proc.stdout.includes('Fastest is String#indexOf'), 'process stdout')
-})
+//   is(proc.exitCode, 0, 'exit code')
+//   ok(proc.stdout.includes('Fastest is String#indexOf'), 'process stdout')
+// })
 
-test('sw', async () => {
+test('sw', async (t) => {
   const proc = await execa('./cli.js', [
     'mocks/sw/sw-test.js',
     '--sw',
@@ -120,6 +119,6 @@ test('sw', async () => {
     'mocks/sw/sw.config.js',
   ])
 
-  is(proc.exitCode, 0, 'exit code')
+  t.is(proc.exitCode, 0, 'exit code')
 })
-test.run()
+// test.run()

@@ -18,7 +18,7 @@
   },
   "scripts": {
     "prepare": "tsc && copyfiles 'src/**/*.d.ts' dist",
-    "test": "uvu",
+    "test": "node test.js | tap-spec",
     "lint": "eslint '**/*.js' && prettier --check *.{js,json} --ignore-path .gitignore && tsc"
   },
   "files": [
