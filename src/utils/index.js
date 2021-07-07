@@ -257,10 +257,6 @@ export async function getPw(browserName) {
   const setupInProcess = await import('playwright-core/lib/inprocess.js')
   // const browsers = await import('playwright-core/browsers.json')
   const browsersPath = require.resolve('playwright-core/browsers.json')
-  console.log(
-    '🚀 ~ file: index.js ~ line 260 ~ getPw ~ browsersPath',
-    browsersPath
-  )
   const browsers = JSON.parse(fs.readFileSync(browsersPath, 'utf-8'))
 
   // @ts-ignore
