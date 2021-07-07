@@ -18,7 +18,7 @@
   },
   "scripts": {
     "prepare": "tsc && copyfiles 'src/**/*.d.ts' dist",
-    "test": "node test.js | tap-spec",
+    "test": "mocha test.js --bail",
     "lint": "eslint '**/*.js' && prettier --check '*.{js,json}' --ignore-path .gitignore && tsc"
   },
   "files": [
@@ -74,6 +74,7 @@
     "v8-to-istanbul": "^8.0.0"
   },
   "devDependencies": {
+    "@types/mocha": "^8.2.3",
     "@types/polka": "^0.5.2",
     "@types/sade": "^1.7.3",
     "assert": "^2.0.0",
@@ -96,6 +97,9 @@
     "*.js": "eslint --fix"
   },
   "eslintConfig": {
+    "env": {
+      "mocha": true
+    },
     "extends": [
       "./node_modules/hd-scripts/eslint/index.js"
     ],
