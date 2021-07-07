@@ -213,13 +213,6 @@ export class Runner {
   async runTests(page, file) {
     await page.addScriptTag({ url: 'setup.js' })
     await page.evaluate(`localStorage.debug = "${this.env.DEBUG}"`)
-    if (this.options.sw) {
-      await compileSw(this, {
-        entry: this.options.sw,
-        out: 'sw-out.js',
-      })
-      await page.evaluate(() => navigator.serviceWorker.register('/sw-out.js'))
-    }
 
     switch (this.options.mode) {
       case 'main': {
@@ -233,6 +226,15 @@ export class Runner {
       }
       default:
         throw new Error('mode not supported')
+    }
+
+    // inject and register the service
+    if (this.options.sw) {
+      await compileSw(this, {
+        entry: this.options.sw,
+        out: 'sw-out.js',
+      })
+      await page.evaluate(() => navigator.serviceWorker.register('/sw-out.js'))
     }
   }
 

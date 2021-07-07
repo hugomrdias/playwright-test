@@ -257,6 +257,10 @@ export async function getPw(browserName) {
   const setupInProcess = await import('playwright-core/lib/inprocess.js')
   // const browsers = await import('playwright-core/browsers.json')
   const browsersPath = require.resolve('playwright-core/browsers.json')
+  console.log(
+    '🚀 ~ file: index.js ~ line 260 ~ getPw ~ browsersPath',
+    browsersPath
+  )
   const browsers = JSON.parse(fs.readFileSync(browsersPath, 'utf-8'))
 
   // @ts-ignore
@@ -495,7 +499,7 @@ function getPort(port = 3000, host = '127.0.0.1') {
  * @param {import('../runner').Runner} runner
  */
 export async function createPolka(runner) {
-  const host = 'localhost'
+  const host = '127.0.0.1'
   const port = await getPort(3000, host)
   const url = `http://${host}:${port}/`
   return new Promise((resolve, reject) => {
