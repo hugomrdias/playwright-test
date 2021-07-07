@@ -2,7 +2,6 @@ import { ok, strictEqual as is } from 'assert'
 import execa from 'execa'
 
 describe('mocha', function () {
-  this.timeout(5000)
   it('basic', async () => {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js'])
 
@@ -118,7 +117,6 @@ describe('zora', () => {
 })
 
 describe('benchmark', function () {
-  this.timeout('30s')
   it('benchmark', async () => {
     const proc = await execa('./cli.js', [
       'mocks/benchmark.js',
