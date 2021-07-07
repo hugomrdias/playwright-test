@@ -18,7 +18,7 @@
   },
   "scripts": {
     "prepare": "tsc && copyfiles 'src/**/*.d.ts' dist",
-    "test": "mocha test.js --bail",
+    "test": "mocha test.js --bail --timeout 50000",
     "lint": "eslint '**/*.js' && prettier --check '*.{js,json}' --ignore-path .gitignore && tsc"
   },
   "files": [
