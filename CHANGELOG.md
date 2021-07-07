@@ -1,5 +1,16 @@
 # Changelog
 
+## [6.0.0](https://www.github.com/hugomrdias/playwright-test/compare/v5.0.0...v6.0.0) (2021-07-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* service worker is registered after the tests bundle is requested
+
+### Features
+
+* update deps and improve sw ([#254](https://www.github.com/hugomrdias/playwright-test/issues/254)) ([5c8288a](https://www.github.com/hugomrdias/playwright-test/commit/5c8288ac6bd14e4d3e7cd59cb0898bef838feeff))
+
 ## [5.0.0](https://www.github.com/hugomrdias/playwright-test/compare/v4.1.0...v5.0.0) (2021-05-17)
 
 
