@@ -50,6 +50,7 @@
     "buffer": "^6.0.3",
     "camelcase": "^6.2.0",
     "esbuild": "0.12.15",
+    "events": "^3.3.0",
     "globby": "^11.0.4",
     "kleur": "^4.1.4",
     "lilconfig": "^2.0.3",
