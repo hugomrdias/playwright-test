@@ -19,7 +19,7 @@
   "scripts": {
     "prepare": "tsc && copyfiles 'src/**/*.d.ts' dist",
     "test": "node test.js | tap-spec",
-    "lint": "eslint '**/*.js' && prettier --check *.{js,json} --ignore-path .gitignore && tsc"
+    "lint": "eslint '**/*.js' && prettier --check '*.{js,json}' --ignore-path .gitignore && tsc"
   },
   "files": [
     "dist/src/runner.d.ts",
@@ -74,15 +74,14 @@
   },
   "devDependencies": {
     "@types/polka": "^0.5.2",
-    "@types/sade": "^1.7.2",
+    "@types/sade": "^1.7.3",
     "assert": "^2.0.0",
     "benchmark": "^2.1.4",
     "copyfiles": "^2.4.1",
     "debug": "^4.3.2",
     "delay": "^5.0.0",
-    "eslint-plugin-unicorn": "^32.0.1",
     "execa": "^5.1.1",
-    "hd-scripts": "^0.1.1",
+    "hd-scripts": "^1.0.0",
     "mocha": "^9.0.2",
     "tap-spec": "^5.0.0",
     "uvu": "^0.5.1",
@@ -97,19 +96,10 @@
   },
   "eslintConfig": {
     "extends": [
-      "./node_modules/hd-scripts/eslint/index.js",
-      "plugin:unicorn/recommended"
+      "./node_modules/hd-scripts/eslint/index.js"
     ],
     "parserOptions": {
       "sourceType": "module"
-    },
-    "rules": {
-      "unicorn/prefer-node-protocol": "off",
-      "unicorn/prevent-abbreviations": "off",
-      "import/extensions": [
-        "error",
-        "ignorePackages"
-      ]
     }
   },
   "eslintIgnore": [

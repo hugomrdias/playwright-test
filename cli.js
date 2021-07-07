@@ -19,15 +19,15 @@ const { version } = JSON.parse(fs.readFileSync('package.json', 'utf8'))
 const merge = mergeOptions.bind({ ignoreUndefined: true })
 
 // Handle any uncaught errors
-process.once('uncaughtException', (
-  /** @type {Error} */ err,
-  /** @type {string} */ origin
-) => {
-  if (!origin || origin === 'uncaughtException') {
-    console.error(err)
-    process.exit(1)
+process.once(
+  'uncaughtException',
+  (/** @type {Error} */ err, /** @type {string} */ origin) => {
+    if (!origin || origin === 'uncaughtException') {
+      console.error(err)
+      process.exit(1)
+    }
   }
-})
+)
 process.once('unhandledRejection', (err) => {
   console.error(err)
   process.exit(1)
