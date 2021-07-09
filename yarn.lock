@@ -378,9 +378,9 @@
   integrity sha512-//oorEZjL6sbPcKUaCdIGlIUeH26mgzimjBB77G6XRgnDl/L5wOnpyBGRe/Mmf5CVW3PwEBE1NjiMZ/ssFh4wA==
 
 "@types/polka@^0.5.2":
-  version "0.5.2"
-  resolved "https://registry.yarnpkg.com/@types/polka/-/polka-0.5.2.tgz#645580a78cd8606d6ef00dba1972272d542c2411"
-  integrity sha512-9AS3N5uDagt25iDH4WIG/uYoTA+DCn2VFI+waJwGKkG1vHi4jz218itxwY3Oarx2jr398mA1a/MjUftyH74R9A==
+  version "0.5.3"
+  resolved "https://registry.yarnpkg.com/@types/polka/-/polka-0.5.3.tgz#c2f76b9a5b7d5f5a9771320cc6164bde10c07819"
+  integrity sha512-Myj8ztBAH63xXhff5OMGiHIj37O4RG7GTDmFL/Amb05BAdG8IYFC90vp9IpdN7hjpZ5tkepsSvQkPvWwB8IRwQ==
   dependencies:
     "@types/express" "*"
     "@types/express-serve-static-core" "*"
