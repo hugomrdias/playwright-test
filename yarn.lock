@@ -2613,10 +2613,10 @@ p-try@^2.0.0:
   resolved "https://registry.yarnpkg.com/p-try/-/p-try-2.2.0.tgz#cb2868540e313d61de58fafbe35ce9004d5540e6"
   integrity sha512-R4nPAVTAU0B9D35/Gk3uJf/7XYbQcyohSKdvAxIRSNghFl4e71hVoGnBNQz9cWaXxO2I10KTC+3jMdvvoKw6dQ==
 
-p-wait-for@4.0.0:
-  version "4.0.0"
-  resolved "https://registry.yarnpkg.com/p-wait-for/-/p-wait-for-4.0.0.tgz#b4f488eef4365c295f6b21b852b95752d077b670"
-  integrity sha512-nNTv4xr44ZCilARTe9Bbh0+Ou5D2O1y8CPUsgH7ok6r1F7pSHM7pkOjaySgrW+sq3l4NEMFtLu8u8rgHm6TK5w==
+p-wait-for@4.1.0:
+  version "4.1.0"
+  resolved "https://registry.yarnpkg.com/p-wait-for/-/p-wait-for-4.1.0.tgz#290f126f49bbd7c84e0cedccb342cd631aaa0f16"
+  integrity sha512-i8nE5q++9h8oaQHWltS1Tnnv4IoMDOlqN7C0KFG2OdbK0iFJIt6CROZ8wfBM+K4Pxqfnq4C4lkkpXqTEpB5DZw==
   dependencies:
     p-timeout "^5.0.0"
 
