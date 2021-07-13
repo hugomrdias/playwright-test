@@ -220,10 +220,6 @@ export class Runner {
    * @param {Page} page
    */
   async runTests(page) {
-    await page.evaluate(async () => {
-      const regs = await navigator.serviceWorker.getRegistrations()
-      return regs[0] ? regs[0].unregister() : Promise.resolve()
-    })
     await page.addScriptTag({ url: 'setup.js' })
     await page.evaluate(
       `localStorage.debug = "${this.env.DEBUG},-pw:*,-mocha:*"`
@@ -278,8 +274,8 @@ export class Runner {
       spinner.succeed(`${this.options.browser} set up`)
 
       // run tests
-      console.log('run')
       const { outName } = await this.runTests(page)
+
       // Re run on page reload
       if (this.options.debug) {
         page.on('load', async () => {
@@ -351,6 +347,11 @@ export class Runner {
       ignoreInitial: true,
       awaitWriteFinish: { pollInterval: 100, stabilityThreshold: 1000 },
     }).on('change', async () => {
+      // Unregister any service worker in the page before reload
+      await page.evaluate(async () => {
+        const regs = await navigator.serviceWorker.getRegistrations()
+        return regs[0] ? regs[0].unregister() : Promise.resolve()
+      })
       await page.reload()
       const { files } = await this.runTests(page)
       watcher.add([...files])
