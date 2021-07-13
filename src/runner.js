@@ -19,7 +19,6 @@ import mergeOptions from 'merge-options'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
 const merge = mergeOptions.bind({ ignoreUndefined: true })
 
 /**
@@ -80,6 +79,8 @@ export class Runner {
     if (this.tests.length === 0) {
       this.stop(false, 'No test files were found.')
     }
+
+    process.env.DEBUG += ',-pw:*'
   }
 
   async launch() {
@@ -212,7 +213,9 @@ export class Runner {
    */
   async runTests(page, file) {
     await page.addScriptTag({ url: 'setup.js' })
-    await page.evaluate(`localStorage.debug = "${this.env.DEBUG}"`)
+    await page.evaluate(
+      `localStorage.debug = "${this.env.DEBUG},-pw:*,-mocha:*"`
+    )
 
     switch (this.options.mode) {
       case 'main': {
