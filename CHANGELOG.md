@@ -1,5 +1,12 @@
 # Changelog
 
+### [7.0.1](https://www.github.com/hugomrdias/playwright-test/compare/v7.0.0...v7.0.1) (2021-07-13)
+
+
+### Bug Fixes
+
+* unregister sw in the proper spot ([6650f17](https://www.github.com/hugomrdias/playwright-test/commit/6650f1789d23ce9a27a1b8ec91528194f8315705))
+
 ## [7.0.0](https://www.github.com/hugomrdias/playwright-test/compare/v6.0.0...v7.0.0) (2021-07-13)
 
 
