@@ -30,3 +30,8 @@ export type PwResult<TBrowser> = TBrowser extends 'webkit'
   : TBrowser extends 'chromium'
   ? ChromiumBrowser
   : never
+
+export interface CompilerOutput {
+  outName: string
+  files: Set<string>
+}

@@ -11,9 +11,8 @@ self.PW_TEST.end(${pass})
 class UvuRunner extends Runner {
   /**
    * @param {import("playwright-core").Page} page
-   * @param {string} file
    */
-  async runTests(page, file) {
+  async runTests(page) {
     let total = 0
     let passed = 0
 
@@ -29,14 +28,14 @@ class UvuRunner extends Runner {
       }
     })
 
-    await super.runTests(page, file)
+    return await super.runTests(page)
   }
 
   /**
    * Compile tests
    *
    * @param {"before" | "bundle" | "watch"} mode
-   * @returns {Promise<string>} file to be loaded in the page
+   * @returns {Promise<import('./types.js').CompilerOutput>} file to be loaded in the page
    */
   compiler(mode = 'bundle') {
     return build(this, {}, '', mode)

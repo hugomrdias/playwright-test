@@ -13,6 +13,7 @@ import globby from 'globby'
 import ora from 'ora'
 import { createServer } from 'http'
 import polka from 'polka'
+import { writeSync } from 'tempy'
 import { createRequire } from 'module'
 import { fileURLToPath } from 'url'
 
@@ -340,32 +341,12 @@ export function runnerOptions(flags) {
  */
 export async function build(runner, config = {}, tmpl = '', mode = 'bundle') {
   const outName = `${mode}-out.js`
-  const infile = path.join(runner.dir, 'in.js')
-  const outfile = path.join(runner.dir, outName)
+  const outPath = path.join(runner.dir, outName)
+  const files = new Set()
   const sourceMapSupport = path.join(
     __dirname,
     '../vendor/source-map-support.js'
   )
-
-  /** @type {ESBuildPlugin} */
-  const nodePlugin = {
-    name: 'node built ins',
-    setup(build) {
-      build.onResolve({ filter: /^path$/ }, () => {
-        return { path: require.resolve('path-browserify') }
-      })
-    },
-  }
-
-  /** @type {import('esbuild').WatchMode} */
-  const watch = {
-    onRebuild: async (error) => {
-      if (!error && runner.page) {
-        await runner.page.reload()
-        await runner.runTests(runner.page, outName)
-      }
-    },
-  }
 
   // main script template
   let infileContent = `
@@ -392,17 +373,37 @@ require('${require
 `
   }
 
-  fs.writeFileSync(infile, infileContent)
+  const entryPoint = writeSync(infileContent, { extension: 'js' })
+  /** @type {ESBuildPlugin} */
+  const nodePlugin = {
+    name: 'node built ins',
+    setup(build) {
+      build.onResolve({ filter: /^path$/ }, () => {
+        return { path: require.resolve('path-browserify') }
+      })
+    },
+  }
+  /** @type {ESBuildPlugin} */
+  const watchPlugin = {
+    name: 'watcher',
+    setup(build) {
+      // @ts-ignore
+      build.onLoad({ filter: /.*/, namespace: 'file' }, (args) => {
+        if (args.path !== outPath && args.path !== entryPoint) {
+          files.add(args.path)
+        }
+      })
+    },
+  }
   /** @type {ESBuildOptions} */
   const defaultOptions = {
-    entryPoints: [infile],
+    entryPoints: [entryPoint],
     bundle: true,
     mainFields: ['browser', 'module', 'main'],
     sourcemap: 'inline',
-    plugins: [nodePlugin],
-    outfile,
+    plugins: [nodePlugin, watchPlugin],
+    outfile: outPath,
     inject: [path.join(__dirname, 'inject-process.js')],
-    watch: mode === 'watch' ? watch : false,
     define: {
       global: 'globalThis',
       PW_TEST_SOURCEMAP: runner.options.debug ? 'false' : 'true',
@@ -410,7 +411,7 @@ require('${require
   }
   await esbuild.build(merge(defaultOptions, config, runner.options.buildConfig))
 
-  return outName
+  return { outName, files }
 }
 
 /**

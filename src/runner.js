@@ -17,6 +17,7 @@ import {
 import { compileSw } from './utils/build-sw.js'
 import mergeOptions from 'merge-options'
 import { fileURLToPath } from 'node:url'
+import { watch } from 'chokidar'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const merge = mergeOptions.bind({ ignoreUndefined: true })
@@ -202,6 +203,14 @@ export class Runner {
     }
 
     this.page.on('console', redirectConsole)
+    // uncaught rejections
+    this.page.on('pageerror', (err) => {
+      console.error(err)
+      this.stop(
+        true,
+        'Uncaught exception happened within the page. Run with --debug.'
+      )
+    })
     return this.page
   }
 
@@ -209,22 +218,28 @@ export class Runner {
    * Run the tests
    *
    * @param {Page} page
-   * @param {string} file - file to load in the page
    */
-  async runTests(page, file) {
+  async runTests(page) {
+    await page.evaluate(async () => {
+      const regs = await navigator.serviceWorker.getRegistrations()
+      return regs[0] ? regs[0].unregister() : Promise.resolve()
+    })
     await page.addScriptTag({ url: 'setup.js' })
     await page.evaluate(
       `localStorage.debug = "${this.env.DEBUG},-pw:*,-mocha:*"`
     )
+    const files = []
+    const { outName, files: mainFiles } = await this.compiler()
+    files.push(...mainFiles)
 
     switch (this.options.mode) {
       case 'main': {
-        await page.addScriptTag({ url: file })
+        await page.addScriptTag({ url: outName })
         break
       }
       case 'worker': {
         // do not await for the promise because we will wait for the 'worker' event after
-        page.evaluate(addWorker(file))
+        page.evaluate(addWorker(outName))
         break
       }
       default:
@@ -233,16 +248,21 @@ export class Runner {
 
     // inject and register the service
     if (this.options.sw) {
-      await compileSw(this, {
+      const { files: swFiles } = await compileSw(this, {
         entry: this.options.sw,
-        out: 'sw-out.js',
       })
-      await page.evaluate(() => navigator.serviceWorker.register('/sw-out.js'))
+      files.push(...swFiles)
+      await page.evaluate(() => {
+        navigator.serviceWorker.register(`/sw-out.js`)
+        return navigator.serviceWorker.ready
+      })
     }
+
+    return { outName, files }
   }
 
   async run() {
-    let spinner = ora(`Setting up ${this.options.browser}`).start()
+    const spinner = ora(`Setting up ${this.options.browser}`).start()
 
     try {
       // get the context
@@ -255,29 +275,15 @@ export class Runner {
 
       // get the page
       const page = await this.setupPage(context)
-
-      // uncaught rejections
-      page.on('pageerror', (err) => {
-        console.error(err)
-        this.stop(
-          true,
-          'Uncaught exception happened within the page. Run with --debug.'
-        )
-      })
       spinner.succeed(`${this.options.browser} set up`)
 
-      // bundle tests
-      spinner = ora('Bundling tests').start()
-      const file = await this.compiler()
-      spinner.succeed()
-
       // run tests
-      await this.runTests(page, file)
-
+      console.log('run')
+      const { outName } = await this.runTests(page)
       // Re run on page reload
       if (this.options.debug) {
         page.on('load', async () => {
-          await this.runTests(page, file)
+          await this.runTests(page)
         })
       } else {
         // wait for the tests
@@ -294,7 +300,7 @@ export class Runner {
 
         // coverage
         if (this.options.cov && page.coverage) {
-          await createCov(this, await page.coverage.stopJSCoverage(), file)
+          await createCov(this, await page.coverage.stopJSCoverage(), outName)
         }
 
         // exit
@@ -315,14 +321,13 @@ export class Runner {
     const page = await context.newPage()
     await page.goto(this.url + 'before.html')
 
+    page.on('console', redirectConsole)
     page.on('pageerror', (err) => {
       this.stop(true, `Before page:\n ${err}`)
     })
 
-    page.on('console', redirectConsole)
-
-    const file = await this.compiler('before')
-    await page.addScriptTag({ url: file })
+    const { outName } = await this.compiler('before')
+    await page.addScriptTag({ url: outName })
     await page.waitForFunction('self.PW_TEST.beforeEnded', {
       timeout: 0,
     })
@@ -337,11 +342,19 @@ export class Runner {
       await this.runBefore(context)
     }
     const page = await this.setupPage(context)
-    page.on('pageerror', console.error)
 
     spinner.succeed()
+    const { files } = await this.runTests(page)
 
-    this.compiler('watch')
+    const watcher = watch([...files], {
+      ignored: /(^|[/\\])\../,
+      ignoreInitial: true,
+      awaitWriteFinish: { pollInterval: 100, stabilityThreshold: 1000 },
+    }).on('change', async () => {
+      await page.reload()
+      const { files } = await this.runTests(page)
+      watcher.add([...files])
+    })
   }
 
   /**
@@ -389,7 +402,7 @@ export class Runner {
    * Compile tests
    *
    * @param {"before" | "bundle" | "watch"} mode
-   * @returns {Promise<string>} file to be loaded in the page
+   * @returns {Promise<import('./types').CompilerOutput>} file to be loaded in the page
    */
   async compiler(mode = 'bundle') {
     //

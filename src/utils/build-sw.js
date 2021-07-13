@@ -1,10 +1,10 @@
 /* eslint-disable no-console */
 
-import { writeFileSync } from 'fs'
 import path from 'path'
 import { build } from 'esbuild'
 import mergeOptions from 'merge-options'
 import { fileURLToPath } from 'url'
+import { writeSync } from 'tempy'
 
 const merge = mergeOptions.bind({
   ignoreUndefined: true,
@@ -22,41 +22,57 @@ const merge = mergeOptions.bind({
  *
  * @param {import("../runner").Runner} runner
  * @param {{
- * out: string,
  * entry: string
  * }} opts - Runner esbuild config
  */
-export async function compileSw(runner, { out, entry }) {
-  const outfile = path.join(runner.dir, out)
-  const infile = path.join(runner.dir, 'in.js')
-  const infileContent = `
+export async function compileSw(runner, { entry }) {
+  const files = new Set()
+  const outName = 'sw-out.js'
+  const outPath = path.join(runner.dir, outName)
+  const content = `
 process.env = ${JSON.stringify(runner.env)}
+self.addEventListener('install', function(event) {
+  self.skipWaiting();
+})
 self.addEventListener('activate', (event) => {
   return self.clients.claim()
 })
 
 import "${path.join(runner.options.cwd, entry).replace(/\\/g, '/')}"
 `
+  const entryPoint = writeSync(content, { extension: 'js' })
+  /** @type {ESBuildPlugin} */
+  const watchPlugin = {
+    name: 'watcher',
+    setup(build) {
+      // @ts-ignore
+      build.onLoad({ filter: /.*/, namespace: 'file' }, (args) => {
+        if (args.path !== outPath && args.path !== entryPoint) {
+          files.add(args.path)
+        }
+      })
+    },
+  }
 
-  writeFileSync(infile, infileContent)
   /** @type {ESBuildOptions} */
   const defaultOptions = {
-    entryPoints: [infile],
+    entryPoints: [entryPoint],
     bundle: true,
     format: 'esm',
     sourcemap: 'inline',
+    plugins: [watchPlugin],
     inject: [
       path.join(
         path.dirname(fileURLToPath(import.meta.url)),
         'inject-process.js'
       ),
     ],
-    outfile,
+    outfile: outPath,
     define: {
       global: 'globalThis',
     },
   }
   await build(merge(defaultOptions, runner.options.buildSWConfig))
 
-  return out
+  return { files, outName }
 }

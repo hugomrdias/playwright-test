@@ -12,7 +12,7 @@ export class BenchmarkRunner extends Runner {
    * Compile tests
    *
    * @param {"before" | "bundle" | "watch"} mode
-   * @returns {Promise<string>} file to be loaded in the page
+   * @returns {Promise<import('./types.js').CompilerOutput>} file to be loaded in the page
    */
   compiler(mode) {
     /** @type {import('esbuild').Plugin} */

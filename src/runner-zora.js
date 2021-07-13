@@ -30,10 +30,9 @@ zora
 class ZoraRunner extends Runner {
   /**
    * @param {import("playwright-core").Page} page
-   * @param {string} file
    */
-  async runTests(page, file) {
-    await super.runTests(page, file)
+  async runTests(page) {
+    const { outName, files } = await super.runTests(page)
     switch (this.options.mode) {
       case 'main': {
         await page.evaluate(runZora())
@@ -49,13 +48,14 @@ class ZoraRunner extends Runner {
       default:
         throw new Error('mode not supported')
     }
+    return { outName, files }
   }
 
   /**
    * Compile tests
    *
    * @param {"before" | "bundle" | "watch"} mode
-   * @returns {Promise<string>} file to be loaded in the page
+   * @returns {Promise<import('./types.js').CompilerOutput>} file to be loaded in the page
    */
   compiler(mode = 'bundle') {
     /**
