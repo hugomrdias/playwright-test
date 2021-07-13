@@ -1,5 +1,22 @@
 # Changelog
 
+## [7.0.0](https://www.github.com/hugomrdias/playwright-test/compare/v6.0.0...v7.0.0) (2021-07-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* shouldn't break anything but a lot changed internally so to be same review your tests!
+
+### Features
+
+* new watcher and better sw ([fbfd613](https://www.github.com/hugomrdias/playwright-test/commit/fbfd61319a384d4deade5f7fdca5341b890eeaf6))
+
+
+### Bug Fixes
+
+* cli version read and catch cli action errors ([db3709c](https://www.github.com/hugomrdias/playwright-test/commit/db3709ca4c61b1d9d4be24fc605c075af37e84ea))
+* remove debug output from internal tools ([7f08409](https://www.github.com/hugomrdias/playwright-test/commit/7f084092dbab7fc47622a26636a9903cfff72622))
+
 ## [6.0.0](https://www.github.com/hugomrdias/playwright-test/compare/v5.0.0...v6.0.0) (2021-07-07)
 
 
