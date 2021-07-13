@@ -4,6 +4,7 @@
 import path from 'path'
 import sade from 'sade'
 import kleur from 'kleur'
+import { fileURLToPath } from 'url'
 import { lilconfigSync } from 'lilconfig'
 import mergeOptions from 'merge-options'
 import { runnerOptions } from './src/utils/index.js'
@@ -14,7 +15,11 @@ import { BenchmarkRunner } from './src/runner-benchmark.js'
 import ZoraRunner from './src/runner-zora.js'
 import fs from 'fs'
 
-const { version } = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+const { version } = JSON.parse(
+  fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8')
+)
 
 const merge = mergeOptions.bind({ ignoreUndefined: true })
 
@@ -139,61 +144,66 @@ sade2
   .option('--config', 'Path to the config file')
   .action((input, opts) => {
     let config
-
-    if (opts.config) {
-      config = lilconfigSync('playwright-test').load(path.resolve(opts.config))
-    } else {
-      config = lilconfigSync('playwright-test').search()
-      if (!config) {
-        config = lilconfigSync('pw-test').search()
+    try {
+      if (opts.config) {
+        config = lilconfigSync('playwright-test').load(
+          path.resolve(opts.config)
+        )
+      } else {
+        config = lilconfigSync('playwright-test').search()
+        if (!config) {
+          config = lilconfigSync('pw-test').search()
+        }
       }
-    }
 
-    let Runner
+      let Runner
 
-    switch (opts.runner) {
-      case 'uvu':
-        Runner = UvuRunner
-        break
-      case 'zora':
-        Runner = ZoraRunner
-        break
-      case 'mocha':
-        Runner = MochaRunner
-        break
-      case 'tape':
-        Runner = TapeRunner
-        break
-      case 'benchmark':
-        Runner = BenchmarkRunner
-        break
-      default:
-        console.error('Runner not supported:', opts.runner)
-        process.exit(1)
-    }
-    const runner = new Runner(
-      merge(config ? config.config : {}, {
-        cwd: opts.cwd,
-        assets: opts.assets,
-        browser: opts.browser,
-        debug: opts.debug,
-        mode: opts.mode,
-        incognito: opts.incognito,
-        input: input ? [input, ...opts._] : undefined,
-        extension: opts.extension,
-        runnerOptions: runnerOptions(opts),
-        before: opts.before,
-        sw: opts.sw,
-        node: opts.node,
-        cov: opts.cov,
-        extensions: opts.extensions,
-      })
-    )
+      switch (opts.runner) {
+        case 'uvu':
+          Runner = UvuRunner
+          break
+        case 'zora':
+          Runner = ZoraRunner
+          break
+        case 'mocha':
+          Runner = MochaRunner
+          break
+        case 'tape':
+          Runner = TapeRunner
+          break
+        case 'benchmark':
+          Runner = BenchmarkRunner
+          break
+        default:
+          console.error('Runner not supported:', opts.runner)
+          process.exit(1)
+      }
+      const runner = new Runner(
+        merge(config ? config.config : {}, {
+          cwd: opts.cwd,
+          assets: opts.assets,
+          browser: opts.browser,
+          debug: opts.debug,
+          mode: opts.mode,
+          incognito: opts.incognito,
+          input: input ? [input, ...opts._] : undefined,
+          extension: opts.extension,
+          runnerOptions: runnerOptions(opts),
+          before: opts.before,
+          sw: opts.sw,
+          node: opts.node,
+          cov: opts.cov,
+          extensions: opts.extensions,
+        })
+      )
 
-    if (opts.watch) {
-      runner.watch()
-    } else {
-      runner.run()
+      if (opts.watch) {
+        runner.watch()
+      } else {
+        runner.run()
+      }
+    } catch (error) {
+      console.error(error)
     }
   })
   .parse(process.argv)
