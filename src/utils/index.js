@@ -497,7 +497,7 @@ function getPort(port = 3000, host = '127.0.0.1') {
  */
 export async function createPolka(runner) {
   const host = '127.0.0.1'
-  const port = await getPort(3000, host)
+  const port = await getPort(0, host)
   const url = `http://${host}:${port}/`
   return new Promise((resolve, reject) => {
     const { server } = polka()
