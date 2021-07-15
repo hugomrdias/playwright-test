@@ -1,5 +1,12 @@
 # Changelog
 
+### [7.0.2](https://www.github.com/hugomrdias/playwright-test/compare/v7.0.1...v7.0.2) (2021-07-15)
+
+
+### Bug Fixes
+
+* use random high port ([#260](https://www.github.com/hugomrdias/playwright-test/issues/260)) ([12ee535](https://www.github.com/hugomrdias/playwright-test/commit/12ee53588fad80c0bd19cf507f8670300068593e))
+
 ### [7.0.1](https://www.github.com/hugomrdias/playwright-test/compare/v7.0.0...v7.0.1) (2021-07-13)
 
 
