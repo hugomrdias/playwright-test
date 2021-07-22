@@ -75,7 +75,7 @@
     "v8-to-istanbul": "^8.0.0"
   },
   "devDependencies": {
-    "@types/mocha": "^8.2.3",
+    "@types/mocha": "^9.0.0",
     "@types/polka": "^0.5.2",
     "@types/sade": "^1.7.3",
     "assert": "^2.0.0",
