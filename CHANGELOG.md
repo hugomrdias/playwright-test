@@ -1,5 +1,12 @@
 # Changelog
 
+### [7.0.3](https://www.github.com/hugomrdias/playwright-test/compare/v7.0.2...v7.0.3) (2021-08-19)
+
+
+### Bug Fixes
+
+* **deps:** bump esbuild from 0.12.15 to 0.12.21 ([#279](https://www.github.com/hugomrdias/playwright-test/issues/279)) ([5d1a824](https://www.github.com/hugomrdias/playwright-test/commit/5d1a824176a16dcd7388a216426a612450251da6))
+
 ### [7.0.2](https://www.github.com/hugomrdias/playwright-test/compare/v7.0.1...v7.0.2) (2021-07-15)
 
 
