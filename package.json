@@ -52,7 +52,7 @@
     "chokidar": "^3.5.2",
     "esbuild": "0.12.21",
     "events": "^3.3.0",
-    "globby": "^11.0.4",
+    "globby": "^12.0.2",
     "kleur": "^4.1.4",
     "lilconfig": "^2.0.3",
     "lodash": "^4.17.21",
