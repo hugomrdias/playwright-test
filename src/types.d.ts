@@ -24,7 +24,7 @@ export interface RunnerOptions {
   beforeTests: (opts: RunnerOptions) => Promise<unknown>
   afterTests: (
     opts: RunnerOptions,
-    beforeTestsOuput: unknown
+    beforeTestsOutput: unknown
   ) => Promise<unknown>
 }
 

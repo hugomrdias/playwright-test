@@ -106,22 +106,26 @@ import type { RunnerOptions } from 'playwright-test'
 
 ```ts
 export interface RunnerOptions {
-  cwd?: string
-  assets?: string
-  browser?: 'chromium' | 'firefox' | 'webkit'
-  debug?: boolean
-  mode?: 'main' | 'worker'
-  incognito?: boolean
+  cwd: string
+  assets: string
+  browser: 'chromium' | 'firefox' | 'webkit'
+  debug: boolean
+  mode: 'main' | 'worker'
+  incognito: boolean
   input?: string[]
-  extension?: boolean
-  runnerOptions?: any
+  extension: boolean
+  runnerOptions: any
   before?: string
   sw?: string
-  cov?: false
-  extensions?: string
-  // esbuild options @see https://esbuild.github.io/api/#simple-options
+  cov: false
+  extensions: string
   buildConfig: BuildOptions
   buildSWConfig: BuildOptions
+  beforeTests: (opts: RunnerOptions) => Promise<unknown>
+  afterTests: (
+    opts: RunnerOptions,
+    beforeTestsOutput: unknown
+  ) => Promise<unknown>
 }
 ```
 
