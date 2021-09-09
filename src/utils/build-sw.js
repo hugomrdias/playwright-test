@@ -4,7 +4,7 @@ import path from 'path'
 import { build } from 'esbuild'
 import mergeOptions from 'merge-options'
 import { fileURLToPath } from 'url'
-import { writeSync } from 'tempy'
+import tempy from 'tempy'
 
 const merge = mergeOptions.bind({
   ignoreUndefined: true,
@@ -40,7 +40,7 @@ self.addEventListener('activate', (event) => {
 
 import "${path.join(runner.options.cwd, entry).replace(/\\/g, '/')}"
 `
-  const entryPoint = writeSync(content, { extension: 'js' })
+  const entryPoint = tempy.writeSync(content, { extension: 'js' })
   /** @type {ESBuildPlugin} */
   const watchPlugin = {
     name: 'watcher',

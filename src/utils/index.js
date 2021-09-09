@@ -9,11 +9,11 @@ import sirv from 'sirv'
 import esbuild from 'esbuild'
 import V8ToIstanbul from 'v8-to-istanbul'
 import { promisify } from 'util'
-import globby from 'globby'
+import { globbySync } from 'globby'
 import ora from 'ora'
 import { createServer } from 'http'
 import polka from 'polka'
-import { writeSync } from 'tempy'
+import tempy from 'tempy'
 import { createRequire } from 'module'
 import { fileURLToPath } from 'url'
 
@@ -85,7 +85,7 @@ export function defaultTestPatterns(extensions) {
  * @param {string[]} patterns
  */
 function globFiles(cwd, patterns) {
-  const files = globby.sync(patterns, {
+  const files = globbySync(patterns, {
     absolute: false,
     braceExpansion: true,
     caseSensitiveMatch: false,
@@ -373,7 +373,7 @@ require('${require
 `
   }
 
-  const entryPoint = writeSync(infileContent, { extension: 'js' })
+  const entryPoint = tempy.writeSync(infileContent, { extension: 'js' })
   /** @type {ESBuildPlugin} */
   const nodePlugin = {
     name: 'node built ins',

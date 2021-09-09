@@ -3,7 +3,7 @@
 import { copyFileSync } from 'fs'
 import path from 'path'
 import ora from 'ora'
-import { directory } from 'tempy'
+import tempy from 'tempy'
 import { premove } from 'premove/sync'
 import {
   redirectConsole,
@@ -61,8 +61,8 @@ export class Runner {
     this.options = merge(defaultOptions, options)
     /** @type {import('polka').Polka["server"] | undefined} */
     this.server = undefined
-    this.dir = directory()
-    this.browserDir = directory()
+    this.dir = tempy.directory()
+    this.browserDir = tempy.directory()
     this.url = ''
     this.stopped = false
     this.watching = false
@@ -302,7 +302,7 @@ export class Runner {
         // exit
         await this.stop(testsFailed)
       }
-    } catch (error) {
+    } catch (/** @type {any} */ error) {
       spinner.fail('Running tests failed.')
       await this.stop(true, error)
     }
