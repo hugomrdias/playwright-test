@@ -78,6 +78,8 @@ Description
 
 ## Config
 
+> The config file needs to be commonjs for now, so if your package is pure ESM you need to use `.cjs` extension.
+
 Configuration can be done with cli flags or config files.
 
 ```js
@@ -94,7 +96,13 @@ Configuration can be done with cli flags or config files.
 `pw-test.config.cjs`,
 ```
 
-Interface
+The config type can be imported from the entrypoint.
+
+```ts
+import type { RunnerOptions } from 'playwright-test'
+```
+
+### Interface
 
 ```ts
 export interface RunnerOptions {
