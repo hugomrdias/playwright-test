@@ -194,6 +194,8 @@ sade2
           node: opts.node,
           cov: opts.cov,
           extensions: opts.extensions,
+          beforeTests: opts.beforeTests,
+          afterTests: opts.afterTests,
         })
       )
 

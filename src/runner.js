@@ -49,6 +49,8 @@ const defaultOptions = {
   extensions: 'js,cjs,mjs,ts,tsx',
   buildConfig: {},
   buildSWConfig: {},
+  beforeTests: async () => {},
+  afterTests: async () => {},
 }
 
 export class Runner {
@@ -258,6 +260,8 @@ export class Runner {
   }
 
   async run() {
+    const becauseTests = await this.options.beforeTests(this.options)
+
     const spinner = ora(`Setting up ${this.options.browser}`).start()
 
     try {
@@ -300,10 +304,12 @@ export class Runner {
         }
 
         // exit
+        await this.options.afterTests(this.options, becauseTests)
         await this.stop(testsFailed)
       }
     } catch (/** @type {any} */ error) {
       spinner.fail('Running tests failed.')
+      await this.options.afterTests(this.options, becauseTests)
       await this.stop(true, error)
     }
   }

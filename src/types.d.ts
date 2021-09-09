@@ -21,6 +21,11 @@ export interface RunnerOptions {
   extensions: string
   buildConfig: BuildOptions
   buildSWConfig: BuildOptions
+  beforeTests: (opts: RunnerOptions) => Promise<unknown>
+  afterTests: (
+    opts: RunnerOptions,
+    beforeTestsOuput: unknown
+  ) => Promise<unknown>
 }
 
 export type PwResult<TBrowser> = TBrowser extends 'webkit'
