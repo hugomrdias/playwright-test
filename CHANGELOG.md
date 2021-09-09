@@ -1,5 +1,12 @@
 # Changelog
 
+### [7.0.4](https://www.github.com/hugomrdias/playwright-test/compare/v7.0.3...v7.0.4) (2021-09-06)
+
+
+### Bug Fixes
+
+* coverage entry paths ([#288](https://www.github.com/hugomrdias/playwright-test/issues/288)) ([74e0449](https://www.github.com/hugomrdias/playwright-test/commit/74e04490b2bedb78270a75bf59d4a4ee37ef863f))
+
 ### [7.0.3](https://www.github.com/hugomrdias/playwright-test/compare/v7.0.2...v7.0.3) (2021-08-19)
 
 
