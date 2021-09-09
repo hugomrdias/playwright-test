@@ -250,26 +250,17 @@ export async function getPw(browserName) {
   if (!['chromium', 'firefox', 'webkit'].includes(String(browserName))) {
     throw new Error(`Browser not supported: ${browserName}`)
   }
-  const {
-    installBrowsersWithProgressBar,
-    // @ts-ignore
-  } = await import('playwright-core/lib/install/installer.js')
+
+  // @ts-ignore
+  const { registry } = await import('playwright-core/lib/utils/registry.js')
   // @ts-ignore
   const setupInProcess = await import('playwright-core/lib/inprocess.js')
-  // const browsers = await import('playwright-core/browsers.json')
-  const browsersPath = require.resolve('playwright-core/browsers.json')
-  const browsers = JSON.parse(fs.readFileSync(browsersPath, 'utf-8'))
-
-  // @ts-ignore
-  browsers.browsers[0].download = true // chromium
-  // @ts-ignore
-  browsers.browsers[1].download = true // firefox
-  // @ts-ignore
-  browsers.browsers[2].download = true // webkit
-
-  fs.writeFileSync(browsersPath, JSON.stringify(browsers, undefined, 2))
-  await installBrowsersWithProgressBar([browserName])
+  const browser = registry._executables.find(
+    (/** @type {{ name: TBrowser; }} */ b) => b.name === browserName
+  )
   const api = setupInProcess.default
+
+  await registry.install([browser])
 
   return api[browserName]
 }
