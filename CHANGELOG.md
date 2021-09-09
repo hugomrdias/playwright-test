@@ -1,5 +1,13 @@
 # Changelog
 
+## [7.1.0](https://www.github.com/hugomrdias/playwright-test/compare/v7.0.4...v7.1.0) (2021-09-09)
+
+
+### Features
+
+* add before and after hooks ([92d6b9e](https://www.github.com/hugomrdias/playwright-test/commit/92d6b9ebc4ea49b6a6facf05bc0a7ae5c938d516))
+* upgrade esbuild ([617fc66](https://www.github.com/hugomrdias/playwright-test/commit/617fc6695b92432aaf31d0ceeedeb7921d5c8ec1))
+
 ### [7.0.4](https://www.github.com/hugomrdias/playwright-test/compare/v7.0.3...v7.0.4) (2021-09-06)
 
 
