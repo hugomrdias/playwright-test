@@ -50,7 +50,7 @@
     "buffer": "^6.0.3",
     "camelcase": "^6.2.0",
     "chokidar": "^3.5.2",
-    "esbuild": "0.12.26",
+    "esbuild": "0.12.27",
     "events": "^3.3.0",
     "globby": "^12.0.2",
     "kleur": "^4.1.4",
