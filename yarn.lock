@@ -3774,9 +3774,9 @@ util@^0.12.0:
     which-typed-array "^1.1.2"
 
 uvu@^0.5.1:
-  version "0.5.1"
-  resolved "https://registry.yarnpkg.com/uvu/-/uvu-0.5.1.tgz#938b85f96b8a478e585363ad1849933b6c481b28"
-  integrity sha512-JGxttnOGDFs77FaZ0yMUHIzczzQ5R1IlDeNW6Wymw6gAscwMdAffVOP6TlxLIfReZyK8tahoGwWZaTCJzNFDkg==
+  version "0.5.2"
+  resolved "https://registry.yarnpkg.com/uvu/-/uvu-0.5.2.tgz#c145e7f4b5becf80099cf22fd8a4a05f0112b2c0"
+  integrity sha512-m2hLe7I2eROhh+tm3WE5cTo/Cv3WQA7Oc9f7JB6uWv+/zVKvfAm53bMyOoGOSZeQ7Ov2Fu9pLhFr7p07bnT20w==
   dependencies:
     dequal "^2.0.0"
     diff "^5.0.0"
