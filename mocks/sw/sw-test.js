@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */
 // eslint-disable-next-line strict
-const assert = require('assert')
+const { is } = require('uvu/assert')
 
 const { KV } = require('./sw-globals')
 
@@ -8,7 +8,7 @@ describe('sw', () => {
   it('should intercept and return kv and env', async () => {
     const out = await fetch('/favicon.ico')
     const data = await out.json()
-    assert.strictEqual(data.env.browser, 'chromium')
-    assert.strictEqual(data.kv.test, KV.test)
+    is(data.env.browser, 'chromium')
+    is(data.kv.test, KV.test)
   })
 })

@@ -3,17 +3,10 @@
 /* eslint-disable no-undef */
 
 // mocha library itself, to have it set up on global
-import mocha from 'mocha'
+import mocha from 'mocha/mocha-es2018.js'
 
-const {
-  allowUncaught,
-  bail,
-  reporter,
-  timeout,
-  color,
-  ui,
-  grep,
-} = process.env.PW_TEST.runnerOptions
+const { allowUncaught, bail, reporter, timeout, color, ui, grep } =
+  process.env.PW_TEST.runnerOptions
 
 mocha.setup({
   allowUncaught,
