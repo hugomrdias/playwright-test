@@ -1,4 +1,4 @@
-import { ok, strictEqual as is } from 'assert'
+import { ok, is } from 'uvu/assert'
 import execa from 'execa'
 
 describe('mocha', function () {
