@@ -1,5 +1,12 @@
 # Changelog
 
+### [7.1.1](https://www.github.com/hugomrdias/playwright-test/compare/v7.1.0...v7.1.1) (2021-10-20)
+
+
+### Bug Fixes
+
+* fix missing util for mocha ([#317](https://www.github.com/hugomrdias/playwright-test/issues/317)) ([cd6d140](https://www.github.com/hugomrdias/playwright-test/commit/cd6d140682b3233f1445a2529a81b8c3e31e7ba7))
+
 ## [7.1.0](https://www.github.com/hugomrdias/playwright-test/compare/v7.0.4...v7.1.0) (2021-09-09)
 
 
