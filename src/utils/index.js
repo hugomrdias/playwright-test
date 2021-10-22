@@ -13,7 +13,6 @@ import { globbySync } from 'globby'
 import ora from 'ora'
 import { createServer } from 'http'
 import polka from 'polka'
-import tempy from 'tempy'
 import { createRequire } from 'module'
 import { fileURLToPath } from 'url'
 
@@ -364,7 +363,6 @@ require('${require
 `
   }
 
-  const entryPoint = tempy.writeSync(infileContent, { extension: 'js' })
   /** @type {ESBuildPlugin} */
   const nodePlugin = {
     name: 'node built ins',
@@ -380,27 +378,30 @@ require('${require
     setup(build) {
       // @ts-ignore
       build.onLoad({ filter: /.*/, namespace: 'file' }, (args) => {
-        if (args.path !== outPath && args.path !== entryPoint) {
-          files.add(args.path)
-        }
+        files.add(args.path)
       })
     },
   }
   /** @type {ESBuildOptions} */
   const defaultOptions = {
-    entryPoints: [entryPoint],
+    stdin: {
+      contents: infileContent,
+      resolveDir: runner.options.cwd,
+    },
     bundle: true,
     mainFields: ['browser', 'module', 'main'],
     sourcemap: 'inline',
     plugins: [nodePlugin, watchPlugin],
-    outfile: outPath,
+    outfile: outName,
+    write: false,
     inject: [path.join(__dirname, 'inject-process.js')],
     define: {
       global: 'globalThis',
       PW_TEST_SOURCEMAP: runner.options.debug ? 'false' : 'true',
     },
   }
-  await esbuild.build(merge(defaultOptions, config, runner.options.buildConfig))
+  const buildResult = await esbuild.build(merge(defaultOptions, config, runner.options.buildConfig))
+  await writeFile(outPath, buildResult.outputFiles[0].contents)
 
   return { outName, files }
 }
