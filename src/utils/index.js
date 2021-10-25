@@ -392,7 +392,7 @@ require('${require
     mainFields: ['browser', 'module', 'main'],
     sourcemap: 'inline',
     plugins: [nodePlugin, watchPlugin],
-    outfile: outName,
+    outfile: path.join(runner.options.cwd, outName),
     write: false,
     inject: [path.join(__dirname, 'inject-process.js')],
     define: {
@@ -419,12 +419,12 @@ export async function createCov(runner, coverage, file) {
   const { cwd } = runner.options
   // @ts-ignore
   const TestExclude = require('test-exclude')
-  const exclude = new TestExclude()
+  const exclude = new TestExclude({ cwd })
   // @ts-ignore
-  const f = new Set(exclude.globSync().map((f) => path.resolve(f)))
+  const f = new Set(exclude.globSync().map((f) => path.join(cwd, f)))
 
   for (const entry of coverage) {
-    const filePath = path.resolve(entry.url.replace(runner.url, ''))
+    const filePath = path.join(cwd, entry.url.replace(runner.url, ''))
 
     if (filePath.includes(file)) {
       // @ts-ignore
