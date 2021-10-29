@@ -1,5 +1,12 @@
 # Changelog
 
+### [7.1.2](https://www.github.com/hugomrdias/playwright-test/compare/v7.1.1...v7.1.2) (2021-10-29)
+
+
+### Bug Fixes
+
+* make after hook always run ([9e45644](https://www.github.com/hugomrdias/playwright-test/commit/9e45644139be680c3b0587e7cf218632eada4651))
+
 ### [7.1.1](https://www.github.com/hugomrdias/playwright-test/compare/v7.1.0...v7.1.1) (2021-10-20)
 
 
