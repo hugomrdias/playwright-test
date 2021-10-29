@@ -72,6 +72,7 @@ export class Runner {
       PW_TEST: this.options,
     })
     this.extensions = this.options.extensions.split(',')
+    this.beforeTestsOutput = undefined
     this.tests = findTests({
       cwd: this.options.cwd,
       extensions: this.extensions,
@@ -260,7 +261,7 @@ export class Runner {
   }
 
   async run() {
-    const becauseTests = await this.options.beforeTests(this.options)
+    this.beforeTestsOutput = await this.options.beforeTests(this.options)
 
     const spinner = ora(`Setting up ${this.options.browser}`).start()
 
@@ -304,12 +305,10 @@ export class Runner {
         }
 
         // exit
-        await this.options.afterTests(this.options, becauseTests)
         await this.stop(testsFailed)
       }
     } catch (/** @type {any} */ error) {
       spinner.fail('Running tests failed.')
-      await this.options.afterTests(this.options, becauseTests)
       await this.stop(true, error)
     }
   }
@@ -374,6 +373,9 @@ export class Runner {
     }
     this.stopped = true
 
+    // Run after tests hook
+    await this.options.afterTests(this.options, this.beforeTestsOutput)
+
     if (this.context) {
       await this.context.close()
     }
@@ -401,6 +403,7 @@ export class Runner {
     } else if (msg) {
       console.log(msg)
     }
+
     // eslint-disable-next-line unicorn/no-process-exit
     process.exit(fail ? 1 : 0)
   }
