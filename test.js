@@ -1,3 +1,5 @@
+import fs from 'fs'
+import path from 'path'
 import { ok, is } from 'uvu/assert'
 import execa from 'execa'
 
@@ -7,6 +9,46 @@ describe('mocha', function () {
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('5 passing'), 'process stdout')
+  })
+
+  it('coverage', async () => {
+    const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--cov'])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('5 passing'), 'process stdout')
+
+    const cov = JSON.parse(
+      fs.readFileSync('.nyc_output/coverage-pw.json', 'utf8')
+    )
+    ok(path.resolve('mocks/test.mocha.js') in cov, 'test coverage')
+  })
+
+  it('cwd', async () => {
+    const proc = await execa('./cli.js', [
+      'test.mocha.js',
+      '--cwd',
+      path.resolve('mocks'),
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('5 passing'), 'process stdout')
+  })
+
+  it('coverage with cwd', async () => {
+    const proc = await execa('./cli.js', [
+      'test.mocha.js',
+      '--cwd',
+      path.resolve('mocks'),
+      '--cov',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('5 passing'), 'process stdout')
+
+    const cov = JSON.parse(
+      fs.readFileSync('mocks/.nyc_output/coverage-pw.json', 'utf8')
+    )
+    ok(path.resolve('mocks/test.mocha.js') in cov, 'test coverage')
   })
 
   it('with DEBUG=app', async () => {
