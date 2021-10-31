@@ -1,5 +1,17 @@
 # Changelog
 
+## [7.2.0](https://www.github.com/hugomrdias/playwright-test/compare/v7.1.2...v7.2.0) (2021-10-31)
+
+
+### Features
+
+* update to playwright 1.16 ([#328](https://www.github.com/hugomrdias/playwright-test/issues/328)) ([e14ee17](https://www.github.com/hugomrdias/playwright-test/commit/e14ee17539162c2a93c864215f4474279f0e1a04))
+
+
+### Bug Fixes
+
+* pass original paths to esbuild ([#320](https://www.github.com/hugomrdias/playwright-test/issues/320)) ([e7f7a81](https://www.github.com/hugomrdias/playwright-test/commit/e7f7a810bc977ffe8027b0db124453b6f93c1314))
+
 ### [7.1.2](https://www.github.com/hugomrdias/playwright-test/compare/v7.1.1...v7.1.2) (2021-10-29)
 
 
