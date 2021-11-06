@@ -8,7 +8,10 @@
   "type": "module",
   "main": "src/runner.js",
   "types": "dist/src/runner.d.ts",
-  "exports": "./index.js",
+  "exports": {
+    ".": "./src/runner.js",
+    "./package.json": "./package.json"
+  },
   "bin": {
     "playwright-test": "cli.js",
     "pw-test": "cli.js"
@@ -27,7 +30,6 @@
     "dist/src/types.d.ts",
     "static",
     "src",
-    "index.js",
     "cli.js"
   ],
   "keywords": [
