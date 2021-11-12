@@ -1,5 +1,12 @@
 # Changelog
 
+### [7.2.1](https://www.github.com/hugomrdias/playwright-test/compare/v7.2.0...v7.2.1) (2021-11-11)
+
+
+### Bug Fixes
+
+* fix package exports field ([#333](https://www.github.com/hugomrdias/playwright-test/issues/333)) ([6599b8b](https://www.github.com/hugomrdias/playwright-test/commit/6599b8b15bd94da30b617077cda4b0e32b0dcf4f))
+
 ## [7.2.0](https://www.github.com/hugomrdias/playwright-test/compare/v7.1.2...v7.2.0) (2021-10-31)
 
 
