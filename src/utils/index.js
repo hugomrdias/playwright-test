@@ -394,6 +394,11 @@ require('${require
       PW_TEST_SOURCEMAP: runner.options.debug ? 'false' : 'true',
     },
   }
+  console.log(
+    '🚀 ~ file: index.js ~ line 386 ~ build ~ runner.options.cwd',
+    runner.options.cwd
+  )
+  console.log('🚀 ~ file: index.js ~ line 391 ~ build ~ outPath', outPath)
   await esbuild.build(merge(defaultOptions, config, runner.options.buildConfig))
 
   return { outName, files }

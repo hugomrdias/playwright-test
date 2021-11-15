@@ -300,10 +300,6 @@ export class Runner {
         const testsFailed = await page.evaluate('self.PW_TEST.failed')
 
         // coverage
-        console.log(
-          '🚀 ~ file: runner.js ~ line 304 ~ Runner ~ run ~ this.options.cov && page.coverage',
-          this.options.cov && page.coverage
-        )
         if (this.options.cov && page.coverage) {
           await createCov(this, await page.coverage.stopJSCoverage(), outName)
         }
