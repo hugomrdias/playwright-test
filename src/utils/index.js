@@ -382,7 +382,7 @@ require('${require
   const defaultOptions = {
     stdin: {
       contents: infileContent,
-      // resolveDir: runner.options.cwd,
+      resolveDir: runner.options.cwd,
     },
     bundle: true,
     sourcemap: 'inline',
