@@ -20,6 +20,8 @@ describe('mocha', function () {
     const cov = JSON.parse(
       fs.readFileSync('.nyc_output/coverage-pw.json', 'utf8')
     )
+    // eslint-disable-next-line no-console
+    console.log('🚀 ~ file: test.js ~ line 23 ~ it ~ cov', cov)
     ok(path.resolve('mocks/test.mocha.js') in cov, 'test coverage')
   })
 
@@ -50,7 +52,7 @@ describe('mocha', function () {
     )
 
     // eslint-disable-next-line no-console
-    console.log(cov)
+    console.log('yooooooo', cov)
     ok(path.resolve('mocks/test.mocha.js') in cov, 'test coverage')
   })
 
