@@ -6,9 +6,9 @@ export const good = async () => {
 }
 
 export const bad = async () => {
-  new Promise((resolve, reject) => {
-    throw new Error('ooopps')
-  })
+  // new Promise((resolve, reject) => {
+  //   throw new Error('ooopps')
+  // })
   await delay(100)
   return 'bad'
 }
