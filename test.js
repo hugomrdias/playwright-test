@@ -12,7 +12,9 @@ describe('mocha', function () {
   })
 
   it('coverage', async () => {
-    const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--cov'])
+    const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--cov'], {
+      stdio: 'inherit',
+    })
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('5 passing'), 'process stdout')
@@ -21,7 +23,7 @@ describe('mocha', function () {
       fs.readFileSync('.nyc_output/coverage-pw.json', 'utf8')
     )
     // eslint-disable-next-line no-console
-    console.log('🚀 ~ file: test.js ~ line 23 ~ it ~ cov', cov)
+    // console.log('🚀 ~ file: test.js ~ line 23 ~ it ~ cov', cov)
     ok(path.resolve('mocks/test.mocha.js') in cov, 'test coverage')
   })
 

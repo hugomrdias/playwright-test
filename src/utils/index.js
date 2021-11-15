@@ -415,7 +415,6 @@ export async function createCov(runner, coverage, file) {
   const exclude = new TestExclude({ cwd })
   // @ts-ignore
   const f = new Set(exclude.globSync().map((f) => path.join(cwd, f)))
-  console.log('COV', coverage)
   for (const entry of coverage) {
     console.log(
       '🚀 ~ file: index.js ~ line 421 ~ createCov ~ entry.url',
