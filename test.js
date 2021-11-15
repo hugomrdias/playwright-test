@@ -51,8 +51,6 @@ describe('mocha', function () {
       fs.readFileSync('mocks/.nyc_output/coverage-pw.json', 'utf8')
     )
 
-    // eslint-disable-next-line no-console
-    console.log('yooooooo', cov)
     ok(path.resolve('mocks/test.mocha.js') in cov, 'test coverage')
   })
 
