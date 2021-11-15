@@ -386,7 +386,6 @@ require('${require
     },
     bundle: true,
     sourcemap: 'inline',
-    sourceRoot: runner.options.cwd,
     plugins: [nodePlugin, watchPlugin],
     outfile: outPath,
     inject: [path.join(__dirname, 'inject-process.js')],
@@ -395,11 +394,6 @@ require('${require
       PW_TEST_SOURCEMAP: runner.options.debug ? 'false' : 'true',
     },
   }
-  console.log(
-    '🚀 ~ file: index.js ~ line 386 ~ build ~ runner.options.cwd',
-    runner.options.cwd
-  )
-  console.log('🚀 ~ file: index.js ~ line 391 ~ build ~ outPath', outPath)
   await esbuild.build(merge(defaultOptions, config, runner.options.buildConfig))
 
   return { outName, files }
@@ -422,15 +416,7 @@ export async function createCov(runner, coverage, file) {
   // @ts-ignore
   const f = new Set(exclude.globSync().map((f) => path.join(cwd, f)))
   for (const entry of coverage) {
-    console.log(
-      '🚀 ~ file: index.js ~ line 421 ~ createCov ~ entry.url',
-      entry.url
-    )
-    console.log(
-      '🚀 ~ file: index.js ~ line 422 ~ createCov ~ runner.dir',
-      runner.dir
-    )
-    const filePath = path.join(runner.dir, entry.url.replace(runner.url, ''))
+    const filePath = path.resolve(cwd, entry.url.replace(runner.url, ''))
 
     if (filePath.includes(file)) {
       // @ts-ignore
