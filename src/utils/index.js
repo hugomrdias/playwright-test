@@ -424,7 +424,6 @@ export async function createCov(runner, coverage, file) {
   // @ts-ignore
   const f = new Set(exclude.globSync().map((f) => path.join(cwd, f)))
   for (const entry of coverage) {
-    // @ts-ignore
     const filePath = path.resolve(runner.dir, entry.url.replace(runner.url, ''))
     // const filePath = path.resolve(
     //   // path.relative(runner.dir, cwd),

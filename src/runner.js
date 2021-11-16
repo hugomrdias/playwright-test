@@ -63,9 +63,10 @@ export class Runner {
     this.options = merge(defaultOptions, options)
     /** @type {import('polka').Polka["server"] | undefined} */
     this.server = undefined
-    this.dir = mkdirSync(
-      path.join(__dirname, '../.tmp', new Date().toISOString()),
-      { recursive: true }
+    this.dir = /** @type {string} */ (
+      mkdirSync(path.join(__dirname, '../.tmp', new Date().toISOString()), {
+        recursive: true,
+      })
     )
     this.browserDir = tempy.directory()
     this.url = ''
