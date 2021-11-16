@@ -385,7 +385,7 @@ require('${require
       resolveDir: runner.options.cwd,
     },
     bundle: true,
-    sourcemap: 'inline',
+    sourcemap: 'both',
     plugins: [nodePlugin, watchPlugin],
     outfile: outPath,
     inject: [path.join(__dirname, 'inject-process.js')],
@@ -416,9 +416,13 @@ export async function createCov(runner, coverage, file) {
   // @ts-ignore
   const f = new Set(exclude.globSync().map((f) => path.join(cwd, f)))
   for (const entry of coverage) {
-    const filePath = path.resolve(
-      cwd,
-      runner.dir,
+    // const filePath = path.resolve(
+    //   cwd,
+    //   runner.dir,
+    //   entry.url.replace(runner.url, '')
+    // )
+    const filePath = path.join(
+      path.relative(runner.dir, cwd),
       entry.url.replace(runner.url, '')
     )
     console.log(
