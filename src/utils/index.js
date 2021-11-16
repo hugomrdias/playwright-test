@@ -427,7 +427,7 @@ export async function createCov(runner, coverage, file) {
     //   entry.url.replace(runner.url, '')
     // )
     const filePath = path.resolve(
-      path.relative(runner.dir, cwd),
+      // path.relative(runner.dir, cwd),
       entry.url.replace(runner.url, '')
     )
     console.log(
