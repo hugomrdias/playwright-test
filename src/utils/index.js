@@ -386,23 +386,23 @@ require('${require
     },
     bundle: true,
     sourcemap: 'inline',
-    sourceRoot: runner.options.cwd,
+    // sourceRoot: runner.options.cwd,
     plugins: [nodePlugin, watchPlugin],
-    // outfile: outPath,
-    outfile: path.join(runner.options.cwd, outName),
-    write: false,
+    outfile: outPath,
+    // outfile: path.join(runner.options.cwd, outName),
+    // write: false,
     inject: [path.join(__dirname, 'inject-process.js')],
     define: {
       global: 'globalThis',
       PW_TEST_SOURCEMAP: runner.options.debug ? 'false' : 'true',
     },
   }
-  // await esbuild.build(merge(defaultOptions, config, runner.options.buildConfig))
+  await esbuild.build(merge(defaultOptions, config, runner.options.buildConfig))
 
-  const buildResult = await esbuild.build(
-    merge(defaultOptions, config, runner.options.buildConfig)
-  )
-  await writeFile(outPath, buildResult.outputFiles[0].contents)
+  // const buildResult = await esbuild.build(
+  //   merge(defaultOptions, config, runner.options.buildConfig)
+  // )
+  // await writeFile(outPath, buildResult.outputFiles[0].contents)
 
   return { outName, files }
 }
@@ -424,15 +424,13 @@ export async function createCov(runner, coverage, file) {
   // @ts-ignore
   const f = new Set(exclude.globSync().map((f) => path.join(cwd, f)))
   for (const entry of coverage) {
+    // @ts-ignore
+    const filePath = path.resolve(runner.dir, entry.url.replace(runner.url, ''))
     // const filePath = path.resolve(
-    //   cwd,
-    //   runner.dir,
+    //   // path.relative(runner.dir, cwd),
     //   entry.url.replace(runner.url, '')
     // )
-    const filePath = path.resolve(
-      // path.relative(runner.dir, cwd),
-      entry.url.replace(runner.url, '')
-    )
+    // const filePath = entry.url.replace(runner.url, '')
     console.log(
       '🚀 ~ file: index.js ~ line 424 ~ createCov ~ filePath',
       filePath

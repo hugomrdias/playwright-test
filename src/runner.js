@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 
-import { copyFileSync } from 'fs'
+import { copyFileSync, mkdirSync } from 'fs'
 import path from 'path'
 import ora from 'ora'
 import tempy from 'tempy'
@@ -63,7 +63,10 @@ export class Runner {
     this.options = merge(defaultOptions, options)
     /** @type {import('polka').Polka["server"] | undefined} */
     this.server = undefined
-    this.dir = tempy.directory()
+    this.dir = mkdirSync(
+      path.join(__dirname, '../.tmp', new Date().toISOString()),
+      { recursive: true }
+    )
     this.browserDir = tempy.directory()
     this.url = ''
     this.stopped = false
