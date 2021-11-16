@@ -6,7 +6,7 @@ import execa from 'execa'
 describe('mocha', function () {
   it('basic', async () => {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js'], {
-      stdio: 'inherit',
+      // stdio: 'inherit',
     })
 
     is(proc.exitCode, 0, 'exit code')
