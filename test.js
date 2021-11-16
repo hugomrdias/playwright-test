@@ -20,6 +20,7 @@ describe('mocha', function () {
     const cov = JSON.parse(
       fs.readFileSync('.nyc_output/coverage-pw.json', 'utf8')
     )
+
     ok(path.resolve('mocks/test.mocha.js') in cov, 'test coverage')
   })
 
@@ -48,6 +49,7 @@ describe('mocha', function () {
     const cov = JSON.parse(
       fs.readFileSync('mocks/.nyc_output/coverage-pw.json', 'utf8')
     )
+
     ok(path.resolve('mocks/test.mocha.js') in cov, 'test coverage')
   })
 
