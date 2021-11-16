@@ -385,22 +385,24 @@ require('${require
       resolveDir: runner.options.cwd,
     },
     bundle: true,
-    sourcemap: 'both',
+    sourcemap: 'inline',
     sourceRoot: runner.options.cwd,
     plugins: [nodePlugin, watchPlugin],
-    outfile: outPath,
+    // outfile: outPath,
+    outfile: path.join(runner.options.cwd, outName),
+    write: false,
     inject: [path.join(__dirname, 'inject-process.js')],
     define: {
       global: 'globalThis',
       PW_TEST_SOURCEMAP: runner.options.debug ? 'false' : 'true',
     },
   }
-  console.log(
-    '🚀 ~ file: index.js ~ line 386 ~ build ~ runner.options.cwd',
-    runner.options.cwd
+  // await esbuild.build(merge(defaultOptions, config, runner.options.buildConfig))
+
+  const buildResult = await esbuild.build(
+    merge(defaultOptions, config, runner.options.buildConfig)
   )
-  console.log('🚀 ~ file: index.js ~ line 391 ~ build ~ outPath', outPath)
-  await esbuild.build(merge(defaultOptions, config, runner.options.buildConfig))
+  await writeFile(outPath, buildResult.outputFiles[0].contents)
 
   return { outName, files }
 }

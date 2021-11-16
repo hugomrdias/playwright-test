@@ -13,11 +13,11 @@ describe('mocha', function () {
 
   it('coverage', async () => {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--cov'], {
-      stdio: 'inherit',
+      // stdio: 'inherit',
     })
 
     is(proc.exitCode, 0, 'exit code')
-    // ok(proc.stdout.includes('5 passing'), 'process stdout')
+    ok(proc.stdout.includes('5 passing'), 'process stdout')
 
     const cov = JSON.parse(
       fs.readFileSync('.nyc_output/coverage-pw.json', 'utf8')
