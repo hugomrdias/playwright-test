@@ -5,18 +5,14 @@ import execa from 'execa'
 
 describe('mocha', function () {
   it('basic', async () => {
-    const proc = await execa('./cli.js', ['mocks/test.mocha.js'], {
-      // stdio: 'inherit',
-    })
+    const proc = await execa('./cli.js', ['mocks/test.mocha.js'])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('5 passing'), 'process stdout')
   })
 
   it('coverage', async () => {
-    const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--cov'], {
-      // stdio: 'inherit',
-    })
+    const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--cov'])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('5 passing'), 'process stdout')

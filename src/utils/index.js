@@ -386,11 +386,8 @@ require('${require
     },
     bundle: true,
     sourcemap: 'inline',
-    // sourceRoot: runner.options.cwd,
     plugins: [nodePlugin, watchPlugin],
     outfile: outPath,
-    // outfile: path.join(runner.options.cwd, outName),
-    // write: false,
     inject: [path.join(__dirname, 'inject-process.js')],
     define: {
       global: 'globalThis',
@@ -398,11 +395,6 @@ require('${require
     },
   }
   await esbuild.build(merge(defaultOptions, config, runner.options.buildConfig))
-
-  // const buildResult = await esbuild.build(
-  //   merge(defaultOptions, config, runner.options.buildConfig)
-  // )
-  // await writeFile(outPath, buildResult.outputFiles[0].contents)
 
   return { outName, files }
 }
@@ -425,15 +417,6 @@ export async function createCov(runner, coverage, file) {
   const f = new Set(exclude.globSync().map((f) => path.join(cwd, f)))
   for (const entry of coverage) {
     const filePath = path.resolve(runner.dir, entry.url.replace(runner.url, ''))
-    // const filePath = path.resolve(
-    //   // path.relative(runner.dir, cwd),
-    //   entry.url.replace(runner.url, '')
-    // )
-    // const filePath = entry.url.replace(runner.url, '')
-    console.log(
-      '🚀 ~ file: index.js ~ line 424 ~ createCov ~ filePath',
-      filePath
-    )
 
     if (filePath.includes(file)) {
       // @ts-ignore
