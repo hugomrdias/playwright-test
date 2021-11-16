@@ -386,6 +386,7 @@ require('${require
     },
     bundle: true,
     sourcemap: 'both',
+    sourceRoot: runner.options.cwd,
     plugins: [nodePlugin, watchPlugin],
     outfile: outPath,
     inject: [path.join(__dirname, 'inject-process.js')],
