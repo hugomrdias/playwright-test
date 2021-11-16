@@ -1,5 +1,13 @@
 # Changelog
 
+### [7.2.2](https://www.github.com/hugomrdias/playwright-test/compare/v7.2.1...v7.2.2) (2021-11-16)
+
+
+### Bug Fixes
+
+* fix cov/sourcemaps paths ([#337](https://www.github.com/hugomrdias/playwright-test/issues/337)) ([a13498c](https://www.github.com/hugomrdias/playwright-test/commit/a13498c75e6d272305d96023c9ff8fe0cda2beed))
+* fix the sourmaps paths ([9fae424](https://www.github.com/hugomrdias/playwright-test/commit/9fae424e6ed78f59b10a8a48a4a20b94f8cdc1c6))
+
 ### [7.2.1](https://www.github.com/hugomrdias/playwright-test/compare/v7.2.0...v7.2.1) (2021-11-11)
 
 
