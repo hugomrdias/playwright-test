@@ -65,7 +65,7 @@
     "path-browserify": "^1.0.1",
     "playwright-core": "1.16.3",
     "polka": "^0.5.2",
-    "premove": "^3.0.1",
+    "premove": "^4.0.0",
     "process": "^0.11.10",
     "sade": "^1.7.4",
     "sirv": "^1.0.12",
