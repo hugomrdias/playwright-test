@@ -68,7 +68,7 @@
     "premove": "^3.0.1",
     "process": "^0.11.10",
     "sade": "^1.7.4",
-    "sirv": "^1.0.12",
+    "sirv": "^2.0.0",
     "source-map": "0.6.1",
     "stream-browserify": "^3.0.0",
     "strip-ansi": "^7.0.0",
