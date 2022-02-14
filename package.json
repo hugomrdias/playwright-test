@@ -85,7 +85,7 @@
     "copyfiles": "^2.4.1",
     "debug": "^4.3.2",
     "delay": "^5.0.0",
-    "execa": "^5.1.1",
+    "execa": "^6.1.0",
     "hd-scripts": "^1.0.0",
     "mocha": "^9.1.3",
     "simple-git-hooks": "^2.6.1",
