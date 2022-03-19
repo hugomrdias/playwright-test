@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.3.0](https://www.github.com/hugomrdias/playwright-test/compare/v7.2.2...v7.3.0) (2022-03-19)
+
+
+### Features
+
+* update zora, pw and others ([0bbf67e](https://www.github.com/hugomrdias/playwright-test/commit/0bbf67e62018c8b18527e55c25f9f0c43b2c4fdc))
+
 ### [7.2.2](https://www.github.com/hugomrdias/playwright-test/compare/v7.2.1...v7.2.2) (2021-11-16)
 
 
