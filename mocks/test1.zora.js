@@ -1,7 +1,5 @@
-'use strict'
-
-const { test } = require('zora')
-const { good, bad } = require('./lib')
+import { test } from 'zora'
+import { good, bad } from './lib'
 
 test('a first sub test', (t) => {
   t.ok(true)

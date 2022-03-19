@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { ok, is } from 'uvu/assert'
-import execa from 'execa'
+import { execa } from 'execa'
 
 describe('mocha', function () {
   it('basic', async () => {
@@ -18,6 +18,7 @@ describe('mocha', function () {
     ok(proc.stdout.includes('5 passing'), 'process stdout')
 
     const cov = JSON.parse(
+      // eslint-disable-next-line unicorn/prefer-json-parse-buffer
       fs.readFileSync('.nyc_output/coverage-pw.json', 'utf8')
     )
 
@@ -47,6 +48,7 @@ describe('mocha', function () {
     ok(proc.stdout.includes('5 passing'), 'process stdout')
 
     const cov = JSON.parse(
+      // eslint-disable-next-line unicorn/prefer-json-parse-buffer
       fs.readFileSync('mocks/.nyc_output/coverage-pw.json', 'utf8')
     )
 
@@ -133,14 +135,13 @@ describe('zora', () => {
       ['mocks/*.zora.js', '--runner', 'zora'],
       {
         env: {
-          RUN_ONLY: 'true',
-          INDENT: 'true',
+          ZORA_ONLY: 'true',
         },
       }
     )
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('# success: 2'), 'process stdout')
+    ok(proc.stdout.includes('# pass  2'), 'process stdout')
   })
 
   it('zora mode:worker', async () => {
@@ -156,7 +157,7 @@ describe('zora', () => {
     )
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('# success: 2'), 'process stdout')
+    ok(proc.stdout.includes('# pass  2'), 'process stdout')
   })
 })
 

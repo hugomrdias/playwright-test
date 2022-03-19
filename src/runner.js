@@ -283,15 +283,18 @@ export class Runner {
       const page = await this.setupPage(context)
       spinner.succeed(`${this.options.browser} set up`)
 
+      if (this.options.debug) {
+        page.on('load', async () => {
+          this.runTests(page).catch((error) => {
+            console.log(error)
+          })
+        })
+      }
       // run tests
       const { outName } = await this.runTests(page)
 
       // Re run on page reload
-      if (this.options.debug) {
-        page.on('load', async () => {
-          await this.runTests(page)
-        })
-      } else {
+      if (!this.options.debug) {
         // wait for the tests
         await page.waitForFunction(
           // @ts-ignore
@@ -355,7 +358,7 @@ export class Runner {
     const watcher = watch([...files], {
       ignored: /(^|[/\\])\../,
       ignoreInitial: true,
-      awaitWriteFinish: { pollInterval: 100, stabilityThreshold: 1000 },
+      awaitWriteFinish: { pollInterval: 100, stabilityThreshold: 500 },
     }).on('change', async () => {
       // Unregister any service worker in the page before reload
       await page.evaluate(async () => {

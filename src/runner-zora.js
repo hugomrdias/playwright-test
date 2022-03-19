@@ -10,21 +10,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const runZora = () => `
 zora
-  .report()
-  .then((f) =>{
-    self.PW_TEST.end(!self.zora.pass)
-  })
+  .report({reporter: globalThis.zoraReporter})
 `
 
-const runZoraWorker = () => `
-zora
-  .report()
-  .then((f) =>{
-    postMessage({
-        "pwRunEnded": true,
-        "pwRunFailed": !self.zora.pass
-    })
-  })
+const testsEnded = (/** @type {boolean} */ pass) => `
+self.PW_TEST.end(${pass})
 `
 
 class ZoraRunner extends Runner {
@@ -32,6 +22,18 @@ class ZoraRunner extends Runner {
    * @param {import("playwright-core").Page} page
    */
   async runTests(page) {
+    let fail = 0
+
+    // check summary to trigger tests ended
+    page.on('console', async (msg) => {
+      const txt = msg.text()
+
+      if (txt.includes('# fail  ')) {
+        fail = Number(txt.replace('# fail', '').trim())
+        await page.evaluate(testsEnded(fail > 0))
+      }
+    })
+
     const { outName, files } = await super.runTests(page)
     switch (this.options.mode) {
       case 'main': {
@@ -42,7 +44,7 @@ class ZoraRunner extends Runner {
         const worker = await page.waitForEvent('worker')
         // @ts-ignore
         await waitFor(() => worker.evaluate(() => self.zora !== undefined))
-        await worker.evaluate(runZoraWorker())
+        await worker.evaluate(runZora())
         break
       }
       default:
