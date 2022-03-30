@@ -52,7 +52,7 @@
     "buffer": "^6.0.3",
     "camelcase": "^6.3.0",
     "chokidar": "^3.5.3",
-    "esbuild": "0.14.27",
+    "esbuild": "0.14.29",
     "events": "^3.3.0",
     "globby": "^13.1.1",
     "kleur": "^4.1.4",
