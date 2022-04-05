@@ -5,7 +5,7 @@ import path from 'path'
 import sade from 'sade'
 import kleur from 'kleur'
 import { fileURLToPath } from 'url'
-import { lilconfigSync } from 'lilconfig'
+import { lilconfig } from 'lilconfig'
 import mergeOptions from 'merge-options'
 import { runnerOptions } from './src/utils/index.js'
 import UvuRunner from './src/runner-uvu.js'
@@ -105,6 +105,17 @@ const sade2 = new Proxy(sade('playwright-test [files]', true), {
   },
 })
 
+const loadEsm = async (/** @type {string} */ filepath) => {
+  /** @type {any} */
+  const res = await import(filepath)
+
+  if (res.default) {
+    return res.default
+  }
+
+  return res
+}
+
 sade2
   .version(version)
   .describe(
@@ -143,18 +154,36 @@ sade2
     'File extensions allowed in the bundle.  (default js,cjs,mjs,ts,tsx)'
   )
   .option('--config', 'Path to the config file')
-  .action((input, opts) => {
+  .action(async (input, opts) => {
     let config
     try {
       if (opts.config) {
-        config = lilconfigSync('playwright-test').load(
-          path.resolve(opts.config)
-        )
+        config = await lilconfig('playwright-test', {
+          loaders: {
+            '.js': loadEsm,
+            '.mjs': loadEsm,
+          },
+        }).load(path.resolve(opts.config))
       } else {
-        config = lilconfigSync('playwright-test').search()
+        config = await lilconfig('playwright-test', {
+          loaders: {
+            '.js': loadEsm,
+            '.mjs': loadEsm,
+          },
+        }).search()
         if (!config) {
-          config = lilconfigSync('pw-test').search()
+          config = await lilconfig('pw-test', {
+            loaders: {
+              '.js': loadEsm,
+              '.mjs': loadEsm,
+            },
+          }).search()
         }
+      }
+
+      // if the supplied config module was a function, invoke it
+      if (config && typeof config.config === 'function') {
+        config.config = await config.config()
       }
 
       let Runner

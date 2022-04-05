@@ -100,6 +100,30 @@ describe('mocha', function () {
 
     is(proc.exitCode, 0, 'exit code')
   })
+
+  it('supports esm config files', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/sw/sw-test.js',
+      '--sw',
+      'mocks/sw/sw.js',
+      '--config',
+      'mocks/sw/sw.config.mjs',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+  })
+
+  it('supports esm config files that return promises', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/sw/sw-test.js',
+      '--sw',
+      'mocks/sw/sw.js',
+      '--config',
+      'mocks/sw/sw.promise.config.mjs',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+  })
 })
 
 describe('tape', function () {
