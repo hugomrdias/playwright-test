@@ -116,6 +116,11 @@ const loadEsm = async (/** @type {string} */ filepath) => {
   return res
 }
 
+const configLoaders = {
+  '.js': loadEsm,
+  '.mjs': loadEsm,
+}
+
 sade2
   .version(version)
   .describe(
@@ -159,24 +164,15 @@ sade2
     try {
       if (opts.config) {
         config = await lilconfig('playwright-test', {
-          loaders: {
-            '.js': loadEsm,
-            '.mjs': loadEsm,
-          },
+          loaders: configLoaders,
         }).load(path.resolve(opts.config))
       } else {
         config = await lilconfig('playwright-test', {
-          loaders: {
-            '.js': loadEsm,
-            '.mjs': loadEsm,
-          },
+          loaders: configLoaders,
         }).search()
         if (!config) {
           config = await lilconfig('pw-test', {
-            loaders: {
-              '.js': loadEsm,
-              '.mjs': loadEsm,
-            },
+            loaders: configLoaders,
           }).search()
         }
       }

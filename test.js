@@ -124,6 +124,18 @@ describe('mocha', function () {
 
     is(proc.exitCode, 0, 'exit code')
   })
+
+  it('supports esm config files that return functions', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/sw/sw-test.js',
+      '--sw',
+      'mocks/sw/sw.js',
+      '--config',
+      'mocks/sw/sw.function.config.mjs',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+  })
 })
 
 describe('tape', function () {
