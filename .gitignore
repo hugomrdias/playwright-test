@@ -13,3 +13,4 @@ node_modules
 coverage.lcov
 yarn-error.log
 dist
+.tmp
