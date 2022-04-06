@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.4.0](https://www.github.com/hugomrdias/playwright-test/compare/v7.3.0...v7.4.0) (2022-04-06)
+
+
+### Features
+
+* support ESM config files ([#414](https://www.github.com/hugomrdias/playwright-test/issues/414)) ([3f731c8](https://www.github.com/hugomrdias/playwright-test/commit/3f731c85ac75b6cc8cfca935caa2c64389c383c0)), closes [#413](https://www.github.com/hugomrdias/playwright-test/issues/413)
+
 ## [7.3.0](https://www.github.com/hugomrdias/playwright-test/compare/v7.2.2...v7.3.0) (2022-03-19)
 
 
