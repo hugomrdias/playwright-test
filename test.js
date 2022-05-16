@@ -21,7 +21,6 @@ describe('mocha', function () {
       // eslint-disable-next-line unicorn/prefer-json-parse-buffer
       fs.readFileSync('.nyc_output/coverage-pw.json', 'utf8')
     )
-
     ok(path.resolve('mocks/test.mocha.js') in cov, 'test coverage')
   })
 
@@ -197,7 +196,7 @@ describe('zora', () => {
   })
 })
 
-describe('benchmark', function () {
+describe.skip('benchmark', function () {
   it('benchmark', async () => {
     const proc = await execa('./cli.js', [
       'mocks/benchmark.js',

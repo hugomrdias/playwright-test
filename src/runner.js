@@ -3,8 +3,8 @@
 import { mkdirSync } from 'fs'
 import path from 'path'
 import ora from 'ora'
-import tempy from 'tempy'
 import { nanoid } from 'nanoid'
+import { temporaryDirectory } from 'tempy'
 import { premove } from 'premove/sync'
 import {
   redirectConsole,
@@ -65,12 +65,12 @@ export class Runner {
     this.options = merge(defaultOptions, options)
     /** @type {import('polka').Polka["server"] | undefined} */
     this.server = undefined
-    this.dir = /** @type {string} */ (
-      mkdirSync(path.join(__dirname, '../.tmp', nanoid()), {
-        recursive: true,
-      })
-    )
-    this.browserDir = tempy.directory()
+
+    this.dir = path.join(__dirname, '../.tmp', nanoid())
+    mkdirSync(this.dir, {
+      recursive: true,
+    })
+    this.browserDir = temporaryDirectory()
     this.url = ''
     this.stopped = false
     this.watching = false

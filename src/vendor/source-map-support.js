@@ -155,7 +155,8 @@ function supportRelativeURL(file, url, tweak) {
     )
   }
   if (tweak && PW_TEST_SOURCEMAP === true) {
-    return 'file://' + resolve(dir.slice(protocol.length), url)
+    return resolve(PW_TEST_SOURCEMAP_PATH, url)
+    // return PW_TEST_SOURCEMAP_PATH + resolve(dir.slice(protocol.length), url)
   }
 
   return protocol + resolve(dir.slice(protocol.length), url)
@@ -185,7 +186,8 @@ function retrieveSourceMapURL(source) {
 
   // Get the URL of the source map
   fileData = retrieveFile(source)
-  const re = /(?:\/\/[@#][\s]*sourceMappingURL=([^\s'"]+)[\s]*$)|(?:\/\*[@#][\s]*sourceMappingURL=([^\s*'"]+)[\s]*(?:\*\/)[\s]*$)/gm
+  const re =
+    /(?:\/\/[@#][\s]*sourceMappingURL=([^\s'"]+)[\s]*$)|(?:\/\*[@#][\s]*sourceMappingURL=([^\s*'"]+)[\s]*(?:\*\/)[\s]*$)/gm
   // Keep executing the search to find the *last* sourceMappingURL to avoid
   // picking up sourceMappingURLs from comments, strings, etc.
   let lastMatch, match
@@ -225,7 +227,7 @@ retrieveMapHandlers.push((source) => {
     sourceMappingURL = source
   } else {
     // Support source map URLs relative to the source URL
-    sourceMappingURL = supportRelativeURL(source, sourceMappingURL)
+    sourceMappingURL = supportRelativeURL(source, sourceMappingURL, true)
     sourceMapData = retrieveFile(sourceMappingURL)
   }
 
@@ -463,7 +465,8 @@ function wrapCallSite(frame, state) {
     // Header removed in node at ^10.16 || >=11.11.0
     // v11 is not an LTS candidate, we can just test the one version with it.
     // Test node versions for: 10.16-19, 10.20+, 12-19, 20-99, 100+, or 11.11
-    const noHeader = /^v(10\.1[6-9]|10\.[2-9][0-9]|10\.[0-9]{3,}|1[2-9]\d*|[2-9]\d|\d{3,}|11\.11)/
+    const noHeader =
+      /^v(10\.1[6-9]|10\.[2-9][0-9]|10\.[0-9]{3,}|1[2-9]\d*|[2-9]\d|\d{3,}|11\.11)/
     const headerLength = noHeader.test(process.version) ? 0 : 62
 
     if (

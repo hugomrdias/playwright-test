@@ -1,5 +1,5 @@
 {
-  "extends": "hd-scripts/tsconfig.json",
+  "extends": "./node_modules/hd-scripts/tsconfig.json",
   "compilerOptions": {
     "outDir": "dist",
     "module": "ES2022"

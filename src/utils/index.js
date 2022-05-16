@@ -110,7 +110,7 @@ function globFiles(cwd, patterns) {
 /**
  * Find files
  *
- * @param {Object} options
+ * @param {object} options
  * @param {string} options.cwd
  * @param {string[]} options.extensions
  * @param {string[]} options.filePatterns
@@ -124,7 +124,7 @@ function findFiles({ cwd, extensions, filePatterns }) {
 /**
  * Find the tests files
  *
- * @param {Object} options
+ * @param {object} options
  * @param {string} options.cwd
  * @param {string[]} options.extensions
  * @param {string[]} options.filePatterns
@@ -251,7 +251,7 @@ export async function getPw(browserName) {
   }
 
   // @ts-ignore
-  const { registry } = await import('playwright-core/lib/utils/registry')
+  const { registry } = await import('playwright-core/lib/server')
   const api = await import('playwright-core')
   const browser = registry.findExecutable(browserName)
 
@@ -384,6 +384,7 @@ require('${require
       contents: infileContent,
       resolveDir: runner.options.cwd,
     },
+    // sourceRoot: runner.dir,
     bundle: true,
     sourcemap: 'inline',
     plugins: [nodePlugin, watchPlugin],
@@ -392,6 +393,7 @@ require('${require
     define: {
       global: 'globalThis',
       PW_TEST_SOURCEMAP: runner.options.debug ? 'false' : 'true',
+      PW_TEST_SOURCEMAP_PATH: JSON.stringify(runner.dir),
     },
   }
   await esbuild.build(merge(defaultOptions, config, runner.options.buildConfig))
@@ -420,7 +422,16 @@ export async function createCov(runner, coverage, file) {
 
     if (filePath.includes(file)) {
       // @ts-ignore
-      const converter = new V8ToIstanbul(filePath, 0, { source: entry.source })
+      const converter = new V8ToIstanbul(
+        filePath,
+        0,
+        {
+          source: entry.source,
+        }
+        // (path) => {
+        //   return !f.has(path)
+        // }
+      )
 
       // eslint-disable-next-line no-await-in-loop
       await converter.load()
