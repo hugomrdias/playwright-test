@@ -251,7 +251,7 @@ export async function getPw(browserName) {
   }
 
   // @ts-ignore
-  const { registry } = await import('playwright-core/lib/utils/registry')
+  const { registry } = await import('playwright-core/lib/server')
   const api = await import('playwright-core')
   const browser = registry.findExecutable(browserName)
 
