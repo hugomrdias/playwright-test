@@ -1,7 +1,9 @@
 /* eslint-disable no-console */
 
+import { mkdirSync } from 'fs'
 import path from 'path'
 import ora from 'ora'
+import { nanoid } from 'nanoid'
 import { temporaryDirectory } from 'tempy'
 import { premove } from 'premove/sync'
 import {
@@ -63,7 +65,11 @@ export class Runner {
     this.options = merge(defaultOptions, options)
     /** @type {import('polka').Polka["server"] | undefined} */
     this.server = undefined
-    this.dir = temporaryDirectory()
+
+    this.dir = path.join(__dirname, '../.tmp', nanoid())
+    mkdirSync(this.dir, {
+      recursive: true,
+    })
     this.browserDir = temporaryDirectory()
     this.url = ''
     this.stopped = false

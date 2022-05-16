@@ -384,6 +384,7 @@ require('${require
       contents: infileContent,
       resolveDir: runner.options.cwd,
     },
+    // sourceRoot: runner.dir,
     bundle: true,
     sourcemap: 'inline',
     plugins: [nodePlugin, watchPlugin],
@@ -392,6 +393,7 @@ require('${require
     define: {
       global: 'globalThis',
       PW_TEST_SOURCEMAP: runner.options.debug ? 'false' : 'true',
+      PW_TEST_SOURCEMAP_PATH: JSON.stringify(runner.dir),
     },
   }
   await esbuild.build(merge(defaultOptions, config, runner.options.buildConfig))
@@ -417,18 +419,19 @@ export async function createCov(runner, coverage, file) {
   const f = new Set(exclude.globSync().map((f) => path.join(cwd, f)))
   for (const entry of coverage) {
     const filePath = path.resolve(runner.dir, entry.url.replace(runner.url, ''))
-    console.log(
-      '🚀 ~ file: index.js ~ line 420 ~ createCov ~ entry.url',
-      entry.url
-    )
-    console.log(
-      '🚀 ~ file: index.js ~ line 420 ~ createCov ~ filePath',
-      filePath
-    )
 
     if (filePath.includes(file)) {
       // @ts-ignore
-      const converter = new V8ToIstanbul(filePath, 0, { source: entry.source })
+      const converter = new V8ToIstanbul(
+        filePath,
+        0,
+        {
+          source: entry.source,
+        }
+        // (path) => {
+        //   return !f.has(path)
+        // }
+      )
 
       // eslint-disable-next-line no-await-in-loop
       await converter.load()
@@ -437,7 +440,6 @@ export async function createCov(runner, coverage, file) {
 
       // eslint-disable-next-line guard-for-in
       for (const key in instanbul) {
-        console.log('instanbul:', key)
         if (f.has(key)) {
           // @ts-ignore
           entries[key] = instanbul[key]

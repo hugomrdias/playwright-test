@@ -155,7 +155,8 @@ function supportRelativeURL(file, url, tweak) {
     )
   }
   if (tweak && PW_TEST_SOURCEMAP === true) {
-    return resolve(dir.slice(protocol.length), url)
+    return resolve(PW_TEST_SOURCEMAP_PATH, url)
+    // return PW_TEST_SOURCEMAP_PATH + resolve(dir.slice(protocol.length), url)
   }
 
   return protocol + resolve(dir.slice(protocol.length), url)
