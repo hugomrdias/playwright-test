@@ -1,5 +1,12 @@
 # Changelog
 
+### [7.4.1](https://www.github.com/hugomrdias/playwright-test/compare/v7.4.0...v7.4.1) (2022-05-16)
+
+
+### Bug Fixes
+
+* try to remove any races between copy and server start ([67be737](https://www.github.com/hugomrdias/playwright-test/commit/67be737b98451f7798934b734067de1804fa514a))
+
 ## [7.4.0](https://www.github.com/hugomrdias/playwright-test/compare/v7.3.0...v7.4.0) (2022-04-06)
 
 
