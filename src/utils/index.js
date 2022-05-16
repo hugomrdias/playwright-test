@@ -417,6 +417,14 @@ export async function createCov(runner, coverage, file) {
   const f = new Set(exclude.globSync().map((f) => path.join(cwd, f)))
   for (const entry of coverage) {
     const filePath = path.resolve(runner.dir, entry.url.replace(runner.url, ''))
+    console.log(
+      '🚀 ~ file: index.js ~ line 420 ~ createCov ~ entry.url',
+      entry.url
+    )
+    console.log(
+      '🚀 ~ file: index.js ~ line 420 ~ createCov ~ filePath',
+      filePath
+    )
 
     if (filePath.includes(file)) {
       // @ts-ignore
