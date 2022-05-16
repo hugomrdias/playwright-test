@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 
-import { copyFileSync, mkdirSync } from 'fs'
+import { mkdirSync } from 'fs'
 import path from 'path'
 import ora from 'ora'
 import tempy from 'tempy'
@@ -19,6 +19,7 @@ import { compileSw } from './utils/build-sw.js'
 import mergeOptions from 'merge-options'
 import { fileURLToPath } from 'node:url'
 import { watch } from 'chokidar'
+import cpy from 'cpy'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const merge = mergeOptions.bind({ ignoreUndefined: true })
@@ -94,27 +95,14 @@ export class Runner {
 
   async launch() {
     // copy files to be served
-    const files = [
-      'index.html',
-      'before.html',
-      'favicon.ico',
-      'manifest.json',
-      'background.js',
-      'setup.js',
-    ]
-
-    for (const file of files) {
-      copyFileSync(
-        path.join(__dirname, './../static', file),
-        path.join(this.dir, file)
-      )
-    }
+    await cpy(path.join(__dirname, './../static') + '/**', this.dir)
 
     // setup http server
     await createPolka(this)
 
     // download playwright if needed
     const pw = await getPw(this.options.browser)
+
     /** @type {import('playwright-core').LaunchOptions} */
     const pwOptions = {
       headless: !this.options.extension && !this.options.debug,

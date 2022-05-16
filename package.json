@@ -52,6 +52,7 @@
     "buffer": "^6.0.3",
     "camelcase": "^6.3.0",
     "chokidar": "^3.5.3",
+    "cpy": "^9.0.1",
     "esbuild": "0.14.27",
     "events": "^3.3.0",
     "globby": "^13.1.1",
