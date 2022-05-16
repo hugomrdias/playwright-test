@@ -197,7 +197,7 @@ describe('zora', () => {
   })
 })
 
-describe('benchmark', function () {
+describe.skip('benchmark', function () {
   it('benchmark', async () => {
     const proc = await execa('./cli.js', [
       'mocks/benchmark.js',

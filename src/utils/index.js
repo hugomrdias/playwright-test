@@ -110,7 +110,7 @@ function globFiles(cwd, patterns) {
 /**
  * Find files
  *
- * @param {Object} options
+ * @param {object} options
  * @param {string} options.cwd
  * @param {string[]} options.extensions
  * @param {string[]} options.filePatterns
@@ -124,7 +124,7 @@ function findFiles({ cwd, extensions, filePatterns }) {
 /**
  * Find the tests files
  *
- * @param {Object} options
+ * @param {object} options
  * @param {string} options.cwd
  * @param {string[]} options.extensions
  * @param {string[]} options.filePatterns
