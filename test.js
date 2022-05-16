@@ -11,7 +11,6 @@ describe('mocha', function () {
     ok(proc.stdout.includes('5 passing'), 'process stdout')
   })
 
-  // eslint-disable-next-line no-only-tests/no-only-tests
   it('coverage', async () => {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--cov'])
 
