@@ -1,5 +1,16 @@
 # Changelog
 
+## [8.0.0](https://www.github.com/hugomrdias/playwright-test/compare/v7.4.1...v8.0.0) (2022-05-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* update mocha, playwright and others, fix sourcemaps (#435)
+
+### Features
+
+* update mocha, playwright and others, fix sourcemaps ([#435](https://www.github.com/hugomrdias/playwright-test/issues/435)) ([b6852a4](https://www.github.com/hugomrdias/playwright-test/commit/b6852a4fcc80d87468ffbe61510fb262b30f0257))
+
 ### [7.4.1](https://www.github.com/hugomrdias/playwright-test/compare/v7.4.0...v7.4.1) (2022-05-16)
 
 
