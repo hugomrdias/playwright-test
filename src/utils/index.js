@@ -437,6 +437,7 @@ export async function createCov(runner, coverage, file) {
 
       // eslint-disable-next-line guard-for-in
       for (const key in instanbul) {
+        console.log('instanbul:', key)
         if (f.has(key)) {
           // @ts-ignore
           entries[key] = instanbul[key]
