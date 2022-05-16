@@ -11,7 +11,8 @@ describe('mocha', function () {
     ok(proc.stdout.includes('5 passing'), 'process stdout')
   })
 
-  it('coverage', async () => {
+  // eslint-disable-next-line no-only-tests/no-only-tests
+  it.only('coverage', async () => {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--cov'])
 
     is(proc.exitCode, 0, 'exit code')
@@ -21,7 +22,14 @@ describe('mocha', function () {
       // eslint-disable-next-line unicorn/prefer-json-parse-buffer
       fs.readFileSync('.nyc_output/coverage-pw.json', 'utf8')
     )
+    // eslint-disable-next-line no-console
+    console.log('🚀 ~ file: test.js ~ line 25 ~ it.only ~ cov', cov)
 
+    // eslint-disable-next-line no-console
+    console.log(
+      "🚀 ~ file: test.js ~ line 27 ~ it.only ~ path.resolve('mocks/test.mocha.js')",
+      path.resolve('mocks/test.mocha.js')
+    )
     ok(path.resolve('mocks/test.mocha.js') in cov, 'test coverage')
   })
 
