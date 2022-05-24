@@ -86,7 +86,7 @@
     "debug": "^4.3.4",
     "delay": "^5.0.0",
     "execa": "^6.1.0",
-    "hd-scripts": "^1.1.2",
+    "hd-scripts": "^2.0.1",
     "mocha": "^10.0.0",
     "simple-git-hooks": "^2.6.1",
     "typescript": "^4.6.4",
