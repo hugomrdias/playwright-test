@@ -48,6 +48,7 @@ const defaultOptions = {
   before: undefined,
   sw: undefined,
   cov: false,
+  reportDir: '.nyc_output',
   extensions: 'js,cjs,mjs,ts,tsx',
   buildConfig: {},
   buildSWConfig: {},
@@ -301,7 +302,7 @@ export class Runner {
             this,
             await page.coverage.stopJSCoverage(),
             outName,
-            this.options.reportDir ?? '.nyc_output'
+            this.options.reportDir
           )
         }
 
