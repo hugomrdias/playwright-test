@@ -145,6 +145,10 @@ sade2
     "Enable code coverage in istanbul format. Outputs '.nyc_output/coverage-pw.json'."
   )
   .option(
+    '--report-dir',
+    "Where to output code coverage in instanbul format.  (default '.nyc_output')"
+  )
+  .option(
     '--before',
     'Path to a script to be loaded on a separate tab before the main script.'
   )
@@ -219,6 +223,7 @@ sade2
           sw: opts.sw,
           node: opts.node,
           cov: opts.cov,
+          reportDir: opts['report-dir'],
           extensions: opts.extensions,
           beforeTests: opts.beforeTests,
           afterTests: opts.afterTests,

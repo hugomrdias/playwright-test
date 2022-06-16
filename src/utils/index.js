@@ -407,8 +407,9 @@ require('${require
  * @param {import("../runner").Runner} runner
  * @param {any} coverage
  * @param {string} file
+ * @param {string} outputDir
  */
-export async function createCov(runner, coverage, file) {
+export async function createCov(runner, coverage, file, outputDir) {
   const spinner = ora('Generating code coverage.').start()
   const entries = {}
   const { cwd } = runner.options
@@ -447,7 +448,7 @@ export async function createCov(runner, coverage, file) {
       }
     }
   }
-  const covPath = path.join(cwd, '.nyc_output')
+  const covPath = path.join(cwd, outputDir)
 
   await mkdir(covPath, { recursive: true })
 
