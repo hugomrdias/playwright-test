@@ -409,12 +409,7 @@ require('${require
  * @param {string} file
  * @param {string} outputDir
  */
-export async function createCov(
-  runner,
-  coverage,
-  file,
-  outputDir = '.nyc_output'
-) {
+export async function createCov(runner, coverage, file, outputDir) {
   const spinner = ora('Generating code coverage.').start()
   const entries = {}
   const { cwd } = runner.options
