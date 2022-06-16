@@ -18,6 +18,7 @@ export interface RunnerOptions {
   before?: string
   sw?: string
   cov: false
+  reportDir?: string
   extensions: string
   buildConfig: BuildOptions
   buildSWConfig: BuildOptions

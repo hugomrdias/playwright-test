@@ -297,7 +297,12 @@ export class Runner {
 
         // coverage
         if (this.options.cov && page.coverage) {
-          await createCov(this, await page.coverage.stopJSCoverage(), outName)
+          await createCov(
+            this,
+            await page.coverage.stopJSCoverage(),
+            outName,
+            this.options.reportDir ?? '.nyc_output'
+          )
         }
 
         // exit

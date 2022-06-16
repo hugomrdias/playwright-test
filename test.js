@@ -24,6 +24,24 @@ describe('mocha', function () {
     ok(path.resolve('mocks/test.mocha.js') in cov, 'test coverage')
   })
 
+  it('coverage with alternate report dir', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/test.mocha.js',
+      '--cov',
+      '--report-dir',
+      '.coverage',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('5 passing'), 'process stdout')
+
+    const cov = JSON.parse(
+      // eslint-disable-next-line unicorn/prefer-json-parse-buffer
+      fs.readFileSync('.coverage/coverage-pw.json', 'utf8')
+    )
+    ok(path.resolve('mocks/test.mocha.js') in cov, 'test coverage')
+  })
+
   it('cwd', async () => {
     const proc = await execa('./cli.js', [
       'test.mocha.js',
