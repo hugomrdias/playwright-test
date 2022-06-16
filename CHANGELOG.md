@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.1.0](https://www.github.com/hugomrdias/playwright-test/compare/v8.0.0...v8.1.0) (2022-06-16)
+
+
+### Features
+
+* allow overriding coverage dir ([#451](https://www.github.com/hugomrdias/playwright-test/issues/451)) ([422fff1](https://www.github.com/hugomrdias/playwright-test/commit/422fff1ea0f6a322f208146d75235a76eb0e7ef3))
+
 ## [8.0.0](https://www.github.com/hugomrdias/playwright-test/compare/v7.4.1...v8.0.0) (2022-05-16)
 
 
