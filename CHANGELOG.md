@@ -1,5 +1,12 @@
 # Changelog
 
+### [8.1.1](https://www.github.com/hugomrdias/playwright-test/compare/v8.1.0...v8.1.1) (2022-06-16)
+
+
+### Bug Fixes
+
+* move default to defaults ([#453](https://www.github.com/hugomrdias/playwright-test/issues/453)) ([0334717](https://www.github.com/hugomrdias/playwright-test/commit/0334717d585e874779c8582d6e3fbdbd0ef0b987))
+
 ## [8.1.0](https://www.github.com/hugomrdias/playwright-test/compare/v8.0.0...v8.1.0) (2022-06-16)
 
 
