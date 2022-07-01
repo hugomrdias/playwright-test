@@ -64,7 +64,7 @@
     "ora": "^6.1.0",
     "p-wait-for": "4.1.0",
     "path-browserify": "^1.0.1",
-    "playwright-core": "1.22.1",
+    "playwright-core": "1.23.1",
     "polka": "^0.5.2",
     "premove": "^4.0.0",
     "process": "^0.11.10",
