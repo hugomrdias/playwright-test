@@ -53,7 +53,7 @@
     "camelcase": "^6.3.0",
     "chokidar": "^3.5.3",
     "cpy": "^9.0.1",
-    "esbuild": "0.14.39",
+    "esbuild": "0.15.5",
     "events": "^3.3.0",
     "globby": "^13.1.1",
     "kleur": "^4.1.4",
