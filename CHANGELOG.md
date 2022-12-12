@@ -1,5 +1,12 @@
 # Changelog
 
+### [8.1.2](https://www.github.com/hugomrdias/playwright-test/compare/v8.1.1...v8.1.2) (2022-12-12)
+
+
+### Bug Fixes
+
+* **deps:** bump v8-to-istanbul from 9.0.0 to 9.0.1 ([#460](https://www.github.com/hugomrdias/playwright-test/issues/460)) ([6862c78](https://www.github.com/hugomrdias/playwright-test/commit/6862c78dd87406f5b7e5098de599509459fc94b1))
+
 ### [8.1.1](https://www.github.com/hugomrdias/playwright-test/compare/v8.1.0...v8.1.1) (2022-06-16)
 
 
