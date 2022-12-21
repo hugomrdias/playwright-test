@@ -189,24 +189,30 @@ sade2
       let Runner
 
       switch (opts.runner) {
-        case 'uvu':
+        case 'uvu': {
           Runner = UvuRunner
           break
-        case 'zora':
+        }
+        case 'zora': {
           Runner = ZoraRunner
           break
-        case 'mocha':
+        }
+        case 'mocha': {
           Runner = MochaRunner
           break
-        case 'tape':
+        }
+        case 'tape': {
           Runner = TapeRunner
           break
-        case 'benchmark':
+        }
+        case 'benchmark': {
           Runner = BenchmarkRunner
           break
-        default:
+        }
+        default: {
           console.error('Runner not supported:', opts.runner)
           process.exit(1)
+        }
       }
       const runner = new Runner(
         merge(config ? config.config : {}, {

@@ -63,8 +63,9 @@ class MochaRunner extends Runner {
         await worker.evaluate(runMochaWorker())
         break
       }
-      default:
+      default: {
         throw new Error('mode not supported')
+      }
     }
     return { outName, files }
   }

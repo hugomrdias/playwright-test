@@ -13,11 +13,18 @@ jobs:
     name: 'Linux'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: microsoft/playwright-github-action@v1
-      - uses: bahmutov/npm-install@v1
-      - run: npm run lint
-      - run: xvfb-run -a npm run test
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 7
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'pnpm'
+      - run: pnpm install
+      - run: npx playwright install --with-deps
+      - run: pnpm run lint
+      - run: xvfb-run -a pnpm run test
       - run: ./cli.js mocks/test.mocha.js --browser firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
 
@@ -25,9 +32,16 @@ jobs:
     name: 'Mac'
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: bahmutov/npm-install@v1
-      - run: npm test
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 7
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'pnpm'
+      - run: pnpm install
+      - run: pnpm test
       - run: ./cli.js mocks/test.mocha.js --browser firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
 
@@ -35,9 +49,16 @@ jobs:
     name: 'Win'
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: bahmutov/npm-install@v1
-      - run: npm test
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 7
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'pnpm'
+      - run: pnpm install
+      - run: pnpm test
       - run: ./cli.js mocks/test.mocha.js --browser firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
   release:
@@ -53,16 +74,21 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           release-type: node
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         if: ${{ steps.release.outputs.release_created }}
-      - uses: actions/setup-node@v2
+      - uses: pnpm/action-setup@v2
+        if: ${{ steps.release.outputs.release_created }}
         with:
-          node-version: 14
+          version: 7
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
           registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
         if: ${{ steps.release.outputs.release_created }}
-      - uses: bahmutov/npm-install@v1
+      - run: pnpm install
         if: ${{ steps.release.outputs.release_created }}
-      - run: npm publish
+      - run: pnpm publish
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
         if: ${{ steps.release.outputs.release_created }}

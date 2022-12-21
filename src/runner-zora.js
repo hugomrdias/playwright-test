@@ -47,8 +47,9 @@ class ZoraRunner extends Runner {
         await worker.evaluate(runZora())
         break
       }
-      default:
+      default: {
         throw new Error('mode not supported')
+      }
     }
     return { outName, files }
   }
