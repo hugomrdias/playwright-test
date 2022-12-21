@@ -83,9 +83,7 @@ export class Runner {
     this.tests = findTests({
       cwd: this.options.cwd,
       extensions: this.extensions,
-      filePatterns: this.options.input
-        ? this.options.input
-        : defaultTestPatterns(this.extensions),
+      filePatterns: this.options.input ?? defaultTestPatterns(this.extensions),
     })
     if (this.tests.length === 0) {
       this.stop(false, 'No test files were found.')
@@ -235,8 +233,9 @@ export class Runner {
         page.evaluate(addWorker(outName))
         break
       }
-      default:
+      default: {
         throw new Error('mode not supported')
+      }
     }
 
     // inject and register the service

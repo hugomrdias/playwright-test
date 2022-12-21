@@ -211,18 +211,22 @@ export async function redirectConsole(msg) {
       return
     }
     switch (type) {
-      case 'error':
+      case 'error': {
         color = 'red'
         break
-      case 'warning':
+      }
+      case 'warning': {
         color = 'yellow'
         break
+      }
       case 'info':
-      case 'debug':
+      case 'debug': {
         color = 'blue'
         break
-      default:
+      }
+      default: {
         break
+      }
     }
 
     // @ts-ignore
