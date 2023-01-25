@@ -1,5 +1,6 @@
 import type { BuildOptions } from 'esbuild'
 import type {
+  BrowserContextOptions,
   ChromiumBrowser,
   FirefoxBrowser,
   WebKitBrowser,
@@ -22,6 +23,7 @@ export interface RunnerOptions {
   extensions: string
   buildConfig: BuildOptions
   buildSWConfig: BuildOptions
+  browserContextOptions?: BrowserContextOptions
   beforeTests: (opts: RunnerOptions) => Promise<unknown>
   afterTests: (
     opts: RunnerOptions,
