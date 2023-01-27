@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.2.0](https://www.github.com/hugomrdias/playwright-test/compare/v8.1.2...v8.2.0) (2023-01-27)
+
+
+### Features
+
+* add BrowserContextOptions ([#526](https://www.github.com/hugomrdias/playwright-test/issues/526)) ([5392d4d](https://www.github.com/hugomrdias/playwright-test/commit/5392d4dd5db52c324918a9318dbeb935ae9be17e))
+
 ### [8.1.2](https://www.github.com/hugomrdias/playwright-test/compare/v8.1.1...v8.1.2) (2022-12-12)
 
 
