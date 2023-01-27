@@ -52,6 +52,7 @@ const defaultOptions = {
   extensions: 'js,cjs,mjs,ts,tsx',
   buildConfig: {},
   buildSWConfig: {},
+  browserContextOptions: {},
   beforeTests: async () => {},
   afterTests: async () => {},
 }
@@ -117,12 +118,14 @@ export class Runner {
     // create context
     if (this.options.incognito) {
       this.browser = await pw.launch(pwOptions)
-      this.context = await this.browser.newContext()
-    } else {
-      this.context = await pw.launchPersistentContext(
-        this.browserDir,
-        pwOptions
+      this.context = await this.browser.newContext(
+        this.options.browserContextOptions
       )
+    } else {
+      this.context = await pw.launchPersistentContext(this.browserDir, {
+        ...pwOptions,
+        ...this.options.browserContextOptions,
+      })
     }
 
     return this.context
