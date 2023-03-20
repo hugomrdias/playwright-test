@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */
 // eslint-disable-next-line strict
-import { is } from 'uvu/assert'
+import { is , ok } from 'uvu/assert'
 import debug from 'debug'
 import { good, bad } from './lib.js'
 
@@ -29,5 +29,11 @@ describe('Array', () => {
     it('should return "bad"', async () => {
       is(await bad(), 'bad')
     })
+  })
+})
+
+describe('import.meta.url works', () => { 
+  it('import.meta.url should be defined', () => {
+    ok(import.meta.url)
   })
 })
