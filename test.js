@@ -99,6 +99,18 @@ describe('mocha', function () {
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('5 passing'), 'process stdout')
   })
+  it('mode:worker with type: "module"', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/test.mocha.mjs',
+      '--mode',
+      'worker',
+      '--type',
+      'module',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('5 passing'), 'process stdout')
+  })
 
   it('mocha extension', async () => {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--extension'])

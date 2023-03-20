@@ -24,6 +24,7 @@ export interface RunnerOptions {
   buildConfig: BuildOptions
   buildSWConfig: BuildOptions
   browserContextOptions?: BrowserContextOptions
+  workerOptions?: WorkerOptions
   beforeTests: (opts: RunnerOptions) => Promise<unknown>
   afterTests: (
     opts: RunnerOptions,

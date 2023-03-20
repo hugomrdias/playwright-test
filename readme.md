@@ -34,6 +34,7 @@ Description
     -w, --watch        Watch files for changes and re-run tests.
     -i, --incognito    Use incognito window to run tests.
     -e, --extension    Use extension background_page to run tests.
+    -t, --type         Worker type.  (default classic)
     --cov              Enable code coverage in istanbul format. Outputs '.nyc_output/coverage-pw.json'.
     --before           Path to a script to be loaded on a separate tab before the main script.
     --sw               Path to a script to be loaded in a service worker.

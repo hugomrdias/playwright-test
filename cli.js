@@ -140,6 +140,7 @@ sade2
   .option('-w, --watch', 'Watch files for changes and re-run tests.')
   .option('-i, --incognito', 'Use incognito window to run tests.')
   .option('-e, --extension', 'Use extension background_page to run tests.')
+  .option('-t, --type', 'Worker type.  (default classic)')
   .option(
     '--cov',
     "Enable code coverage in istanbul format. Outputs '.nyc_output/coverage-pw.json'."
@@ -233,6 +234,7 @@ sade2
           extensions: opts.extensions,
           beforeTests: opts.beforeTests,
           afterTests: opts.afterTests,
+          workerOptions: { type: opts.type || 'classic' },
         })
       )
 

@@ -53,6 +53,7 @@ const defaultOptions = {
   buildConfig: {},
   buildSWConfig: {},
   browserContextOptions: {},
+  workerOptions: {},
   beforeTests: async () => {},
   afterTests: async () => {},
 }
@@ -233,7 +234,7 @@ export class Runner {
       }
       case 'worker': {
         // do not await for the promise because we will wait for the 'worker' event after
-        page.evaluate(addWorker(outName))
+        page.evaluate(addWorker(outName, this.options.workerOptions))
         break
       }
       default: {

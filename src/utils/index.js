@@ -266,10 +266,11 @@ export async function getPw(browserName) {
 
 /**
  * @param {string} filePath
+ * @param {WorkerOptions} options
  */
-export function addWorker(filePath) {
+export function addWorker(filePath, options = {}) {
   return `
-const w = new Worker("${filePath}");
+const w = new Worker("${filePath}",${JSON.stringify(options)});
 w.onmessage = function(e) {
     if(e.data.pwRunEnded) {
         self.PW_TEST.end(e.data.pwRunFailed)
@@ -302,6 +303,7 @@ export function runnerOptions(flags) {
       'node',
       'cov',
       'config',
+      'type',
       '_',
       'd',
       'r',
@@ -310,6 +312,7 @@ export function runnerOptions(flags) {
       'w',
       'i',
       'e',
+      't',
     ]
 
     if (!localFlags.includes(key)) {
@@ -388,6 +391,7 @@ require('${require
       contents: infileContent,
       resolveDir: runner.options.cwd,
     },
+    format: runner.options.workerOptions?.type === 'module' ? 'esm' : 'iife',
     // sourceRoot: runner.dir,
     bundle: true,
     sourcemap: 'inline',
