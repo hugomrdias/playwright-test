@@ -14,6 +14,7 @@ import TapeRunner from './src/runner-tape.js'
 import { BenchmarkRunner } from './src/runner-benchmark.js'
 import ZoraRunner from './src/runner-zora.js'
 import fs from 'fs'
+import { NoneRunner } from './src/runner-none.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -209,6 +210,11 @@ sade2
           Runner = BenchmarkRunner
           break
         }
+        case 'none': {
+          Runner = NoneRunner
+          break
+        }
+
         default: {
           console.error('Runner not supported:', opts.runner)
           process.exit(1)
