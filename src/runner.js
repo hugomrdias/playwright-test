@@ -105,10 +105,11 @@ export class Runner {
 
     /** @type {import('playwright-core').LaunchOptions} */
     const pwOptions = {
-      headless: !this.options.extension && !this.options.debug,
+      headless: !this.options.debug,
       devtools: this.options.browser === 'chromium' && this.options.debug,
       args: this.options.extension
         ? [
+            ...(this.options.debug ? [] : ['--headless=new']),
             `--disable-extensions-except=${this.dir}`,
             `--load-extension=${this.dir}`,
           ]
@@ -153,7 +154,7 @@ export class Runner {
 
     if (this.options.extension) {
       const context = /** @type {ChromiumBrowserContext} */ (this.context)
-      const backgroundPages = await context.backgroundPages()
+      const backgroundPages = context.backgroundPages()
       this.page =
         backgroundPages.length > 0
           ? backgroundPages[0]
