@@ -1,5 +1,24 @@
 # Changelog
 
+## [9.0.0](https://www.github.com/hugomrdias/playwright-test/compare/v8.4.0...v9.0.0) (2023-04-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* tests now run as ESM modules
+
+### Features
+
+* 'none' runner ([d205423](https://www.github.com/hugomrdias/playwright-test/commit/d2054238b6ecc74117676a7b1a0a4f4eebc929a7))
+* tests now run as ESM modules ([e7bde86](https://www.github.com/hugomrdias/playwright-test/commit/e7bde86b161f950d9fc1587ad2feb50683df790f))
+
+
+### Bug Fixes
+
+* add exit code 1 on cli error ([f2f5fbb](https://www.github.com/hugomrdias/playwright-test/commit/f2f5fbb4bc37a66fa2d934bcc59ae26620106438))
+* esm sw test ([c7873a6](https://www.github.com/hugomrdias/playwright-test/commit/c7873a685440fc60df37ad564da1e949e2245d64))
+* fix load esm config on windows ([527dcda](https://www.github.com/hugomrdias/playwright-test/commit/527dcda9a37277fc65caff32574073a0aee464d1))
+
 ## [8.4.0](https://www.github.com/hugomrdias/playwright-test/compare/v8.3.0...v8.4.0) (2023-04-28)
 
 
