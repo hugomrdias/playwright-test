@@ -1,5 +1,18 @@
 # Changelog
 
+## [8.4.0](https://www.github.com/hugomrdias/playwright-test/compare/v8.3.0...v8.4.0) (2023-04-28)
+
+
+### Features
+
+* extensions use the new headless mode ([9d33a74](https://www.github.com/hugomrdias/playwright-test/commit/9d33a74402370f50c700a9a7abf8698bf9718e7d))
+* update deps ([afc261c](https://www.github.com/hugomrdias/playwright-test/commit/afc261cabe5a43a5107916018c989ba0da713c79))
+
+
+### Bug Fixes
+
+* only install deps not browser in ci linux ([db46d19](https://www.github.com/hugomrdias/playwright-test/commit/db46d1947fa473a2a7c9fb8a3439a311f0df2b4c))
+
 ## [8.3.0](https://www.github.com/hugomrdias/playwright-test/compare/v8.2.0...v8.3.0) (2023-04-06)
 
 
