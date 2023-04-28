@@ -4,7 +4,7 @@
 import path from 'path'
 import sade from 'sade'
 import kleur from 'kleur'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
 import { lilconfig } from 'lilconfig'
 import mergeOptions from 'merge-options'
 import { runnerOptions } from './src/utils/index.js'
@@ -108,8 +108,7 @@ const sade2 = new Proxy(sade('playwright-test [files]', true), {
 
 const loadEsm = async (/** @type {string} */ filepath) => {
   /** @type {any} */
-  const res = await import(filepath)
-
+  const res = await import(pathToFileURL(filepath).toString())
   if (res.default) {
     return res.default
   }
