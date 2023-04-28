@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.3.0](https://www.github.com/hugomrdias/playwright-test/compare/v8.2.0...v8.3.0) (2023-04-06)
+
+
+### Features
+
+* upgrade deps ([10fc905](https://www.github.com/hugomrdias/playwright-test/commit/10fc9059400798c7df84b856d12de6e3b478ffb7))
+
 ## [8.2.0](https://www.github.com/hugomrdias/playwright-test/compare/v8.1.2...v8.2.0) (2023-01-27)
 
 
