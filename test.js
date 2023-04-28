@@ -1,21 +1,21 @@
 import fs from 'fs'
 import path from 'path'
 import { ok, is } from 'uvu/assert'
-import { execa } from 'execa'
+import { execa, execaSync } from 'execa'
 
 describe('mocha', function () {
   it('basic', async () => {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js'])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('5 passing'), 'process stdout')
+    ok(proc.stdout.includes('6 passing'), 'process stdout')
   })
 
   it('coverage', async () => {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--cov'])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('5 passing'), 'process stdout')
+    ok(proc.stdout.includes('6 passing'), 'process stdout')
 
     const cov = JSON.parse(
       // eslint-disable-next-line unicorn/prefer-json-parse-buffer
@@ -33,7 +33,7 @@ describe('mocha', function () {
     ])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('5 passing'), 'process stdout')
+    ok(proc.stdout.includes('6 passing'), 'process stdout')
 
     const cov = JSON.parse(
       // eslint-disable-next-line unicorn/prefer-json-parse-buffer
@@ -50,7 +50,7 @@ describe('mocha', function () {
     ])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('5 passing'), 'process stdout')
+    ok(proc.stdout.includes('6 passing'), 'process stdout')
   })
 
   it('coverage with cwd', async () => {
@@ -62,7 +62,7 @@ describe('mocha', function () {
     ])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('5 passing'), 'process stdout')
+    ok(proc.stdout.includes('6 passing'), 'process stdout')
 
     const cov = JSON.parse(
       // eslint-disable-next-line unicorn/prefer-json-parse-buffer
@@ -78,7 +78,7 @@ describe('mocha', function () {
     })
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('5 passing'), 'process stdout')
+    ok(proc.stdout.includes('6 passing'), 'process stdout')
     ok(proc.stdout.includes('app test pass'), 'debug output')
   })
 
@@ -86,7 +86,7 @@ describe('mocha', function () {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--incognito'])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('5 passing'), 'process stdout')
+    ok(proc.stdout.includes('6 passing'), 'process stdout')
   })
 
   it('mode:worker', async () => {
@@ -97,25 +97,26 @@ describe('mocha', function () {
     ])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('5 passing'), 'process stdout')
+    ok(proc.stdout.includes('6 passing'), 'process stdout')
   })
 
   it('mocha extension', async () => {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--extension'])
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('5 passing'), 'process stdout')
+    ok(proc.stdout.includes('6 passing'), 'process stdout')
   })
 
-  it('sw', async () => {
-    const proc = await execa('./cli.js', [
+  it('sw', () => {
+    const proc = execaSync('./cli.js', [
       'mocks/sw/sw-test.js',
       '--sw',
       'mocks/sw/sw.js',
       '--config',
-      'mocks/sw/sw.config.js',
+      'mocks/sw/sw.config.cjs',
     ])
 
     is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('1 passing'), 'process stdout')
   })
 
   it('supports esm config files', async () => {
@@ -128,6 +129,7 @@ describe('mocha', function () {
     ])
 
     is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('1 passing'), 'process stdout')
   })
 
   it('supports esm config files that return promises', async () => {
@@ -140,6 +142,7 @@ describe('mocha', function () {
     ])
 
     is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('1 passing'), 'process stdout')
   })
 
   it('supports esm config files that return functions', async () => {
@@ -152,6 +155,7 @@ describe('mocha', function () {
     ])
 
     is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('1 passing'), 'process stdout')
   })
 })
 

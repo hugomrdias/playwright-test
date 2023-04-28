@@ -212,6 +212,8 @@ export class Runner {
         'Uncaught exception happened within the page. Run with --debug.'
       )
     })
+
+    await this.page.waitForLoadState('domcontentloaded')
     return this.page
   }
 
@@ -231,7 +233,7 @@ export class Runner {
 
     switch (this.options.mode) {
       case 'main': {
-        await page.addScriptTag({ url: outName })
+        await page.addScriptTag({ url: outName, type: 'module' })
         break
       }
       case 'worker': {

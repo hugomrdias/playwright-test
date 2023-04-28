@@ -269,7 +269,7 @@ export async function getPw(browserName) {
  */
 export function addWorker(filePath) {
   return `
-const w = new Worker("${filePath}");
+const w = new Worker("${filePath}", { type: "module" });
 w.onmessage = function(e) {
     if(e.data.pwRunEnded) {
         self.PW_TEST.end(e.data.pwRunFailed)
@@ -340,24 +340,26 @@ export async function build(runner, config = {}, tmpl = '', mode = 'bundle') {
 
   // main script template
   let infileContent = `
-'use strict'
-require('${sourceMapSupport.replace(/\\/g, '/')}').install();
+import { install } from '${sourceMapSupport.replace(/\\/g, '/')}'
+install()
 process.env = ${JSON.stringify(runner.env)}
 
 ${tmpl}
 
-${runner.tests.map((t) => `require('${t.replace(/\\/g, '/')}')`).join('\n')}
+${runner.tests
+  .map((t) => `await import('${t.replace(/\\/g, '/')}')`)
+  .join('\n')}
 `
 
   // before script template
   if (mode === 'before' && runner.options.before) {
     infileContent = `
-'use strict'
-require('${sourceMapSupport.replace(/\\/g, '/')}').install();
+import { install } from '${sourceMapSupport.replace(/\\/g, '/')}'
+install()
 process.env = ${JSON.stringify(runner.env)}
 
-require('${require.resolve('../static/setup.js').replace(/\\/g, '/')}')
-require('${require
+await import('${require.resolve('../static/setup.js').replace(/\\/g, '/')}')
+await import('${require
       .resolve(path.join(runner.options.cwd, runner.options.before))
       .replace(/\\/g, '/')}')
 `
@@ -391,6 +393,8 @@ require('${require
     // sourceRoot: runner.dir,
     bundle: true,
     sourcemap: 'inline',
+    platform: 'browser',
+    format: 'esm',
     plugins: [nodePlugin, watchPlugin],
     outfile: outPath,
     inject: [path.join(__dirname, 'inject-process.js')],

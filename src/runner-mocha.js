@@ -80,7 +80,9 @@ class MochaRunner extends Runner {
     return build(
       this,
       {},
-      `require('${require.resolve('./setup-mocha.js').replace(/\\/g, '/')}')`,
+      `await import('${require
+        .resolve('./setup-mocha.js')
+        .replace(/\\/g, '/')}')`,
       mode
     )
   }

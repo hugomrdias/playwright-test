@@ -39,7 +39,9 @@ class TapeRunner extends Runner {
         plugins: [plugin],
         inject: [path.join(__dirname, 'node-globals-buffer.js')],
       },
-      `require('${require.resolve('./setup-tape.js').replace(/\\/g, '/')}')`,
+      `await import('${require
+        .resolve('./setup-tape.js')
+        .replace(/\\/g, '/')}')`,
       mode
     )
   }
