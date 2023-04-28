@@ -22,9 +22,9 @@ jobs:
           node-version: 18
           cache: 'pnpm'
       - run: pnpm install
-      - run: npx playwright install --with-deps
+      - run: npx playwright install-deps
       - run: pnpm run lint
-      - run: xvfb-run -a pnpm run test
+      - run: pnpm run test
       - run: ./cli.js mocks/test.mocha.js --browser firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
 
