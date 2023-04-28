@@ -249,6 +249,7 @@ sade2
       }
     } catch (error) {
       console.error(error)
+      process.exit(1)
     }
   })
   .parse(process.argv)
