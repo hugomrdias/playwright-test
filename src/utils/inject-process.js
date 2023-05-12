@@ -1,5 +1,6 @@
 // @ts-nocheck
-import { process as _process } from 'process/browser'
+// eslint-disable-next-line unicorn/prefer-module
+const _process = require('process/browser')
 
 const p = {
   ..._process,
