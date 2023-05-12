@@ -292,35 +292,30 @@ export class Runner {
 
       // run tests
       if (!this.options.debug) {
-        if (this.type === 'none') {
-          // exit
-          await this.stop(false)
-        } else {
-          // wait for the tests
-          await page.waitForFunction(
-            // @ts-ignore
-            () => self.PW_TEST.ended === true,
-            undefined,
-            {
-              timeout: 0,
-              polling: 100, // need to be polling raf doesnt work in extensions
-            }
-          )
-          const testsFailed = await page.evaluate('self.PW_TEST.failed')
-
-          // coverage
-          if (this.options.cov && page.coverage) {
-            await createCov(
-              this,
-              await page.coverage.stopJSCoverage(),
-              outName,
-              this.options.reportDir
-            )
+        // wait for the tests
+        await page.waitForFunction(
+          // @ts-ignore
+          () => self.PW_TEST.ended === true,
+          undefined,
+          {
+            timeout: 0,
+            polling: 100, // need to be polling raf doesnt work in extensions
           }
+        )
+        const testsFailed = await page.evaluate('self.PW_TEST.failed')
 
-          // exit
-          await this.stop(testsFailed)
+        // coverage
+        if (this.options.cov && page.coverage) {
+          await createCov(
+            this,
+            await page.coverage.stopJSCoverage(),
+            outName,
+            this.options.reportDir
+          )
         }
+
+        // exit
+        await this.stop(testsFailed)
       }
     } catch (/** @type {any} */ error) {
       spinner.fail('Running tests failed.')

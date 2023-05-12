@@ -2,23 +2,20 @@ import { Bench } from 'tinybench'
 
 const bench = new Bench({ time: 100 })
 
-bench
-  .add('switch 1', () => {
-    let a = 1
-    let b = 2
-    const c = a
-    a = b
-    b = c
-  })
-  .add('switch 2', () => {
-    let a = 1
-    let b = 10
-    a = b + a
-    b = a - b
-    a = b - a
-  })
+async function run() {
+  bench
+    .add('faster task', () => {
+      console.log('I am faster')
+    })
+    .add('slower task', async () => {
+      await new Promise((r) => setTimeout(r, 500)) // we wait 1ms :)
+      console.log('I am slower')
+    })
 
-await bench.run()
+  await bench.run()
+}
+
+await run()
 
 console.table(
   bench.tasks.map(({ name, result }) => ({
@@ -28,10 +25,4 @@ console.table(
   }))
 )
 
-// Output:
-// ┌─────────┬────────────┬────────────────────┬────────────────────┐
-// │ (index) │ Task Name  │ Average Time (ps)  │   Variance (ps)    │
-// ├─────────┼────────────┼────────────────────┼────────────────────┤
-// │    0    │ 'switch 1' │ 1.8458325710527104 │ 1.2113875253341617 │
-// │    1    │ 'switch 2' │ 1.8746935152109603 │ 1.2254725890767446 │
-// └─────────┴────────────┴────────────────────┴────────────────────┘
+process.exit(0)

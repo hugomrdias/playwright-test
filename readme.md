@@ -76,6 +76,17 @@ Description
     $ playwright-test test/** BAD
 ```
 
+## Flow control
+
+All test runners support automatic flow control, which means you don't need to call special function or trigger any event in your tests to stop the run. The `none` runner does not support flow control.
+
+To manually stop the run you can use `process.exit`:
+
+```js
+process.exit(0) // stops the run and exits with success
+process.exit(1) // stops the run and exits with failure
+```
+
 ## Config
 
 > The config file needs to be commonjs for now, so if your package is pure ESM you need to use `.cjs` extension.
