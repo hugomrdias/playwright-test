@@ -1,5 +1,12 @@
 # Changelog
 
+## [9.1.0](https://www.github.com/hugomrdias/playwright-test/compare/v9.0.0...v9.1.0) (2023-05-12)
+
+
+### Features
+
+* add process.exit ([#542](https://www.github.com/hugomrdias/playwright-test/issues/542)) ([2685431](https://www.github.com/hugomrdias/playwright-test/commit/268543178e105ac027b20f5156ca6d2bb9f07dd9))
+
 ## [9.0.0](https://www.github.com/hugomrdias/playwright-test/compare/v8.4.0...v9.0.0) (2023-04-28)
 
 
