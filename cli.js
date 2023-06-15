@@ -214,10 +214,6 @@ sade2
           TestRunner = NoneRunner
           break
         }
-        case 'subtest': {
-          TestRunner = SubtestRunner
-          break
-        }
 
         default: {
           TestRunner = await Runner.import(opts.runner)

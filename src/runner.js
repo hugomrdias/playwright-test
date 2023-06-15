@@ -447,7 +447,7 @@ export class Runner {
   }
 
   /**
-   * @param {ESBuildOptions} config - Runner esbuild config
+   * @param {import('esbuild').BuildOptions} config - Runner esbuild config
    * @param {string} tmpl
    * @param {"bundle" | "before" | "watch"} mode
    */
