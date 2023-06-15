@@ -1,5 +1,12 @@
 # Changelog
 
+## [9.2.0](https://www.github.com/hugomrdias/playwright-test/compare/v9.1.0...v9.2.0) (2023-06-15)
+
+
+### Miscellaneous Chores
+
+* release 9.2.0 ([2c72d0d](https://www.github.com/hugomrdias/playwright-test/commit/2c72d0dda0307d2001460b7cdf48562ea457c12f))
+
 ## [9.1.0](https://www.github.com/hugomrdias/playwright-test/compare/v9.0.0...v9.1.0) (2023-05-12)
 
 
