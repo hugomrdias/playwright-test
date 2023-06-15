@@ -71,7 +71,9 @@ export class Runner {
     try {
       const path = resolveModule(id)
       const module = await import(path)
-      return /** @type {Runner} */ (module.createPlaywrightRunner(Runner))
+      return /** @type {typeof Runner} */ (
+        module.createPlaywrightRunner(Runner)
+      )
     } catch {}
   }
 
