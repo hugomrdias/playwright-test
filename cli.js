@@ -13,6 +13,7 @@ import MochaRunner from './src/runner-mocha.js'
 import TapeRunner from './src/runner-tape.js'
 import { BenchmarkRunner } from './src/runner-benchmark.js'
 import ZoraRunner from './src/runner-zora.js'
+import { Runner } from './src/runner.js'
 import fs from 'fs'
 import { NoneRunner } from './src/runner-none.js'
 
@@ -186,40 +187,49 @@ sade2
         config.config = await config.config()
       }
 
-      let Runner
+      let TestRunner
 
       switch (opts.runner) {
         case 'uvu': {
-          Runner = UvuRunner
+          TestRunner = UvuRunner
           break
         }
         case 'zora': {
-          Runner = ZoraRunner
+          TestRunner = ZoraRunner
           break
         }
         case 'mocha': {
-          Runner = MochaRunner
+          TestRunner = MochaRunner
           break
         }
         case 'tape': {
-          Runner = TapeRunner
+          TestRunner = TapeRunner
           break
         }
         case 'benchmark': {
-          Runner = BenchmarkRunner
+          TestRunner = BenchmarkRunner
           break
         }
         case 'none': {
-          Runner = NoneRunner
+          TestRunner = NoneRunner
+          break
+        }
+        case 'subtest': {
+          TestRunner = SubtestRunner
           break
         }
 
         default: {
-          console.error('Runner not supported:', opts.runner)
-          process.exit(1)
+          TestRunner = await Runner.import(opts.runner)
         }
       }
-      const runner = new Runner(
+
+      if (!TestRunner) {
+        console.error('Runner not supported:', opts.runner)
+        process.exit(1)
+      }
+
+      const runner = new TestRunner(
         merge(config ? config.config : {}, {
           cwd: opts.cwd,
           assets: opts.assets,

@@ -14,6 +14,8 @@ import {
   defaultTestPatterns,
   createCov,
   createPolka,
+  resolveModule,
+  build,
 } from './utils/index.js'
 import { compileSw } from './utils/build-sw.js'
 import mergeOptions from 'merge-options'
@@ -58,6 +60,21 @@ const defaultOptions = {
 }
 
 export class Runner {
+  /**
+   * Attempts to import and create runner from a given module. If the module
+   * can not be loaded or does not export `createPlaywrightRunner` function,
+   * it will return `undefined`, otherwise it will return a `Runner` subclass.
+   *
+   * @param {string} id
+   */
+  static async import(id) {
+    try {
+      const path = resolveModule(id)
+      const module = await import(path)
+      return /** @type {Runner} */ (module.createPlaywrightRunner(Runner))
+    } catch {}
+  }
+
   /**
    *
    * @param {Partial<import('./types').RunnerOptions>} [options]
@@ -427,5 +444,24 @@ export class Runner {
   async compiler(mode = 'bundle') {
     //
     throw new Error('abstract method')
+  }
+
+  /**
+   * @param {ESBuildOptions} config - Runner esbuild config
+   * @param {string} tmpl
+   * @param {"bundle" | "before" | "watch"} mode
+   */
+  async build(config, tmpl, mode) {
+    return build(this, config, tmpl, mode)
+  }
+
+  /**
+   * Hook that runner can override to customize / wrap tests as it sees fit.
+   *
+   * @param {string[]} urls - import urls
+   * @returns {string} - JS code that imports the test modules
+   */
+  compileTestImports(urls) {
+    return urls.map((url) => `await import('${url}')`).join('\n')
   }
 }

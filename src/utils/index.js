@@ -346,9 +346,7 @@ process.env = ${JSON.stringify(runner.env)}
 
 ${tmpl}
 
-${runner.tests
-  .map((t) => `await import('${t.replace(/\\/g, '/')}')`)
-  .join('\n')}
+${runner.compileTestImports(runner.tests.map((t) => t.replace(/\\/g, '/')))}
 `
 
   // before script template
@@ -466,6 +464,23 @@ export async function createCov(runner, coverage, file, outputDir) {
   )
   spinner.succeed('Code coverage generated, run "npx nyc report".')
 }
+
+/**
+ * Resolves module id from give base or cwd
+ *
+ * @param {string} id - module id
+ * @param {string} [base=process.cwd()] - base path
+ */
+export const resolveModule = (id, base = toDirectoryPath(process.cwd())) =>
+  createRequire(base).resolve(id)
+
+/**
+ * Ensures that path ends with a path separator
+ *
+ * @param {string} source
+ */
+export const toDirectoryPath = (source) =>
+  source.endsWith(path.sep) ? source : `${source}${path.sep}`
 
 /**
  * Get a free port
