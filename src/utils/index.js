@@ -25,7 +25,7 @@ const merge = mergeOptions.bind({
 })
 
 /**
- * @typedef {import('../types').RunnerOptions } RunnerOptions
+ * @typedef {import('../types').RunnerOptions<any> } RunnerOptions
  * @typedef {import('esbuild').Plugin} ESBuildPlugin
  * @typedef {import('esbuild').BuildOptions} ESBuildOptions
  */
@@ -324,7 +324,7 @@ export function runnerOptions(flags) {
 /**
  * Build the bundle
  *
- * @param {import("../runner").Runner} runner
+ * @param {import("../runner").Runner<any>} runner
  * @param {ESBuildOptions} config - Runner esbuild config
  * @param {string} tmpl
  * @param {"bundle" | "before" | "watch"} mode
@@ -346,8 +346,9 @@ process.env = ${JSON.stringify(runner.env)}
 
 ${tmpl}
 
-${runner.compileTestImports(runner.tests.map((t) => t.replace(/\\/g, '/')))}
+
 `
+  // ${runner.compileTestImports(runner.tests.map((t) => t.replace(/\\/g, '/')))}
 
   // before script template
   if (mode === 'before' && runner.options.before) {
@@ -410,7 +411,7 @@ await import('${require
 /**
  * Create coverage report in istanbul JSON format
  *
- * @param {import("../runner").Runner} runner
+ * @param {import("../runner").Runner<any>} runner
  * @param {any} coverage
  * @param {string} file
  * @param {string} outputDir
@@ -512,7 +513,7 @@ function getPort(port = 3000, host = '127.0.0.1') {
 }
 
 /**
- * @param {import('../runner').Runner} runner
+ * @param {import('../runner').Runner<any>} runner
  */
 export async function createPolka(runner) {
   const host = '127.0.0.1'

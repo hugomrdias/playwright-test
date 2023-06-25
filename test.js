@@ -207,7 +207,7 @@ describe('zora', () => {
       ['mocks/*.zora.js', '--runner', 'zora', '--mode', 'worker'],
       {
         env: {
-          RUN_ONLY: 'true',
+          ZORA_ONLY: 'true',
           INDENT: 'true',
         },
       }

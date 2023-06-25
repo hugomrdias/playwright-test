@@ -14,7 +14,6 @@ import {
   defaultTestPatterns,
   createCov,
   createPolka,
-  resolveModule,
   build,
 } from './utils/index.js'
 import { compileSw } from './utils/build-sw.js'
@@ -30,12 +29,17 @@ const merge = mergeOptions.bind({ ignoreUndefined: true })
  * @typedef {import('playwright-core').Page} Page
  * @typedef {import('playwright-core').BrowserContext} Context
  * @typedef {import('playwright-core').Browser} Browser
- * @typedef {import('./types').RunnerOptions} RunnerOptions
  * @typedef {import('playwright-core').ChromiumBrowserContext} ChromiumBrowserContext
  */
 
 /**
- * @type {RunnerOptions}
+ *
+ * @template T
+ * @typedef {import('./types').RunnerOptions<T>} RunnerOptions
+ */
+
+/**
+ * @type {RunnerOptions<import('./types').TestRunner<any>>}
  */
 const defaultOptions = {
   cwd: process.cwd(),
@@ -47,6 +51,11 @@ const defaultOptions = {
   input: undefined,
   extension: false,
   runnerOptions: {},
+  testRunner: {
+    options: {},
+    buildConfig: {},
+    compileRuntime: () => '',
+  },
   before: undefined,
   sw: undefined,
   cov: false,
@@ -59,31 +68,26 @@ const defaultOptions = {
   afterTests: async () => {},
 }
 
+/**
+ * @template {import('./types').TestRunner<any>} T
+ */
 export class Runner {
   /**
-   * Attempts to import and create runner from a given module. If the module
-   * can not be loaded or does not export `createPlaywrightRunner` function,
-   * it will return `undefined`, otherwise it will return a `Runner` subclass.
    *
-   * @param {string} id
-   */
-  static async import(id) {
-    try {
-      const path = resolveModule(id)
-      const module = await import(path)
-      return /** @type {typeof Runner} */ (
-        module.createPlaywrightRunner(Runner)
-      )
-    } catch {}
-  }
-
-  /**
-   *
-   * @param {Partial<import('./types').RunnerOptions>} [options]
+   * @param {Partial<import('./types').RunnerOptions<T>>} options
    */
   constructor(options = {}) {
-    /** @type {RunnerOptions} */
-    this.options = merge(defaultOptions, options)
+    /** @type {RunnerOptions<T>} */
+    this.options = merge(
+      defaultOptions,
+      {
+        ...options,
+        runnerOptions: options.testRunner
+          ? options.testRunner.options || {}
+          : {},
+      },
+      options
+    )
     /** @type {import('polka').Polka["server"] | undefined} */
     this.server = undefined
 
@@ -250,6 +254,18 @@ export class Runner {
     const { outName, files: mainFiles } = await this.compiler()
     files.push(...mainFiles)
 
+    // inject and register the service
+    if (this.options.sw) {
+      const { files: swFiles } = await compileSw(this, {
+        entry: this.options.sw,
+      })
+      files.push(...swFiles)
+      await page.evaluate(() => {
+        navigator.serviceWorker.register(`/sw-out.js`)
+        return navigator.serviceWorker.ready
+      })
+    }
+
     switch (this.options.mode) {
       case 'main': {
         await page.addScriptTag({ url: outName, type: 'module' })
@@ -263,18 +279,6 @@ export class Runner {
       default: {
         throw new Error('mode not supported')
       }
-    }
-
-    // inject and register the service
-    if (this.options.sw) {
-      const { files: swFiles } = await compileSw(this, {
-        entry: this.options.sw,
-      })
-      files.push(...swFiles)
-      await page.evaluate(() => {
-        navigator.serviceWorker.register(`/sw-out.js`)
-        return navigator.serviceWorker.ready
-      })
     }
 
     return { outName, files }
@@ -444,26 +448,14 @@ export class Runner {
    * @returns {Promise<import('./types').CompilerOutput>} file to be loaded in the page
    */
   async compiler(mode = 'bundle') {
-    //
-    throw new Error('abstract method')
-  }
-
-  /**
-   * @param {import('esbuild').BuildOptions} config - Runner esbuild config
-   * @param {string} tmpl
-   * @param {"bundle" | "before" | "watch"} mode
-   */
-  async build(config, tmpl, mode) {
-    return build(this, config, tmpl, mode)
-  }
-
-  /**
-   * Hook that runner can override to customize / wrap tests as it sees fit.
-   *
-   * @param {string[]} urls - import urls
-   * @returns {string} - JS code that imports the test modules
-   */
-  compileTestImports(urls) {
-    return urls.map((url) => `await import('${url}')`).join('\n')
+    return build(
+      this,
+      this.options.testRunner.buildConfig,
+      this.options.testRunner.compileRuntime(
+        this.options,
+        this.tests.map((t) => t.replace(/\\/g, '/'))
+      ),
+      mode
+    )
   }
 }

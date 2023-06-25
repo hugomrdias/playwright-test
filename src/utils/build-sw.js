@@ -12,7 +12,7 @@ const merge = mergeOptions.bind({
 })
 
 /**
- * @typedef {import('../types').RunnerOptions } RunnerOptions
+ * @typedef {import('../types').RunnerOptions<any> } RunnerOptions
  * @typedef {import('esbuild').Plugin} ESBuildPlugin
  * @typedef {import('esbuild').BuildOptions} ESBuildOptions
  *
@@ -20,7 +20,7 @@ const merge = mergeOptions.bind({
 /**
  * Build the bundle
  *
- * @param {import("../runner").Runner} runner
+ * @param {import("../runner").Runner<any>} runner
  * @param {{
  * entry: string
  * }} opts - Runner esbuild config

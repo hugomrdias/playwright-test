@@ -6,7 +6,7 @@ import type {
   WebKitBrowser,
 } from 'playwright-core'
 
-export interface RunnerOptions {
+export interface RunnerOptions<T> {
   cwd: string
   assets: string
   browser: 'chromium' | 'firefox' | 'webkit'
@@ -16,6 +16,7 @@ export interface RunnerOptions {
   input?: string[]
   extension: boolean
   runnerOptions: any
+  testRunner: T
   before?: string
   sw?: string
   cov: false
@@ -42,4 +43,10 @@ export type PwResult<TBrowser> = TBrowser extends 'webkit'
 export interface CompilerOutput {
   outName: string
   files: Set<string>
+}
+
+export interface TestRunner<O> {
+  options?: O
+  buildConfig?: BuildOptions
+  compileRuntime: (options: RunnerOptions, testPaths: string[]) => string
 }
