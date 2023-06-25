@@ -52,7 +52,6 @@ const p = {
     write: console.log,
   },
   hrtime,
-  testting: 'sss',
 }
 
 export const process = p
