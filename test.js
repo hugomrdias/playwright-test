@@ -230,3 +230,27 @@ describe.skip('benchmark', function () {
     ok(proc.stdout.includes('Fastest is String#indexOf'), 'process stdout')
   })
 })
+
+describe('custom runner', function () {
+  it('module from file', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/tinybench.js',
+      '--runner',
+      'mocks/custom-runner.js',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('Task Name'), 'process stdout')
+  })
+
+  it('module from config', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/test.mocha.js',
+      '--config',
+      'mocks/config.js',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('6 passing'), 'process stdout')
+  })
+})

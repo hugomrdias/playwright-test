@@ -30,16 +30,12 @@ const merge = mergeOptions.bind({ ignoreUndefined: true })
  * @typedef {import('playwright-core').BrowserContext} Context
  * @typedef {import('playwright-core').Browser} Browser
  * @typedef {import('playwright-core').ChromiumBrowserContext} ChromiumBrowserContext
+ * @typedef {import('./types').RunnerOptions} RunnerOptions
+ * @typedef {import('./types').TestRunner} TestRunner
  */
 
 /**
- *
- * @template T
- * @typedef {import('./types').RunnerOptions<T>} RunnerOptions
- */
-
-/**
- * @type {RunnerOptions<import('./types').TestRunner<any>>}
+ * @type {import('./types').RunnerOptions}
  */
 const defaultOptions = {
   cwd: process.cwd(),
@@ -50,7 +46,6 @@ const defaultOptions = {
   incognito: false,
   input: undefined,
   extension: false,
-  runnerOptions: {},
   testRunner: {
     options: {},
     buildConfig: {},
@@ -68,26 +63,14 @@ const defaultOptions = {
   afterTests: async () => {},
 }
 
-/**
- * @template {import('./types').TestRunner<any>} T
- */
 export class Runner {
   /**
    *
-   * @param {Partial<import('./types').RunnerOptions<T>>} options
+   * @param {Partial<import('./types').RunnerOptions>} options
    */
   constructor(options = {}) {
-    /** @type {RunnerOptions<T>} */
-    this.options = merge(
-      defaultOptions,
-      {
-        ...options,
-        runnerOptions: options.testRunner
-          ? options.testRunner.options || {}
-          : {},
-      },
-      options
-    )
+    /** @type {import('./types').RunnerOptions} */
+    this.options = merge(defaultOptions, options)
     /** @type {import('polka').Polka["server"] | undefined} */
     this.server = undefined
 

@@ -6,7 +6,7 @@ import type {
   WebKitBrowser,
 } from 'playwright-core'
 
-export interface RunnerOptions<T> {
+export interface RunnerOptions {
   cwd: string
   assets: string
   browser: 'chromium' | 'firefox' | 'webkit'
@@ -15,8 +15,7 @@ export interface RunnerOptions<T> {
   incognito: boolean
   input?: string[]
   extension: boolean
-  runnerOptions: any
-  testRunner: T
+  testRunner: TestRunner
   before?: string
   sw?: string
   cov: false
@@ -45,8 +44,18 @@ export interface CompilerOutput {
   files: Set<string>
 }
 
-export interface TestRunner<O> {
-  options?: O
+export interface TestRunner {
+  options?: unknown
+  /**
+   * Esbuild config for the test runner
+   */
   buildConfig?: BuildOptions
+  /**
+   * Compile runtime entry point for esbuild
+   *
+   * @param options - Runner options
+   * @param testPaths - Test paths
+   * @returns
+   */
   compileRuntime: (options: RunnerOptions, testPaths: string[]) => string
 }

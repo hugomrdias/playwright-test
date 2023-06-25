@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url'
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-/** @type {import('./types.js').TestRunner<import('mocha').MochaOptions>} */
+/** @type {import('./types.js').TestRunner} */
 export const mocha = {
   options: {
     allowUncaught: false,
@@ -20,7 +20,7 @@ export const mocha = {
 import mocha from 'mocha/mocha.js'
 
 const { allowUncaught, bail, reporter, timeout, color, ui, grep } =
-  process.env.PW_TEST.runnerOptions
+  process.env.PW_TEST.testRunner.options
 mocha.setup({
   allowUncaught,
   bail,
@@ -41,7 +41,7 @@ ${paths.map((url) => `await import('${url}')`).join('\n')}
   },
 }
 
-/** @type {import('./types.js').TestRunner<{}>} */
+/** @type {import('./types.js').TestRunner} */
 export const none = {
   options: {},
   compileRuntime(options, paths) {
@@ -67,7 +67,7 @@ const tapeEsbuildPlugin = {
 /**
  * Tape test runner
  *
- * @type {import('./types.js').TestRunner<{}>}
+ * @type {import('./types.js').TestRunner}
  */
 export const tape = {
   buildConfig: {
@@ -93,7 +93,7 @@ ${paths.map((url) => `await import('${url}')`).join('\n')}
   },
 }
 
-/** @type {import('./types.js').TestRunner<{}>} */
+/** @type {import('./types.js').TestRunner} */
 export const benchmark = {
   options: {},
   buildConfig: {
@@ -115,7 +115,7 @@ ${paths.map((url) => `await import('${url}')`).join('\n')}
   },
 }
 
-/** @type {import('./types.js').TestRunner<{}>} */
+/** @type {import('./types.js').TestRunner} */
 export const uvu = {
   options: {},
   compileRuntime(options, paths) {
@@ -140,7 +140,7 @@ uvu.exec(true).then((r) => {
   },
 }
 
-/** @type {import('./types.js').TestRunner<{}>} */
+/** @type {import('./types.js').TestRunner} */
 export const zora = {
   options: {},
   compileRuntime(options, paths) {

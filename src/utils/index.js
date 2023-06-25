@@ -25,7 +25,7 @@ const merge = mergeOptions.bind({
 })
 
 /**
- * @typedef {import('../types').RunnerOptions<any> } RunnerOptions
+ * @typedef {import('../types').RunnerOptions } RunnerOptions
  * @typedef {import('esbuild').Plugin} ESBuildPlugin
  * @typedef {import('esbuild').BuildOptions} ESBuildOptions
  */
@@ -299,9 +299,10 @@ export function runnerOptions(flags) {
       'extensions',
       'assets',
       'before',
-      'node',
       'cov',
       'config',
+      'sw',
+      'report-dir',
       '_',
       'd',
       'r',
@@ -324,7 +325,7 @@ export function runnerOptions(flags) {
 /**
  * Build the bundle
  *
- * @param {import("../runner").Runner<any>} runner
+ * @param {import("../runner").Runner} runner
  * @param {ESBuildOptions} config - Runner esbuild config
  * @param {string} tmpl
  * @param {"bundle" | "before" | "watch"} mode
@@ -348,8 +349,6 @@ ${tmpl}
 
 
 `
-  // ${runner.compileTestImports(runner.tests.map((t) => t.replace(/\\/g, '/')))}
-
   // before script template
   if (mode === 'before' && runner.options.before) {
     infileContent = `
@@ -411,7 +410,7 @@ await import('${require
 /**
  * Create coverage report in istanbul JSON format
  *
- * @param {import("../runner").Runner<any>} runner
+ * @param {import("../runner").Runner} runner
  * @param {any} coverage
  * @param {string} file
  * @param {string} outputDir
@@ -472,8 +471,29 @@ export async function createCov(runner, coverage, file, outputDir) {
  * @param {string} id - module id
  * @param {string} [base=process.cwd()] - base path
  */
-export const resolveModule = (id, base = toDirectoryPath(process.cwd())) =>
-  createRequire(base).resolve(id)
+export const resolveModule = (id, base = toDirectoryPath(process.cwd())) => {
+  let out
+  try {
+    const modulePath = createRequire(base).resolve(id)
+    if (modulePath) {
+      out = modulePath
+    }
+  } catch {}
+
+  if (!out) {
+    try {
+      const filePath = path.resolve(base, id)
+      fs.accessSync(filePath, fs.constants.R_OK)
+      out = filePath
+    } catch {}
+  }
+
+  if (!out) {
+    throw new Error(`Cannot resolve module "${id}" from "${base}"`)
+  }
+
+  return out
+}
 
 /**
  * Ensures that path ends with a path separator
@@ -513,7 +533,7 @@ function getPort(port = 3000, host = '127.0.0.1') {
 }
 
 /**
- * @param {import('../runner').Runner<any>} runner
+ * @param {import('../runner').Runner} runner
  */
 export async function createPolka(runner) {
   const host = '127.0.0.1'

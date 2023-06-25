@@ -153,7 +153,7 @@ sade2
     '--assets',
     'Assets to be served by the http server.  (default process.cwd())'
   )
-  .option('--cwd', 'Current directory.  (default process.cwd())')
+  .option('--cwd', 'Current directory.  (default process.cwd())', process.cwd())
   .option(
     '--extensions',
     'File extensions allowed in the bundle.  (default js,cjs,mjs,ts,tsx)'
@@ -182,7 +182,7 @@ sade2
         config.config = await config.config()
       }
 
-      /** @type {import('./src/types.js').RunnerOptions<any>} */
+      /** @type {import('./src/types.js').RunnerOptions} */
       const options = merge(config ? config.config : {}, {
         cwd: opts.cwd,
         assets: opts.assets,
@@ -192,10 +192,8 @@ sade2
         incognito: opts.incognito,
         input: input ? [input, ...opts._] : undefined,
         extension: opts.extension,
-        runnerOptions: runnerOptions(opts),
         before: opts.before,
         sw: opts.sw,
-        node: opts.node,
         cov: opts.cov,
         reportDir: opts['report-dir'],
         extensions: opts.extensions,
@@ -203,87 +201,57 @@ sade2
         afterTests: opts.afterTests,
       })
 
-      let runner
-      switch (opts.runner) {
-        case 'uvu': {
-          runner = /** @type {Runner<typeof uvu>} */ (
-            new Runner({
-              ...options,
-              testRunner: uvu,
-            })
-          )
-          break
-        }
-        case 'zora': {
-          runner = /** @type {Runner<typeof zora>} */ (
-            new Runner({
-              ...options,
-              testRunner: zora,
-            })
-          )
-          break
-        }
-        case 'mocha': {
-          runner = /** @type {Runner<typeof mocha>} */ (
-            new Runner({
-              ...options,
-              testRunner: mocha,
-            })
-          )
-          break
-        }
-        case 'tape': {
-          runner = /** @type {Runner<typeof tape>} */ (
-            new Runner({
-              ...options,
-              testRunner: tape,
-            })
-          )
-          break
-        }
-        case 'benchmark': {
-          runner = /** @type {Runner<typeof benchmark>} */ (
-            new Runner({
-              ...options,
-              testRunner: benchmark,
-            })
-          )
-          break
-        }
-        case 'none': {
-          runner = /** @type {Runner<typeof none>} */ (
-            new Runner({
-              ...options,
-              testRunner: none,
-            })
-          )
-          break
-        }
+      if (!options.testRunner) {
+        switch (opts.runner) {
+          case 'uvu': {
+            options.testRunner = uvu
+            break
+          }
+          case 'zora': {
+            options.testRunner = zora
+            break
+          }
+          case 'mocha': {
+            options.testRunner = mocha
+            break
+          }
+          case 'tape': {
+            options.testRunner = tape
+            break
+          }
+          case 'benchmark': {
+            options.testRunner = benchmark
+            break
+          }
+          case 'none': {
+            options.testRunner = none
+            break
+          }
 
-        default: {
-          try {
-            if (opts.runner) {
-              break
-            }
-            const path = resolveModule(opts.runner)
+          default: {
+            const path = resolveModule(opts.runner, opts.cwd)
             const module = await import(path)
-            /** @type {import('./src/types.js').TestRunner<any>} */
+            /** @type {import('./src/types.js').TestRunner} */
             const testRunner = module.playwrightTestRunner
             if (testRunner) {
-              runner = new Runner({
-                ...options,
-                testRunner,
-              })
+              options.testRunner = testRunner
+            } else {
+              throw new Error(
+                `Module "${path}" does not export a "playwrightTestRunner" object.`
+              )
             }
-          } catch {}
+          }
         }
       }
 
-      if (!runner) {
-        console.error('Runner not supported:', opts.runner)
-        process.exit(1)
-      }
-
+      const runner = new Runner(
+        merge(options, {
+          testRunner: {
+            // merge cli redirected options
+            options: runnerOptions(opts),
+          },
+        })
+      )
       if (opts.watch) {
         runner.watch()
       } else {
