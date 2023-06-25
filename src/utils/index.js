@@ -14,7 +14,7 @@ import ora from 'ora'
 import { createServer } from 'http'
 import polka from 'polka'
 import { createRequire } from 'module'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -492,7 +492,7 @@ export const resolveModule = (id, base = toDirectoryPath(process.cwd())) => {
     throw new Error(`Cannot resolve module "${id}" from "${base}"`)
   }
 
-  return out
+  return pathToFileURL(out).toString()
 }
 
 /**
