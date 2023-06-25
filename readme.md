@@ -87,6 +87,66 @@ process.exit(0) // stops the run and exits with success
 process.exit(1) // stops the run and exits with failure
 ```
 
+## Custom test runner
+
+You can define a custom test runner by passing a path to a file or a node module id that exports an object called `playwrightTestRunner` that implements the `TestRunner` interface.
+
+```shell
+
+$ playwright-test test.js --runner ./my-runner.js
+# or
+$ playwright-test test.js --runner my-runner
+
+```
+
+You can also just define you test runner in the config file.
+
+```js
+// playwright-test.config.js
+/** @type {import('../src/runner.js').RunnerOptions} */
+const config = {
+  testRunner: {
+    compileRuntime: (options, paths) => {
+      return `
+import mocha from 'mocha/mocha.js'
+mocha.setup({
+    reporter: 'spec',
+    timeout: 5000,
+    ui: 'bdd',
+})
+
+${paths.map((url) => `await import('${url}')`).join('\n')}
+
+  mocha
+    .run((f) =>{
+      process.exit(f)
+    })
+        `
+    },
+  },
+}
+
+export default config
+```
+
+```ts
+export interface TestRunner {
+  options?: unknown
+  /**
+   * Esbuild config for the test runner
+   */
+  buildConfig?: BuildOptions
+  /**
+   * Compile runtime entry point for esbuild
+   *
+   * @param options - Runner options
+   * @param testPaths - Test paths
+   * @returns
+   */
+  compileRuntime: (options: RunnerOptions, testPaths: string[]) => string
+}
+```
+
 ## Config
 
 > The config file needs to be commonjs for now, so if your package is pure ESM you need to use `.cjs` extension.
@@ -125,13 +185,15 @@ export interface RunnerOptions {
   incognito: boolean
   input?: string[]
   extension: boolean
-  runnerOptions: any
+  testRunner: TestRunner
   before?: string
   sw?: string
   cov: false
+  reportDir: string
   extensions: string
   buildConfig: BuildOptions
   buildSWConfig: BuildOptions
+  browserContextOptions?: BrowserContextOptions
   beforeTests: (opts: RunnerOptions) => Promise<unknown>
   afterTests: (
     opts: RunnerOptions,
