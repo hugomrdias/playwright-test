@@ -1,18 +1,16 @@
 /* eslint-disable no-empty-function */
-'use strict'
-
-const { test } = require('uvu')
-const delay = require('delay')
-const assert = require('uvu/assert')
+import { test } from 'uvu'
+import delay from 'delay'
+import { type, is } from 'uvu/assert'
 
 test('sum', () => {
-  assert.type(() => {}, 'function')
-  assert.is(3, 3)
+  type(() => {}, 'function')
+  is(3, 3)
 })
 
 test('sum', async () => {
   await delay(100)
-  assert.type(() => {}, 'function')
-  assert.is(3, 3)
+  type(() => {}, 'function')
+  is(3, 3)
 })
 test.run()
