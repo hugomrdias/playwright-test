@@ -1,5 +1,13 @@
 # Changelog
 
+### [9.2.1](https://www.github.com/hugomrdias/playwright-test/compare/v9.2.0...v9.2.1) (2023-06-27)
+
+
+### Bug Fixes
+
+* add import.meta.env support ([8073767](https://www.github.com/hugomrdias/playwright-test/commit/80737675922b3159b39e269431d8381eb2253076)), closes [#549](https://www.github.com/hugomrdias/playwright-test/issues/549)
+* update multiple deps ([1847dc9](https://www.github.com/hugomrdias/playwright-test/commit/1847dc9d8ebbe8df20f6e411af4f763d658e606c))
+
 ## [9.2.0](https://www.github.com/hugomrdias/playwright-test/compare/v9.1.0...v9.2.0) (2023-06-15)
 
 
