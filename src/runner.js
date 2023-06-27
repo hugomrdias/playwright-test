@@ -436,7 +436,7 @@ export class Runner {
       this.options.testRunner.buildConfig,
       this.options.testRunner.compileRuntime(
         this.options,
-        this.tests.map((t) => t.replace(/\\/g, '/'))
+        this.tests.map((t) => t.replaceAll('\\', '/'))
       ),
       mode
     )

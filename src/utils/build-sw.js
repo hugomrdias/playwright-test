@@ -38,7 +38,7 @@ self.addEventListener('activate', (event) => {
   return self.clients.claim()
 })
 
-import "${path.join(runner.options.cwd, entry).replace(/\\/g, '/')}"
+import "${path.join(runner.options.cwd, entry).replaceAll('\\', '/')}"
 `
   const entryPoint = temporaryWriteSync(content, { extension: 'js' })
   /** @type {ESBuildPlugin} */
