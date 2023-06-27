@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */
 // eslint-disable-next-line strict
-const { is, ok } = require('uvu/assert')
+const { is, ok, equal } = require('uvu/assert')
 const debug = require('debug')('app')
 const { good, bad } = require('./lib')
 
@@ -27,8 +27,12 @@ describe('Array', () => {
       is(await bad(), 'bad')
     })
 
-    it('should has import.meta', async () => {
+    it('should has import.meta.url', async () => {
       ok(import.meta.url)
+    })
+
+    it('should has import.meta.env', async () => {
+      equal(import.meta.env, process.env)
     })
   })
 })

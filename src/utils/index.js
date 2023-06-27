@@ -341,23 +341,25 @@ export async function build(runner, config = {}, tmpl = '', mode = 'bundle') {
 
   // main script template
   let infileContent = `
-import { install } from '${sourceMapSupport.replace(/\\/g, '/')}'
+import { install } from '${sourceMapSupport.replaceAll('\\', '/')}'
 install()
 process.env = ${JSON.stringify(runner.env)}
+import.meta.env = ${JSON.stringify(runner.env)}
 
 ${tmpl}
 `
   // before script template
   if (mode === 'before' && runner.options.before) {
     infileContent = `
-import { install } from '${sourceMapSupport.replace(/\\/g, '/')}'
+import { install } from '${sourceMapSupport.replaceAll('\\', '/')}'
 install()
 process.env = ${JSON.stringify(runner.env)}
+import.meta.env = ${JSON.stringify(runner.env)}
 
-await import('${require.resolve('../../static/setup.js').replace(/\\/g, '/')}')
+await import('${require.resolve('../../static/setup.js').replaceAll('\\', '/')}')
 await import('${require
       .resolve(path.join(runner.options.cwd, runner.options.before))
-      .replace(/\\/g, '/')}')
+      .replaceAll('\\', '/')}')
 `
   }
 
