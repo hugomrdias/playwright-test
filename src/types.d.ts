@@ -45,6 +45,9 @@ export interface CompilerOutput {
 }
 
 export interface TestRunner {
+  /**
+   * Options made available to the compiled runtime, accessable with `process.env.PW_TEST.testRunner.options`.
+   */
   options?: unknown
   /**
    * Esbuild config for the test runner

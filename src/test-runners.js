@@ -134,7 +134,7 @@ ${paths.map((url) => `await import('${url}')`).join('\n')}
         
 const uvu = await import('uvu')
 uvu.exec(true).then((r) => {
-    process.exit(0)
+    process.exit()
 })
 `
   },

@@ -346,8 +346,6 @@ install()
 process.env = ${JSON.stringify(runner.env)}
 
 ${tmpl}
-
-
 `
   // before script template
   if (mode === 'before' && runner.options.before) {
@@ -356,7 +354,7 @@ import { install } from '${sourceMapSupport.replace(/\\/g, '/')}'
 install()
 process.env = ${JSON.stringify(runner.env)}
 
-await import('${require.resolve('../static/setup.js').replace(/\\/g, '/')}')
+await import('${require.resolve('../../static/setup.js').replace(/\\/g, '/')}')
 await import('${require
       .resolve(path.join(runner.options.cwd, runner.options.before))
       .replace(/\\/g, '/')}')
