@@ -119,7 +119,7 @@
     "coverage",
     "dist",
     "src/vendor/benchmark.js",
-    "src/setup-bench.js",
+    "src/utils/proxy-benchmark.js",
     "src/vendor/source-map-support.js",
     "mocks"
   ],

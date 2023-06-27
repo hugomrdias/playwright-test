@@ -59,7 +59,7 @@ const tapeEsbuildPlugin = {
       return { path: require.resolve('stream-browserify') }
     })
     build.onResolve({ filter: /^fs$/ }, () => {
-      return { path: require.resolve('./empty-fs.js') }
+      return { path: require.resolve('./utils/resolve-empty-fs.js') }
     })
   },
 }
@@ -72,7 +72,7 @@ const tapeEsbuildPlugin = {
 export const tape = {
   buildConfig: {
     plugins: [tapeEsbuildPlugin],
-    inject: [path.join(__dirname, 'node-globals-buffer.js')],
+    inject: [path.join(__dirname, 'utils/inject-buffer.js')],
   },
   compileRuntime(options, paths) {
     return `
@@ -102,7 +102,7 @@ export const benchmark = {
         name: 'swap benchmark',
         setup(build) {
           build.onResolve({ filter: /^benchmark$/ }, () => {
-            return { path: path.join(__dirname, 'setup-bench.js') }
+            return { path: path.join(__dirname, 'utils/proxy-benchmark.js') }
           })
         },
       },

@@ -4,7 +4,7 @@
 // Run benchmarkjs in the browser https://github.com/bestiejs/benchmark.js/issues/128#issuecomment-271615298
 // const process = require('process');
 const _ = require('lodash')
-require('./vendor/benchmark')
+require('../vendor/benchmark')
 
 const BenchmarkSpecial = globalThis.Benchmark.runInContext({
   _,
