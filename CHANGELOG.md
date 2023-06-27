@@ -1,5 +1,27 @@
 # Changelog
 
+## [10.0.0](https://github.com/hugomrdias/playwright-test/compare/v9.2.0...v10.0.0) (2023-06-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* add support for custom test runners https://github.com/hugomrdias/playwright-test#custom-test-runner
+
+### Features
+
+* add support for custom test runners https://github.com/hugomrdias/playwright-test#custom-test-runner ([f5fb924](https://github.com/hugomrdias/playwright-test/commit/f5fb9246e50c003aa3d8f16d871e9fe9258cd0f6))
+
+
+### Bug Fixes
+
+* add import.meta.env support ([8073767](https://github.com/hugomrdias/playwright-test/commit/80737675922b3159b39e269431d8381eb2253076)), closes [#549](https://github.com/hugomrdias/playwright-test/issues/549)
+* update multiple deps ([1847dc9](https://github.com/hugomrdias/playwright-test/commit/1847dc9d8ebbe8df20f6e411af4f763d658e606c))
+
+
+### Miscellaneous Chores
+
+* release 10.0.0 ([e4b288d](https://github.com/hugomrdias/playwright-test/commit/e4b288d42fada596650a89288201fdda1cb68c62))
+
 ## [9.2.0](https://www.github.com/hugomrdias/playwright-test/compare/v9.1.0...v9.2.0) (2023-06-15)
 
 
