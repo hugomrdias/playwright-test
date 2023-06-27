@@ -14,7 +14,7 @@ import ora from 'ora'
 import { createServer } from 'http'
 import polka from 'polka'
 import { createRequire } from 'module'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -299,9 +299,10 @@ export function runnerOptions(flags) {
       'extensions',
       'assets',
       'before',
-      'node',
       'cov',
       'config',
+      'sw',
+      'report-dir',
       '_',
       'd',
       'r',
@@ -345,12 +346,7 @@ install()
 process.env = ${JSON.stringify(runner.env)}
 
 ${tmpl}
-
-${runner.tests
-  .map((t) => `await import('${t.replace(/\\/g, '/')}')`)
-  .join('\n')}
 `
-
   // before script template
   if (mode === 'before' && runner.options.before) {
     infileContent = `
@@ -358,7 +354,7 @@ import { install } from '${sourceMapSupport.replace(/\\/g, '/')}'
 install()
 process.env = ${JSON.stringify(runner.env)}
 
-await import('${require.resolve('../static/setup.js').replace(/\\/g, '/')}')
+await import('${require.resolve('../../static/setup.js').replace(/\\/g, '/')}')
 await import('${require
       .resolve(path.join(runner.options.cwd, runner.options.before))
       .replace(/\\/g, '/')}')
@@ -466,6 +462,44 @@ export async function createCov(runner, coverage, file, outputDir) {
   )
   spinner.succeed('Code coverage generated, run "npx nyc report".')
 }
+
+/**
+ * Resolves module id from give base or cwd
+ *
+ * @param {string} id - module id
+ * @param {string} [base=process.cwd()] - base path
+ */
+export const resolveModule = (id, base = toDirectoryPath(process.cwd())) => {
+  let out
+  try {
+    const modulePath = createRequire(base).resolve(id)
+    if (modulePath) {
+      out = modulePath
+    }
+  } catch {}
+
+  if (!out) {
+    try {
+      const filePath = path.resolve(base, id)
+      fs.accessSync(filePath, fs.constants.R_OK)
+      out = filePath
+    } catch {}
+  }
+
+  if (!out) {
+    throw new Error(`Cannot resolve module "${id}" from "${base}"`)
+  }
+
+  return pathToFileURL(out).toString()
+}
+
+/**
+ * Ensures that path ends with a path separator
+ *
+ * @param {string} source
+ */
+export const toDirectoryPath = (source) =>
+  source.endsWith(path.sep) ? source : `${source}${path.sep}`
 
 /**
  * Get a free port

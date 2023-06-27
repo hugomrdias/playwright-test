@@ -28,6 +28,8 @@ console.table(
   }))
 )
 
+process.exit(0)
+
 // Output:
 // ┌─────────┬────────────┬────────────────────┬────────────────────┐
 // │ (index) │ Task Name  │ Average Time (ps)  │   Variance (ps)    │

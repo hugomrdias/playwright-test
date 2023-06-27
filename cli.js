@@ -7,14 +7,10 @@ import kleur from 'kleur'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { lilconfig } from 'lilconfig'
 import mergeOptions from 'merge-options'
-import { runnerOptions } from './src/utils/index.js'
-import UvuRunner from './src/runner-uvu.js'
-import MochaRunner from './src/runner-mocha.js'
-import TapeRunner from './src/runner-tape.js'
-import { BenchmarkRunner } from './src/runner-benchmark.js'
-import ZoraRunner from './src/runner-zora.js'
+import { resolveModule, runnerOptions } from './src/utils/index.js'
+import { Runner } from './src/runner.js'
 import fs from 'fs'
-import { NoneRunner } from './src/runner-none.js'
+import { benchmark, mocha, none, tape, uvu, zora } from './src/test-runners.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -157,7 +153,7 @@ sade2
     '--assets',
     'Assets to be served by the http server.  (default process.cwd())'
   )
-  .option('--cwd', 'Current directory.  (default process.cwd())')
+  .option('--cwd', 'Current directory.  (default process.cwd())', process.cwd())
   .option(
     '--extensions',
     'File extensions allowed in the bundle.  (default js,cjs,mjs,ts,tsx)'
@@ -186,61 +182,76 @@ sade2
         config.config = await config.config()
       }
 
-      let Runner
+      /** @type {import('./src/types.js').RunnerOptions} */
+      const options = merge(config ? config.config : {}, {
+        cwd: opts.cwd,
+        assets: opts.assets,
+        browser: opts.browser,
+        debug: opts.debug,
+        mode: opts.mode,
+        incognito: opts.incognito,
+        input: input ? [input, ...opts._] : undefined,
+        extension: opts.extension,
+        before: opts.before,
+        sw: opts.sw,
+        cov: opts.cov,
+        reportDir: opts['report-dir'],
+        extensions: opts.extensions,
+        beforeTests: opts.beforeTests,
+        afterTests: opts.afterTests,
+      })
 
-      switch (opts.runner) {
-        case 'uvu': {
-          Runner = UvuRunner
-          break
-        }
-        case 'zora': {
-          Runner = ZoraRunner
-          break
-        }
-        case 'mocha': {
-          Runner = MochaRunner
-          break
-        }
-        case 'tape': {
-          Runner = TapeRunner
-          break
-        }
-        case 'benchmark': {
-          Runner = BenchmarkRunner
-          break
-        }
-        case 'none': {
-          Runner = NoneRunner
-          break
-        }
+      if (!options.testRunner) {
+        switch (opts.runner) {
+          case 'uvu': {
+            options.testRunner = uvu
+            break
+          }
+          case 'zora': {
+            options.testRunner = zora
+            break
+          }
+          case 'mocha': {
+            options.testRunner = mocha
+            break
+          }
+          case 'tape': {
+            options.testRunner = tape
+            break
+          }
+          case 'benchmark': {
+            options.testRunner = benchmark
+            break
+          }
+          case 'none': {
+            options.testRunner = none
+            break
+          }
 
-        default: {
-          console.error('Runner not supported:', opts.runner)
-          process.exit(1)
+          default: {
+            const path = resolveModule(opts.runner, opts.cwd)
+            const module = await import(path)
+            /** @type {import('./src/types.js').TestRunner} */
+            const testRunner = module.playwrightTestRunner
+            if (testRunner) {
+              options.testRunner = testRunner
+            } else {
+              throw new Error(
+                `Module "${path}" does not export a "playwrightTestRunner" object.`
+              )
+            }
+          }
         }
       }
+
       const runner = new Runner(
-        merge(config ? config.config : {}, {
-          cwd: opts.cwd,
-          assets: opts.assets,
-          browser: opts.browser,
-          debug: opts.debug,
-          mode: opts.mode,
-          incognito: opts.incognito,
-          input: input ? [input, ...opts._] : undefined,
-          extension: opts.extension,
-          runnerOptions: runnerOptions(opts),
-          before: opts.before,
-          sw: opts.sw,
-          node: opts.node,
-          cov: opts.cov,
-          reportDir: opts['report-dir'],
-          extensions: opts.extensions,
-          beforeTests: opts.beforeTests,
-          afterTests: opts.afterTests,
+        merge(options, {
+          testRunner: {
+            // merge cli redirected options
+            options: runnerOptions(opts),
+          },
         })
       )
-
       if (opts.watch) {
         runner.watch()
       } else {

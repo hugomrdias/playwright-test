@@ -14,6 +14,7 @@ import {
   defaultTestPatterns,
   createCov,
   createPolka,
+  build,
 } from './utils/index.js'
 import { compileSw } from './utils/build-sw.js'
 import mergeOptions from 'merge-options'
@@ -28,12 +29,13 @@ const merge = mergeOptions.bind({ ignoreUndefined: true })
  * @typedef {import('playwright-core').Page} Page
  * @typedef {import('playwright-core').BrowserContext} Context
  * @typedef {import('playwright-core').Browser} Browser
- * @typedef {import('./types').RunnerOptions} RunnerOptions
  * @typedef {import('playwright-core').ChromiumBrowserContext} ChromiumBrowserContext
+ * @typedef {import('./types').RunnerOptions} RunnerOptions
+ * @typedef {import('./types').TestRunner} TestRunner
  */
 
 /**
- * @type {RunnerOptions}
+ * @type {import('./types').RunnerOptions}
  */
 const defaultOptions = {
   cwd: process.cwd(),
@@ -44,7 +46,11 @@ const defaultOptions = {
   incognito: false,
   input: undefined,
   extension: false,
-  runnerOptions: {},
+  testRunner: {
+    options: {},
+    buildConfig: {},
+    compileRuntime: () => '',
+  },
   before: undefined,
   sw: undefined,
   cov: false,
@@ -60,10 +66,10 @@ const defaultOptions = {
 export class Runner {
   /**
    *
-   * @param {Partial<import('./types').RunnerOptions>} [options]
+   * @param {Partial<import('./types').RunnerOptions>} options
    */
   constructor(options = {}) {
-    /** @type {RunnerOptions} */
+    /** @type {import('./types').RunnerOptions} */
     this.options = merge(defaultOptions, options)
     /** @type {import('polka').Polka["server"] | undefined} */
     this.server = undefined
@@ -231,6 +237,18 @@ export class Runner {
     const { outName, files: mainFiles } = await this.compiler()
     files.push(...mainFiles)
 
+    // inject and register the service
+    if (this.options.sw) {
+      const { files: swFiles } = await compileSw(this, {
+        entry: this.options.sw,
+      })
+      files.push(...swFiles)
+      await page.evaluate(() => {
+        navigator.serviceWorker.register(`/sw-out.js`)
+        return navigator.serviceWorker.ready
+      })
+    }
+
     switch (this.options.mode) {
       case 'main': {
         await page.addScriptTag({ url: outName, type: 'module' })
@@ -244,18 +262,6 @@ export class Runner {
       default: {
         throw new Error('mode not supported')
       }
-    }
-
-    // inject and register the service
-    if (this.options.sw) {
-      const { files: swFiles } = await compileSw(this, {
-        entry: this.options.sw,
-      })
-      files.push(...swFiles)
-      await page.evaluate(() => {
-        navigator.serviceWorker.register(`/sw-out.js`)
-        return navigator.serviceWorker.ready
-      })
     }
 
     return { outName, files }
@@ -425,7 +431,14 @@ export class Runner {
    * @returns {Promise<import('./types').CompilerOutput>} file to be loaded in the page
    */
   async compiler(mode = 'bundle') {
-    //
-    throw new Error('abstract method')
+    return build(
+      this,
+      this.options.testRunner.buildConfig,
+      this.options.testRunner.compileRuntime(
+        this.options,
+        this.tests.map((t) => t.replace(/\\/g, '/'))
+      ),
+      mode
+    )
   }
 }

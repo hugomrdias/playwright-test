@@ -15,7 +15,7 @@ export interface RunnerOptions {
   incognito: boolean
   input?: string[]
   extension: boolean
-  runnerOptions: any
+  testRunner: TestRunner
   before?: string
   sw?: string
   cov: false
@@ -42,4 +42,23 @@ export type PwResult<TBrowser> = TBrowser extends 'webkit'
 export interface CompilerOutput {
   outName: string
   files: Set<string>
+}
+
+export interface TestRunner {
+  /**
+   * Options made available to the compiled runtime, accessable with `process.env.PW_TEST.testRunner.options`.
+   */
+  options?: unknown
+  /**
+   * Esbuild config for the test runner
+   */
+  buildConfig?: BuildOptions
+  /**
+   * Compile runtime entry point for esbuild
+   *
+   * @param options - Runner options
+   * @param testPaths - Test paths
+   * @returns
+   */
+  compileRuntime: (options: RunnerOptions, testPaths: string[]) => string
 }

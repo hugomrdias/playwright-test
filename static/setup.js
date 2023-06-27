@@ -6,6 +6,7 @@ class PwTestController {
     this.ended = false
     this.failed = false
     this.env = {}
+    this.endCalled = false
   }
 
   beforeEnd() {
@@ -13,8 +14,12 @@ class PwTestController {
   }
 
   end(failed = this.failed) {
+    if (this.endCalled) {
+      return
+    }
     this.ended = true
     this.failed = failed
+    this.endCalled = true
   }
 
   fail() {
