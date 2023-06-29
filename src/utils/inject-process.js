@@ -24,6 +24,15 @@ function hrtime(previousTimestamp) {
   }
   return [seconds, nanoseconds]
 }
+
+function stderr() {
+  // eslint-disable-next-line no-console
+  console.log(...arguments)
+}
+
+stderr.isTTY = true
+stderr.getColorDepth = () => 256
+
 const p = {
   ..._process,
   exit: (code = 0) => {
@@ -51,6 +60,7 @@ const p = {
     // eslint-disable-next-line no-console
     write: console.log,
   },
+  stderr,
   hrtime,
 }
 
