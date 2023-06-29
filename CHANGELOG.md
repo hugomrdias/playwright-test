@@ -1,5 +1,12 @@
 # Changelog
 
+## [10.0.1](https://github.com/hugomrdias/playwright-test/compare/v10.0.0...v10.0.1) (2023-06-29)
+
+
+### Bug Fixes
+
+* more colors and experiental runner and autodetect ([477ec99](https://github.com/hugomrdias/playwright-test/commit/477ec995b26075389f61ba1d1d04d1d6d5ec2ede))
+
 ## [10.0.0](https://github.com/hugomrdias/playwright-test/compare/v9.2.0...v10.0.0) (2023-06-27)
 
 
