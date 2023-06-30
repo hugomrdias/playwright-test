@@ -212,6 +212,7 @@ export const tapsLocal = {
       .resolve(__dirname, 'taps/index.js')
       .replaceAll('\\', '/')
     return `
+    
 process.env.FORCE_COLOR = 1
 const {exec, hold} = await import('${tapsPath}')
 hold()
