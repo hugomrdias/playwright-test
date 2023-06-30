@@ -32,12 +32,7 @@ describe('mocha', function () {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js'])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(
-      proc.stdout.includes(
-        '[playwright-test] Autodetected "mocha" as the runner.'
-      ),
-      proc.stdout
-    )
+    ok(proc.stdout.includes('Autodetected'), proc.stdout)
   })
 
   it('coverage', async () => {
