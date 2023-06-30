@@ -15,6 +15,7 @@ import { createServer } from 'http'
 import polka from 'polka'
 import { createRequire } from 'module'
 import { fileURLToPath, pathToFileURL } from 'url'
+import * as DefaultRunners from '../test-runners.js'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -23,6 +24,31 @@ const merge = mergeOptions.bind({
   ignoreUndefined: true,
   concatArrays: true,
 })
+
+/**
+ * @type {import('../types').RunnerOptions}
+ */
+export const defaultOptions = {
+  cwd: process.cwd(),
+  assets: '',
+  browser: 'chromium',
+  debug: false,
+  mode: 'main', // worker
+  incognito: false,
+  input: undefined,
+  extension: false,
+  testRunner: DefaultRunners.none,
+  before: undefined,
+  sw: undefined,
+  cov: false,
+  reportDir: '.nyc_output',
+  extensions: 'js,cjs,mjs,ts,tsx',
+  buildConfig: {},
+  buildSWConfig: {},
+  browserContextOptions: {},
+  beforeTests: async () => {},
+  afterTests: async () => {},
+}
 
 /**
  * @typedef {import('../types').RunnerOptions } RunnerOptions
@@ -125,11 +151,18 @@ function findFiles({ cwd, extensions, filePatterns }) {
  * Find the tests files
  *
  * @param {object} options
- * @param {string} options.cwd
- * @param {string[]} options.extensions
- * @param {string[]} options.filePatterns
+ * @param {string} options.cwd - Current working directory
+ * @param {string[]} options.extensions - File extensions allowed in the bundle
+ * @param {string[]} options.filePatterns - File patterns to search for
  */
 export function findTests({ cwd, extensions, filePatterns }) {
+  if (
+    !filePatterns ||
+    filePatterns.length === 0 ||
+    filePatterns[0] === undefined
+  ) {
+    filePatterns = defaultTestPatterns(extensions)
+  }
   return findFiles({
     cwd,
     extensions,
@@ -356,7 +389,9 @@ install()
 process.env = ${JSON.stringify(runner.env)}
 import.meta.env = ${JSON.stringify(runner.env)}
 
-await import('${require.resolve('../../static/setup.js').replaceAll('\\', '/')}')
+await import('${require
+      .resolve('../../static/setup.js')
+      .replaceAll('\\', '/')}')
 await import('${require
       .resolve(path.join(runner.options.cwd, runner.options.before))
       .replaceAll('\\', '/')}')
@@ -471,20 +506,17 @@ export async function createCov(runner, coverage, file, outputDir) {
  * @param {string} id - module id
  * @param {string} [base=process.cwd()] - base path
  */
-export const resolveModule = (id, base = toDirectoryPath(process.cwd())) => {
+export async function resolveModule(id, base = toDirectoryPath(process.cwd())) {
   let out
   try {
-    const modulePath = createRequire(base).resolve(id)
-    if (modulePath) {
-      out = modulePath
-    }
+    out = await import(id)
   } catch {}
 
   if (!out) {
     try {
       const filePath = path.resolve(base, id)
       fs.accessSync(filePath, fs.constants.R_OK)
-      out = filePath
+      out = await import(pathToFileURL(filePath).toString())
     } catch {}
   }
 
@@ -492,7 +524,7 @@ export const resolveModule = (id, base = toDirectoryPath(process.cwd())) => {
     throw new Error(`Cannot resolve module "${id}" from "${base}"`)
   }
 
-  return pathToFileURL(out).toString()
+  return out
 }
 
 /**
@@ -502,6 +534,21 @@ export const resolveModule = (id, base = toDirectoryPath(process.cwd())) => {
  */
 export const toDirectoryPath = (source) =>
   source.endsWith(path.sep) ? source : `${source}${path.sep}`
+
+/**
+ *
+ * @param {string} runner
+ * @param {string} cwd
+ */
+export async function resolveTestRunner(runner, cwd) {
+  const module = await resolveModule(runner, cwd)
+  /** @type {import('../types.js').TestRunner} */
+  const testRunner = module.playwrightTestRunner
+  if (!testRunner) {
+    throw new Error(`Cannot find playwrightTestRunner export in ${path}`)
+  }
+  return testRunner
+}
 
 /**
  * Get a free port

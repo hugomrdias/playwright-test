@@ -7,6 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 /** @type {import('./types.js').TestRunner} */
 export const mocha = {
+  moduleId: 'mocha',
   options: {
     allowUncaught: false,
     bail: true,
@@ -18,6 +19,7 @@ export const mocha = {
   compileRuntime(options, paths) {
     return `
 import mocha from 'mocha/mocha.js'
+${options.mode === 'node' ? `globalThis.location={}` : ``}
 
 const { allowUncaught, bail, reporter, timeout, color, ui, grep } =
   process.env.PW_TEST.testRunner.options
@@ -43,6 +45,7 @@ ${paths.map((url) => `await import('${url}')`).join('\n')}
 
 /** @type {import('./types.js').TestRunner} */
 export const none = {
+  moduleId: 'none',
   options: {},
   compileRuntime(options, paths) {
     return `
@@ -70,12 +73,19 @@ const tapeEsbuildPlugin = {
  * @type {import('./types.js').TestRunner}
  */
 export const tape = {
-  buildConfig: {
-    plugins: [tapeEsbuildPlugin],
-    inject: [path.join(__dirname, 'utils/inject-buffer.js')],
+  moduleId: 'tape',
+  buildConfig: (options) => {
+    if (options.mode === 'node') {
+      return {}
+    }
+    return {
+      plugins: [tapeEsbuildPlugin],
+      inject: [path.join(__dirname, 'utils/inject-buffer.js')],
+    }
   },
   compileRuntime(options, paths) {
     return `
+${options.mode === 'node' ? `globalThis.location={}` : ``}
 import { onFailure, onFinish } from 'tape'
 
 self.TAPE_RUN_FAIL = false
@@ -95,18 +105,23 @@ ${paths.map((url) => `await import('${url}')`).join('\n')}
 
 /** @type {import('./types.js').TestRunner} */
 export const benchmark = {
-  options: {},
-  buildConfig: {
-    plugins: [
-      {
-        name: 'swap benchmark',
-        setup(build) {
-          build.onResolve({ filter: /^benchmark$/ }, () => {
-            return { path: path.join(__dirname, 'utils/proxy-benchmark.js') }
-          })
+  moduleId: 'benchmark',
+  buildConfig: (options) => {
+    if (options.mode === 'node') {
+      return {}
+    }
+    return {
+      plugins: [
+        {
+          name: 'swap benchmark',
+          setup(build) {
+            build.onResolve({ filter: /^benchmark$/ }, () => {
+              return { path: path.join(__dirname, 'utils/proxy-benchmark.js') }
+            })
+          },
         },
-      },
-    ],
+      ],
+    }
   },
   compileRuntime(options, paths) {
     return `
@@ -117,6 +132,7 @@ ${paths.map((url) => `await import('${url}')`).join('\n')}
 
 /** @type {import('./types.js').TestRunner} */
 export const uvu = {
+  moduleId: 'uvu',
   options: {},
   compileRuntime(options, paths) {
     return `
@@ -142,6 +158,7 @@ uvu.exec(true).then((r) => {
 
 /** @type {import('./types.js').TestRunner} */
 export const zora = {
+  moduleId: 'zora',
   options: {},
   compileRuntime(options, paths) {
     return `
@@ -156,6 +173,50 @@ const out = report({
     process.exit(process.exitCode)
 })
         
+`
+  },
+}
+
+/**
+ * Playwright Test Runner
+ *
+ * @type {import('./types').TestRunner}
+ */
+export const taps = {
+  moduleId: 'playwright-test/taps',
+  options: {},
+  compileRuntime(options, paths) {
+    return `
+process.env.FORCE_COLOR = 1
+const {exec, hold} = await import('playwright-test/taps')
+hold()
+${paths.map((url) => `await import('${url}')`).join('\n')}
+
+exec().then(() => {
+    process.exit(process.exitCode)
+})
+`
+  },
+}
+
+/**
+ * Playwright Test Runner
+ *
+ * @type {import('./types').TestRunner}
+ */
+export const tapsLocal = {
+  moduleId: '../../src/taps/index.js',
+  options: {},
+  compileRuntime(options, paths) {
+    return `
+process.env.FORCE_COLOR = 1
+const {exec, hold} = await import('${__dirname}/taps/index.js')
+hold()
+${paths.map((url) => `await import('${url}')`).join('\n')}
+
+exec().then(() => {
+    process.exit(process.exitCode)
+})
 `
   },
 }

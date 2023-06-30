@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+/* eslint-disable unicorn/prefer-ternary */
+/* eslint-disable complexity */
+/* eslint-disable max-depth */
 /* eslint-disable no-console */
 
 import path from 'path'
@@ -7,10 +10,18 @@ import kleur from 'kleur'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { lilconfig } from 'lilconfig'
 import mergeOptions from 'merge-options'
-import { resolveModule, runnerOptions } from './src/utils/index.js'
+import {
+  runnerOptions,
+  defaultOptions,
+  findTests,
+  resolveTestRunner,
+} from './src/utils/index.js'
 import { Runner } from './src/runner.js'
+import { NodeRunner } from './src/node/runner.js'
 import fs from 'fs'
 import { benchmark, mocha, none, tape, uvu, zora } from './src/test-runners.js'
+import { detectTestRunner } from './src/utils/auto-detect.js'
+import * as DefaultRunners from './src/test-runners.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -60,7 +71,7 @@ const extra = `
       '$ playwright-test "test/**/*.spec.js" --debug --before ./mocks/before.js'
     )}
     ${kleur.gray(
-      '# Run a script in a separate tab check ./mocks/before.js for an example.\n    # Important: You need to call `self.PW_TEST.beforeEnd()` to start the main script.'
+      '# Run a script in a separate tab. Check ./mocks/before.js for an example.\n    # Important: You need to call `self.PW_TEST.beforeEnd()` to start the main script.'
     )}
 
   ${kleur.bold('Runner Options')}
@@ -120,29 +131,47 @@ const configLoaders = {
 sade2
   .version(version)
   .describe(
-    'Run mocha, zora, uvu, tape and benchmark.js scripts inside real browsers with `playwright`.'
+    'Run mocha, zora, uvu, tape and benchmark.js scripts inside real browsers with `playwright` and in Node.'
   )
   .option(
     '-r, --runner',
-    'Test runner. Options: mocha, tape, zora, uvu and benchmark.',
-    'mocha'
+    'Test runner. Options: mocha, tape, zora, uvu, none, taps and benchmark. It also accepts a path to a module or a module name that exports a `playwrightTestRunner` object.'
   )
   .option(
     '-b, --browser',
-    'Browser to run tests. Options: chromium, firefox, webkit.  (default chromium)'
+    'Browser to run tests. Options: chromium, firefox, webkit.',
+    defaultOptions.browser
   )
-  .option('-m, --mode', 'Run mode. Options: main, worker.  (default main)')
-  .option('-d, --debug', 'Debug mode, keeps browser window open.')
+  .option(
+    '-m, --mode',
+    'Run mode. Options: main, worker and node.',
+    defaultOptions.mode
+  )
+  .option(
+    '-d, --debug',
+    'Debug mode, keeps browser window open.',
+    defaultOptions.debug
+  )
   .option('-w, --watch', 'Watch files for changes and re-run tests.')
-  .option('-i, --incognito', 'Use incognito window to run tests.')
-  .option('-e, --extension', 'Use extension background_page to run tests.')
+  .option(
+    '-i, --incognito',
+    'Use incognito window to run tests.',
+    defaultOptions.incognito
+  )
+  .option(
+    '-e, --extension',
+    'Use extension background_page to run tests.',
+    defaultOptions.extension
+  )
   .option(
     '--cov',
-    "Enable code coverage in istanbul format. Outputs '.nyc_output/coverage-pw.json'."
+    "Enable code coverage in istanbul format. Outputs '.nyc_output/coverage-pw.json'.",
+    defaultOptions.cov
   )
   .option(
     '--report-dir',
-    "Where to output code coverage in instanbul format.  (default '.nyc_output')"
+    'Where to output code coverage in instanbul format.',
+    defaultOptions.reportDir
   )
   .option(
     '--before',
@@ -151,12 +180,13 @@ sade2
   .option('--sw', 'Path to a script to be loaded in a service worker.')
   .option(
     '--assets',
-    'Assets to be served by the http server.  (default process.cwd())'
+    'Folder with assets to be served by the http server.  (default process.cwd())'
   )
-  .option('--cwd', 'Current directory.  (default process.cwd())', process.cwd())
+  .option('--cwd', 'Current directory.', defaultOptions.cwd)
   .option(
     '--extensions',
-    'File extensions allowed in the bundle.  (default js,cjs,mjs,ts,tsx)'
+    'File extensions allowed in the bundle.',
+    defaultOptions.extensions
   )
   .option('--config', 'Path to the config file')
   .action(async (input, opts) => {
@@ -182,15 +212,20 @@ sade2
         config.config = await config.config()
       }
 
-      /** @type {import('./src/types.js').RunnerOptions} */
+      /**
+       * Merge cli options with config file options
+       *
+       * @type {import('./src/types.js').RunnerOptions}
+       */
       const options = merge(config ? config.config : {}, {
+        input: input ? [input, ...opts._] : undefined,
+        testFiles: [],
         cwd: opts.cwd,
         assets: opts.assets,
         browser: opts.browser,
         debug: opts.debug,
         mode: opts.mode,
         incognito: opts.incognito,
-        input: input ? [input, ...opts._] : undefined,
         extension: opts.extension,
         before: opts.before,
         sw: opts.sw,
@@ -201,57 +236,88 @@ sade2
         afterTests: opts.afterTests,
       })
 
-      if (!options.testRunner) {
-        switch (opts.runner) {
-          case 'uvu': {
-            options.testRunner = uvu
-            break
-          }
-          case 'zora': {
-            options.testRunner = zora
-            break
-          }
-          case 'mocha': {
-            options.testRunner = mocha
-            break
-          }
-          case 'tape': {
-            options.testRunner = tape
-            break
-          }
-          case 'benchmark': {
-            options.testRunner = benchmark
-            break
-          }
-          case 'none': {
-            options.testRunner = none
-            break
-          }
+      const testFiles = findTests({
+        cwd: options.cwd,
+        extensions: options.extensions.split(','),
+        filePatterns: options.input ?? [],
+      })
 
-          default: {
-            const path = resolveModule(opts.runner, opts.cwd)
-            const module = await import(path)
-            /** @type {import('./src/types.js').TestRunner} */
-            const testRunner = module.playwrightTestRunner
-            if (testRunner) {
-              options.testRunner = testRunner
+      switch (opts.runner) {
+        case 'uvu': {
+          options.testRunner = uvu
+          break
+        }
+        case 'zora': {
+          options.testRunner = zora
+          break
+        }
+        case 'mocha': {
+          options.testRunner = mocha
+          break
+        }
+        case 'tape': {
+          options.testRunner = tape
+          break
+        }
+        case 'benchmark': {
+          options.testRunner = benchmark
+          break
+        }
+        case 'none': {
+          options.testRunner = none
+          break
+        }
+
+        default: {
+          if (opts.runner) {
+            options.testRunner = await resolveTestRunner(opts.runner, opts.cwd)
+          } else {
+            const testRunner =
+              options.testRunner ??
+              (detectTestRunner(testFiles[0], DefaultRunners) ||
+                DefaultRunners.none)
+            options.testRunner = testRunner
+
+            if (testRunner.moduleId === 'none') {
+              console.log(
+                '[playwright-test]',
+                kleur.yellow('Count not find a test runner. Using "none".')
+              )
             } else {
-              throw new Error(
-                `Module "${path}" does not export a "playwrightTestRunner" object.`
+              console.log(
+                '[playwright-test]',
+                kleur.cyan(
+                  `Autodetected "${testRunner.moduleId}" as the runner.`
+                )
               )
             }
           }
         }
       }
 
-      const runner = new Runner(
-        merge(options, {
-          testRunner: {
-            // merge cli redirected options
-            options: runnerOptions(opts),
-          },
-        })
-      )
+      let runner
+      if (opts.mode === 'node') {
+        runner = new NodeRunner(
+          merge(options, {
+            testRunner: {
+              // merge cli redirected options
+              options: runnerOptions(opts),
+            },
+          }),
+          testFiles
+        )
+      } else {
+        runner = new Runner(
+          merge(options, {
+            testRunner: {
+              // merge cli redirected options
+              options: runnerOptions(opts),
+            },
+          }),
+          testFiles
+        )
+      }
+
       if (opts.watch) {
         runner.watch()
       } else {

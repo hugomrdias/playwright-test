@@ -5,15 +5,15 @@
 ## Install
 
 ```shell
-$ npm install playwright-test
+pnpm install playwright-test
 ```
 
 ## Usage
 
 ```shell
-$ playwright-test [files] [options]
+playwright-test [files] [options]
 # or
-$ pw-test [files] [options]
+pw-test [files] [options]
 
 ```
 
@@ -21,24 +21,25 @@ $ pw-test [files] [options]
 
 ```shell
 Description
-    Run mocha, zora, uvu, tape and benchmark.js scripts inside real browsers with `playwright`.
+    Run mocha, zora, uvu, tape and benchmark.js scripts inside real browsers with `playwright` and in Node.
 
   Usage
     $ playwright-test [files] [options]
 
   Options
-    -r, --runner       Test runner. Options: mocha, tape, zora, uvu, none and benchmark.  (default mocha)
+    -r, --runner       Test runner. Options: mocha, tape, zora, uvu, none, taps and benchmark. Internal runners are autodetected by default. It also accepts a path to a module or a module ID that exports a `playwrightTestRunner` object.
     -b, --browser      Browser to run tests. Options: chromium, firefox, webkit.  (default chromium)
-    -m, --mode         Run mode. Options: main, worker.  (default main)
-    -d, --debug        Debug mode, keeps browser window open.
+    -m, --mode         Run mode. Options: main, worker and node.  (default main)
+    -d, --debug        Debug mode, keeps browser window open.  (default false)
     -w, --watch        Watch files for changes and re-run tests.
-    -i, --incognito    Use incognito window to run tests.
-    -e, --extension    Use extension background_page to run tests.
-    --cov              Enable code coverage in istanbul format. Outputs '.nyc_output/coverage-pw.json'.
+    -i, --incognito    Use incognito window to run tests.  (default false)
+    -e, --extension    Use extension background_page to run tests.  (default false)
+    --cov              Enable code coverage in istanbul format. Outputs '.nyc_output/coverage-pw.json'.  (default false)
+    --report-dir       Where to output code coverage in instanbul format.  (default .nyc_output)
     --before           Path to a script to be loaded on a separate tab before the main script.
     --sw               Path to a script to be loaded in a service worker.
-    --assets           Assets to be served by the http server.  (default process.cwd())
-    --cwd              Current directory.  (default process.cwd())
+    --assets           Folder with assets to be served by the http server.  (default process.cwd())
+    --cwd              Current directory.  (default /Users/hd/code/playwright-test)
     --extensions       File extensions allowed in the bundle.  (default js,cjs,mjs,ts,tsx)
     --config           Path to the config file
     -v, --version      Displays current version
@@ -57,7 +58,7 @@ Description
     # Enable code coverage in istanbul format which can be used by nyc.
 
     $ playwright-test "test/**/*.spec.js" --debug --before ./mocks/before.js
-    # Run a script in a separate tab check ./mocks/before.js for an example.
+    # Run a script in a separate tab. Check ./mocks/before.js for an example.
     # Important: You need to call `self.PW_TEST.beforeEnd()` to start the main script.
 
   Runner Options
@@ -132,6 +133,11 @@ export default config
 ```ts
 export interface TestRunner {
   /**
+   * Module ID name used to import the test runner runtime.
+   * Used in auto detection of the test runner.
+   */
+  moduleId: string
+  /**
    * Options made available to the compiled runtime, accessable with `process.env.PW_TEST.testRunner.options`.
    */
   options?: unknown
@@ -180,20 +186,20 @@ import type { RunnerOptions } from 'playwright-test'
 
 ```ts
 export interface RunnerOptions {
+  input?: string[]
+  testRunner: TestRunner
   cwd: string
-  assets: string
+  extensions: string
   browser: 'chromium' | 'firefox' | 'webkit'
   debug: boolean
-  mode: 'main' | 'worker'
+  mode: 'main' | 'worker' | 'node'
   incognito: boolean
-  input?: string[]
   extension: boolean
-  testRunner: TestRunner
+  assets: string
   before?: string
   sw?: string
-  cov: false
+  cov: boolean
   reportDir: string
-  extensions: string
   buildConfig: BuildOptions
   buildSWConfig: BuildOptions
   browserContextOptions?: BrowserContextOptions

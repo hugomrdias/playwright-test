@@ -1,27 +1,18 @@
 /* eslint-disable no-unsafe-finally */
 /* eslint-disable no-console */
 import kleur from 'kleur'
-import { harness } from './harness.js'
+import { TAPS_QUEUE, harness } from './harness.js'
 import { HAS_PROCESS, IS_ENV_WITH_DOM, IS_NODE, hrtime } from './utils.js'
 
-export const suite = (name = '') => {
+export const suite = (/** @type {string | undefined} */ name) => {
   return harness(name)
 }
-export const test = harness('default')
-
-let autoStart = true
-
-export function hold() {
-  autoStart = false
-}
+export const test = harness()
 
 /**
  * Execute the queued tests.
- *
- * @param {any} bail
  */
-export async function exec(bail) {
-  if (!autoStart) return
+export async function exec() {
   const timer = hrtime()
   let passes = 0
   let total = 0
@@ -31,7 +22,7 @@ export async function exec(bail) {
   /** @type {string[]} */
   let errors = []
 
-  for (const runner of globalThis.UVU_QUEUE) {
+  for (const runner of TAPS_QUEUE) {
     const [errs, ran, skip, max] = await runner(total)
     total += max
     passes += ran
@@ -47,7 +38,7 @@ export async function exec(bail) {
     )
   }
   if (skips > 0) {
-    console.log(kleur.yellow(`  ${passes} skipping`))
+    console.log(kleur.yellow(`  ${skips} skipping`))
   }
   if (errors.length > 0) {
     console.log(kleur.red(`  ${total - skips - passes} failing`))
@@ -70,28 +61,22 @@ export async function exec(bail) {
   }
 }
 
+let autoStart = true
+
+export function hold() {
+  autoStart = false
+}
+
+async function start() {
+  if (autoStart) {
+    await exec()
+  }
+}
+
 if (IS_ENV_WITH_DOM) {
-  window.addEventListener('load', exec)
+  window.addEventListener('load', start)
 }
 
 if (IS_NODE && process.argv0 === 'node') {
-  setTimeout(exec, 0)
+  setTimeout(start, 0)
 }
-
-/** @type {import('../types').TestRunner} */
-export const none = {
-  options: {},
-  compileRuntime(options, paths) {
-    return `
-process.env.FORCE_COLOR = 1
-const {exec} = await import('/Users/hd/code/playwright-test/src/taps/index.js')
-${paths.map((url) => `await import('${url}')`).join('\n')}
-
-exec().then(() => {
-    process.exit(process.exitCode)
-})
-`
-  },
-}
-
-export const playwrightTestRunner = none

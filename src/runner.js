@@ -10,11 +10,11 @@ import {
   redirectConsole,
   getPw,
   addWorker,
-  findTests,
-  defaultTestPatterns,
   createCov,
   createPolka,
   build,
+  defaultOptions,
+  findTests,
 } from './utils/index.js'
 import { compileSw } from './utils/build-sw.js'
 import mergeOptions from 'merge-options'
@@ -23,7 +23,7 @@ import { watch } from 'chokidar'
 import cpy from 'cpy'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const merge = mergeOptions.bind({ ignoreUndefined: true })
+const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
 
 /**
  * @typedef {import('playwright-core').Page} Page
@@ -34,41 +34,13 @@ const merge = mergeOptions.bind({ ignoreUndefined: true })
  * @typedef {import('./types').TestRunner} TestRunner
  */
 
-/**
- * @type {import('./types').RunnerOptions}
- */
-const defaultOptions = {
-  cwd: process.cwd(),
-  assets: '',
-  browser: 'chromium',
-  debug: false,
-  mode: 'main', // worker
-  incognito: false,
-  input: undefined,
-  extension: false,
-  testRunner: {
-    options: {},
-    buildConfig: {},
-    compileRuntime: () => '',
-  },
-  before: undefined,
-  sw: undefined,
-  cov: false,
-  reportDir: '.nyc_output',
-  extensions: 'js,cjs,mjs,ts,tsx',
-  buildConfig: {},
-  buildSWConfig: {},
-  browserContextOptions: {},
-  beforeTests: async () => {},
-  afterTests: async () => {},
-}
-
 export class Runner {
   /**
    *
    * @param {Partial<import('./types').RunnerOptions>} options
+   * @param {string[]} [testFiles]
    */
-  constructor(options = {}) {
+  constructor(options = {}, testFiles) {
     /** @type {import('./types').RunnerOptions} */
     this.options = merge(defaultOptions, options)
     /** @type {import('polka').Polka["server"] | undefined} */
@@ -85,20 +57,20 @@ export class Runner {
     this.env = merge(JSON.parse(JSON.stringify(process.env)), {
       PW_TEST: this.options,
     })
-    this.extensions = this.options.extensions.split(',')
     this.beforeTestsOutput = undefined
-    this.tests = findTests({
-      cwd: this.options.cwd,
-      extensions: this.extensions,
-      filePatterns: this.options.input ?? defaultTestPatterns(this.extensions),
-    })
+    this.tests =
+      testFiles ??
+      findTests({
+        cwd: this.options.cwd,
+        extensions: this.options.extensions.split(','),
+        filePatterns: options.input ?? [],
+      })
+
     if (this.tests.length === 0) {
       this.stop(false, 'No test files were found.')
     }
 
     process.env.DEBUG += ',-pw:*'
-
-    this.type = 'test'
   }
 
   async launch() {
@@ -433,7 +405,9 @@ export class Runner {
   async compiler(mode = 'bundle') {
     return build(
       this,
-      this.options.testRunner.buildConfig,
+      this.options.testRunner.buildConfig
+        ? this.options.testRunner.buildConfig(this.options)
+        : {},
       this.options.testRunner.compileRuntime(
         this.options,
         this.tests.map((t) => t.replaceAll('\\', '/'))

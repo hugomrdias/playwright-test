@@ -4,13 +4,16 @@ import { parse } from 'acorn'
 /**
  *
  * @param {string} path
+ * @param {Record<string, import('../types.js').TestRunner>} runners
  */
-export function findModules(path) {
+export function detectTestRunner(path, runners) {
   const contents = fs.readFileSync(path, 'utf8')
   const parsedCode = parse(contents, {
     ecmaVersion: 'latest',
     sourceType: 'module',
   })
+
+  /** @type {string[]} */
   const ids = []
 
   // @ts-ignore
@@ -38,5 +41,12 @@ export function findModules(path) {
     }
   }
 
-  return ids
+  const runnerMap = new Map()
+  for (const runner of Object.values(runners)) {
+    runnerMap.set(runner.moduleId, runner)
+  }
+
+  const runnerId = ids.find((id) => runnerMap.has(id))
+
+  return runnerId ? runnerMap.get(runnerId) : undefined
 }

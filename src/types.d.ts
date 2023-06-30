@@ -7,20 +7,20 @@ import type {
 } from 'playwright-core'
 
 export interface RunnerOptions {
+  input?: string[]
+  testRunner: TestRunner
   cwd: string
-  assets: string
+  extensions: string
   browser: 'chromium' | 'firefox' | 'webkit'
   debug: boolean
-  mode: 'main' | 'worker'
+  mode: 'main' | 'worker' | 'node'
   incognito: boolean
-  input?: string[]
   extension: boolean
-  testRunner: TestRunner
+  assets: string
   before?: string
   sw?: string
-  cov: false
+  cov: boolean
   reportDir: string
-  extensions: string
   buildConfig: BuildOptions
   buildSWConfig: BuildOptions
   browserContextOptions?: BrowserContextOptions
@@ -46,13 +46,18 @@ export interface CompilerOutput {
 
 export interface TestRunner {
   /**
+   * Module ID name used to import the test runner runtime.
+   * Used in auto detection of the test runner.
+   */
+  moduleId: string
+  /**
    * Options made available to the compiled runtime, accessable with `process.env.PW_TEST.testRunner.options`.
    */
   options?: unknown
   /**
    * Esbuild config for the test runner
    */
-  buildConfig?: BuildOptions
+  buildConfig?: (options: RunnerOptions) => BuildOptions
   /**
    * Compile runtime entry point for esbuild
    *

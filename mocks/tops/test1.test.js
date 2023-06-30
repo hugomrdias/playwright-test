@@ -44,9 +44,9 @@ test.skip('sum2', async () => {
 //   equal({ a: 1, b: 2 }, { a: 2 })
 // })
 
-test('fail sum 4', () => {
-  assert.deepStrictEqual({ a: 1, b: 2 }, { a: 2 })
-})
+// test('fail sum 4', () => {
+//   assert.deepStrictEqual({ a: 1, b: 2 }, { a: 2 })
+// })
 
 // test('failing test using Promises', () => {
 //   // Promises can be used directly as well.
@@ -57,13 +57,13 @@ test('fail sum 4', () => {
 //   })
 // })
 
-test('fail sum 45', (t) => {
-  t.test('sum2', async () => {
-    await delay(100)
-    type(() => {}, 'function')
-    is(3, 3)
-  })
-  t.test('fail sum 36', (t) => {
-    t.subset({ a: 1, b: 2 }, { b: 100000000000000, a: (v) => v === 3 })
-  })
-})
+// test('fail sum 45', (t) => {
+//   t.test('sum2', async () => {
+//     await delay(100)
+//     type(() => {}, 'function')
+//     is(3, 3)
+//   })
+//   t.test('fail sum 36', (t) => {
+//     t.subset({ a: 1, b: 2 }, { b: 2, a: (v) => v === 21 })
+//   })
+// })
