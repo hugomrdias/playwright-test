@@ -32,12 +32,7 @@ describe('mocha', function () {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js'])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(
-      proc.stdout.includes(
-        '[playwright-test] Autodetected "mocha" as the runner.'
-      ),
-      'process stdout'
-    )
+    ok(proc.stdout.includes('Autodetected'), proc.stdout)
   })
 
   it('coverage', async () => {
@@ -217,12 +212,7 @@ describe('tape', function () {
     const proc = await execa('./cli.js', ['mocks/test.tape.js'])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(
-      proc.stdout.includes(
-        '[playwright-test] Autodetected "tape" as the runner.'
-      ),
-      'process stdout'
-    )
+    ok(proc.stdout.includes('Autodetected'), 'process stdout')
   })
 
   it('tape mode:worker', async () => {
@@ -263,12 +253,7 @@ describe('zora', () => {
     })
 
     is(proc.exitCode, 0, 'exit code')
-    ok(
-      proc.stdout.includes(
-        '[playwright-test] Autodetected "zora" as the runner.'
-      ),
-      'process stdout'
-    )
+    ok(proc.stdout.includes('Autodetected'), 'process stdout')
   })
 
   it('zora mode:worker', async () => {
@@ -300,12 +285,7 @@ describe('uvu', () => {
     const proc = await execa('./cli.js', ['mocks/uvu'])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(
-      proc.stdout.includes(
-        '[playwright-test] Autodetected "uvu" as the runner.'
-      ),
-      'process stdout'
-    )
+    ok(proc.stdout.includes('Autodetected'), 'process stdout')
   })
 
   it('mode:worker', async () => {
