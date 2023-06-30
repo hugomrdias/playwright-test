@@ -29,17 +29,15 @@ describe('mocha', function () {
   })
 
   it('auto detect', async () => {
-    const proc = await execa('./cli.js', ['mocks/test.mocha.js'], {
-      stdio: 'inherit',
-    })
+    const proc = await execa('./cli.js', ['mocks/test.mocha.js'])
 
     is(proc.exitCode, 0, 'exit code')
-    // ok(
-    //   proc.stdout.includes(
-    //     '[playwright-test] Autodetected "mocha" as the runner.'
-    //   ),
-    //   'process stdout'
-    // )
+    ok(
+      proc.stdout.includes(
+        '[playwright-test] Autodetected "mocha" as the runner.'
+      ),
+      proc.stdout
+    )
   })
 
   it('coverage', async () => {
