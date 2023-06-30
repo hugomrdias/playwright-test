@@ -1,5 +1,21 @@
 # Changelog
 
+## [11.0.0](https://github.com/hugomrdias/playwright-test/compare/v10.0.1...v11.0.0) (2023-06-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add support for node, internal runner autodetect, path module ids and taps.
+
+### Features
+
+* Add support for node, internal runner autodetect, path module ids and taps. ([1d73a36](https://github.com/hugomrdias/playwright-test/commit/1d73a36723048c850eb387f41b20d33c4e559826))
+
+
+### Bug Fixes
+
+* fix windows paths ([#555](https://github.com/hugomrdias/playwright-test/issues/555)) ([18639f4](https://github.com/hugomrdias/playwright-test/commit/18639f4b76acb7db04da92d149f2cc5736ca356a))
+
 ## [10.0.1](https://github.com/hugomrdias/playwright-test/compare/v10.0.0...v10.0.1) (2023-06-29)
 
 
