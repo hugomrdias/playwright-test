@@ -208,9 +208,10 @@ export const tapsLocal = {
   moduleId: '../../src/taps/index.js',
   options: {},
   compileRuntime(options, paths) {
+    const tapsPath = path.resolve(__dirname, 'taps/index.js')
     return `
 process.env.FORCE_COLOR = 1
-const {exec, hold} = await import('${__dirname}/taps/index.js')
+const {exec, hold} = await import('${tapsPath}')
 hold()
 ${paths.map((url) => `await import('${url}')`).join('\n')}
 
