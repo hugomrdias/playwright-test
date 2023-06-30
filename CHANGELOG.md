@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.0.1](https://github.com/hugomrdias/playwright-test/compare/v11.0.0...v11.0.1) (2023-06-30)
+
+
+### Bug Fixes
+
+* add missing dep execa ([51b4487](https://github.com/hugomrdias/playwright-test/commit/51b44876718ffc874702ed5b3bd8904ab757608f))
+
 ## [11.0.0](https://github.com/hugomrdias/playwright-test/compare/v10.0.1...v11.0.0) (2023-06-30)
 
 
