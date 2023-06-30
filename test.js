@@ -29,7 +29,9 @@ describe('mocha', function () {
   })
 
   it('auto detect', async () => {
-    const proc = await execa('./cli.js', ['mocks/test.mocha.js'])
+    const proc = await execa('./cli.js', ['mocks/test.mocha.js'], {
+      stdio: 'inherit',
+    })
 
     is(proc.exitCode, 0, 'exit code')
     ok(
