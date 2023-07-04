@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.0.2](https://github.com/hugomrdias/playwright-test/compare/v11.0.1...v11.0.2) (2023-07-04)
+
+
+### Bug Fixes
+
+* fix dependencies ([ed11fd2](https://github.com/hugomrdias/playwright-test/commit/ed11fd263bc7322979d5d2ed37980728668489ec))
+
 ## [11.0.1](https://github.com/hugomrdias/playwright-test/compare/v11.0.0...v11.0.1) (2023-06-30)
 
 
