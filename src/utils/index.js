@@ -506,9 +506,11 @@ export async function createCov(runner, coverage, file, outputDir) {
  * @param {string} id - module id
  * @param {string} [base=process.cwd()] - base path
  */
-export async function resolveModule(id, base = toDirectoryPath(process.cwd())) {
+export async function resolveModule(id, base = process.cwd()) {
   try {
-    return createRequire(base).resolve(id)
+    // Note we need to ensure base has trailing `/` or the the
+    // last entry is gonig to be dropped during resolution.
+    return createRequire(toDirectoryPath(base)).resolve(id)
   } catch {
     throw new Error(`Cannot resolve module "${id}" from "${base}"`)
   }
