@@ -14,7 +14,7 @@ import ora from 'ora'
 import { createServer } from 'http'
 import polka from 'polka'
 import { createRequire } from 'module'
-import { fileURLToPath, pathToFileURL } from 'url'
+import { fileURLToPath } from 'url'
 import * as DefaultRunners from '../test-runners.js'
 
 const require = createRequire(import.meta.url)
