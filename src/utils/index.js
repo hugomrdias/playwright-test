@@ -14,7 +14,7 @@ import ora from 'ora'
 import { createServer } from 'http'
 import polka from 'polka'
 import { createRequire } from 'module'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
 import * as DefaultRunners from '../test-runners.js'
 
 const require = createRequire(import.meta.url)
@@ -510,7 +510,9 @@ export async function resolveModule(id, base = process.cwd()) {
   try {
     // Note we need to ensure base has trailing `/` or the the
     // last entry is gonig to be dropped during resolution.
-    return await import(createRequire(toDirectoryPath(base)).resolve(id))
+    const path = createRequire(toDirectoryPath(base)).resolve(id)
+    const url = pathToFileURL(path)
+    return await import(url)
   } catch (error) {
     throw new Error(`Cannot resolve module "${id}" from "${base}"\n${/** @type {Error} */(error).message}`)
   }
