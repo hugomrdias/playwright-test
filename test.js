@@ -320,7 +320,7 @@ describe('custom runner', function () {
     const proc = await execa('./cli.js', [
       'mocks/tinybench.js',
       '--runner',
-      'mocks/custom-runner.js',
+      './mocks/custom-runner.js',
     ])
 
     is(proc.exitCode, 0, 'exit code')
