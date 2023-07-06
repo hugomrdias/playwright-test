@@ -307,6 +307,12 @@ w.onmessage = function(e) {
     if(e.data.pwRunEnded) {
         self.PW_TEST.end(e.data.pwRunFailed)
     }
+    if (e.data.pwStdout != null) {
+        self.PW_TEST_STDOUT_WRITE(e.data.pwStdout)
+    }
+    if (e.data.pwStderr != null) {
+        self.PW_TEST_STDERR_WRITE(e.data.pwStderr)
+    }
 }
 `
 }
@@ -514,7 +520,11 @@ export async function resolveModule(id, base = process.cwd()) {
     const url = pathToFileURL(path)
     return await import(url.href)
   } catch (error) {
-    throw new Error(`Cannot resolve module "${id}" from "${base}"\n${/** @type {Error} */(error).message}`)
+    throw new Error(
+      `Cannot resolve module "${id}" from "${base}"\n${
+        /** @type {Error} */ (error).message
+      }`
+    )
   }
 }
 
