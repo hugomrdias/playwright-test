@@ -512,7 +512,7 @@ export async function resolveModule(id, base = process.cwd()) {
     // last entry is gonig to be dropped during resolution.
     const path = createRequire(toDirectoryPath(base)).resolve(id)
     const url = pathToFileURL(path)
-    return await import(url)
+    return await import(url.href)
   } catch (error) {
     throw new Error(`Cannot resolve module "${id}" from "${base}"\n${/** @type {Error} */(error).message}`)
   }
