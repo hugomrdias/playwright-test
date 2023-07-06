@@ -507,24 +507,11 @@ export async function createCov(runner, coverage, file, outputDir) {
  * @param {string} [base=process.cwd()] - base path
  */
 export async function resolveModule(id, base = toDirectoryPath(process.cwd())) {
-  let out
   try {
-    out = await import(id)
-  } catch {}
-
-  if (!out) {
-    try {
-      const filePath = path.resolve(base, id)
-      fs.accessSync(filePath, fs.constants.R_OK)
-      out = await import(pathToFileURL(filePath).toString())
-    } catch {}
-  }
-
-  if (!out) {
+    return createRequire(base).resolve(id)
+  } catch {
     throw new Error(`Cannot resolve module "${id}" from "${base}"`)
   }
-
-  return out
 }
 
 /**
