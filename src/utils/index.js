@@ -510,7 +510,7 @@ export async function resolveModule(id, base = process.cwd()) {
   try {
     // Note we need to ensure base has trailing `/` or the the
     // last entry is gonig to be dropped during resolution.
-    return createRequire(toDirectoryPath(base)).resolve(id)
+    return await import(createRequire(toDirectoryPath(base)).resolve(id))
   } catch {
     throw new Error(`Cannot resolve module "${id}" from "${base}"`)
   }
