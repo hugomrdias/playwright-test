@@ -65,8 +65,8 @@ const p = {
         postMessage({ pwStderr: message })
       }
     },
-    getColorDepth = () => 256,
-    isTTY: true
+    getColorDepth: () => 256,
+    isTTY: true,
   },
   hrtime,
 }
