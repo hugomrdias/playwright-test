@@ -515,16 +515,11 @@ export async function createCov(runner, coverage, file, outputDir) {
 export async function resolveModule(id, base = process.cwd()) {
   try {
     // Note we need to ensure base has trailing `/` or the the
-    // last entry is gonig to be dropped during resolution.
     const path = createRequire(toDirectoryPath(base)).resolve(id)
     const url = pathToFileURL(path)
     return await import(url.href)
   } catch (error) {
-    throw new Error(
-      `Cannot resolve module "${id}" from "${base}"\n${
-        /** @type {Error} */ (error).message
-      }`
-    )
+    throw new Error(`Cannot resolve module "${id}" from "${base}"\n${/** @type {Error} */(error).message}`)
   }
 }
 

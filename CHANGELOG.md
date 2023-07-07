@@ -1,5 +1,13 @@
 # Changelog
 
+## [11.0.3](https://github.com/hugomrdias/playwright-test/compare/v11.0.2...v11.0.3) (2023-07-07)
+
+
+### Bug Fixes
+
+* auto detect logic for requires ([88638bd](https://github.com/hugomrdias/playwright-test/commit/88638bdab3481a592086cf4c0163027890bc0f54))
+* runner/module resolution logic ([#562](https://github.com/hugomrdias/playwright-test/issues/562)) ([a0c5be5](https://github.com/hugomrdias/playwright-test/commit/a0c5be5d32fa9ca70b845c45dbe3b5eb59eb328a))
+
 ## [11.0.2](https://github.com/hugomrdias/playwright-test/compare/v11.0.1...v11.0.2) (2023-07-04)
 
 
