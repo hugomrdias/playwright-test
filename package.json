@@ -58,7 +58,7 @@
     "uvu"
   ],
   "dependencies": {
-    "acorn": "^8.9.0",
+    "acorn-loose": "^8.3.0",
     "assert": "^2.0.0",
     "buffer": "^6.0.3",
     "c8": "^8.0.0",

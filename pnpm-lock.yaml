@@ -5,9 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
-  acorn:
-    specifier: ^8.9.0
-    version: 8.9.0
+  acorn-loose:
+    specifier: ^8.3.0
+    version: 8.3.0
   assert:
     specifier: ^2.0.0
     version: 2.0.0
@@ -766,6 +766,13 @@ packages:
     dependencies:
       acorn: 8.9.0
     dev: true
+
+  /acorn-loose@8.3.0:
+    resolution: {integrity: sha512-75lAs9H19ldmW+fAbyqHdjgdCrz0pWGXKmnqFoh8PyVd1L2RIb4RzYrSjmopeqv3E1G3/Pimu6GgLlrGbrkF7w==}
+    engines: {node: '>=0.4.0'}
+    dependencies:
+      acorn: 8.9.0
+    dev: false
 
   /acorn@8.9.0:
     resolution: {integrity: sha512-jaVNAFBHNLXspO543WnNNPZFRtavh3skAkITqD0/2aeMkKZTN+254PyhwxFYrk3vQ1xfY+2wbesJMs/JC8/PwQ==}
