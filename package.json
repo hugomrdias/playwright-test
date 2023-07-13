@@ -1,6 +1,6 @@
 {
   "name": "playwright-test",
-  "version": "11.0.3",
+  "version": "11.0.4",
   "description": "Run mocha, zora, uvu, tape and benchmark.js scripts inside real browsers with playwright.",
   "repository": "hugomrdias/playwright-test",
   "author": "Hugo Dias <hugomrdias@gmail.com> (hugodias.me)",

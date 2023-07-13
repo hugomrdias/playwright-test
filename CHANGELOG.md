@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.0.4](https://github.com/hugomrdias/playwright-test/compare/v11.0.3...v11.0.4) (2023-07-13)
+
+
+### Bug Fixes
+
+* support ts in autodetect ([2d8ea1e](https://github.com/hugomrdias/playwright-test/commit/2d8ea1eeb6fc32c2d8a95bec4545e964a2f29517))
+
 ## [11.0.3](https://github.com/hugomrdias/playwright-test/compare/v11.0.2...v11.0.3) (2023-07-07)
 
 
