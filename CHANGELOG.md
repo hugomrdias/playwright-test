@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.1.1](https://github.com/hugomrdias/playwright-test/compare/v12.1.0...v12.1.1) (2023-07-14)
+
+
+### Bug Fixes
+
+* add wasm loader to node mode ([f71280d](https://github.com/hugomrdias/playwright-test/commit/f71280d44acdb3c1ae756e17129dd610464f6f46))
+
 ## [12.1.0](https://github.com/hugomrdias/playwright-test/compare/v12.0.0...v12.1.0) (2023-07-14)
 
 
