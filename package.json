@@ -66,6 +66,7 @@
     "chokidar": "^3.5.3",
     "cpy": "^10.1.0",
     "esbuild": "0.18.11",
+    "esbuild-plugin-wasm": "^1.1.0",
     "events": "^3.3.0",
     "execa": "^7.1.1",
     "globby": "^13.2.1",

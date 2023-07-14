@@ -16,6 +16,7 @@ import polka from 'polka'
 import { createRequire } from 'module'
 import { fileURLToPath, pathToFileURL } from 'url'
 import * as DefaultRunners from '../test-runners.js'
+import { wasmLoader } from 'esbuild-plugin-wasm'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -434,7 +435,7 @@ await import('${require
     sourcemap: 'inline',
     platform: 'browser',
     format: 'esm',
-    plugins: [nodePlugin, watchPlugin],
+    plugins: [nodePlugin, watchPlugin, wasmLoader()],
     outfile: outPath,
     inject: [path.join(__dirname, 'inject-process.js')],
     define: {
@@ -520,7 +521,11 @@ export async function resolveModule(id, base = process.cwd()) {
     const url = pathToFileURL(path)
     return await import(url.href)
   } catch (error) {
-    throw new Error(`Cannot resolve module "${id}" from "${base}"\n${/** @type {Error} */(error).message}`)
+    throw new Error(
+      `Cannot resolve module "${id}" from "${base}"\n${
+        /** @type {Error} */ (error).message
+      }`
+    )
   }
 }
 
