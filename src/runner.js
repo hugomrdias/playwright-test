@@ -253,6 +253,32 @@ export class Runner {
         await this.runBefore(context)
       }
 
+      await context.exposeFunction(
+        'PW_TEST_STDOUT_WRITE',
+        /**
+         * @param {Uint8Array|string} msg
+         */
+        (msg) =>
+          new Promise((resolve, reject) =>
+            process.stdout.write(msg, (error) =>
+              error ? reject(error) : resolve(error)
+            )
+          )
+      )
+
+      await context.exposeFunction(
+        'PW_TEST_STDERR_WRITE',
+        /**
+         * @param {Uint8Array|string} msg
+         */
+        (msg) =>
+          new Promise((resolve, reject) =>
+            process.stderr.write(msg, (error) =>
+              error ? reject(error) : resolve(error)
+            )
+          )
+      )
+
       // get the page
       const page = await this.setupPage(context)
       spinner.succeed(`${this.options.browser} set up`)

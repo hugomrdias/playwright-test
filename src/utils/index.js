@@ -307,6 +307,12 @@ w.onmessage = function(e) {
     if(e.data.pwRunEnded) {
         self.PW_TEST.end(e.data.pwRunFailed)
     }
+    if (e.data.pwStdout != null) {
+        self.PW_TEST_STDOUT_WRITE(e.data.pwStdout)
+    }
+    if (e.data.pwStderr != null) {
+        self.PW_TEST_STDERR_WRITE(e.data.pwStderr)
+    }
 }
 `
 }

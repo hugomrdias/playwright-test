@@ -25,14 +25,6 @@ function hrtime(previousTimestamp) {
   return [seconds, nanoseconds]
 }
 
-function stderr() {
-  // eslint-disable-next-line no-console
-  console.log(...arguments)
-}
-
-stderr.isTTY = true
-stderr.getColorDepth = () => 256
-
 const p = {
   ..._process,
   exit: (code = 0) => {
@@ -57,10 +49,25 @@ const p = {
     }
   },
   stdout: {
-    // eslint-disable-next-line no-console
-    write: console.log,
+    write: (message) => {
+      if (globalThis.PW_TEST_STDOUT_WRITE) {
+        globalThis.PW_TEST_STDOUT_WRITE(message)
+      } else {
+        postMessage({ pwStdout: message })
+      }
+    },
   },
-  stderr,
+  stderr: {
+    write: (message) => {
+      if (globalThis.PW_TEST_STDERR_WRITE) {
+        globalThis.PW_TEST_STDERR_WRITE(message)
+      } else {
+        postMessage({ pwStderr: message })
+      }
+    },
+    getColorDepth: () => 256,
+    isTTY: true,
+  },
   hrtime,
 }
 
