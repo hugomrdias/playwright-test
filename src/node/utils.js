@@ -1,6 +1,7 @@
 import esbuild from 'esbuild'
 import path from 'path'
 import mergeOptions from 'merge-options'
+import { wasmLoader } from 'esbuild-plugin-wasm'
 
 const merge = mergeOptions.bind({
   ignoreUndefined: true,
@@ -63,7 +64,7 @@ ${tmpl}
         const __dirname = path.dirname(__filename);
         `,
     },
-    plugins: [watchPlugin],
+    plugins: [watchPlugin, wasmLoader()],
     outfile: outPath,
     define: {
       global: 'globalThis',
