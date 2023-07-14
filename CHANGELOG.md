@@ -1,5 +1,13 @@
 # Changelog
 
+## [12.1.0](https://github.com/hugomrdias/playwright-test/compare/v12.0.0...v12.1.0) (2023-07-14)
+
+
+### Features
+
+* add support for wasm loader ([f223465](https://github.com/hugomrdias/playwright-test/commit/f223465d893d1ba339af927d3beed7ace3344e97))
+* update playwright to 1.36.0 ([a59e0a4](https://github.com/hugomrdias/playwright-test/commit/a59e0a4474c1ed491f9f76681d05233f22f6f272))
+
 ## [12.0.0](https://github.com/hugomrdias/playwright-test/compare/v11.0.4...v12.0.0) (2023-07-14)
 
 
