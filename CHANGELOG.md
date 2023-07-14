@@ -1,5 +1,16 @@
 # Changelog
 
+## [12.0.0](https://github.com/hugomrdias/playwright-test/compare/v11.0.4...v12.0.0) (2023-07-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* process.stdout/stderr without console.log ([#563](https://github.com/hugomrdias/playwright-test/issues/563))
+
+### Features
+
+* process.stdout/stderr without console.log ([#563](https://github.com/hugomrdias/playwright-test/issues/563)) ([2f5baf0](https://github.com/hugomrdias/playwright-test/commit/2f5baf01254dad6e01845a6f6ba1c964117b8764))
+
 ## [11.0.4](https://github.com/hugomrdias/playwright-test/compare/v11.0.3...v11.0.4) (2023-07-13)
 
 
