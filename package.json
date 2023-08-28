@@ -37,6 +37,7 @@
     "dist/src/runner.d.ts",
     "dist/src/runner.d.ts.map",
     "dist/src/types.d.ts",
+    "dist/src/taps",
     "static",
     "src",
     "cli.js"
