@@ -76,7 +76,7 @@
     "lodash": "^4.17.21",
     "merge-options": "^3.0.4",
     "nanoid": "^4.0.2",
-    "ora": "^6.3.1",
+    "ora": "^7.0.1",
     "p-wait-for": "5.0.2",
     "path-browserify": "^1.0.1",
     "playwright-core": "1.36.0",
