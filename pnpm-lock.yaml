@@ -141,7 +141,7 @@ devDependencies:
     version: 2.8.1
   tape:
     specifier: ^5.6.5
-    version: 5.6.5
+    version: 5.6.6
   tinybench:
     specifier: ^2.5.0
     version: 2.5.0
@@ -471,6 +471,18 @@ packages:
       '@jridgewell/resolve-uri': 3.1.0
       '@jridgewell/sourcemap-codec': 1.4.14
     dev: false
+
+  /@ljharb/resumer@0.0.1:
+    resolution: {integrity: sha512-skQiAOrCfO7vRTq53cxznMpks7wS1va95UCidALlOVWqvBAzwPVErwizDwoMqNVMEn1mDq0utxZd02eIrvF1lw==}
+    engines: {node: '>= 0.4'}
+    dependencies:
+      '@ljharb/through': 2.3.9
+    dev: true
+
+  /@ljharb/through@2.3.9:
+    resolution: {integrity: sha512-yN599ZBuMPPK4tdoToLlvgJB4CLK8fGl7ntfy0Wn7U6ttNvHYurd81bfUiK/6sMkiIwm65R6ck4L6+Y3DfVbNQ==}
+    engines: {node: '>= 0.4'}
+    dev: true
 
   /@nodelib/fs.scandir@2.1.5:
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -1206,7 +1218,7 @@ packages:
     dev: true
 
   /concat-map@0.0.1:
-    resolution: {integrity: sha1-2Klr13/Wjfd5OnMDajug1UBdR3s=}
+    resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
 
   /convert-source-map@1.9.0:
     resolution: {integrity: sha512-ASFBup0Mz1uyiIjANan1jzLQami9z1PoYSZCiiYW2FczPbenXc45FZdBZLzOT+r6+iciuEModtmCti+hjaAk0A==}
@@ -3383,12 +3395,6 @@ packages:
       signal-exit: 3.0.7
     dev: false
 
-  /resumer@0.0.0:
-    resolution: {integrity: sha512-Fn9X8rX8yYF4m81rZCK/5VmrmsSbqS/i3rDLl6ZZHAXgC2nTAx3dhwG8q8odP/RmdLa2YrybDJaAMg+X1ajY3w==}
-    dependencies:
-      through: 2.3.8
-    dev: true
-
   /reusify@1.0.4:
     resolution: {integrity: sha512-U9nH88a3fc/ekCF1l0/UP1IosiuIjyTh7hBvXVMHYgVcfGvt897Xguj2UOLDeI5BG2m7/uwyaLVT6fbtCwTyzw==}
     engines: {iojs: '>=1.0.0', node: '>=0.10.0'}
@@ -3725,10 +3731,12 @@ packages:
     engines: {node: '>= 0.4'}
     dev: true
 
-  /tape@5.6.5:
-    resolution: {integrity: sha512-r6XcLeO3h5rOFpkYWifAjlhSSSXbFSSBF86lhb6J0KAQbY91H1MzOeIWG6TH0iWS52ypwr6fenJgCGQGtL8CxA==}
+  /tape@5.6.6:
+    resolution: {integrity: sha512-rGp2cZ3rfZ6QfTBm6yvohf8aXmDqPyzMKZwTMV12w4i+b/N2Adwlg8PlW8jLqWzlJUZhglyYaLOSrMt/ZlZkAA==}
     hasBin: true
     dependencies:
+      '@ljharb/resumer': 0.0.1
+      '@ljharb/through': 2.3.9
       array.prototype.every: 1.1.4
       call-bind: 1.0.2
       deep-equal: 2.2.2
@@ -3747,9 +3755,7 @@ packages:
       object-keys: 1.1.1
       object.assign: 4.1.4
       resolve: 2.0.0-next.4
-      resumer: 0.0.0
       string.prototype.trim: 1.2.7
-      through: 2.3.8
     dev: true
 
   /temp-dir@3.0.0:
