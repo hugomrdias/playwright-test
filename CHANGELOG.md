@@ -1,5 +1,14 @@
 # Changelog
 
+## [12.1.2](https://github.com/hugomrdias/playwright-test/compare/v12.1.1...v12.1.2) (2023-08-28)
+
+
+### Bug Fixes
+
+* taps types and dependabot ([a18cc8c](https://github.com/hugomrdias/playwright-test/commit/a18cc8c095fe763793b5954238269ffbe35037d3))
+* taps types and dependabot ([2142223](https://github.com/hugomrdias/playwright-test/commit/21422231ad8f5e27807aa04e55736e5ad8779f1c))
+* update deps ([5d67a1c](https://github.com/hugomrdias/playwright-test/commit/5d67a1cf8fbb37e6c76c9f620764e9eee957c38a))
+
 ## [12.1.1](https://github.com/hugomrdias/playwright-test/compare/v12.1.0...v12.1.1) (2023-07-14)
 
 
