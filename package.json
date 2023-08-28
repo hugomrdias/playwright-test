@@ -85,7 +85,7 @@
     "process": "^0.11.10",
     "sade": "^1.8.1",
     "sirv": "^2.0.3",
-    "source-map": "0.6.1",
+    "source-map": "0.7.4",
     "source-map-support": "^0.5.21",
     "stream-browserify": "^3.0.0",
     "strip-ansi": "^7.1.0",
