@@ -1,5 +1,17 @@
 # Changelog
 
+## [12.2.0](https://github.com/hugomrdias/playwright-test/compare/v12.1.2...v12.2.0) (2023-09-01)
+
+
+### Features
+
+* add assert exports to taps ([6369dcd](https://github.com/hugomrdias/playwright-test/commit/6369dcd5700772617d43961e988da110ee84ed47))
+
+
+### Bug Fixes
+
+* fix autodetect for mocha only/skip ([d0ae762](https://github.com/hugomrdias/playwright-test/commit/d0ae7621e8ca0af71a2ff549cdae1826f7bef83c)), closes [#572](https://github.com/hugomrdias/playwright-test/issues/572)
+
 ## [12.1.2](https://github.com/hugomrdias/playwright-test/compare/v12.1.1...v12.1.2) (2023-08-28)
 
 
