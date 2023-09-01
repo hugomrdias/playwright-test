@@ -4,7 +4,6 @@
 /* eslint-disable no-console */
 import kleur from 'kleur'
 import { hrtime, stack } from './utils.js'
-import { assert } from './assert.js'
 
 /**
  * @type {import("./types.js").Queue}
@@ -129,7 +128,7 @@ async function runner(ctx, testCount) {
               throw new Error('beforeEach hook failed', { cause: error })
             }
           }
-          await test.fn(harness(test.name), assert)
+          await test.fn(harness(test.name))
           passed++
 
           // After Each Hooks

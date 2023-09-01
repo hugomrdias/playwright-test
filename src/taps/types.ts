@@ -18,7 +18,7 @@ export interface Assert {
   subset: typeof subset
 }
 
-export type Fn = (test: Harness, a: Assert) => Promise<void> | void
+export type Fn = (test: Harness) => Promise<void> | void
 export type Hook = () => Promise<void> | void
 export type TestMethod = (name: string, fn: Fn) => void
 export type HookMethod = (fn: Hook) => void
