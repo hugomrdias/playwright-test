@@ -1,3 +1,4 @@
+/* eslint-disable complexity */
 import fs from 'fs'
 // @ts-ignore
 import { parse } from 'acorn-loose'
@@ -26,9 +27,36 @@ export function detectTestRunner(path, runners) {
     if (
       node.type === 'ExpressionStatement' &&
       node.expression.type === 'CallExpression' &&
+      node.expression.callee &&
       node.expression.callee.type === 'Identifier' &&
       (node.expression.callee.name === 'describe' ||
         node.expression.callee.name === 'it')
+    ) {
+      ids.push('mocha')
+    }
+
+    if (
+      node.type === 'ExpressionStatement' &&
+      node.expression.type === 'CallExpression' &&
+      node.expression.callee &&
+      node.expression.callee.type === 'MemberExpression' &&
+      node.expression.callee.object &&
+      node.expression.callee.object.name === 'describe' &&
+      (node.expression.callee.property.name === 'only' ||
+        node.expression.callee.property.name === 'skip')
+    ) {
+      ids.push('mocha')
+    }
+
+    if (
+      node.type === 'ExpressionStatement' &&
+      node.expression.type === 'CallExpression' &&
+      node.expression.callee &&
+      node.expression.callee.type === 'MemberExpression' &&
+      node.expression.callee.object &&
+      node.expression.callee.object.name === 'it' &&
+      (node.expression.callee.property.name === 'only' ||
+        node.expression.callee.property.name === 'skip')
     ) {
       ids.push('mocha')
     }
