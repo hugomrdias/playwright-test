@@ -1,4 +1,6 @@
 import kleur from 'kleur'
+// eslint-disable-next-line unicorn/import-style
+import util from 'util'
 
 export const IS_ENV_WITH_DOM =
   typeof window === 'object' &&
@@ -66,7 +68,7 @@ export function stack(err) {
 }
 
 /**
- * Compare two values
+ * Compare two values are subset of each other. Supports compare functions.
  *
  * @param {any} expected
  * @param {any} actual
@@ -116,5 +118,21 @@ export function compare(expected, actual) {
       return eo(ao)
     }
     return ao === eo
+  })
+}
+
+/**
+ * Format an object for display in an error message.
+ *
+ * @param {unknown} v
+ * @returns
+ */
+export function formatObj(v) {
+  return util.inspect(v, {
+    colors: true,
+    compact: false,
+    depth: Number.POSITIVE_INFINITY,
+    sorted: true,
+    numericSeparator: true,
   })
 }

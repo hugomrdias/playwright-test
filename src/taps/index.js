@@ -9,6 +9,8 @@ export const suite = (/** @type {string | undefined} */ name) => {
 }
 export const test = harness()
 
+export * from './assert.js'
+
 /**
  * Execute the queued tests.
  */

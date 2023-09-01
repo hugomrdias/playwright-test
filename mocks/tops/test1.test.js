@@ -1,7 +1,6 @@
 import { test } from '../../src/taps/index.js'
 import delay from 'delay'
-import { type, is, equal } from 'uvu/assert'
-import assert from 'assert'
+import { type, is } from 'uvu/assert'
 // test.before(() => {
 //   console.log('before')
 // })

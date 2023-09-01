@@ -2,7 +2,7 @@
 // eslint-disable-next-line strict
 import { is, ok, equal } from 'uvu/assert'
 
-describe('Array', () => {
+it.skip('Array', () => {
   describe('#indexOf()', () => {
     it('should return -1 when the value is not present', () => {
       const n: number = 1

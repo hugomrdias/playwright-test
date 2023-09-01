@@ -127,6 +127,9 @@
     ],
     "parserOptions": {
       "sourceType": "module"
+    },
+    "rules": {
+      "jsdoc/require-returns-check": "off"
     }
   },
   "eslintIgnore": [

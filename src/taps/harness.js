@@ -3,10 +3,8 @@
 /* eslint-disable no-unsafe-finally */
 /* eslint-disable no-console */
 import kleur from 'kleur'
-import { compare, hrtime, stack } from './utils.js'
-import assert from 'assert'
-// eslint-disable-next-line unicorn/import-style
-import util from 'util'
+import { hrtime, stack } from './utils.js'
+import { assert } from './assert.js'
 
 /**
  * @type {import("./types.js").Queue}
@@ -131,8 +129,7 @@ async function runner(ctx, testCount) {
               throw new Error('beforeEach hook failed', { cause: error })
             }
           }
-          // @ts-ignore
-          await test.fn(harness(test.name))
+          await test.fn(harness(test.name), assert)
           passed++
 
           // After Each Hooks
@@ -199,8 +196,7 @@ export function harness(name = '') {
   }
 
   /**
-   * @param {string} name
-   * @param {import("./types.js").Fn} fn
+   * @type {import('./types.js').TestMethod}
    */
   function test(name, fn) {
     ctx.tests.push({ name, fn, skip: false })
@@ -208,92 +204,37 @@ export function harness(name = '') {
 
   test.test = test
 
-  test.before = (/** @type {import("./types.js").Hook} */ fn) => {
+  test.before = function (/** @type {import("./types.js").Hook} */ fn) {
     ctx.before.push(fn)
   }
-  test.after = (/** @type {import("./types.js").Hook} */ fn) => {
+  test.after = function (/** @type {import("./types.js").Hook} */ fn) {
     ctx.after.push(fn)
   }
 
-  test.beforeEach = (/** @type {import("./types.js").Hook} */ fn) => {
+  test.beforeEach = function (/** @type {import("./types.js").Hook} */ fn) {
     ctx.beforeEach.push(fn)
   }
 
-  test.afterEach = (/** @type {import("./types.js").Hook} */ fn) => {
+  test.afterEach = function (/** @type {import("./types.js").Hook} */ fn) {
     ctx.afterEach.push(fn)
   }
 
-  test.skip = (
+  test.skip = function (
     /** @type {string} */ name,
     /** @type {import('./types.js').Fn} */ fn
-  ) => {
+  ) {
     ctx.tests.push({ name, fn, skip: true })
   }
 
-  test.only = (
+  test.only = function (
     /** @type {string} */ name,
     /** @type {import('./types.js').Fn} */ fn
-  ) => {
+  ) {
     globalThis.UVU_ONLY_MODE = true
     ctx.only.push({ name, fn, skip: false })
   }
 
-  test.ok = assert.strict.ok
-  test.equal = assert.strict.equal
-  test.notEqual = assert.strict.notEqual
-  test.deepEqual = assert.strict.deepEqual
-  test.notDeepEqual = assert.strict.notDeepEqual
-  test.throws = assert.strict.throws
-  test.doesNotThrow = assert.strict.doesNotThrow
-  test.rejects = assert.strict.rejects
-  test.doesNotReject = assert.strict.doesNotReject
-  test.match = assert.strict.match
-  test.doesNotMatch = assert.strict.doesNotMatch
-  test.ifError = assert.strict.ifError
-  test.fail = assert.strict.fail
-  test.subset = subset
-
   TAPS_QUEUE.push(runner.bind(0, ctx))
 
   return test
-}
-
-/**
- *
- * @param {unknown} v
- * @returns
- */
-function formatObj(v) {
-  return util.inspect(v, {
-    colors: true,
-    compact: false,
-    depth: Number.POSITIVE_INFINITY,
-    sorted: true,
-    numericSeparator: true,
-  })
-}
-
-/**
- *
- * @param {unknown} actual
- * @param {unknown} expected
- * @param {string} [msg]
- */
-function subset(actual, expected, msg) {
-  const pass = compare(expected, actual)
-  if (!pass) {
-    throw new assert.AssertionError({
-      message:
-        msg ||
-        `Expected a subset of actual:
-${kleur.green('+ actual')} ${kleur.red('- expected')}
-
-${kleur.green('+')} ${formatObj(actual)}
-${kleur.red('-')} ${formatObj(expected)}`,
-      actual,
-      expected,
-      operator: 'subset',
-      stackStartFn: subset,
-    })
-  }
 }

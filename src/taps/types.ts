@@ -1,6 +1,24 @@
-import type assert from 'assert'
+import type { subset } from './assert.js'
+import type _assert from 'assert'
 
-export type Fn = (test: Harness) => Promise<void> | void
+export interface Assert {
+  ok: typeof _assert.strict.ok
+  equal: typeof _assert.strict.equal
+  notEqual: typeof _assert.strict.notEqual
+  deepEqual: typeof _assert.strict.deepEqual
+  notDeepEqual: typeof _assert.strict.notDeepEqual
+  throws: typeof _assert.strict.throws
+  rejects: typeof _assert.strict.rejects
+  doesNotThrow: typeof _assert.strict.doesNotThrow
+  doesNotReject: typeof _assert.strict.doesNotReject
+  fail: typeof _assert.strict.fail
+  ifError: typeof _assert.strict.ifError
+  match: typeof _assert.strict.match
+  doesNotMatch: typeof _assert.strict.doesNotMatch
+  subset: typeof subset
+}
+
+export type Fn = (test: Harness, a: Assert) => Promise<void> | void
 export type Hook = () => Promise<void> | void
 export type TestMethod = (name: string, fn: Fn) => void
 export type HookMethod = (fn: Hook) => void
@@ -50,18 +68,4 @@ export interface Harness {
   after: HookMethod
   beforeEach: HookMethod
   afterEach: HookMethod
-  ok: typeof assert.strict.ok
-  equal: typeof assert.strict.equal
-  notEqual: typeof assert.strict.notEqual
-  deepEqual: typeof assert.strict.deepEqual
-  notDeepEqual: typeof assert.strict.notDeepEqual
-  throws: typeof assert.strict.throws
-  rejects: typeof assert.strict.rejects
-  doesNotThrow: typeof assert.strict.doesNotThrow
-  doesNotReject: typeof assert.strict.doesNotReject
-  fail: typeof assert.strict.fail
-  ifError: typeof assert.strict.ifError
-  match: typeof assert.strict.match
-  doesNotMatch: typeof assert.strict.doesNotMatch
-  subset: (actual: unknown, expected: unknown, msg?: string) => void
 }

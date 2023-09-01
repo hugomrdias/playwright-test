@@ -4,5 +4,12 @@
     "outDir": "dist",
     "module": "ES2022"
   },
-  "include": ["src", "src/utils", "test.js", "cli.js", "package.json"]
+  "include": [
+    "src",
+    "src/utils",
+    "test.js",
+    "cli.js",
+    "package.json",
+    "mocks/tops"
+  ]
 }
