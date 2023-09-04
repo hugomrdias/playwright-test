@@ -56,6 +56,8 @@ const p = {
         postMessage({ pwStdout: message })
       }
     },
+    getColorDepth: () => 256,
+    isTTY: true,
   },
   stderr: {
     write: (message) => {

@@ -1,4 +1,3 @@
-import kleur from 'kleur'
 // eslint-disable-next-line unicorn/import-style
 import util from 'util'
 
@@ -49,7 +48,7 @@ export function stack(err) {
   if (!err.stack) {
     return ''
   }
-  const idx = err.stack ? err.stack.indexOf('at') : 0
+  const idx = err.stack ? err.stack.indexOf('    at ') : 0
   let i = 0
   let line
   let out = ''
@@ -64,7 +63,7 @@ export function stack(err) {
       out += '\n    ' + line
     }
   }
-  return kleur.grey(out) + '\n'
+  return '\n' + out + '\n'
 }
 
 /**
