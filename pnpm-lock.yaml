@@ -59,6 +59,9 @@ dependencies:
   ora:
     specifier: ^7.0.1
     version: 7.0.1
+  p-timeout:
+    specifier: ^6.1.2
+    version: 6.1.2
   p-wait-for:
     specifier: 5.0.2
     version: 5.0.2
@@ -3182,8 +3185,8 @@ packages:
     engines: {node: '>=12'}
     dev: false
 
-  /p-timeout@6.1.1:
-    resolution: {integrity: sha512-yqz2Wi4fiFRpMmK0L2pGAU49naSUaP23fFIQL2Y6YT+qDGPoFwpvgQM/wzc6F8JoenUkIlAFa4Ql7NguXBxI7w==}
+  /p-timeout@6.1.2:
+    resolution: {integrity: sha512-UbD77BuZ9Bc9aABo74gfXhNvzC9Tx7SxtHSh1fxvx3jTLLYvmVhiQZZrJzqqU0jKbN32kb5VOKiLEQI/3bIjgQ==}
     engines: {node: '>=14.16'}
     dev: false
 
@@ -3196,7 +3199,7 @@ packages:
     resolution: {integrity: sha512-lwx6u1CotQYPVju77R+D0vFomni/AqRfqLmqQ8hekklqZ6gAY9rONh7lBQ0uxWMkC2AuX9b2DVAl8To0NyP1JA==}
     engines: {node: '>=12'}
     dependencies:
-      p-timeout: 6.1.1
+      p-timeout: 6.1.2
     dev: false
 
   /parent-module@1.0.1:

@@ -4,12 +4,13 @@
 /* eslint-disable no-console */
 import kleur from 'kleur'
 import { hrtime, stack } from './utils.js'
+import pTimeout from 'p-timeout'
 
 /**
  * @type {import("./types.js").Queue}
  */
 export const TAPS_QUEUE = []
-globalThis.UVU_ONLY_MODE = false
+globalThis.TAPS_ONLY = false
 
 /**
  *
@@ -83,8 +84,8 @@ function log(ctx, fail, time) {
  * @type {import("./types.js").Runner}
  */
 async function runner(ctx, testCount) {
-  const { only, tests, file, name, before, after, beforeEach, afterEach } = ctx
-  const testsToRun = only.length > 0 || globalThis.UVU_ONLY_MODE ? only : tests
+  const { only, tests, name, before, after, beforeEach, afterEach } = ctx
+  const testsToRun = only.length > 0 || globalThis.TAPS_ONLY ? only : tests
   let num = testCount
   let passed = 0
   let skips = 0
@@ -109,10 +110,9 @@ async function runner(ctx, testCount) {
       num++
       /** @type {import("./types.js").TestContext} */
       const testCtx = {
-        file,
         name: test.name,
         suite: name,
-        skip: test.skip || skipSuite,
+        skip: test.options.skip || skipSuite,
         number: num,
       }
       const timer = hrtime()
@@ -128,7 +128,10 @@ async function runner(ctx, testCount) {
               throw new Error('beforeEach hook failed', { cause: error })
             }
           }
-          await test.fn(harness(test.name))
+          // @ts-ignore
+          await pTimeout(test.fn(), {
+            milliseconds: test.options.timeout,
+          })
           passed++
 
           // After Each Hooks
@@ -178,9 +181,9 @@ async function runner(ctx, testCount) {
 /**
  *
  * @param {string} name
- * @returns {import('./types.js').Harness}
+ * @returns {import('./types.js').Suite}
  */
-export function harness(name = '') {
+export function suite(name = '') {
   /** @type {import("./types.js").SuiteContext} */
   const ctx = {
     tests: [],
@@ -191,14 +194,19 @@ export function harness(name = '') {
     only: [],
     skips: 0,
     name,
-    file: '',
+  }
+
+  const defaultOptions = {
+    skip: false,
+    only: false,
+    timeout: 5000,
   }
 
   /**
    * @type {import('./types.js').TestMethod}
    */
-  function test(name, fn) {
-    ctx.tests.push({ name, fn, skip: false })
+  function test(name, fn, options = defaultOptions) {
+    ctx.tests.push({ name, fn, options: { ...defaultOptions, ...options } })
   }
 
   test.test = test
@@ -206,6 +214,7 @@ export function harness(name = '') {
   test.before = function (/** @type {import("./types.js").Hook} */ fn) {
     ctx.before.push(fn)
   }
+
   test.after = function (/** @type {import("./types.js").Hook} */ fn) {
     ctx.after.push(fn)
   }
@@ -218,19 +227,27 @@ export function harness(name = '') {
     ctx.afterEach.push(fn)
   }
 
-  test.skip = function (
-    /** @type {string} */ name,
-    /** @type {import('./types.js').Fn} */ fn
-  ) {
-    ctx.tests.push({ name, fn, skip: true })
+  /**
+   * @type {import('./types.js').TestMethod}
+   */
+  test.skip = function (name, fn, options = defaultOptions) {
+    ctx.tests.push({
+      name,
+      fn,
+      options: { ...defaultOptions, ...options, skip: true },
+    })
   }
 
-  test.only = function (
-    /** @type {string} */ name,
-    /** @type {import('./types.js').Fn} */ fn
-  ) {
-    globalThis.UVU_ONLY_MODE = true
-    ctx.only.push({ name, fn, skip: false })
+  /**
+   * @type {import('./types.js').TestMethod}
+   */
+  test.only = function (name, fn, options = defaultOptions) {
+    globalThis.TAPS_ONLY = true
+    ctx.only.push({
+      name,
+      fn,
+      options: { ...defaultOptions, ...options, only: true },
+    })
   }
 
   TAPS_QUEUE.push(runner.bind(0, ctx))

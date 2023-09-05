@@ -1,13 +1,12 @@
 /* eslint-disable no-unsafe-finally */
 /* eslint-disable no-console */
 import kleur from 'kleur'
-import { TAPS_QUEUE, harness } from './harness.js'
+import { TAPS_QUEUE, suite } from './harness.js'
 import { HAS_PROCESS, IS_ENV_WITH_DOM, IS_NODE, hrtime } from './utils.js'
 
-export const suite = (/** @type {string | undefined} */ name) => {
-  return harness(name)
-}
-export const test = harness()
+export const test = suite()
+
+export { suite } from './harness.js'
 
 export * from './assert.js'
 
@@ -80,5 +79,7 @@ if (IS_ENV_WITH_DOM) {
 }
 
 if (IS_NODE && process.argv0 === 'node') {
+  const { createHook } = await import('node:async_hooks')
+  createHook({ init() {} }).enable() // forces PromiseHooks to be enabled.
   setTimeout(start, 0)
 }

@@ -1,5 +1,6 @@
 // eslint-disable-next-line unicorn/import-style
 import util from 'util'
+import { AssertionError } from 'assert'
 
 export const IS_ENV_WITH_DOM =
   typeof window === 'object' &&
@@ -134,4 +135,46 @@ export function formatObj(v) {
     sorted: true,
     numericSeparator: true,
   })
+}
+
+/**
+ * @param {any} string
+ * @param {any} regexp
+ * @param {string |Error} [message]
+ * @param {Function} [fn]
+ * @param {string} [fnName]
+ */
+export function internalMatch(string, regexp, message, fn, fnName) {
+  // eslint-disable-next-line n/no-deprecated-api
+  if (!util.isRegExp(regexp)) {
+    throw new TypeError('Argument #2 must be a RegExp')
+  }
+  const match = fnName === 'match'
+  if (typeof string !== 'string' || regexp.test(string) !== match) {
+    if (message instanceof Error) {
+      throw message
+    }
+
+    const generatedMessage = !message
+
+    // 'The input was expected to not match the regular expression ' +
+    message =
+      message ||
+      (typeof string === 'string'
+        ? (match
+            ? 'The input did not match the regular expression '
+            : 'The input was expected to not match the regular expression ') +
+          `${util.inspect(regexp)}. Input:\n\n${util.inspect(string)}\n`
+        : 'The "string" argument must be of type string. Received type ' +
+          `${typeof string} (${util.inspect(string)})`)
+    const err = new AssertionError({
+      actual: string,
+      expected: regexp,
+      message,
+      operator: fnName,
+      stackStartFn: fn,
+    })
+    err.generatedMessage = generatedMessage
+    throw err
+  }
 }

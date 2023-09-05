@@ -1,13 +1,50 @@
-import { suite, test } from '../../src/taps/index.js'
-import { type, is } from 'uvu/assert'
+import { suite, assert, test as _test } from '../../src/taps/index.js'
 
-test('sum suite 1', () => {
-  type(() => {}, 'function')
-  is(3, 3)
+let { test } = suite('suite2')
+
+test('test1', () => {
+  assert.match('foo', /foo/)
+  assert.doesNotMatch('fiii', /foo/)
+  assert.equal(3, 3)
+
+  assert.type('ssss', 'string')
+  assert.instance(new Date(), Date)
 })
 
-test('sum suite 3', (t) => {
-  t('sum suite 3.1', () => {
-    is(3, 3)
+test = suite('suite3').test
+
+test('test1', () => {
+  assert.match('foo', /foo/)
+  assert.doesNotMatch('fiii', /foo/)
+  assert.equal(3, 3)
+
+  assert.type('ssss', 'string')
+  assert.instance(new Date(), Date)
+})
+
+test('async with events', async () => {
+  const signal = AbortSignal.timeout(100)
+
+  const p = new Promise((resolve, reject) => {
+    signal.addEventListener('abort', () => {
+      resolve(true)
+    })
   })
+
+  await p
+
+  assert.equal(signal.reason.name, 'TimeoutError')
+  assert.equal(signal.aborted, true)
 })
+
+_test('default suite', () => {
+  assert.equal(3, 3)
+})
+
+test(
+  'should fail if Promise never resolves :: GC',
+  async () => {
+    await new Promise(() => {})
+  },
+  { timeout: 100, skip: true }
+)
