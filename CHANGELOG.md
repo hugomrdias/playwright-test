@@ -1,5 +1,18 @@
 # Changelog
 
+## [12.3.0](https://github.com/hugomrdias/playwright-test/compare/v12.2.0...v12.3.0) (2023-09-05)
+
+
+### Features
+
+* big refactor to taps ([ee90fd6](https://github.com/hugomrdias/playwright-test/commit/ee90fd622e2af58f16574d6b0d5418c75a7912ce))
+
+
+### Bug Fixes
+
+* fix stack formating in and colors in taps ([c63eebd](https://github.com/hugomrdias/playwright-test/commit/c63eebd4f16a078607f4ab93ca4dd80d4b634e5f))
+* remove assert from callback ([4a8c22f](https://github.com/hugomrdias/playwright-test/commit/4a8c22fcbb770471453f6708cb22f59fdb655c4a))
+
 ## [12.2.0](https://github.com/hugomrdias/playwright-test/compare/v12.1.2...v12.2.0) (2023-09-01)
 
 
