@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.3.1](https://github.com/hugomrdias/playwright-test/compare/v12.3.0...v12.3.1) (2023-09-13)
+
+
+### Bug Fixes
+
+* export types ([e0f0508](https://github.com/hugomrdias/playwright-test/commit/e0f0508378bdf2cde02dfa352e69a9da2a3e94d0))
+
 ## [12.3.0](https://github.com/hugomrdias/playwright-test/compare/v12.2.0...v12.3.0) (2023-09-05)
 
 
