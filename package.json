@@ -9,9 +9,15 @@
   "main": "src/runner.js",
   "types": "dist/src/runner.d.ts",
   "exports": {
-    ".": "./src/runner.js",
+    ".": {
+      "default": "./src/runner.js",
+      "types": "./dist/src/runner.d.ts"
+    },
     "./package.json": "./package.json",
-    "./taps": "./src/taps/index.js"
+    "./taps": {
+      "default": "./src/taps/index.js",
+      "types": "./dist/src/taps/index.d.ts"
+    }
   },
   "typesVersions": {
     "*": {
@@ -60,7 +66,7 @@
   ],
   "dependencies": {
     "acorn-loose": "^8.3.0",
-    "assert": "^2.0.0",
+    "assert": "^2.1.0",
     "buffer": "^6.0.3",
     "c8": "^8.0.1",
     "camelcase": "^8.0.0",
@@ -75,10 +81,9 @@
     "lilconfig": "^2.1.0",
     "lodash": "^4.17.21",
     "merge-options": "^3.0.4",
-    "nanoid": "^4.0.2",
+    "nanoid": "^5.0.1",
     "ora": "^7.0.1",
     "p-timeout": "^6.1.2",
-    "p-wait-for": "5.0.2",
     "path-browserify": "^1.0.1",
     "playwright-core": "1.37.1",
     "polka": "^0.5.2",
@@ -89,7 +94,6 @@
     "source-map": "0.6.1",
     "source-map-support": "^0.5.21",
     "stream-browserify": "^3.0.0",
-    "strip-ansi": "^7.1.0",
     "tempy": "^3.1.0",
     "test-exclude": "^6.0.0",
     "util": "^0.12.5",
@@ -102,12 +106,12 @@
     "copyfiles": "^2.4.1",
     "debug": "^4.3.4",
     "delay": "^6.0.0",
-    "hd-scripts": "^8.0.0",
+    "hd-scripts": "^8.1.1",
     "lint-staged": "^14.0.1",
     "mocha": "^10.2.0",
     "simple-git-hooks": "^2.9.0",
     "tape": "^5.6.6",
-    "tinybench": "^2.5.0",
+    "tinybench": "^2.5.1",
     "typescript": "^5.2.2",
     "uvu": "^0.5.6",
     "zora": "^5.2.0"
