@@ -56,12 +56,12 @@ ${tmpl}
     format: 'esm',
     banner: {
       js: `
-        import path from 'path';
-        import { fileURLToPath } from 'url';
+        import {dirname as topLevelDirname} from 'path';
+        import { fileURLToPath as topLevelfileURLToPath } from 'url';
         import { createRequire as topLevelCreateRequire } from 'module';
         const require = topLevelCreateRequire(import.meta.url);
-        const __filename = fileURLToPath(import.meta.url);
-        const __dirname = path.dirname(__filename);
+        const __filename = topLevelfileURLToPath(import.meta.url);
+        const __dirname = topLevelDirname(__filename);
         `,
     },
     plugins: [watchPlugin, wasmLoader()],

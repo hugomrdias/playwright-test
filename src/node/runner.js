@@ -142,20 +142,7 @@ export class NodeRunner {
 
   async watch() {
     const { files, outName } = await this.runTests()
-    await execa(
-      'node',
-      ['-r', 'source-map-support/register', path.join(this.dir, outName)],
-      {
-        stdio: 'inherit',
-      }
-    )
-
-    const watcher = watch([...files], {
-      ignored: /(^|[/\\])\../,
-      ignoreInitial: true,
-      awaitWriteFinish: { pollInterval: 100, stabilityThreshold: 500 },
-    }).on('change', async () => {
-      const { files, outName } = await this.runTests()
+    try {
       await execa(
         'node',
         ['-r', 'source-map-support/register', path.join(this.dir, outName)],
@@ -163,6 +150,23 @@ export class NodeRunner {
           stdio: 'inherit',
         }
       )
+    } catch {}
+
+    const watcher = watch([...files], {
+      ignored: /(^|[/\\])\../,
+      ignoreInitial: true,
+      awaitWriteFinish: { pollInterval: 100, stabilityThreshold: 500 },
+    }).on('change', async () => {
+      const { files, outName } = await this.runTests()
+      try {
+        await execa(
+          'node',
+          ['-r', 'source-map-support/register', path.join(this.dir, outName)],
+          {
+            stdio: 'inherit',
+          }
+        )
+      } catch {}
       watcher.add([...files])
     })
   }
