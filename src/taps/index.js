@@ -4,6 +4,10 @@ import kleur from 'kleur'
 import { TAPS_QUEUE, suite } from './harness.js'
 import { HAS_PROCESS, IS_ENV_WITH_DOM, IS_NODE, hrtime } from './utils.js'
 
+/**
+ * @typedef {import('./types.js').Suite} Suite
+ */
+
 export const test = suite()
 
 export { suite } from './harness.js'
