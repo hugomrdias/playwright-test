@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.3.3](https://github.com/hugomrdias/playwright-test/compare/v12.3.2...v12.3.3) (2023-09-15)
+
+
+### Bug Fixes
+
+* fix node mode watch and top level imports ([36c8ce2](https://github.com/hugomrdias/playwright-test/commit/36c8ce2210d6e67724a3a0a3fa288f9d7e60d136))
+
 ## [12.3.2](https://github.com/hugomrdias/playwright-test/compare/v12.3.1...v12.3.2) (2023-09-15)
 
 
