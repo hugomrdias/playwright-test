@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.3.4](https://github.com/hugomrdias/playwright-test/compare/v12.3.3...v12.3.4) (2023-09-18)
+
+
+### Miscellaneous Chores
+
+* release 12.3.4 ([4b47065](https://github.com/hugomrdias/playwright-test/commit/4b4706510530938e12e32d2113a23a449da58652))
+
 ## [12.3.3](https://github.com/hugomrdias/playwright-test/compare/v12.3.2...v12.3.3) (2023-09-15)
 
 
