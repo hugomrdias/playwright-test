@@ -66,8 +66,8 @@ dependencies:
     specifier: ^1.0.1
     version: 1.0.1
   playwright-core:
-    specifier: 1.38.0
-    version: 1.38.0
+    specifier: 1.38.1
+    version: 1.38.1
   polka:
     specifier: ^0.5.2
     version: 0.5.2
@@ -3325,8 +3325,8 @@ packages:
     resolution: {integrity: sha512-fnWVljUchTro6RiCFvCXBbNhJc2NijN7oIQxbwsyL0buWJPG85v81ehlHI9fXrJsMNgTofEoWIQeClKpgxFLrg==}
     dev: true
 
-  /playwright-core@1.38.0:
-    resolution: {integrity: sha512-f8z1y8J9zvmHoEhKgspmCvOExF2XdcxMW8jNRuX4vkQFrzV4MlZ55iwb5QeyiFQgOFCUolXiRHgpjSEnqvO48g==}
+  /playwright-core@1.38.1:
+    resolution: {integrity: sha512-tQqNFUKa3OfMf4b2jQ7aGLB8o9bS3bOY0yMEtldtC2+spf8QXG9zvXLTXUeRsoNuxEYMgLYR+NXfAa1rjKRcrg==}
     engines: {node: '>=16'}
     hasBin: true
     dev: false
