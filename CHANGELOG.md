@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.3.5](https://github.com/hugomrdias/playwright-test/compare/v12.3.4...v12.3.5) (2023-09-25)
+
+
+### Bug Fixes
+
+* **deps:** bump playwright-core from 1.38.0 to 1.38.1 ([#593](https://github.com/hugomrdias/playwright-test/issues/593)) ([dd79c5a](https://github.com/hugomrdias/playwright-test/commit/dd79c5a6b68ccc4ede2a3729e5043d91076d84bd))
+
 ## [12.3.4](https://github.com/hugomrdias/playwright-test/compare/v12.3.3...v12.3.4) (2023-09-18)
 
 
