@@ -1,15 +1,13 @@
-/* eslint-disable no-console */
-
 import { mkdirSync } from 'fs'
 import path from 'path'
-import { nanoid } from 'nanoid'
-import { findTests } from '../utils/index.js'
-import mergeOptions from 'merge-options'
 import { fileURLToPath } from 'node:url'
+import mergeOptions from 'merge-options'
+import { nanoid } from 'nanoid'
 import { watch } from 'chokidar'
-import { build } from './utils.js'
 import { execa } from 'execa'
+import { findTests } from '../utils/index.js'
 import * as DefaultRunners from '../test-runners.js'
+import { build } from './utils.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const merge = mergeOptions.bind({ ignoreUndefined: true })

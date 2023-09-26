@@ -1,5 +1,3 @@
-/* eslint-disable strict */
-
 class PwTestController {
   constructor() {
     this.beforeEnded = false
@@ -27,4 +25,4 @@ class PwTestController {
   }
 }
 
-self.PW_TEST = new PwTestController()
+globalThis.PW_TEST = new PwTestController()

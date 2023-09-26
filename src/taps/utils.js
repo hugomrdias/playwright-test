@@ -1,5 +1,5 @@
-// eslint-disable-next-line unicorn/import-style
-import util from 'util'
+// eslint-disable-next-line n/no-deprecated-api
+import { inspect, isRegExp } from 'util'
 import { AssertionError } from 'assert'
 
 export const IS_ENV_WITH_DOM =
@@ -8,7 +8,6 @@ export const IS_ENV_WITH_DOM =
   document.nodeType === 9
 
 export const IS_NODE =
-  // eslint-disable-next-line unicorn/prefer-module
   typeof process !== 'undefined' &&
   process.release !== undefined &&
   process.release.name === 'node'
@@ -19,24 +18,26 @@ export const milli = (/** @type {number[]} */ arr) =>
   (arr[0] * 1e3 + arr[1] / 1e6).toFixed(2) + 'ms'
 
 /** @type {(now?: [number, number]) => () => string} */
-export let hrtime =
+let _hrtime =
   (now = [Date.now(), 0]) =>
   () =>
     (Date.now() - now[0]).toFixed(2) + 'ms'
 
 if (IS_NODE && 'hrtime' in process) {
-  hrtime =
+  _hrtime =
     (now = process.hrtime()) =>
     () =>
       milli(process.hrtime(now))
 }
 
 if ('performance' in globalThis && 'now' in globalThis.performance) {
-  hrtime =
+  _hrtime =
     (now = [performance.now(), 0]) =>
     () =>
       (performance.now() - now[0]).toFixed(2) + 'ms'
 }
+
+export const hrtime = _hrtime
 
 const IGNORE = /^\s*at.*[\s(](?:node|(internal\/[\w/]*)|(.*taps\/[\w/]*))/
 
@@ -128,7 +129,7 @@ export function compare(expected, actual) {
  * @returns
  */
 export function formatObj(v) {
-  return util.inspect(v, {
+  return inspect(v, {
     colors: true,
     compact: false,
     depth: Number.POSITIVE_INFINITY,
@@ -145,8 +146,7 @@ export function formatObj(v) {
  * @param {string} [fnName]
  */
 export function internalMatch(string, regexp, message, fn, fnName) {
-  // eslint-disable-next-line n/no-deprecated-api
-  if (!util.isRegExp(regexp)) {
+  if (!isRegExp(regexp)) {
     throw new TypeError('Argument #2 must be a RegExp')
   }
   const match = fnName === 'match'
@@ -164,9 +164,9 @@ export function internalMatch(string, regexp, message, fn, fnName) {
         ? (match
             ? 'The input did not match the regular expression '
             : 'The input was expected to not match the regular expression ') +
-          `${util.inspect(regexp)}. Input:\n\n${util.inspect(string)}\n`
+          `${inspect(regexp)}. Input:\n\n${inspect(string)}\n`
         : 'The "string" argument must be of type string. Received type ' +
-          `${typeof string} (${util.inspect(string)})`)
+          `${typeof string} (${inspect(string)})`)
     const err = new AssertionError({
       actual: string,
       expected: regexp,

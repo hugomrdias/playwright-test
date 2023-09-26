@@ -162,7 +162,7 @@ export interface TestRunner {
 
 Configuration can be done with cli flags or config files.
 
-```js
+```text
 'package.json', // using property `pw-test` or `playwright-test`
 `.playwright-testrc.json`,
 `.playwright-testrc.js`,
@@ -179,7 +179,12 @@ Configuration can be done with cli flags or config files.
 The config type can be imported from the entrypoint.
 
 ```ts
-import type { RunnerOptions } from 'playwright-test'
+/** @type {import('playwright-test').RunnerOptions} */
+const config = {
+  // ...
+}
+
+export default config
 ```
 
 ### Interface

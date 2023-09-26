@@ -1,10 +1,9 @@
-/* eslint-disable max-depth */
 /* eslint-disable no-only-tests/no-only-tests */
 /* eslint-disable no-unsafe-finally */
 /* eslint-disable no-console */
 import kleur from 'kleur'
-import { hrtime, stack } from './utils.js'
 import pTimeout from 'p-timeout'
+import { hrtime, stack } from './utils.js'
 
 /**
  * @type {import("./types.js").Queue}

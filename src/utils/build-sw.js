@@ -1,9 +1,7 @@
-/* eslint-disable no-console */
-
 import path from 'path'
+import { fileURLToPath } from 'url'
 import { build } from 'esbuild'
 import mergeOptions from 'merge-options'
-import { fileURLToPath } from 'url'
 import { temporaryWriteSync } from 'tempy'
 
 const merge = mergeOptions.bind({

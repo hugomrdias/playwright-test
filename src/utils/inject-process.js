@@ -1,6 +1,7 @@
 // @ts-nocheck
 // eslint-disable-next-line unicorn/prefer-module
 const _process = require('process/browser')
+
 const performance = globalThis.performance || {}
 const performanceNow =
   performance.now ||
@@ -10,6 +11,10 @@ const performanceNow =
 
 // generate timestamp or delta
 // see http://nodejs.org/api/process.html#process_process_hrtime
+/**
+ *
+ * @param {number} previousTimestamp
+ */
 function hrtime(previousTimestamp) {
   const clocktime = performanceNow.call(performance) * 1e-3
   let seconds = Math.floor(clocktime)

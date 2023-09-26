@@ -1,53 +1,11 @@
 {
   "name": "playwright-test",
+  "type": "module",
   "version": "12.3.5",
   "description": "Run mocha, zora, uvu, tape and benchmark.js scripts inside real browsers with playwright.",
-  "repository": "hugomrdias/playwright-test",
   "author": "Hugo Dias <hugomrdias@gmail.com> (hugodias.me)",
   "license": "MIT",
-  "type": "module",
-  "main": "src/runner.js",
-  "types": "dist/src/runner.d.ts",
-  "exports": {
-    ".": {
-      "default": "./src/runner.js",
-      "types": "./dist/src/runner.d.ts"
-    },
-    "./package.json": "./package.json",
-    "./taps": {
-      "default": "./src/taps/index.js",
-      "types": "./dist/src/taps/index.d.ts"
-    }
-  },
-  "typesVersions": {
-    "*": {
-      "taps": [
-        "dist/src/taps/index.d.ts"
-      ]
-    }
-  },
-  "bin": {
-    "playwright-test": "cli.js",
-    "pw-test": "cli.js"
-  },
-  "engines": {
-    "node": ">=16.0.0"
-  },
-  "scripts": {
-    "clean": "rm -rf pnpm-lock.yaml .coverage .nyc_output dist node_modules .tmp",
-    "prepare": "tsc && copyfiles 'src/**/*.d.ts' dist",
-    "test": "mocha test.js --bail --timeout 50000",
-    "lint": "eslint '**/*.js' && prettier --check '*.{js,json}' --ignore-path .gitignore && tsc"
-  },
-  "files": [
-    "dist/src/runner.d.ts",
-    "dist/src/runner.d.ts.map",
-    "dist/src/types.d.ts",
-    "dist/src/taps",
-    "static",
-    "src",
-    "cli.js"
-  ],
+  "repository": "hugomrdias/playwright-test",
   "keywords": [
     "playwright",
     "test",
@@ -64,6 +22,48 @@
     "code coverage",
     "uvu"
   ],
+  "exports": {
+    ".": {
+      "types": "./dist/src/runner.d.ts",
+      "default": "./src/runner.js"
+    },
+    "./package.json": "./package.json",
+    "./taps": {
+      "types": "./dist/src/taps/index.d.ts",
+      "default": "./src/taps/index.js"
+    }
+  },
+  "main": "src/runner.js",
+  "types": "dist/src/runner.d.ts",
+  "typesVersions": {
+    "*": {
+      "taps": [
+        "dist/src/taps/index.d.ts"
+      ]
+    }
+  },
+  "bin": {
+    "playwright-test": "cli.js",
+    "pw-test": "cli.js"
+  },
+  "files": [
+    "dist/src/runner.d.ts",
+    "dist/src/runner.d.ts.map",
+    "dist/src/types.d.ts",
+    "dist/src/taps",
+    "static",
+    "src",
+    "cli.js"
+  ],
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "scripts": {
+    "clean": "rm -rf pnpm-lock.yaml .coverage .nyc_output dist node_modules .tmp",
+    "prepare": "tsc && copyfiles 'src/**/*.d.ts' dist",
+    "test": "mocha test.js --bail --timeout 50000",
+    "lint": "eslint . && prettier --check '*.{js,ts,yml,json}' --ignore-path .gitignore && tsc"
+  },
   "dependencies": {
     "acorn-loose": "^8.3.0",
     "assert": "^2.1.0",
@@ -106,7 +106,7 @@
     "copyfiles": "^2.4.1",
     "debug": "^4.3.4",
     "delay": "^6.0.0",
-    "hd-scripts": "^8.1.1",
+    "hd-scripts": "^9.0.5",
     "lint-staged": "^14.0.1",
     "mocha": "^10.2.0",
     "simple-git-hooks": "^2.9.0",
@@ -121,7 +121,7 @@
   },
   "lint-staged": {
     "*.{js,ts,md,yml,json}": "prettier --write",
-    "*.js": "eslint --fix"
+    "*": "eslint --fix"
   },
   "eslintConfig": {
     "env": {
@@ -129,13 +129,7 @@
     },
     "extends": [
       "./node_modules/hd-scripts/eslint/index.js"
-    ],
-    "parserOptions": {
-      "sourceType": "module"
-    },
-    "rules": {
-      "jsdoc/require-returns-check": "off"
-    }
+    ]
   },
   "eslintIgnore": [
     "node_modules",

@@ -1,4 +1,3 @@
-/* eslint-disable no-unsafe-finally */
 /* eslint-disable no-console */
 import kleur from 'kleur'
 import { TAPS_QUEUE, suite } from './harness.js'
@@ -68,10 +67,16 @@ export async function exec() {
 
 let autoStart = true
 
+/**
+ *
+ */
 export function hold() {
   autoStart = false
 }
 
+/**
+ *
+ */
 async function start() {
   if (autoStart) {
     await exec()

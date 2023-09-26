@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { ok, is } from 'uvu/assert'
+import { is, ok } from 'uvu/assert'
 import { execa, execaSync } from 'execa'
 
 describe('mocha', function () {
@@ -42,7 +42,6 @@ describe('mocha', function () {
     ok(proc.stdout.includes('passing'), 'process stdout')
 
     const cov = JSON.parse(
-      // eslint-disable-next-line unicorn/prefer-json-parse-buffer
       fs.readFileSync('.nyc_output/coverage-pw.json', 'utf8')
     )
     ok(path.resolve('mocks/test.mocha.js') in cov, 'test coverage')
@@ -60,7 +59,6 @@ describe('mocha', function () {
     ok(proc.stdout.includes('passing'), 'process stdout')
 
     const cov = JSON.parse(
-      // eslint-disable-next-line unicorn/prefer-json-parse-buffer
       fs.readFileSync('.coverage/coverage-pw.json', 'utf8')
     )
     ok(path.resolve('mocks/test.mocha.js') in cov, 'test coverage')
@@ -89,7 +87,6 @@ describe('mocha', function () {
     ok(proc.stdout.includes('passing'), 'process stdout')
 
     const cov = JSON.parse(
-      // eslint-disable-next-line unicorn/prefer-json-parse-buffer
       fs.readFileSync('mocks/.nyc_output/coverage-pw.json', 'utf8')
     )
 

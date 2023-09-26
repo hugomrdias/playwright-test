@@ -1,22 +1,22 @@
 /* eslint-disable no-console */
 
-import mergeOptions from 'merge-options'
 import path from 'path'
 import fs from 'fs'
+import { promisify } from 'util'
+import { createServer } from 'http'
+import { createRequire } from 'module'
+import { fileURLToPath, pathToFileURL } from 'url'
+import mergeOptions from 'merge-options'
 import kleur from 'kleur'
 import camelCase from 'camelcase'
 import sirv from 'sirv'
 import esbuild from 'esbuild'
 import V8ToIstanbul from 'v8-to-istanbul'
-import { promisify } from 'util'
 import { globbySync } from 'globby'
 import ora from 'ora'
-import { createServer } from 'http'
 import polka from 'polka'
-import { createRequire } from 'module'
-import { fileURLToPath, pathToFileURL } from 'url'
-import * as DefaultRunners from '../test-runners.js'
 import { wasmLoader } from 'esbuild-plugin-wasm'
+import * as DefaultRunners from '../test-runners.js'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -324,7 +324,6 @@ w.onmessage = function(e) {
 export function runnerOptions(flags) {
   const opts = {}
 
-  // eslint-disable-next-line guard-for-in
   for (const key in flags) {
     const value = flags[key]
     const localFlags = [
@@ -483,12 +482,10 @@ export async function createCov(runner, coverage, file, outputDir) {
         // }
       )
 
-      // eslint-disable-next-line no-await-in-loop
       await converter.load()
       converter.applyCoverage(entry.functions)
       const instanbul = converter.toIstanbul()
 
-      // eslint-disable-next-line guard-for-in
       for (const key in instanbul) {
         if (f.has(key)) {
           // @ts-ignore
@@ -512,7 +509,7 @@ export async function createCov(runner, coverage, file, outputDir) {
  * Resolves module id from give base or cwd
  *
  * @param {string} id - module id
- * @param {string} [base=process.cwd()] - base path
+ * @param {string} [base] - base path
  */
 export async function resolveModule(id, base = process.cwd()) {
   try {

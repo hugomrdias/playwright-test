@@ -1,24 +1,23 @@
 #!/usr/bin/env node
 /* eslint-disable unicorn/prefer-ternary */
-/* eslint-disable complexity */
-/* eslint-disable max-depth */
+
 /* eslint-disable no-console */
 
 import path from 'path'
+import { fileURLToPath, pathToFileURL } from 'url'
+import fs from 'fs'
 import sade from 'sade'
 import kleur from 'kleur'
-import { fileURLToPath, pathToFileURL } from 'url'
 import { lilconfig } from 'lilconfig'
 import mergeOptions from 'merge-options'
 import {
-  runnerOptions,
   defaultOptions,
   findTests,
   resolveTestRunner,
+  runnerOptions,
 } from './src/utils/index.js'
 import { Runner } from './src/runner.js'
 import { NodeRunner } from './src/node/runner.js'
-import fs from 'fs'
 import { benchmark, mocha, none, tape, uvu, zora } from './src/test-runners.js'
 import { detectTestRunner } from './src/utils/auto-detect.js'
 import * as DefaultRunners from './src/test-runners.js'
@@ -26,7 +25,6 @@ import * as DefaultRunners from './src/test-runners.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const { version } = JSON.parse(
-  // eslint-disable-next-line unicorn/prefer-json-parse-buffer
   fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8')
 )
 

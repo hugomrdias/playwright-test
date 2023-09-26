@@ -1,5 +1,5 @@
-/* eslint-disable complexity */
 import fs from 'fs'
+
 // @ts-ignore
 import { parse } from 'acorn-loose'
 

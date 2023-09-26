@@ -10,7 +10,7 @@ on:
 
 jobs:
   linux:
-    name: 'Linux'
+    name: Linux
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-          cache: 'pnpm'
+          cache: pnpm
       - run: pnpm install
       - run: npx playwright install-deps
       - run: pnpm run lint
@@ -29,7 +29,7 @@ jobs:
       - run: ./cli.js mocks/test.mocha.js --browser webkit
 
   macos:
-    name: 'Mac'
+    name: Mac
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
@@ -39,14 +39,14 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-          cache: 'pnpm'
+          cache: pnpm
       - run: pnpm install
       - run: pnpm test
       - run: ./cli.js mocks/test.mocha.js --browser firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
 
   win:
-    name: 'Win'
+    name: Win
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
@@ -56,7 +56,7 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-          cache: 'pnpm'
+          cache: pnpm
       - run: pnpm install
       - run: pnpm test
       - run: ./cli.js mocks/test.mocha.js --browser firefox
@@ -84,7 +84,7 @@ jobs:
         with:
           node-version: 18
           registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
+          cache: pnpm
         if: ${{ steps.release.outputs.releases_created }}
       - run: pnpm install
         if: ${{ steps.release.outputs.releases_created }}

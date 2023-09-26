@@ -2,25 +2,25 @@
 
 import { mkdirSync } from 'fs'
 import path from 'path'
+import { fileURLToPath } from 'node:url'
 import ora from 'ora'
 import { nanoid } from 'nanoid'
 import { temporaryDirectory } from 'tempy'
 import { premove } from 'premove/sync'
-import {
-  redirectConsole,
-  getPw,
-  addWorker,
-  createCov,
-  createPolka,
-  build,
-  defaultOptions,
-  findTests,
-} from './utils/index.js'
-import { compileSw } from './utils/build-sw.js'
 import mergeOptions from 'merge-options'
-import { fileURLToPath } from 'node:url'
 import { watch } from 'chokidar'
 import cpy from 'cpy'
+import { compileSw } from './utils/build-sw.js'
+import {
+  addWorker,
+  build,
+  createCov,
+  createPolka,
+  defaultOptions,
+  findTests,
+  getPw,
+  redirectConsole,
+} from './utils/index.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
@@ -299,14 +299,14 @@ export class Runner {
         // wait for the tests
         await page.waitForFunction(
           // @ts-ignore
-          () => self.PW_TEST.ended === true,
+          () => globalThis.PW_TEST.ended === true,
           undefined,
           {
             timeout: 0,
             polling: 100, // need to be polling raf doesnt work in extensions
           }
         )
-        const testsFailed = await page.evaluate('self.PW_TEST.failed')
+        const testsFailed = await page.evaluate('globalThis.PW_TEST.failed')
 
         // coverage
         if (this.options.cov && page.coverage) {

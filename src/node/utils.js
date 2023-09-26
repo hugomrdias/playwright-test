@@ -1,5 +1,5 @@
-import esbuild from 'esbuild'
 import path from 'path'
+import esbuild from 'esbuild'
 import mergeOptions from 'merge-options'
 import { wasmLoader } from 'esbuild-plugin-wasm'
 

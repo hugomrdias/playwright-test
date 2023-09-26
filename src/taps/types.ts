@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-types */
-import type { subset, type, instance } from './assert.js'
 import type _assert from 'assert'
+import type { instance, subset, type } from './assert'
 
 export interface TypeMap {
   boolean: boolean
