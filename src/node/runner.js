@@ -83,8 +83,7 @@ export class NodeRunner {
    *
    */
   async runTests() {
-    const files = []
-    const { outName, files: mainFiles } = await build(
+    const { outName, files } = await build(
       this,
       this.options.testRunner.buildConfig
         ? this.options.testRunner.buildConfig(this.options)
@@ -94,7 +93,6 @@ export class NodeRunner {
         this.tests.map((t) => t.replaceAll('\\', '/'))
       )
     )
-    files.push(...mainFiles)
 
     return { outName, files }
   }
@@ -150,13 +148,14 @@ export class NodeRunner {
       )
     } catch {}
 
+    // Watch for changes
     const watcher = watch([...files], {
       ignored: /(^|[/\\])\../,
       ignoreInitial: true,
       awaitWriteFinish: { pollInterval: 100, stabilityThreshold: 500 },
     }).on('change', async () => {
-      const { files, outName } = await this.runTests()
       try {
+        const { files, outName } = await this.runTests()
         await execa(
           'node',
           ['-r', 'source-map-support/register', path.join(this.dir, outName)],
@@ -164,8 +163,10 @@ export class NodeRunner {
             stdio: 'inherit',
           }
         )
-      } catch {}
-      watcher.add([...files])
+        watcher.add([...files])
+      } catch (/** @type {any} */ error) {
+        console.error(error.stack)
+      }
     })
   }
 

@@ -3,7 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'url'
 
 describe('Node', () => {
-  it('should return -1 when the value is not present', () => {
+  it('should test node builtins', () => {
     path.sep = 'foo'
 
     fileURLToPath('file:///home/user/dir/file.txt')

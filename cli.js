@@ -277,12 +277,12 @@ sade2
             options.testRunner = testRunner
 
             if (testRunner.moduleId === 'none') {
-              console.log(
+              console.error(
                 '[playwright-test]',
                 kleur.yellow('Count not find a test runner. Using "none".')
               )
             } else {
-              console.log(
+              console.error(
                 '[playwright-test]',
                 kleur.cyan(
                   `Autodetected "${testRunner.moduleId}" as the runner.`

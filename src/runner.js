@@ -372,8 +372,12 @@ export class Runner {
         return regs[0] ? regs[0].unregister() : Promise.resolve()
       })
       await page.reload()
-      const { files } = await this.runTests(page)
-      watcher.add([...files])
+      try {
+        const { files } = await this.runTests(page)
+        watcher.add([...files])
+      } catch (/** @type {any} */ error) {
+        console.error(error.stack)
+      }
     })
   }
 
