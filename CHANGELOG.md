@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.3.7](https://github.com/hugomrdias/playwright-test/compare/v12.3.6...v12.3.7) (2023-09-29)
+
+
+### Bug Fixes
+
+* add NODE_ENV=test, fix autodetect and external msw/node ([62fe8e1](https://github.com/hugomrdias/playwright-test/commit/62fe8e177fd38bce7c72461edbdd6fdbe37afa86))
+
 ## [12.3.6](https://github.com/hugomrdias/playwright-test/compare/v12.3.5...v12.3.6) (2023-09-29)
 
 
