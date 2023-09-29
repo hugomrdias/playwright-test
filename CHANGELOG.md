@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.3.6](https://github.com/hugomrdias/playwright-test/compare/v12.3.5...v12.3.6) (2023-09-29)
+
+
+### Bug Fixes
+
+* keep watching even if build fails ([b244658](https://github.com/hugomrdias/playwright-test/commit/b2446582e2246d00062610b65a14b48793960caf))
+
 ## [12.3.5](https://github.com/hugomrdias/playwright-test/compare/v12.3.4...v12.3.5) (2023-09-25)
 
 
