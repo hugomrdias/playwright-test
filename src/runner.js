@@ -56,6 +56,7 @@ export class Runner {
     this.watching = false
     this.env = merge(JSON.parse(JSON.stringify(process.env)), {
       PW_TEST: this.options,
+      NODE_ENV: 'test',
     })
     this.beforeTestsOutput = undefined
     this.tests =

@@ -64,6 +64,7 @@ export class NodeRunner {
     this.beforeTestsOutput = undefined
     this.env = merge(JSON.parse(JSON.stringify(process.env)), {
       PW_TEST: this.options,
+      NODE_ENV: 'test',
     })
     this.tests =
       testFiles ??

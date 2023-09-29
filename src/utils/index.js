@@ -437,7 +437,7 @@ await import('${require
     plugins: [nodePlugin, watchPlugin, wasmLoader()],
     outfile: outPath,
     inject: [path.join(__dirname, 'inject-process.js')],
-    external: ['node:async_hooks', 'node:fs'],
+    external: ['node:async_hooks', 'node:fs', 'msw/node'],
     define: {
       global: 'globalThis',
       PW_TEST_SOURCEMAP: runner.options.debug ? 'false' : 'true',

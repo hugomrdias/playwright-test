@@ -63,6 +63,7 @@ export function detectTestRunner(path, runners) {
 
     if (
       node.type === 'VariableDeclaration' &&
+      node.declarations[0].init &&
       node.declarations[0].init.callee &&
       node.declarations[0].init.callee.name === 'require' &&
       node.declarations[0].init.arguments &&
