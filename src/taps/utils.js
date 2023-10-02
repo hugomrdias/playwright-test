@@ -51,16 +51,16 @@ export function stack(err) {
     return ''
   }
   const idx = err.stack ? err.stack.indexOf('    at ') : 0
-  let i = 0
-  let line
   let out = ''
   const arr = err.stack
     ?.slice(Math.max(0, idx))
     .replaceAll('\\', '/')
     .replaceAll('file://', '')
     .split('\n')
-  for (; i < arr.length; i++) {
-    line = arr[i].trim()
+
+  // remove one line from the stack trace from "p-timeout"
+  for (let i = 0; i < arr.length - 1; i++) {
+    const line = arr[i].trim()
     if (line.length > 0 && !IGNORE.test(line)) {
       out += '\n    ' + line
     }

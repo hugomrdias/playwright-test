@@ -49,9 +49,9 @@ function formatError(ctx, err) {
  * @param {Error} err
  */
 function formatErrorSuite(msg, err) {
-  let out = kleur.red(msg)
-
-  out += kleur.gray(stack(err))
+  const out = `${kleur.bgRed().bold(' FAILURE ')} ${kleur.red(msg)} 
+${`${err.name}: ${err.message} `} ${kleur.gray(stack(err))}
+  `
 
   return out
 }

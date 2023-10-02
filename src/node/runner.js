@@ -166,6 +166,9 @@ export class NodeRunner {
         )
         watcher.add([...files])
       } catch (/** @type {any} */ error) {
+        if ('command' in error) {
+          return
+        }
         console.error(error.stack)
       }
     })
@@ -183,12 +186,6 @@ export class NodeRunner {
 
     // Run after tests hook
     await this.options.afterTests(this.options, this.beforeTestsOutput)
-
-    if (fail && msg) {
-      // console.error(msg)
-    } else if (msg) {
-      // console.log(msg)
-    }
 
     // eslint-disable-next-line unicorn/no-process-exit
     process.exit(fail ? 1 : 0)
