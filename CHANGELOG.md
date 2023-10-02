@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.3.8](https://github.com/hugomrdias/playwright-test/compare/v12.3.7...v12.3.8) (2023-10-02)
+
+
+### Bug Fixes
+
+* improve node errors and suite errors ([43bc597](https://github.com/hugomrdias/playwright-test/commit/43bc597b7c69188f9eb96aad7ea2a849b062b62f))
+
 ## [12.3.7](https://github.com/hugomrdias/playwright-test/compare/v12.3.6...v12.3.7) (2023-09-29)
 
 
