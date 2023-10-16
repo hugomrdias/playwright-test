@@ -107,7 +107,7 @@
     "debug": "^4.3.4",
     "delay": "^6.0.0",
     "hd-scripts": "^9.0.5",
-    "lint-staged": "^14.0.1",
+    "lint-staged": "^15.0.1",
     "mocha": "^10.2.0",
     "simple-git-hooks": "^2.9.0",
     "tape": "^5.6.6",
