@@ -1,11 +1,13 @@
 import { mkdirSync } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'node:url'
+import { asyncExitHook, gracefulExit } from 'exit-hook'
 import mergeOptions from 'merge-options'
 import { nanoid } from 'nanoid'
 import { watch } from 'chokidar'
 import { execa } from 'execa'
-import { findTests } from '../utils/index.js'
+import { premove } from 'premove'
+import { findTests, log } from '../utils/index.js'
 import * as DefaultRunners from '../test-runners.js'
 import { build } from './utils.js'
 
@@ -99,6 +101,9 @@ export class NodeRunner {
   }
 
   async run() {
+    asyncExitHook(this.#clean.bind(this), {
+      wait: 1000,
+    })
     this.beforeTestsOutput = await this.options.beforeTests(this.options)
 
     try {
@@ -132,12 +137,18 @@ export class NodeRunner {
               stdio: 'inherit',
             }
           ))
-    } catch (/** @type {any} */ error) {
-      await this.stop(true, error)
+    } catch {
+      await this.stop(true, 'Tests failed.')
     }
   }
 
   async watch() {
+    asyncExitHook(this.#clean.bind(this), {
+      wait: 1000,
+    })
+
+    this.beforeTestsOutput = await this.options.beforeTests(this.options)
+
     const { files, outName } = await this.runTests()
     try {
       await execa(
@@ -156,6 +167,7 @@ export class NodeRunner {
       awaitWriteFinish: { pollInterval: 100, stabilityThreshold: 500 },
     }).on('change', async () => {
       try {
+        log.info('Reloading tests...')
         const { files, outName } = await this.runTests()
         await execa(
           'node',
@@ -174,6 +186,12 @@ export class NodeRunner {
     })
   }
 
+  async #clean() {
+    // Run after tests hook
+    await this.options.afterTests(this.options, this.beforeTestsOutput)
+    premove(this.dir)
+  }
+
   /**
    * @param {boolean} fail
    * @param {string | undefined} [msg]
@@ -184,10 +202,12 @@ export class NodeRunner {
     }
     this.stopped = true
 
-    // Run after tests hook
-    await this.options.afterTests(this.options, this.beforeTestsOutput)
+    if (fail && msg) {
+      log.error(msg)
+    } else if (msg) {
+      log.success(msg)
+    }
 
-    // eslint-disable-next-line unicorn/no-process-exit
-    process.exit(fail ? 1 : 0)
+    gracefulExit(fail ? 1 : 0)
   }
 }

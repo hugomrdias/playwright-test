@@ -51,6 +51,45 @@ export const defaultOptions = {
   afterTests: async () => {},
 }
 
+export const log = {
+  /**
+   * @param {string} message
+   * @param {boolean} quiet
+   */
+  info(message, quiet = false) {
+    if (!quiet) {
+      console.error(kleur.blue('ℹ'), message)
+    }
+  },
+  /**
+   * @param {string} message
+   * @param {boolean} quiet
+   */
+  warn(message, quiet = false) {
+    if (!quiet) {
+      console.warn(kleur.yellow('⚠'), message)
+    }
+  },
+  /**
+   * @param {string} message
+   * @param {boolean} quiet
+   */
+  error(message, quiet = false) {
+    if (!quiet) {
+      console.warn(kleur.red('✖'), message)
+    }
+  },
+  /**
+   * @param {string} message
+   * @param {boolean} quiet
+   */
+  success(message, quiet = false) {
+    if (!quiet) {
+      console.warn(kleur.green('✔'), message)
+    }
+  },
+}
+
 /**
  * @typedef {import('../types').RunnerOptions } RunnerOptions
  * @typedef {import('esbuild').Plugin} ESBuildPlugin
@@ -221,7 +260,7 @@ export async function redirectConsole(msg) {
     return
   }
   const text = msg.text()
-  const { url, lineNumber, columnNumber } = msg.location()
+  // const { url, lineNumber, columnNumber } = msg.location()
   let msgArgs
 
   try {
@@ -235,46 +274,28 @@ export async function redirectConsole(msg) {
   if (msgArgs && msgArgs.length > 0) {
     consoleFn.apply(console, msgArgs)
   } else if (text) {
-    let color = 'white'
-
     if (
       text.includes(
         'Synchronous XMLHttpRequest on the main thread is deprecated'
-      )
+      ) ||
+      text.includes('Clear-Site-Data')
     ) {
       return
     }
     switch (type) {
       case 'error': {
-        color = 'red'
+        log.error(text)
         break
       }
       case 'warning': {
-        color = 'yellow'
-        break
-      }
-      case 'info':
-      case 'debug': {
-        color = 'blue'
+        log.warn(text)
         break
       }
       default: {
+        log.info(text)
         break
       }
     }
-
-    // @ts-ignore
-    consoleFn(kleur[color](text))
-
-    console.info(
-      kleur.gray(
-        `${url}${
-          lineNumber
-            ? ':' + lineNumber + (columnNumber ? ':' + columnNumber : '')
-            : ''
-        }`
-      )
-    )
   }
 }
 

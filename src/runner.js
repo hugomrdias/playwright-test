@@ -3,6 +3,7 @@
 import { mkdirSync } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'node:url'
+import { asyncExitHook, gracefulExit } from 'exit-hook'
 import ora from 'ora'
 import { nanoid } from 'nanoid'
 import { temporaryDirectory } from 'tempy'
@@ -10,6 +11,7 @@ import { premove } from 'premove/sync'
 import mergeOptions from 'merge-options'
 import { watch } from 'chokidar'
 import cpy from 'cpy'
+import kleur from 'kleur'
 import { compileSw } from './utils/build-sw.js'
 import {
   addWorker,
@@ -19,6 +21,7 @@ import {
   defaultOptions,
   findTests,
   getPw,
+  log,
   redirectConsole,
 } from './utils/index.js'
 
@@ -74,7 +77,7 @@ export class Runner {
     process.env.DEBUG += ',-pw:*'
   }
 
-  async launch() {
+  async setupContext() {
     // copy files to be served
     await cpy(path.join(__dirname, './../static') + '/**', this.dir)
 
@@ -109,6 +112,33 @@ export class Runner {
         ...this.options.browserContextOptions,
       })
     }
+    // bindings
+    await this.context.exposeFunction(
+      'pwContextSetOffline',
+      async (/** @type {boolean} */ offline) => {
+        await this.context?.setOffline(offline)
+      }
+    )
+
+    await this.context.exposeFunction(
+      'PW_TEST_STDOUT_WRITE',
+      (/** @type {string | Uint8Array} */ msg) =>
+        new Promise((resolve, reject) =>
+          process.stdout.write(msg, (error) =>
+            error ? reject(error) : resolve(error)
+          )
+        )
+    )
+
+    await this.context.exposeFunction(
+      'PW_TEST_STDERR_WRITE',
+      (/** @type {string | Uint8Array} */ msg) =>
+        new Promise((resolve, reject) =>
+          process.stderr.write(msg, (error) =>
+            error ? reject(error) : resolve(error)
+          )
+        )
+    )
 
     return this.context
   }
@@ -182,17 +212,20 @@ export class Runner {
       await this.page.coverage.startJSCoverage()
     }
 
+    // Setup page events
     this.page.on('console', redirectConsole)
+
     // uncaught rejections
     this.page.on('pageerror', (err) => {
-      console.error(err)
-      this.stop(
-        true,
-        'Uncaught exception happened within the page. Run with --debug.'
+      log.error(
+        `Uncaught exception happened within the page. Run with --debug. \n${kleur.dim(
+          err.stack?.toString() ?? err.toString()
+        )}`
       )
     })
 
     await this.page.waitForLoadState('domcontentloaded')
+
     return this.page
   }
 
@@ -210,7 +243,7 @@ export class Runner {
     const { outName, files: mainFiles } = await this.compiler()
     files.push(...mainFiles)
 
-    // inject and register the service
+    // Inject and register the service worker
     if (this.options.sw) {
       const { files: swFiles } = await compileSw(this, {
         entry: this.options.sw,
@@ -222,13 +255,13 @@ export class Runner {
       })
     }
 
+    // Choose the mode
     switch (this.options.mode) {
       case 'main': {
         await page.addScriptTag({ url: outName, type: 'module' })
         break
       }
       case 'worker': {
-        // do not await for the promise because we will wait for the 'worker' event after
         page.evaluate(addWorker(outName))
         break
       }
@@ -241,46 +274,23 @@ export class Runner {
   }
 
   async run() {
+    asyncExitHook(this.#clean.bind(this), {
+      wait: 1000,
+    })
+
     this.beforeTestsOutput = await this.options.beforeTests(this.options)
 
     const spinner = ora(`Setting up ${this.options.browser}`).start()
-
     try {
-      // get the context
-      const context = await this.launch()
+      // Setup the context
+      const context = await this.setupContext()
 
-      // run the before script
+      // Run the before script
       if (this.options.before) {
-        await this.runBefore(context)
+        await this.setupBeforePage(context)
       }
 
-      await context.exposeFunction(
-        'PW_TEST_STDOUT_WRITE',
-        /**
-         * @param {Uint8Array|string} msg
-         */
-        (msg) =>
-          new Promise((resolve, reject) =>
-            process.stdout.write(msg, (error) =>
-              error ? reject(error) : resolve(error)
-            )
-          )
-      )
-
-      await context.exposeFunction(
-        'PW_TEST_STDERR_WRITE',
-        /**
-         * @param {Uint8Array|string} msg
-         */
-        (msg) =>
-          new Promise((resolve, reject) =>
-            process.stderr.write(msg, (error) =>
-              error ? reject(error) : resolve(error)
-            )
-          )
-      )
-
-      // get the page
+      // Setup page
       const page = await this.setupPage(context)
       spinner.succeed(`${this.options.browser} set up`)
 
@@ -333,13 +343,17 @@ export class Runner {
    *
    * @param {Context} context
    */
-  async runBefore(context) {
+  async setupBeforePage(context) {
     const page = await context.newPage()
     await page.goto(this.url + 'before.html')
 
     page.on('console', redirectConsole)
     page.on('pageerror', (err) => {
-      this.stop(true, `Before page:\n ${err}`)
+      log.error(
+        `Uncaught exception happened within the before page. Run with --debug. \n${kleur.dim(
+          err.stack?.toString() ?? err.toString()
+        )}`
+      )
     })
 
     const { outName } = await this.compiler('before')
@@ -350,16 +364,26 @@ export class Runner {
   }
 
   async watch() {
+    asyncExitHook(this.#clean.bind(this), {
+      wait: 1000,
+    })
+
+    this.beforeTestsOutput = await this.options.beforeTests(this.options)
     const spinner = ora(`Setting up ${this.options.browser}`).start()
 
-    const context = await this.launch()
+    // Setup the context
+    const context = await this.setupContext()
+
+    // Run the before script
     if (this.options.before) {
       spinner.text = 'Running before script'
-      await this.runBefore(context)
+      await this.setupBeforePage(context)
     }
-    const page = await this.setupPage(context)
 
-    spinner.succeed()
+    // Setup page
+    const page = await this.setupPage(context)
+    spinner.succeed(`${this.options.browser} set up`)
+
     const { files } = await this.runTests(page)
 
     const watcher = watch([...files], {
@@ -374,6 +398,8 @@ export class Runner {
       })
       await page.reload()
       try {
+        console.error()
+        log.info('Reloading tests...')
         const { files } = await this.runTests(page)
         watcher.add([...files])
       } catch (/** @type {any} */ error) {
@@ -382,22 +408,11 @@ export class Runner {
     })
   }
 
-  /**
-   * @param {boolean} fail
-   * @param {string | undefined} [msg]
-   */
-  async stop(fail, msg) {
-    if (this.stopped || this.options.debug) {
-      return
-    }
-    this.stopped = true
-
+  async #clean() {
     // Run after tests hook
     await this.options.afterTests(this.options, this.beforeTestsOutput)
 
-    if (this.context) {
-      await this.context.close()
-    }
+    premove(this.dir)
 
     const serverClose = new Promise((resolve, reject) => {
       if (this.server) {
@@ -414,17 +429,28 @@ export class Runner {
 
     await serverClose
 
-    premove(this.dir)
-    // premove(this.browserDir)
+    if (this.context) {
+      await this.context.close()
+    }
+  }
+
+  /**
+   * @param {boolean} fail
+   * @param {string | undefined} [msg]
+   */
+  async stop(fail, msg) {
+    if (this.stopped || this.options.debug) {
+      return
+    }
+    this.stopped = true
 
     if (fail && msg) {
-      console.error(msg)
+      log.error(msg)
     } else if (msg) {
-      console.log(msg)
+      log.success(msg)
     }
 
-    // eslint-disable-next-line unicorn/no-process-exit
-    process.exit(fail ? 1 : 0)
+    gracefulExit(fail ? 1 : 0)
   }
 
   /**

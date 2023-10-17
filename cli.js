@@ -8,11 +8,13 @@ import { fileURLToPath, pathToFileURL } from 'url'
 import fs from 'fs'
 import sade from 'sade'
 import kleur from 'kleur'
+import { gracefulExit } from 'exit-hook'
 import { lilconfig } from 'lilconfig'
 import mergeOptions from 'merge-options'
 import {
   defaultOptions,
   findTests,
+  log,
   resolveTestRunner,
   runnerOptions,
 } from './src/utils/index.js'
@@ -36,13 +38,13 @@ process.once(
   (/** @type {Error} */ err, /** @type {string} */ origin) => {
     if (!origin || origin === 'uncaughtException') {
       console.error(err)
-      process.exit(1)
+      gracefulExit(1)
     }
   }
 )
 process.once('unhandledRejection', (err) => {
   console.error(err)
-  process.exit(1)
+  gracefulExit(1)
 })
 
 const extra = `
@@ -277,17 +279,9 @@ sade2
             options.testRunner = testRunner
 
             if (testRunner.moduleId === 'none') {
-              console.error(
-                '[playwright-test]',
-                kleur.yellow('Count not find a test runner. Using "none".')
-              )
+              log.warn('Count not find a test runner. Using "none".')
             } else {
-              console.error(
-                '[playwright-test]',
-                kleur.cyan(
-                  `Autodetected "${testRunner.moduleId}" as the runner.`
-                )
-              )
+              log.info(`Autodetected "${testRunner.moduleId}" as the runner.`)
             }
           }
         }
@@ -323,7 +317,7 @@ sade2
       }
     } catch (error) {
       console.error(error)
-      process.exit(1)
+      gracefulExit(1)
     }
   })
   .parse(process.argv)
