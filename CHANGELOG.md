@@ -1,5 +1,18 @@
 # Changelog
 
+## [12.4.0](https://github.com/hugomrdias/playwright-test/compare/v12.3.8...v12.4.0) (2023-10-17)
+
+
+### Features
+
+* added playwright/client to exposes browser context methods to the tests ([7111801](https://github.com/hugomrdias/playwright-test/commit/7111801a64524e1974c80883ae9e07fd3a4a3e57)), closes [#540](https://github.com/hugomrdias/playwright-test/issues/540)
+* safer exit and logging ([b3710e1](https://github.com/hugomrdias/playwright-test/commit/b3710e137a4f812003f3f985338bb18b7c191019))
+
+
+### Bug Fixes
+
+* skip before and after hooks when no tests ([2c5ca4f](https://github.com/hugomrdias/playwright-test/commit/2c5ca4ff7af1078cc52af17bb1f154472669c6e2))
+
 ## [12.3.8](https://github.com/hugomrdias/playwright-test/compare/v12.3.7...v12.3.8) (2023-10-02)
 
 
