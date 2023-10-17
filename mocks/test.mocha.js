@@ -3,6 +3,7 @@
 const { is, ok, equal } = require('uvu/assert')
 const debug = require('debug')('app')
 const { good, bad } = require('./lib')
+const Client = require('../client')
 
 describe('Array', () => {
   describe('#indexOf()', () => {
@@ -33,6 +34,21 @@ describe('Array', () => {
 
     it('should has import.meta.env', async () => {
       equal(import.meta.env, process.env)
+    })
+
+    it('should setoffline', async () => {
+      if (Client.mode === 'main' && Client.options.extension === false) {
+        globalThis.addEventListener('offline', () => {
+          console.log('offlineee')
+        })
+        // try {
+        //   fetch('https://example.comeeee')
+        // } catch (error) {}
+        await Client.context.setOffline(true)
+        equal(navigator.onLine, false)
+        await Client.context.setOffline(false)
+        equal(navigator.onLine, true)
+      }
     })
   })
 })

@@ -6,10 +6,10 @@
   },
   "include": [
     "src",
-    "src/utils",
     "test.js",
     "cli.js",
     "package.json",
-    "mocks/tops"
+    "mocks/tops",
+    "client"
   ]
 }

@@ -77,6 +77,44 @@ Description
     $ playwright-test test/** BAD
 ```
 
+## Client
+
+This client package exposes the `playwright-test` options and some Playwright browser context methods to be used in tests.
+
+```ts
+import * as Client from 'playwright-test/client'
+
+it('should setoffline', async () => {
+  if (Client.mode === 'main' && Client.options.extension === false) {
+    globalThis.addEventListener('offline', () => {
+      console.log('offlineee')
+    })
+    await Client.context.setOffline(true)
+    equal(navigator.onLine, false)
+    await Client.context.setOffline(false)
+    equal(navigator.onLine, true)
+  }
+})
+
+it('should geolocation', async () => {
+  if (Client.mode === 'main') {
+    const deferred = pdefer()
+    await Client.context.setGeolocation({
+      latitude: 59.95,
+      longitude: 30.316_67,
+    })
+    await Client.context.grantPermissions(['geolocation'])
+
+    navigator.geolocation.getCurrentPosition((position) => {
+      deferred.resolve(position)
+    })
+
+    const position = (await deferred.promise) as GeolocationPosition
+    equal(position.coords.latitude, 59.95)
+  }
+})
+```
+
 ## Flow control
 
 All test runners support automatic flow control, which means you don't need to call special function or trigger any event in your tests to stop the run. The `none` runner does not support flow control.

@@ -31,6 +31,10 @@
     "./taps": {
       "types": "./dist/src/taps/index.d.ts",
       "default": "./src/taps/index.js"
+    },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "default": "./dist/client/index.js"
     }
   },
   "main": "src/runner.js",
@@ -39,6 +43,9 @@
     "*": {
       "taps": [
         "dist/src/taps/index.d.ts"
+      ],
+      "client": [
+        "dist/client/index.d.ts"
       ]
     }
   },
@@ -76,6 +83,7 @@
     "esbuild-plugin-wasm": "^1.1.0",
     "events": "^3.3.0",
     "execa": "^8.0.1",
+    "exit-hook": "^4.0.0",
     "globby": "^13.2.2",
     "kleur": "^4.1.5",
     "lilconfig": "^2.1.0",
@@ -109,6 +117,7 @@
     "hd-scripts": "^9.0.5",
     "lint-staged": "^14.0.1",
     "mocha": "^10.2.0",
+    "p-defer": "^4.0.0",
     "simple-git-hooks": "^2.9.0",
     "tape": "^5.6.6",
     "tinybench": "^2.5.1",

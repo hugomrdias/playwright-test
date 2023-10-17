@@ -121,6 +121,25 @@ export class Runner {
     )
 
     await this.context.exposeFunction(
+      'pwContextGrantPermissions',
+      async (
+        /** @type {string[]} */ permissions,
+        /** @type {{ origin?: string | undefined; } | undefined} */ options
+      ) => {
+        await this.context?.grantPermissions(permissions, options)
+      }
+    )
+
+    await this.context.exposeFunction(
+      'pwContextSetGeolocation',
+      async (
+        /** @type {{ latitude: number; longitude: number; accuracy?: number | undefined; } | null} */ geolocation
+      ) => {
+        await this.context?.setGeolocation(geolocation)
+      }
+    )
+
+    await this.context.exposeFunction(
       'PW_TEST_STDOUT_WRITE',
       (/** @type {string | Uint8Array} */ msg) =>
         new Promise((resolve, reject) =>
@@ -412,7 +431,7 @@ export class Runner {
     // Run after tests hook
     await this.options.afterTests(this.options, this.beforeTestsOutput)
 
-    premove(this.dir)
+    await premove(this.dir)
 
     const serverClose = new Promise((resolve, reject) => {
       if (this.server) {
