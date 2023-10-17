@@ -93,6 +93,10 @@ async function runner(ctx, testCount) {
   const total = testsToRun.length
   let skipSuite = false
 
+  if (testsToRun.length === 0) {
+    return [errors, passed, skips, total]
+  }
+
   try {
     // Before Hooks
     for (const hook of before) {

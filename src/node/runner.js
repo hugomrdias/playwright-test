@@ -189,7 +189,7 @@ export class NodeRunner {
   async #clean() {
     // Run after tests hook
     await this.options.afterTests(this.options, this.beforeTestsOutput)
-    premove(this.dir)
+    await premove(this.dir)
   }
 
   /**
