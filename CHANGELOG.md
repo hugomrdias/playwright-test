@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.4.3](https://github.com/hugomrdias/playwright-test/compare/v12.4.2...v12.4.3) (2023-10-19)
+
+
+### Bug Fixes
+
+* move client to src and export properly ([6238117](https://github.com/hugomrdias/playwright-test/commit/6238117ea74bcf80b4baa55985642b77c93ab6bd))
+
 ## [12.4.2](https://github.com/hugomrdias/playwright-test/compare/v12.4.1...v12.4.2) (2023-10-19)
 
 
