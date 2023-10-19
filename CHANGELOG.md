@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.4.2](https://github.com/hugomrdias/playwright-test/compare/v12.4.1...v12.4.2) (2023-10-19)
+
+
+### Bug Fixes
+
+* add client to npm ([d93e74a](https://github.com/hugomrdias/playwright-test/commit/d93e74a22095e8b86abb36a91825af56245de7cb))
+
 ## [12.4.1](https://github.com/hugomrdias/playwright-test/compare/v12.4.0...v12.4.1) (2023-10-19)
 
 
