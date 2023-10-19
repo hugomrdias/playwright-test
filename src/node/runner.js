@@ -140,6 +140,7 @@ export class NodeRunner {
     } catch {
       await this.stop(true, 'Tests failed.')
     }
+    this.stop(false, 'Tests passed.')
   }
 
   async watch() {

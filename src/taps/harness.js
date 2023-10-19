@@ -68,7 +68,7 @@ function log(ctx, fail, time) {
     ? kleur.red('✘')
     : ctx.skip
     ? kleur.yellow('-')
-    : kleur.green('✓')
+    : kleur.green('✔')
   const _time = kleur.gray(`(${time})`)
   const _msg = `${ctx.suite ? ctx.suite + ' > ' : ''}${ctx.name}`
 

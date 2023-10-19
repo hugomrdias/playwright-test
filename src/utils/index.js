@@ -67,7 +67,7 @@ export const log = {
    */
   warn(message, quiet = false) {
     if (!quiet) {
-      console.warn(kleur.yellow('⚠'), message)
+      console.warn(kleur.yellow('-'), message)
     }
   },
   /**
@@ -76,7 +76,7 @@ export const log = {
    */
   error(message, quiet = false) {
     if (!quiet) {
-      console.warn(kleur.red('✖'), message)
+      console.warn(kleur.red('✘'), message)
     }
   },
   /**

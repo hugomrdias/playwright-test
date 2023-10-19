@@ -4,7 +4,6 @@ import { mkdirSync } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'node:url'
 import { asyncExitHook, gracefulExit } from 'exit-hook'
-import ora from 'ora'
 import { nanoid } from 'nanoid'
 import { temporaryDirectory } from 'tempy'
 import { premove } from 'premove/sync'
@@ -299,7 +298,6 @@ export class Runner {
 
     this.beforeTestsOutput = await this.options.beforeTests(this.options)
 
-    const spinner = ora(`Setting up ${this.options.browser}`).start()
     try {
       // Setup the context
       const context = await this.setupContext()
@@ -311,7 +309,7 @@ export class Runner {
 
       // Setup page
       const page = await this.setupPage(context)
-      spinner.succeed(`${this.options.browser} set up`)
+      log.info(`Browser "${this.options.browser}" setup complete.`)
 
       const { outName } = await this.runTests(page)
 
@@ -349,10 +347,12 @@ export class Runner {
         }
 
         // exit
-        await this.stop(testsFailed)
+        await this.stop(
+          testsFailed,
+          testsFailed ? 'Tests failed.' : 'Tests passed.'
+        )
       }
     } catch (/** @type {any} */ error) {
-      spinner.fail('Running tests failed.')
       await this.stop(true, error)
     }
   }
@@ -388,20 +388,18 @@ export class Runner {
     })
 
     this.beforeTestsOutput = await this.options.beforeTests(this.options)
-    const spinner = ora(`Setting up ${this.options.browser}`).start()
 
     // Setup the context
     const context = await this.setupContext()
 
     // Run the before script
     if (this.options.before) {
-      spinner.text = 'Running before script'
       await this.setupBeforePage(context)
     }
 
     // Setup page
     const page = await this.setupPage(context)
-    spinner.succeed(`${this.options.browser} set up`)
+    log.info(`Browser "${this.options.browser}" setup complete.`)
 
     const { files } = await this.runTests(page)
 
@@ -431,7 +429,7 @@ export class Runner {
     // Run after tests hook
     await this.options.afterTests(this.options, this.beforeTestsOutput)
 
-    await premove(this.dir)
+    premove(this.dir)
 
     const serverClose = new Promise((resolve, reject) => {
       if (this.server) {
