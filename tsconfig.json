@@ -4,12 +4,5 @@
     "moduleResolution": "node",
     "outDir": "dist"
   },
-  "include": [
-    "src",
-    "test.js",
-    "cli.js",
-    "package.json",
-    "mocks/tops",
-    "client"
-  ]
+  "include": ["src", "test.js", "cli.js", "package.json", "mocks/tops"]
 }

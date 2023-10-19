@@ -33,8 +33,8 @@
       "default": "./src/taps/index.js"
     },
     "./client": {
-      "types": "./dist/client/index.d.ts",
-      "default": "./dist/client/index.js"
+      "types": "./dist/src/client/index.d.ts",
+      "default": "./src/client/index.js"
     }
   },
   "main": "src/runner.js",
@@ -45,7 +45,7 @@
         "dist/src/taps/index.d.ts"
       ],
       "client": [
-        "dist/client/index.d.ts"
+        "dist/src/client/index.d.ts"
       ]
     }
   },

@@ -1,4 +1,4 @@
-const config = /** @type { import('../src/types.js').RunnerOptions} */ (
+const config = /** @type { import('../types.js').RunnerOptions} */ (
   /** @type { unknown } */ (process.env.PW_TEST)
 )
 
