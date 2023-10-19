@@ -58,6 +58,7 @@
     "dist/src/runner.d.ts.map",
     "dist/src/types.d.ts",
     "dist/src/taps",
+    "dist/src/client",
     "static",
     "src",
     "cli.js"
