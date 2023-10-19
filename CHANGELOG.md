@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.4.1](https://github.com/hugomrdias/playwright-test/compare/v12.4.0...v12.4.1) (2023-10-19)
+
+
+### Bug Fixes
+
+* normalize logs and stop node run ([4403489](https://github.com/hugomrdias/playwright-test/commit/4403489913cfa25a95a2b5786367e65c8d107f64))
+
 ## [12.4.0](https://github.com/hugomrdias/playwright-test/compare/v12.3.8...v12.4.0) (2023-10-17)
 
 
