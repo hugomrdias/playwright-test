@@ -114,7 +114,7 @@ devDependencies:
     version: 10.0.2
   '@types/polka':
     specifier: ^0.5.4
-    version: 0.5.5
+    version: 0.5.6
   benchmark:
     specifier: ^2.1.4
     version: 2.1.4
@@ -603,8 +603,8 @@ packages:
     resolution: {integrity: sha512-lqa4UEhhv/2sjjIQgjX8B+RBjj47eo0mzGasklVJ78UKGQY1r0VpB9XHDaZZO9qzEFDdy4MrXLuEaSmPrPSe/A==}
     dev: true
 
-  /@types/polka@0.5.5:
-    resolution: {integrity: sha512-70m2zRjRQRhG9tA0Ni0kYW9xn7pD5PhF39N7ATzyX5U7x6Yz1oHN1r2h41n+K9NMq2a3cFnnce6qQrnRAoNiiw==}
+  /@types/polka@0.5.6:
+    resolution: {integrity: sha512-DU+Esoykng6azh+5jOMhsPQKz9m4QFGcSCrhm9KB/cUIgspPbslrxqIpF79b/Y/+HseTHpP/E6BstlAwH5I1ig==}
     dependencies:
       '@types/express': 4.17.18
       '@types/express-serve-static-core': 4.17.37
