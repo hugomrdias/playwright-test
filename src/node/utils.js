@@ -66,6 +66,7 @@ ${tmpl}
     },
     plugins: [watchPlugin, wasmLoader()],
     outfile: outPath,
+    loader: { '.node': 'copy' },
     define: {
       global: 'globalThis',
       self: 'globalThis',
