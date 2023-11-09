@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.5.0](https://github.com/hugomrdias/playwright-test/compare/v12.4.3...v12.5.0) (2023-11-09)
+
+
+### Features
+
+* add server url to the client ([454abec](https://github.com/hugomrdias/playwright-test/commit/454abecb72c4180345e5e12c5df3ccf1eac66e1f))
+
 ## [12.4.3](https://github.com/hugomrdias/playwright-test/compare/v12.4.2...v12.4.3) (2023-10-19)
 
 
