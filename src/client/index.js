@@ -1,11 +1,30 @@
-const config = /** @type { import('../types.js').RunnerOptions} */ (
-  /** @type { unknown } */ (process.env.PW_TEST)
+const config = /** @type { import('../types.js').RunnerEnv} */ (
+  /** @type { unknown } */ (process.env)
 )
 
-export const mode = config.mode
+/**
+ * Playwright Test mode
+ */
+export const mode = config.PW_TEST.mode
 
-export const options = config
+/**
+ * Playwright Test options
+ */
+export const options = config.PW_TEST
 
+/**
+ * Playwright Test server url
+ *
+ * @type {string}
+ */
+export const server = config.PW_SERVER
+
+/**
+ * Playwright Test browser context
+ *
+ * Methods to interact with the browser context
+ *
+ */
 export const context = {
   /** @type {import('playwright-core').BrowserContext['setOffline']} */
   setOffline(offline) {

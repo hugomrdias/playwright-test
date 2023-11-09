@@ -56,6 +56,8 @@ export class Runner {
     this.url = ''
     this.stopped = false
     this.watching = false
+
+    /** @type {import('./types').RunnerEnv} */
     this.env = merge(JSON.parse(JSON.stringify(process.env)), {
       PW_TEST: this.options,
       NODE_ENV: 'test',
@@ -81,7 +83,14 @@ export class Runner {
     await cpy(path.join(__dirname, './../static') + '/**', this.dir)
 
     // setup http server
-    await createPolka(this)
+    const { server, url } = await createPolka(
+      this.dir,
+      this.options.cwd,
+      this.options.assets
+    )
+    this.env.PW_SERVER = url
+    this.url = url
+    this.server = server
 
     // download playwright if needed
     const pw = await getPw(this.options.browser)

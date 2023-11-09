@@ -7,7 +7,7 @@ import { nanoid } from 'nanoid'
 import { watch } from 'chokidar'
 import { execa } from 'execa'
 import { premove } from 'premove'
-import { findTests, log } from '../utils/index.js'
+import { createPolka, findTests, log } from '../utils/index.js'
 import * as DefaultRunners from '../test-runners.js'
 import { build } from './utils.js'
 
@@ -57,6 +57,8 @@ export class NodeRunner {
   constructor(options = {}, testFiles) {
     /** @type {import('../types.js').RunnerOptions} */
     this.options = merge(defaultOptions, options)
+    /** @type {import('polka').Polka["server"] | undefined} */
+    this.server = undefined
     this.dir = path.join(__dirname, '../.tmp', nanoid())
     mkdirSync(this.dir, {
       recursive: true,
@@ -64,6 +66,9 @@ export class NodeRunner {
     this.stopped = false
     this.watching = false
     this.beforeTestsOutput = undefined
+    /**
+     * @type {import('../types.js').RunnerEnv}
+     */
     this.env = merge(JSON.parse(JSON.stringify(process.env)), {
       PW_TEST: this.options,
       NODE_ENV: 'test',
@@ -79,6 +84,17 @@ export class NodeRunner {
     if (this.tests.length === 0) {
       this.stop(false, 'No test files were found.')
     }
+  }
+
+  async #setupServer() {
+    // setup http server
+    const { server, url } = await createPolka(
+      this.dir,
+      this.options.cwd,
+      this.options.assets
+    )
+    this.env.PW_SERVER = url
+    this.server = server
   }
 
   /**
@@ -104,6 +120,8 @@ export class NodeRunner {
     asyncExitHook(this.#clean.bind(this), {
       wait: 1000,
     })
+
+    await this.#setupServer()
     this.beforeTestsOutput = await this.options.beforeTests(this.options)
 
     try {
@@ -148,6 +166,7 @@ export class NodeRunner {
       wait: 1000,
     })
 
+    await this.#setupServer()
     this.beforeTestsOutput = await this.options.beforeTests(this.options)
 
     const { files, outName } = await this.runTests()
@@ -191,6 +210,20 @@ export class NodeRunner {
     // Run after tests hook
     await this.options.afterTests(this.options, this.beforeTestsOutput)
     await premove(this.dir)
+    const serverClose = new Promise((resolve, reject) => {
+      if (this.server) {
+        this.server.close((err) => {
+          if (err) {
+            return reject(err)
+          }
+          resolve(true)
+        })
+      } else {
+        resolve(true)
+      }
+    })
+
+    await serverClose
   }
 
   /**

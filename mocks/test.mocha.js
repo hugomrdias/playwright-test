@@ -36,6 +36,10 @@ describe('Array', () => {
       equal(import.meta.env, process.env)
     })
 
+    it('should has server', async () => {
+      equal(process.env.PW_SERVER, Client.server)
+    })
+
     it('should setoffline', async () => {
       if (Client.mode === 'main' && Client.options.extension === false) {
         globalThis.addEventListener('offline', () => {

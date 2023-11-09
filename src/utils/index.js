@@ -601,9 +601,14 @@ function getPort(port = 3000, host = '127.0.0.1') {
 }
 
 /**
- * @param {import('../runner').Runner} runner
+ * Create polka server
+ *
+ * @param {string} dir - Runner directory
+ * @param {string} cwd - Current working directory
+ * @param {string} assets - Assets directory
+ * @returns {Promise<{ url: string; server: import('http').Server }>}
  */
-export async function createPolka(runner) {
+export async function createPolka(dir, cwd, assets) {
   const host = '127.0.0.1'
   const port = await getPort(0, host)
   const url = `http://${host}:${port}/`
@@ -611,7 +616,7 @@ export async function createPolka(runner) {
     const { server } = polka()
       .use(
         // @ts-ignore
-        sirv(runner.dir, {
+        sirv(dir, {
           dev: true,
           setHeaders: (
             /** @type {{ setHeader: (arg0: string, arg1: string) => void; }} */ rsp,
@@ -626,19 +631,19 @@ export async function createPolka(runner) {
       )
       .use(
         // @ts-ignore
-        sirv(path.join(runner.options.cwd, runner.options.assets), {
+        sirv(path.join(cwd, assets), {
           dev: true,
         })
       )
       .listen(port, host, (/** @type {Error} */ err) => {
         if (err) {
-          reject(err)
-
-          return
+          return reject(err)
         }
-        runner.url = url
-        runner.server = server
-        resolve(true)
+
+        if (!server) {
+          return reject(new Error('No server'))
+        }
+        resolve({ url, server })
       })
   })
 }

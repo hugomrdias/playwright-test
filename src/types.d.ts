@@ -31,6 +31,12 @@ export interface RunnerOptions {
   ) => Promise<unknown>
 }
 
+export interface RunnerEnv extends NodeJS.ProcessEnv {
+  PW_SERVER: string
+  PW_TEST: RunnerOptions
+  NODE_ENV: 'test'
+}
+
 export type PwResult<TBrowser> = TBrowser extends 'webkit'
   ? WebKitBrowser
   : TBrowser extends 'firefox'
