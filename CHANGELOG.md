@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.6.0](https://github.com/hugomrdias/playwright-test/compare/v12.5.0...v12.6.0) (2023-11-09)
+
+
+### Features
+
+* add support for .node files ([67300ce](https://github.com/hugomrdias/playwright-test/commit/67300ce4ee086d7ccc76dea5585581efa98cf46b))
+
 ## [12.5.0](https://github.com/hugomrdias/playwright-test/compare/v12.4.3...v12.5.0) (2023-11-09)
 
 
