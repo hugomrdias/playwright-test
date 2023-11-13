@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.6.1](https://github.com/hugomrdias/playwright-test/compare/v12.6.0...v12.6.1) (2023-11-13)
+
+
+### Bug Fixes
+
+* avoid nodejs console.timeEnd warning ([6cf6f6e](https://github.com/hugomrdias/playwright-test/commit/6cf6f6e8b6713dc3df216d189e839dd1e0481fbd))
+
 ## [12.6.0](https://github.com/hugomrdias/playwright-test/compare/v12.5.0...v12.6.0) (2023-11-09)
 
 
