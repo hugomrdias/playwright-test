@@ -1,6 +1,5 @@
 import fs from 'fs'
 
-// @ts-ignore
 import { parse } from 'acorn-loose'
 
 /**
@@ -20,7 +19,12 @@ export function detectTestRunner(path, runners) {
 
   // @ts-ignore
   for (const node of parsedCode.body) {
-    if (node.type === 'ImportDeclaration' && node.source.type === 'Literal') {
+    if (
+      node.type === 'ImportDeclaration' &&
+      node.source.type === 'Literal' &&
+      node.source.value &&
+      typeof node.source.value === 'string'
+    ) {
       ids.push(node.source.value)
     }
 
@@ -41,8 +45,11 @@ export function detectTestRunner(path, runners) {
       node.expression.callee &&
       node.expression.callee.type === 'MemberExpression' &&
       node.expression.callee.object &&
+      // @ts-ignore
       node.expression.callee.object.name === 'describe' &&
+      // @ts-ignore
       (node.expression.callee.property.name === 'only' ||
+        // @ts-ignore
         node.expression.callee.property.name === 'skip')
     ) {
       ids.push('mocha')
@@ -54,8 +61,11 @@ export function detectTestRunner(path, runners) {
       node.expression.callee &&
       node.expression.callee.type === 'MemberExpression' &&
       node.expression.callee.object &&
+      // @ts-ignore
       node.expression.callee.object.name === 'it' &&
+      // @ts-ignore
       (node.expression.callee.property.name === 'only' ||
+        // @ts-ignore
         node.expression.callee.property.name === 'skip')
     ) {
       ids.push('mocha')
@@ -64,11 +74,16 @@ export function detectTestRunner(path, runners) {
     if (
       node.type === 'VariableDeclaration' &&
       node.declarations[0].init &&
+      // @ts-ignore
       node.declarations[0].init.callee &&
+      // @ts-ignore
       node.declarations[0].init.callee.name === 'require' &&
+      // @ts-ignore
       node.declarations[0].init.arguments &&
+      // @ts-ignore
       node.declarations[0].init.arguments[0].type === 'Literal'
     ) {
+      // @ts-ignore
       ids.push(node.declarations[0].init.arguments[0].value)
     }
   }

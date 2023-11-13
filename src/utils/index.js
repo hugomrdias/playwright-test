@@ -243,7 +243,7 @@ const messageTypeToConsoleFn = {
   endGroup: console.groupEnd,
   table: console.table,
   count: console.count,
-  timeEnd: console.timeEnd,
+  timeEnd: console.log,
 
   // we ignore calls to console.clear, as we don't want the page to clear our terminal
   // clear: console.clear
