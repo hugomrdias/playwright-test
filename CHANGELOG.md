@@ -1,5 +1,16 @@
 # Changelog
 
+## [13.0.0](https://github.com/hugomrdias/playwright-test/compare/v12.6.1...v13.0.0) (2023-11-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* before/after hooks receive the runner env instead of just the options.
+
+### Features
+
+* before/after hooks receive the runner env instead of just the options. ([b392f7d](https://github.com/hugomrdias/playwright-test/commit/b392f7d9c629927c47ee815c2de1f00fc100accd))
+
 ## [12.6.1](https://github.com/hugomrdias/playwright-test/compare/v12.6.0...v12.6.1) (2023-11-13)
 
 
