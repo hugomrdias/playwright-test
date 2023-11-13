@@ -62,7 +62,6 @@ export class Runner {
       PW_TEST: this.options,
       NODE_ENV: 'test',
     })
-    this.beforeTestsOutput = undefined
     this.tests =
       testFiles ??
       findTests({
@@ -305,11 +304,10 @@ export class Runner {
       wait: 1000,
     })
 
-    this.beforeTestsOutput = await this.options.beforeTests(this.options)
-
     try {
       // Setup the context
       const context = await this.setupContext()
+      this.beforeTestsOutput = await this.options.beforeTests(this.env)
 
       // Run the before script
       if (this.options.before) {
@@ -396,10 +394,9 @@ export class Runner {
       wait: 1000,
     })
 
-    this.beforeTestsOutput = await this.options.beforeTests(this.options)
-
     // Setup the context
     const context = await this.setupContext()
+    await this.options.beforeTests(this.env)
 
     // Run the before script
     if (this.options.before) {
@@ -436,7 +433,7 @@ export class Runner {
 
   async #clean() {
     // Run after tests hook
-    await this.options.afterTests(this.options, this.beforeTestsOutput)
+    await this.options.afterTests(this.env)
 
     premove(this.dir)
 

@@ -65,7 +65,6 @@ export class NodeRunner {
     })
     this.stopped = false
     this.watching = false
-    this.beforeTestsOutput = undefined
     /**
      * @type {import('../types.js').RunnerEnv}
      */
@@ -122,7 +121,7 @@ export class NodeRunner {
     })
 
     await this.#setupServer()
-    this.beforeTestsOutput = await this.options.beforeTests(this.options)
+    await this.options.beforeTests(this.env)
 
     try {
       const { outName } = await this.runTests()
@@ -167,7 +166,7 @@ export class NodeRunner {
     })
 
     await this.#setupServer()
-    this.beforeTestsOutput = await this.options.beforeTests(this.options)
+    await this.options.beforeTests(this.env)
 
     const { files, outName } = await this.runTests()
     try {
@@ -208,7 +207,7 @@ export class NodeRunner {
 
   async #clean() {
     // Run after tests hook
-    await this.options.afterTests(this.options, this.beforeTestsOutput)
+    await this.options.afterTests(this.env)
     await premove(this.dir)
     const serverClose = new Promise((resolve, reject) => {
       if (this.server) {

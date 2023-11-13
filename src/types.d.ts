@@ -24,11 +24,18 @@ export interface RunnerOptions {
   buildConfig: BuildOptions
   buildSWConfig: BuildOptions
   browserContextOptions?: BrowserContextOptions
-  beforeTests: (opts: RunnerOptions) => Promise<unknown>
-  afterTests: (
-    opts: RunnerOptions,
-    beforeTestsOutput: unknown
-  ) => Promise<unknown>
+  /**
+   * Before tests hook
+   *
+   * @param env - Runner environment. Use `env.PW_TEST` to access runner options.
+   */
+  beforeTests: (env: RunnerEnv) => Promise<unknown>
+  /**
+   * After tests hook
+   *
+   * @param env - Runner environment. Use `env.PW_TEST` to access runner options.
+   */
+  afterTests: (env: RunnerEnv) => Promise<unknown>
 }
 
 export interface RunnerEnv extends NodeJS.ProcessEnv {
@@ -40,10 +47,10 @@ export interface RunnerEnv extends NodeJS.ProcessEnv {
 export type PwResult<TBrowser> = TBrowser extends 'webkit'
   ? WebKitBrowser
   : TBrowser extends 'firefox'
-  ? FirefoxBrowser
-  : TBrowser extends 'chromium'
-  ? ChromiumBrowser
-  : never
+    ? FirefoxBrowser
+    : TBrowser extends 'chromium'
+      ? ChromiumBrowser
+      : never
 
 export interface CompilerOutput {
   outName: string
