@@ -58,8 +58,7 @@ export function stack(err) {
     .replaceAll('file://', '')
     .split('\n')
 
-  // remove one line from the stack trace from "p-timeout"
-  for (let i = 0; i < arr.length - 1; i++) {
+  for (let i = 0; i < arr.length; i++) {
     const line = arr[i].trim()
     if (line.length > 0 && !IGNORE.test(line)) {
       out += '\n    ' + line

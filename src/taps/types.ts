@@ -80,8 +80,8 @@ export interface SuiteContext {
 export interface Suite {
   (name: string, fn: Fn, options?: Test['options']): void
   test: TestMethod
-  only: TestMethod
-  skip: TestMethod
+  only: Suite
+  skip: Suite
   before: HookMethod
   after: HookMethod
   beforeEach: HookMethod

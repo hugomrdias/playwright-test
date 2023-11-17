@@ -67,8 +67,8 @@ function log(ctx, fail, time) {
   const symbol = fail
     ? kleur.red('✘')
     : ctx.skip
-    ? kleur.yellow('-')
-    : kleur.green('✔')
+      ? kleur.yellow('-')
+      : kleur.green('✔')
   const _time = kleur.gray(`(${time})`)
   const _msg = `${ctx.suite ? ctx.suite + ' > ' : ''}${ctx.name}`
 
@@ -231,7 +231,7 @@ export function suite(name = '') {
   }
 
   /**
-   * @type {import('./types.js').TestMethod}
+   * @type {import('./types.js').Suite}
    */
   test.skip = function (name, fn, options = defaultOptions) {
     ctx.tests.push({
@@ -242,7 +242,7 @@ export function suite(name = '') {
   }
 
   /**
-   * @type {import('./types.js').TestMethod}
+   * @type {import('./types.js').Suite}
    */
   test.only = function (name, fn, options = defaultOptions) {
     globalThis.TAPS_ONLY = true
@@ -252,6 +252,22 @@ export function suite(name = '') {
       options: { ...defaultOptions, ...options, only: true },
     })
   }
+
+  test.only.test = test.only
+  test.only.skip = test.skip
+  test.only.only = test.only
+  test.only.after = test.after
+  test.only.before = test.before
+  test.only.beforeEach = test.beforeEach
+  test.only.afterEach = test.afterEach
+
+  test.skip.test = test.skip
+  test.skip.skip = test.skip
+  test.skip.only = test.only
+  test.skip.after = () => {}
+  test.skip.before = () => {}
+  test.skip.beforeEach = () => {}
+  test.skip.afterEach = () => {}
 
   TAPS_QUEUE.push(runner.bind(0, ctx))
 
