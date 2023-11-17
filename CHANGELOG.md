@@ -1,5 +1,12 @@
 # Changelog
 
+## [13.0.1](https://github.com/hugomrdias/playwright-test/compare/v13.0.0...v13.0.1) (2023-11-17)
+
+
+### Bug Fixes
+
+* make skip and only also a suite ([d7a5c41](https://github.com/hugomrdias/playwright-test/commit/d7a5c417a3ba1c4aed1216a748b3ff39c6215d7d))
+
 ## [13.0.0](https://github.com/hugomrdias/playwright-test/compare/v12.6.1...v13.0.0) (2023-11-13)
 
 
