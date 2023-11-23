@@ -1,5 +1,21 @@
 # Changelog
 
+## [14.0.0](https://github.com/hugomrdias/playwright-test/compare/v13.0.1...v14.0.0) (2023-11-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* config function receives cli options and process.env.PW_TEST remove in favor of stringified process.env.PW_OPTIONS
+
+### Features
+
+* config function receives cli options and process.env.PW_TEST remove in favor of stringified process.env.PW_OPTIONS ([6d6892f](https://github.com/hugomrdias/playwright-test/commit/6d6892f5422f158b90c1c984421cf34e10a11d2b))
+
+
+### Bug Fixes
+
+* update playwright and lilconfig ([0e40e69](https://github.com/hugomrdias/playwright-test/commit/0e40e69bf9e84d4c590b3e28d3eadf6a2ffba905))
+
 ## [13.0.1](https://github.com/hugomrdias/playwright-test/compare/v13.0.0...v13.0.1) (2023-11-17)
 
 
