@@ -16,8 +16,9 @@ let runningCount = 0
 const signalFinished = () => {
   if (runningCount === 0) {
     setTimeout(() => {
+      const options = JSON.parse(process.env.PW_OPTIONS)
       // eslint-disable-next-line no-undef
-      if (process.env.PW_TEST.mode === 'worker') {
+      if (options.mode === 'worker') {
         postMessage({ pwRunEnded: true })
       } else {
         self.PW_TEST.end()

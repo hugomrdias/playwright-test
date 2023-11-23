@@ -21,8 +21,9 @@ export const mocha = {
 import mocha from 'mocha/mocha.js'
 ${options.mode === 'node' ? `globalThis.location={}` : ``}
 
-const { allowUncaught, bail, reporter, timeout, color, ui, grep } =
-  process.env.PW_TEST.testRunner.options
+const options = JSON.parse(process.env.PW_OPTIONS)
+const { allowUncaught, bail, reporter, timeout, color, ui, grep } = options.testRunner.options
+
 mocha.setup({
   allowUncaught,
   bail,

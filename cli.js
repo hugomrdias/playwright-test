@@ -209,7 +209,7 @@ sade2
 
       // if the supplied config module was a function, invoke it
       if (config && typeof config.config === 'function') {
-        config.config = await config.config()
+        config.config = await config.config(opts)
       }
 
       /**

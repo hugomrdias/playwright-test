@@ -1,23 +1,25 @@
-const config = /** @type { import('../types.js').RunnerEnv} */ (
+export const env = /** @type { import('../types.js').RunnerEnv} */ (
   /** @type { unknown } */ (process.env)
 )
 
 /**
- * Playwright Test mode
+ * Playwright Test options
+ *
+ * @type {import('../types.js').RunnerOptions}
  */
-export const mode = config.PW_TEST.mode
+export const options = JSON.parse(env.PW_OPTIONS)
 
 /**
- * Playwright Test options
+ * Playwright Test mode
  */
-export const options = config.PW_TEST
+export const mode = options.mode
 
 /**
  * Playwright Test server url
  *
  * @type {string}
  */
-export const server = config.PW_SERVER
+export const server = env.PW_SERVER
 
 /**
  * Playwright Test browser context

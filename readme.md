@@ -168,7 +168,7 @@ ${paths.map((url) => `await import('${url}')`).join('\n')}
 export default config
 ```
 
-```ts
+````ts
 export interface TestRunner {
   /**
    * Module ID name used to import the test runner runtime.
@@ -176,7 +176,14 @@ export interface TestRunner {
    */
   moduleId: string
   /**
-   * Options made available to the compiled runtime, accessable with `process.env.PW_TEST.testRunner.options`.
+   * Options made available to the compiled runtime.
+   * This is useful to pass options to the test runner.
+   *
+   * @example
+   * ```js
+   * const options = JSON.parse(process.env.PW_OPTIONS)
+   * const testRunnerOptions = options.testRunner.options
+   * ```
    */
   options?: unknown
   /**
@@ -192,7 +199,7 @@ export interface TestRunner {
    */
   compileRuntime: (options: RunnerOptions, testPaths: string[]) => string
 }
-```
+````
 
 ## Config
 
@@ -201,17 +208,23 @@ export interface TestRunner {
 Configuration can be done with cli flags or config files.
 
 ```text
-'package.json', // using property `pw-test` or `playwright-test`
-`.playwright-testrc.json`,
-`.playwright-testrc.js`,
-`playwright-test.config.js`,
-`.playwright-testrc.cjs`,
-`playwright-test.config.cjs`,
-`.pw-testrc.json`,
-`.pw-testrc.js`,
-`pw-test.config.js`,
-`.pw-testrc.cjs`,
-`pw-test.config.cjs`,
+package.json, // using property `pw-test` or `playwright-test`
+.playwright-testrc.json,
+.playwright-testrc.js,
+.playwright-testrc.cjs,
+playwright-test.config.js,
+playwright-test.config.cjs,
+.pw-testrc.json,
+.pw-testrc.js,
+.pw-testrc.cjs,
+pw-test.config.js,
+pw-test.config.cjs,
+.config/playwright-testrc.json
+.config/playwright-testrc.js
+.config/playwright-testrc.cjs
+.config/pw-testrc.json
+.config/pw-testrc.js
+.config/pw-testrc.cjs
 ```
 
 The config type can be imported from the entrypoint.
@@ -223,6 +236,21 @@ const config = {
 }
 
 export default config
+```
+
+The config file can also export a function that receives the cli options as argument.
+
+```ts
+/** @type {import('playwright-test').ConfigFn} */
+function buildConfig(cliOptions) {
+  return {
+    buildConfig: {
+      bundle: cliOptions.mode !== 'node',
+    },
+  }
+}
+
+export default buildConfig
 ```
 
 ### Interface

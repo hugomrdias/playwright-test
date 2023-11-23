@@ -27,22 +27,42 @@ export interface RunnerOptions {
   /**
    * Before tests hook
    *
-   * @param env - Runner environment. Use `env.PW_TEST` to access runner options.
+   * @param env - Runner environment. Use `JSON.parse(env.PW_OPTIONS)` to access runner options.
    */
   beforeTests: (env: RunnerEnv) => Promise<unknown>
   /**
    * After tests hook
    *
-   * @param env - Runner environment. Use `env.PW_TEST` to access runner options.
+   * @param env - Runner environment. Use `JSON.parse(env.PW_OPTIONS)` to access runner options.
    */
   afterTests: (env: RunnerEnv) => Promise<unknown>
 }
 
 export interface RunnerEnv extends NodeJS.ProcessEnv {
   PW_SERVER: string
-  PW_TEST: RunnerOptions
+  PW_OPTIONS: string
   NODE_ENV: 'test'
 }
+
+export interface CliOptions {
+  runner: 'mocha' | 'zora' | 'tape' | 'uvu' | 'benchmark' | 'none'
+  browser: 'chromium' | 'firefox' | 'webkit'
+  mode: 'main' | 'worker' | 'node'
+  debug: boolean
+  incognito: boolean
+  extension: boolean
+  cov: boolean
+  reportDir: string
+  watch?: boolean
+  before?: string
+  sw?: string
+  assets: string
+  cwd: string
+  extensions: string
+  config?: string
+}
+
+export type ConfigFn = (options: CliOptions) => RunnerOptions
 
 export type PwResult<TBrowser> = TBrowser extends 'webkit'
   ? WebKitBrowser
@@ -64,7 +84,14 @@ export interface TestRunner {
    */
   moduleId: string
   /**
-   * Options made available to the compiled runtime, accessable with `process.env.PW_TEST.testRunner.options`.
+   * Options made available to the compiled runtime.
+   * This is useful to pass options to the test runner.
+   *
+   * @example
+   * ```js
+   * const options = JSON.parse(process.env.PW_OPTIONS)
+   * const testRunnerOptions = options.testRunner.options
+   * ```
    */
   options?: unknown
   /**

@@ -34,6 +34,9 @@ const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
  * @typedef {import('playwright-core').ChromiumBrowserContext} ChromiumBrowserContext
  * @typedef {import('./types').RunnerOptions} RunnerOptions
  * @typedef {import('./types').TestRunner} TestRunner
+ * @typedef {import('./types').RunnerEnv} RunnerEnv
+ * @typedef {import('./types').CliOptions} CliOptions
+ * @typedef {import('./types').ConfigFn} ConfigFn
  */
 
 export class Runner {
@@ -59,7 +62,7 @@ export class Runner {
 
     /** @type {import('./types').RunnerEnv} */
     this.env = merge(JSON.parse(JSON.stringify(process.env)), {
-      PW_TEST: this.options,
+      PW_OPTIONS: JSON.stringify(this.options),
       NODE_ENV: 'test',
     })
     this.tests =

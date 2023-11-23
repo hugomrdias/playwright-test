@@ -33,8 +33,9 @@ function hrtime(previousTimestamp) {
 const p = {
   ..._process,
   exit: (code = 0) => {
+    const options = JSON.parse(process.env.PW_OPTIONS)
     if (code === 0) {
-      if (process.env.PW_TEST.mode === 'worker') {
+      if (options.mode === 'worker') {
         postMessage({
           pwRunEnded: true,
           pwRunFailed: false,
@@ -43,7 +44,7 @@ const p = {
         globalThis.PW_TEST.end(false)
       }
     } else {
-      if (process.env.PW_TEST.mode === 'worker') {
+      if (options.mode === 'worker') {
         postMessage({
           pwRunEnded: true,
           pwRunFailed: true,

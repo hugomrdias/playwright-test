@@ -69,7 +69,7 @@ export class NodeRunner {
      * @type {import('../types.js').RunnerEnv}
      */
     this.env = merge(JSON.parse(JSON.stringify(process.env)), {
-      PW_TEST: this.options,
+      PW_OPTIONS: JSON.stringify(this.options),
       NODE_ENV: 'test',
     })
     this.tests =
