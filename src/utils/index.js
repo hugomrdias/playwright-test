@@ -282,20 +282,7 @@ export async function redirectConsole(msg) {
     ) {
       return
     }
-    switch (type) {
-      case 'error': {
-        log.error(text)
-        break
-      }
-      case 'warning': {
-        log.warn(text)
-        break
-      }
-      default: {
-        log.info(text)
-        break
-      }
-    }
+    console.error(kleur.dim(`🌐${text}`))
   }
 }
 

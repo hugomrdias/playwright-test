@@ -24,7 +24,7 @@ declare global {
    * @param options.origin
    */
   function pwContextGrantPermissions(
-    permissions: string[],
+    permissions: readonly string[],
     options?: {
       /**
        * The [origin] to grant permissions to, e.g. "https://example.com".
