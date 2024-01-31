@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.1.0](https://github.com/hugomrdias/playwright-test/compare/v14.0.0...v14.1.0) (2024-01-31)
+
+
+### Features
+
+* update playwright core and dim browser msgs ([727cc1e](https://github.com/hugomrdias/playwright-test/commit/727cc1e82c41a0d4071f7b214604b58d57da26f4))
+
 ## [14.0.0](https://github.com/hugomrdias/playwright-test/compare/v13.0.1...v14.0.0) (2023-11-23)
 
 
