@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.1.1](https://github.com/hugomrdias/playwright-test/compare/v14.1.0...v14.1.1) (2024-02-08)
+
+
+### Bug Fixes
+
+* allow loading gzipped fixtures ([#644](https://github.com/hugomrdias/playwright-test/issues/644)) ([2764b63](https://github.com/hugomrdias/playwright-test/commit/2764b6303490265f597bae27c3aff82cdc6309ca))
+
 ## [14.1.0](https://github.com/hugomrdias/playwright-test/compare/v14.0.0...v14.1.0) (2024-01-31)
 
 
