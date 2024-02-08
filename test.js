@@ -15,6 +15,17 @@ describe('mocha', function () {
     ok(proc.stdout.includes('passing'), 'process stdout')
   })
 
+  it('fixtures', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/fixtures.mocha.js',
+      '--runner',
+      'mocha',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('passing'), 'process stdout')
+  })
+
   it('node', async () => {
     const proc = await execa('./cli.js', [
       'mocks/test.mocha.js',
