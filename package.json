@@ -91,7 +91,7 @@
     "lodash": "^4.17.21",
     "merge-options": "^3.0.4",
     "nanoid": "^5.0.4",
-    "ora": "^7.0.1",
+    "ora": "^8.0.1",
     "p-timeout": "^6.1.2",
     "path-browserify": "^1.0.1",
     "playwright-core": "1.41.1",
