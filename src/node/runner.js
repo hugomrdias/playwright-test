@@ -28,7 +28,7 @@ const merge = mergeOptions.bind({ ignoreUndefined: true })
  */
 const defaultOptions = {
   cwd: process.cwd(),
-  assets: '',
+  assets: undefined,
   browser: 'chromium',
   debug: false,
   mode: 'main', // worker
