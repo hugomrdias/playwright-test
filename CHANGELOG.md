@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.1.2](https://github.com/hugomrdias/playwright-test/compare/v14.1.1...v14.1.2) (2024-05-02)
+
+
+### Bug Fixes
+
+* allow latest playwright-core ([#658](https://github.com/hugomrdias/playwright-test/issues/658)) ([4c3f7d6](https://github.com/hugomrdias/playwright-test/commit/4c3f7d6d42b88a047434affc2cb2b387baad3ae7))
+
 ## [14.1.1](https://github.com/hugomrdias/playwright-test/compare/v14.1.0...v14.1.1) (2024-02-08)
 
 
