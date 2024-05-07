@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.1.3](https://github.com/hugomrdias/playwright-test/compare/v14.1.2...v14.1.3) (2024-05-07)
+
+
+### Bug Fixes
+
+* test for skipped browser warnings early ([#661](https://github.com/hugomrdias/playwright-test/issues/661)) ([f7248e9](https://github.com/hugomrdias/playwright-test/commit/f7248e971f60282b4156d6f746cc7c85b496d8e4))
+
 ## [14.1.2](https://github.com/hugomrdias/playwright-test/compare/v14.1.1...v14.1.2) (2024-05-02)
 
 
