@@ -260,6 +260,17 @@ export async function redirectConsole(msg) {
     return
   }
   const text = msg.text()
+
+  // skip browser informational warnings
+  if (
+    text?.includes(
+      'Synchronous XMLHttpRequest on the main thread is deprecated'
+    ) ||
+    text?.includes('Clear-Site-Data')
+  ) {
+    return
+  }
+
   // const { url, lineNumber, columnNumber } = msg.location()
   let msgArgs
 
@@ -274,14 +285,6 @@ export async function redirectConsole(msg) {
   if (msgArgs && msgArgs.length > 0) {
     consoleFn.apply(console, msgArgs)
   } else if (text) {
-    if (
-      text.includes(
-        'Synchronous XMLHttpRequest on the main thread is deprecated'
-      ) ||
-      text.includes('Clear-Site-Data')
-    ) {
-      return
-    }
     console.error(kleur.dim(`🌐${text}`))
   }
 }
