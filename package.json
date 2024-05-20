@@ -80,7 +80,7 @@
     "camelcase": "^8.0.0",
     "chokidar": "^3.5.3",
     "cpy": "^11.0.0",
-    "esbuild": "0.20.0",
+    "esbuild": "0.21.3",
     "esbuild-plugin-wasm": "^1.1.0",
     "events": "^3.3.0",
     "execa": "^8.0.1",
