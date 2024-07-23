@@ -16,7 +16,7 @@ export interface RunnerOptions {
   mode: 'main' | 'worker' | 'node'
   incognito: boolean
   extension: boolean
-  assets: string
+  assets?: string[]
   before?: string
   sw?: string
   cov: boolean
@@ -56,7 +56,7 @@ export interface CliOptions {
   watch?: boolean
   before?: string
   sw?: string
-  assets: string
+  assets?: string[]
   cwd: string
   extensions: string
   config?: string
