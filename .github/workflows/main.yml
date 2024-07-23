@@ -69,7 +69,7 @@ jobs:
       - win
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     steps:
-      - uses: GoogleCloudPlatform/release-please-action@v3
+      - uses: googleapis/release-please-action@v4
         id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
