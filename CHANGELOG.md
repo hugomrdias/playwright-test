@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.1.4](https://github.com/hugomrdias/playwright-test/compare/v14.1.3...v14.1.4) (2024-07-23)
+
+
+### Bug Fixes
+
+* updated deps ([1cddcf2](https://github.com/hugomrdias/playwright-test/commit/1cddcf2ad5179706b16ea24bb854c1ce9f8b230c))
+
 ## [14.1.3](https://github.com/hugomrdias/playwright-test/compare/v14.1.2...v14.1.3) (2024-05-07)
 
 
