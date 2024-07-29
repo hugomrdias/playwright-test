@@ -124,7 +124,7 @@
     "tinybench": "^2.8.0",
     "typescript": "^5.5.4",
     "uvu": "^0.5.6",
-    "zora": "^5.2.0"
+    "zora": "^6.0.0"
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged"
