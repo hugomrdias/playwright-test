@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.1.5](https://github.com/hugomrdias/playwright-test/compare/v14.1.4...v14.1.5) (2024-09-06)
+
+
+### Bug Fixes
+
+* typo Count/Could ([#678](https://github.com/hugomrdias/playwright-test/issues/678)) ([9cd2adb](https://github.com/hugomrdias/playwright-test/commit/9cd2adbd16817928cfec590b5092f837647eb442))
+
 ## [14.1.4](https://github.com/hugomrdias/playwright-test/compare/v14.1.3...v14.1.4) (2024-07-23)
 
 
