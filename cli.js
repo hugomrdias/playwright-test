@@ -279,7 +279,7 @@ sade2
             options.testRunner = testRunner
 
             if (testRunner.moduleId === 'none') {
-              log.warn('Count not find a test runner. Using "none".')
+              log.warn('Could not find a test runner. Using "none".')
             } else {
               log.info(`Autodetected "${testRunner.moduleId}" as the runner.`)
             }
