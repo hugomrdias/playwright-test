@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.1.6](https://github.com/hugomrdias/playwright-test/compare/v14.1.5...v14.1.6) (2024-09-10)
+
+
+### Bug Fixes
+
+* log playwright browser download progress on stderr ([#682](https://github.com/hugomrdias/playwright-test/issues/682)) ([bb6955c](https://github.com/hugomrdias/playwright-test/commit/bb6955c974dad31c9e071424b4305b2e30e6742e))
+
 ## [14.1.5](https://github.com/hugomrdias/playwright-test/compare/v14.1.4...v14.1.5) (2024-09-06)
 
 
