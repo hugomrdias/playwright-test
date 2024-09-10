@@ -304,7 +304,19 @@ export async function getPw(browserName) {
   const api = await import('playwright-core')
   const browser = registry.findExecutable(browserName)
 
-  await registry.install([browser])
+  // playwright will log browser download progress to stdout, temporarily
+  // redirect the output to stderr
+  const log = console.log
+  const info = console.info
+
+  try {
+    console.log = console.error
+    console.info = console.error
+    await registry.install([browser])
+  } finally {
+    console.log = log
+    console.info = info
+  }
 
   return api[browserName]
 }
