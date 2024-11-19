@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.1.7](https://github.com/hugomrdias/playwright-test/compare/v14.1.6...v14.1.7) (2024-11-19)
+
+
+### Bug Fixes
+
+* pass channel to playwright ([#685](https://github.com/hugomrdias/playwright-test/issues/685)) ([810adfb](https://github.com/hugomrdias/playwright-test/commit/810adfb0582f2ff74f8f265b7bf6b1703f9ad2b3))
+
 ## [14.1.6](https://github.com/hugomrdias/playwright-test/compare/v14.1.5...v14.1.6) (2024-09-10)
 
 
