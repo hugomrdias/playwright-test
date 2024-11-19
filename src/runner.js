@@ -99,6 +99,7 @@ export class Runner {
 
     /** @type {import('playwright-core').LaunchOptions} */
     const pwOptions = {
+      channel: this.options.browser,
       headless: !this.options.debug,
       devtools: this.options.browser === 'chromium' && this.options.debug,
       args: this.options.extension
