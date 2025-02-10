@@ -141,6 +141,9 @@ importers:
       p-defer:
         specifier: ^4.0.1
         version: 4.0.1
+      prettier:
+        specifier: ^3.5.0
+        version: 3.5.0
       simple-git-hooks:
         specifier: ^2.11.1
         version: 2.11.1

@@ -119,6 +119,7 @@
     "lint-staged": "^15.4.3",
     "mocha": "^11.1.0",
     "p-defer": "^4.0.1",
+    "prettier": "^3.5.0",
     "simple-git-hooks": "^2.11.1",
     "tape": "^5.8.1",
     "tinybench": "^2.8.0",
