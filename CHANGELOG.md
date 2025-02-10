@@ -1,5 +1,14 @@
 # Changelog
 
+## [14.1.8](https://github.com/hugomrdias/playwright-test/compare/v14.1.7...v14.1.8) (2025-02-10)
+
+
+### Bug Fixes
+
+* extension testing with new chromium headless ([88b5559](https://github.com/hugomrdias/playwright-test/commit/88b555907a3de713a218ffb48fa0427929fe30a0))
+* fix source map support resolve in node runner ([bad569d](https://github.com/hugomrdias/playwright-test/commit/bad569d5b63c4ae0ea27a83d3acccfff0b24257c))
+* make it fast again with headless-shell and update playwright ([9bc1b16](https://github.com/hugomrdias/playwright-test/commit/9bc1b16051831c871f3b862e081d0af3b735a9c1))
+
 ## [14.1.7](https://github.com/hugomrdias/playwright-test/compare/v14.1.6...v14.1.7) (2024-11-19)
 
 
