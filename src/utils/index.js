@@ -1,21 +1,21 @@
 /* eslint-disable no-console */
 
-import path from 'path'
 import fs from 'fs'
-import { promisify } from 'util'
 import { createServer } from 'http'
 import { createRequire } from 'module'
+import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
-import mergeOptions from 'merge-options'
-import kleur from 'kleur'
+import { promisify } from 'util'
 import camelCase from 'camelcase'
-import sirv from 'sirv'
 import esbuild from 'esbuild'
-import V8ToIstanbul from 'v8-to-istanbul'
+import { wasmLoader } from 'esbuild-plugin-wasm'
 import { globbySync } from 'globby'
+import kleur from 'kleur'
+import mergeOptions from 'merge-options'
 import ora from 'ora'
 import polka from 'polka'
-import { wasmLoader } from 'esbuild-plugin-wasm'
+import sirv from 'sirv'
+import V8ToIstanbul from 'v8-to-istanbul'
 import * as DefaultRunners from '../test-runners.js'
 
 const require = createRequire(import.meta.url)
@@ -292,11 +292,17 @@ export async function redirectConsole(msg) {
 /**
  * @template {RunnerOptions["browser"]} TBrowser
  * @param {TBrowser} browserName
+ * @param {boolean} debug
  * @returns {Promise<import('playwright-core').BrowserType<import('../types').PwResult<TBrowser>>>}
  */
-export async function getPw(browserName) {
+export async function getPw(browserName, debug) {
   if (!['chromium', 'firefox', 'webkit'].includes(String(browserName))) {
     throw new Error(`Browser not supported: ${browserName}`)
+  }
+
+  if (browserName === 'chromium' && !debug) {
+    // @ts-ignore
+    browserName = 'chromium-headless-shell'
   }
 
   // @ts-ignore
@@ -316,6 +322,10 @@ export async function getPw(browserName) {
   } finally {
     console.log = log
     console.info = info
+  }
+  // @ts-ignore
+  if (browserName === 'chromium-headless-shell') {
+    return api.chromium
   }
 
   return api[browserName]

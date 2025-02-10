@@ -1,16 +1,16 @@
 /* eslint-disable no-console */
 
 import { mkdirSync } from 'fs'
-import path from 'path'
 import { fileURLToPath } from 'node:url'
-import { asyncExitHook, gracefulExit } from 'exit-hook'
-import { nanoid } from 'nanoid'
-import { temporaryDirectory } from 'tempy'
-import { premove } from 'premove/sync'
-import mergeOptions from 'merge-options'
+import path from 'path'
 import { watch } from 'chokidar'
 import cpy from 'cpy'
+import { asyncExitHook, gracefulExit } from 'exit-hook'
 import kleur from 'kleur'
+import mergeOptions from 'merge-options'
+import { nanoid } from 'nanoid'
+import { premove } from 'premove/sync'
+import { temporaryDirectory } from 'tempy'
 import { compileSw } from './utils/build-sw.js'
 import {
   addWorker,
@@ -95,20 +95,25 @@ export class Runner {
     this.server = server
 
     // download playwright if needed
-    const pw = await getPw(this.options.browser)
+    const pw = await getPw(this.options.browser, this.options.debug)
 
     /** @type {import('playwright-core').LaunchOptions} */
     const pwOptions = {
-      channel: this.options.browser,
       headless: !this.options.debug,
       devtools: this.options.browser === 'chromium' && this.options.debug,
       args: this.options.extension
         ? [
-            ...(this.options.debug ? [] : ['--headless=new']),
             `--disable-extensions-except=${this.dir}`,
             `--load-extension=${this.dir}`,
+            ...(this.options.browser === 'chromium' && this.options.debug
+              ? ['--auto-open-devtools-for-tabs']
+              : []),
           ]
-        : [],
+        : [
+            ...(this.options.browser === 'chromium' && this.options.debug
+              ? ['--auto-open-devtools-for-tabs']
+              : []),
+          ],
     }
 
     // create context
