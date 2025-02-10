@@ -11,7 +11,7 @@ export interface RunnerOptions {
   testRunner: TestRunner
   cwd: string
   extensions: string
-  browser: 'chromium' | 'firefox' | 'webkit'
+  browser: 'chromium' | 'firefox' | 'webkit' | 'chromium-headless-shell'
   debug: boolean
   mode: 'main' | 'worker' | 'node'
   incognito: boolean

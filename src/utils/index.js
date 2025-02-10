@@ -293,14 +293,15 @@ export async function redirectConsole(msg) {
  * @template {RunnerOptions["browser"]} TBrowser
  * @param {TBrowser} browserName
  * @param {boolean} debug
+ * @param {boolean} extension
  * @returns {Promise<import('playwright-core').BrowserType<import('../types').PwResult<TBrowser>>>}
  */
-export async function getPw(browserName, debug) {
+export async function getPw(browserName, debug, extension) {
   if (!['chromium', 'firefox', 'webkit'].includes(String(browserName))) {
     throw new Error(`Browser not supported: ${browserName}`)
   }
 
-  if (browserName === 'chromium' && !debug) {
+  if (browserName === 'chromium' && !debug && !extension) {
     // @ts-ignore
     browserName = 'chromium-headless-shell'
   }
@@ -328,6 +329,7 @@ export async function getPw(browserName, debug) {
     return api.chromium
   }
 
+  // @ts-ignore
   return api[browserName]
 }
 

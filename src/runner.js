@@ -95,10 +95,17 @@ export class Runner {
     this.server = server
 
     // download playwright if needed
-    const pw = await getPw(this.options.browser, this.options.debug)
+    const pw = await getPw(
+      this.options.browser,
+      this.options.debug,
+      this.options.extension
+    )
 
     /** @type {import('playwright-core').LaunchOptions} */
     const pwOptions = {
+      // optin to new chromium headless for extension testing
+      // https://github.com/microsoft/playwright/issues/33566
+      channel: this.options.extension ? this.options.browser : undefined,
       headless: !this.options.debug,
       devtools: this.options.browser === 'chromium' && this.options.debug,
       args: this.options.extension
