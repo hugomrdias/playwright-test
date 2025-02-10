@@ -1,7 +1,7 @@
 import path from 'path'
 import esbuild from 'esbuild'
-import mergeOptions from 'merge-options'
 import { wasmLoader } from 'esbuild-plugin-wasm'
+import mergeOptions from 'merge-options'
 
 const merge = mergeOptions.bind({
   ignoreUndefined: true,
@@ -22,7 +22,7 @@ const merge = mergeOptions.bind({
  * @param {string} tmpl
  */
 export async function build(runner, config = {}, tmpl = '') {
-  const outName = `node-out.js`
+  const outName = 'node-out.js'
   const outPath = path.join(runner.dir, outName)
   const files = new Set()
 

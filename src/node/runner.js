@@ -1,18 +1,20 @@
 import { mkdirSync } from 'fs'
-import path from 'path'
+import { createRequire } from 'module'
 import { fileURLToPath } from 'node:url'
+import path from 'path'
+import { watch } from 'chokidar'
+import { execa } from 'execa'
 import { asyncExitHook, gracefulExit } from 'exit-hook'
 import mergeOptions from 'merge-options'
 import { nanoid } from 'nanoid'
-import { watch } from 'chokidar'
-import { execa } from 'execa'
 import { premove } from 'premove'
-import { createPolka, findTests, log } from '../utils/index.js'
 import * as DefaultRunners from '../test-runners.js'
+import { createPolka, findTests, log } from '../utils/index.js'
 import { build } from './utils.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const merge = mergeOptions.bind({ ignoreUndefined: true })
+const require = createRequire(import.meta.url)
 
 /**
  * @typedef {import('playwright-core').Page} Page
@@ -122,6 +124,7 @@ export class NodeRunner {
 
     await this.#setupServer()
     await this.options.beforeTests(this.env)
+    const sourceMapRegisterPath = require.resolve('source-map-support/register')
 
     try {
       const { outName } = await this.runTests()
@@ -138,7 +141,7 @@ export class NodeRunner {
               this.dir,
               'node',
               '-r',
-              'source-map-support/register',
+              sourceMapRegisterPath,
               path.join(this.dir, outName),
             ],
             {
@@ -148,7 +151,7 @@ export class NodeRunner {
           )
         : execa(
             'node',
-            ['-r', 'source-map-support/register', path.join(this.dir, outName)],
+            ['-r', sourceMapRegisterPath, path.join(this.dir, outName)],
             {
               preferLocal: true,
               stdio: 'inherit',
@@ -167,12 +170,13 @@ export class NodeRunner {
 
     await this.#setupServer()
     await this.options.beforeTests(this.env)
+    const sourceMapRegisterPath = require.resolve('source-map-support/register')
 
     const { files, outName } = await this.runTests()
     try {
       await execa(
         'node',
-        ['-r', 'source-map-support/register', path.join(this.dir, outName)],
+        ['-r', sourceMapRegisterPath, path.join(this.dir, outName)],
         {
           stdio: 'inherit',
         }
@@ -190,7 +194,7 @@ export class NodeRunner {
         const { files, outName } = await this.runTests()
         await execa(
           'node',
-          ['-r', 'source-map-support/register', path.join(this.dir, outName)],
+          ['-r', sourceMapRegisterPath, path.join(this.dir, outName)],
           {
             stdio: 'inherit',
           }

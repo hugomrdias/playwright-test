@@ -1,5 +1,5 @@
-import path from 'path'
 import { createRequire } from 'module'
+import path from 'path'
 import { fileURLToPath } from 'url'
 
 const require = createRequire(import.meta.url)
@@ -19,7 +19,7 @@ export const mocha = {
   compileRuntime(options, paths) {
     return `
 import mocha from 'mocha/mocha.js'
-${options.mode === 'node' ? `globalThis.location={}` : ``}
+${options.mode === 'node' ? 'globalThis.location={}' : ''}
 
 const options = JSON.parse(process.env.PW_OPTIONS)
 const { allowUncaught, bail, reporter, timeout, color, ui, grep } = options.testRunner.options
