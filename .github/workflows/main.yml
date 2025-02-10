@@ -58,6 +58,7 @@ jobs:
           node-version: lts/*
           cache: pnpm
       - run: pnpm install
+      - run: npx playwright install winldd
       - run: pnpm test
       - run: ./cli.js mocks/test.mocha.js --browser firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
