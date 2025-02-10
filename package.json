@@ -115,6 +115,7 @@
     "copyfiles": "^2.4.1",
     "debug": "^4.4.0",
     "delay": "^6.0.0",
+    "eslint": "^8.57.1",
     "hd-scripts": "^9.1.0",
     "lint-staged": "^15.4.3",
     "mocha": "^11.1.0",
