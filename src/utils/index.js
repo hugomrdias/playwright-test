@@ -43,7 +43,7 @@ export const defaultOptions = {
   sw: undefined,
   cov: false,
   reportDir: '.nyc_output',
-  extensions: 'js,cjs,mjs,ts,tsx',
+  extensions: 'js,cjs,mjs,ts,tsx,jsx',
   buildConfig: {},
   buildSWConfig: {},
   browserContextOptions: {},
