@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.1.9](https://github.com/hugomrdias/playwright-test/compare/v14.1.8...v14.1.9) (2025-02-11)
+
+
+### Bug Fixes
+
+* support jsx extension by default ([2652496](https://github.com/hugomrdias/playwright-test/commit/26524961d9c84acef66d3a72270d54a64b4a2c46))
+
 ## [14.1.8](https://github.com/hugomrdias/playwright-test/compare/v14.1.7...v14.1.8) (2025-02-10)
 
 
