@@ -1,6 +1,29 @@
-// eslint-disable-next-line n/no-deprecated-api
-import { inspect, isRegExp } from 'util'
 import { AssertionError } from 'assert'
+import { inspect } from 'util'
+
+/**
+ * @param {unknown} arg
+ * @returns {boolean}
+ */
+function isObject(arg) {
+  return typeof arg === 'object' && arg !== null
+}
+
+/**
+ * @param {unknown} o
+ * @returns {string}
+ */
+function objectToString(o) {
+  return Object.prototype.toString.call(o)
+}
+
+/**
+ * @param {unknown} re
+ * @returns {re is RegExp}
+ */
+function isRegExp(re) {
+  return isObject(re) && objectToString(re) === '[object RegExp]'
+}
 
 export const IS_ENV_WITH_DOM =
   typeof window === 'object' &&
@@ -94,9 +117,9 @@ export function compare(expected, actual) {
     }
     const aa = Array.prototype.slice.call(actual)
     // @ts-ignore
-    return expected.every(function (exp) {
+    return expected.every((exp) => {
       // @ts-ignore
-      return aa.some(function (act) {
+      return aa.some((act) => {
         return compare(exp, act)
       })
     })
@@ -108,12 +131,14 @@ export function compare(expected, actual) {
       : false
   }
 
-  return Object.keys(expected).every(function (key) {
+  return Object.keys(expected).every((key) => {
     const eo = expected[key]
     const ao = actual[key]
+
     if (typeof eo === 'object' && eo !== null && ao !== null) {
       return compare(eo, ao)
     }
+
     if (typeof eo === 'function') {
       return eo(ao)
     }

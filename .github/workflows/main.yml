@@ -41,6 +41,7 @@ jobs:
           node-version: lts/*
           cache: pnpm
       - run: pnpm install
+      - run: pnpm run lint
       - run: pnpm test
       - run: ./cli.js mocks/test.mocha.js --browser firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
@@ -58,6 +59,7 @@ jobs:
           node-version: lts/*
           cache: pnpm
       - run: pnpm install
+      - run: pnpm run lint
       - run: npx playwright install winldd
       - run: pnpm test
       - run: ./cli.js mocks/test.mocha.js --browser firefox
@@ -88,6 +90,8 @@ jobs:
           cache: pnpm
         if: ${{ steps.release.outputs.release_created }}
       - run: pnpm install
+        if: ${{ steps.release.outputs.release_created }}
+      - run: pnpm run lint
         if: ${{ steps.release.outputs.release_created }}
       - run: pnpm publish
         env:
