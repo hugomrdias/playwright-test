@@ -1,7 +1,7 @@
 {
 	"name": "playwright-test",
 	"type": "module",
-	"version": "14.1.9",
+	"version": "14.1.10",
 	"description": "Run mocha, zora, uvu, tape and benchmark.js scripts inside real browsers with playwright.",
 	"author": "Hugo Dias <hugomrdias@gmail.com> (hugodias.me)",
 	"license": "MIT",
@@ -41,8 +41,12 @@
 	"types": "dist/src/runner.d.ts",
 	"typesVersions": {
 		"*": {
-			"taps": ["dist/src/taps/index.d.ts"],
-			"client": ["dist/src/client/index.d.ts"]
+			"taps": [
+				"dist/src/taps/index.d.ts"
+			],
+			"client": [
+				"dist/src/client/index.d.ts"
+			]
 		}
 	},
 	"bin": {
