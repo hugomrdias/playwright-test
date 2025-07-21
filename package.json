@@ -69,7 +69,7 @@
 	"scripts": {
 		"clean": "rm -rf pnpm-lock.yaml .coverage .nyc_output dist node_modules .tmp",
 		"fix": "biome check --fix --no-errors-on-unmatched --files-ignore-unknown=true",
-		"lint": "tsc --build && biome check --no-errors-on-unmatched --files-ignore-unknown=true .",
+		"lint": "tsc && biome check --no-errors-on-unmatched --files-ignore-unknown=true .",
 		"test": "mocha test.js --bail --timeout 50000"
 	},
 	"dependencies": {

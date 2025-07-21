@@ -1,5 +1,9 @@
 {
   "extends": "@hugomrdias/configs/tsconfig",
   "include": ["src", "test.js", "cli.js", "package.json", "mocks/tops"],
-  "exclude": ["src/vendor"]
+  "exclude": ["src/vendor"],
+  "compilerOptions": {
+    "emitDeclarationOnly": true,
+    "outDir": "dist"
+  }
 }
