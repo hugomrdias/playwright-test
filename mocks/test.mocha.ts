@@ -1,13 +1,10 @@
-/* eslint-disable no-undef */
-// eslint-disable-next-line strict
-import { is, ok, equal } from 'uvu/assert'
-import * as Client from '../client'
 import pdefer from 'p-defer'
+import { equal, is, ok } from 'uvu/assert'
+import * as Client from '../src/client'
 
 it.skip('Array', () => {
   describe('#indexOf()', () => {
     it('should return -1 when the value is not present', () => {
-      const n: number = 1
       function add(a: number, b: number): number {
         return a + b
       }

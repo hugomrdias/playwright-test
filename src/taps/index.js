@@ -36,20 +36,24 @@ export async function exec() {
 
   // report
   if (passes > 0) {
+    // biome-ignore lint/suspicious/noConsoleLog: <explanation>
     console.log(
-      '\n' + kleur.green(`  ${passes} passing`),
+      `\n${kleur.green(`  ${passes} passing`)}`,
       kleur.gray(`(${timer()})`)
     )
   }
   if (skips > 0) {
+    // biome-ignore lint/suspicious/noConsoleLog: <explanation>
     console.log(kleur.yellow(`  ${skips} skipping`))
   }
   if (errors.length > 0) {
+    // biome-ignore lint/suspicious/noConsoleLog: <explanation>
     console.log(kleur.red(`  ${total - skips - passes} failing`))
   }
 
   // errors
   if (errors.length > 0) {
+    // biome-ignore lint/suspicious/noConsoleLog: <explanation>
     console.log(errors.join('\n'))
     code = 1
   }
@@ -89,6 +93,10 @@ if (IS_ENV_WITH_DOM) {
 
 if (IS_NODE && process.argv0 === 'node') {
   const { createHook } = await import('node:async_hooks')
-  createHook({ init() {} }).enable() // forces PromiseHooks to be enabled.
+  createHook({
+    init() {
+      // noop
+    },
+  }).enable() // forces PromiseHooks to be enabled.
   setTimeout(start, 0)
 }

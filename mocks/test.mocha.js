@@ -28,21 +28,22 @@ describe('Array', () => {
       is(await bad(), 'bad')
     })
 
-    it('should has import.meta.url', async () => {
+    it('should has import.meta.url', () => {
       ok(import.meta.url)
     })
 
-    it('should has import.meta.env', async () => {
+    it('should has import.meta.env', () => {
       equal(import.meta.env, process.env)
     })
 
-    it('should has server', async () => {
+    it('should has server', () => {
       equal(process.env.PW_SERVER, Client.server)
     })
 
     it('should setoffline', async () => {
       if (Client.mode === 'main' && Client.options.extension === false) {
         globalThis.addEventListener('offline', () => {
+          // biome-ignore lint/suspicious/noConsoleLog: <explanation>
           console.log('offlineee')
         })
         // try {

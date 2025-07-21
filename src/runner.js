@@ -7,8 +7,10 @@ import { watch } from 'chokidar'
 import cpy from 'cpy'
 import { asyncExitHook, gracefulExit } from 'exit-hook'
 import kleur from 'kleur'
+// @ts-ignore
 import mergeOptions from 'merge-options'
 import { nanoid } from 'nanoid'
+// @ts-ignore
 import { premove } from 'premove/sync'
 import { temporaryDirectory } from 'tempy'
 import { compileSw } from './utils/build-sw.js'
@@ -82,7 +84,7 @@ export class Runner {
 
   async setupContext() {
     // copy files to be served
-    await cpy(path.join(__dirname, './../static') + '/**', this.dir)
+    await cpy(`${path.join(__dirname, './../static')}/**`, this.dir)
 
     // setup http server
     const { server, url } = await createPolka(
@@ -292,7 +294,7 @@ export class Runner {
       })
       files.push(...swFiles)
       await page.evaluate(() => {
-        navigator.serviceWorker.register(`/sw-out.js`)
+        navigator.serviceWorker.register('/sw-out.js')
         return navigator.serviceWorker.ready
       })
     }
@@ -340,6 +342,7 @@ export class Runner {
       if (this.options.debug) {
         page.on('load', () => {
           this.runTests(page).catch((error) => {
+            // biome-ignore lint/suspicious/noConsoleLog: <explanation>
             console.log(error)
           })
         })
@@ -387,7 +390,7 @@ export class Runner {
    */
   async setupBeforePage(context) {
     const page = await context.newPage()
-    await page.goto(this.url + 'before.html')
+    await page.goto(`${this.url}before.html`)
 
     page.on('console', redirectConsole)
     page.on('pageerror', (err) => {
@@ -477,9 +480,9 @@ export class Runner {
    * @param {boolean} fail
    * @param {string | undefined} [msg]
    */
-  async stop(fail, msg) {
+  stop(fail, msg) {
     if (this.stopped || this.options.debug) {
-      return
+      return Promise.resolve()
     }
     this.stopped = true
 

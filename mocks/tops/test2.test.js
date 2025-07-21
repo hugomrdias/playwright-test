@@ -1,4 +1,4 @@
-import { suite, assert, test as _test } from '../../src/taps/index.js'
+import { assert, test as _test, suite } from '../../src/taps/index.js'
 
 let { test } = suite('suite2')
 
@@ -25,7 +25,7 @@ test('test1', () => {
 test('async with events', async () => {
   const signal = AbortSignal.timeout(100)
 
-  const p = new Promise((resolve, reject) => {
+  const p = new Promise((resolve) => {
     signal.addEventListener('abort', () => {
       resolve(true)
     })
@@ -44,6 +44,7 @@ _test('default suite', () => {
 test(
   'should fail if Promise never resolves :: GC',
   async () => {
+    // biome-ignore lint/suspicious/noEmptyBlockStatements: <explanation>
     await new Promise(() => {})
   },
   { timeout: 100, skip: true }

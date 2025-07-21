@@ -1,9 +1,9 @@
 import fs from 'fs'
 import path from 'path'
-import { is, ok } from 'uvu/assert'
 import { execa, execaSync } from 'execa'
+import { is, ok } from 'uvu/assert'
 
-describe('mocha', function () {
+describe('mocha', () => {
   it('basic', async () => {
     const proc = await execa('./cli.js', [
       'mocks/test.mocha.js',
@@ -191,7 +191,7 @@ describe('mocha', function () {
   })
 })
 
-describe('tape', function () {
+describe('tape', () => {
   it('tape', async () => {
     const proc = await execa('./cli.js', [
       'mocks/test.tape.js',
@@ -310,7 +310,7 @@ describe('uvu', () => {
   })
 })
 
-describe.skip('benchmark', function () {
+describe.skip('benchmark', () => {
   it('benchmark', async () => {
     const proc = await execa('./cli.js', [
       'mocks/benchmark.js',
@@ -323,7 +323,7 @@ describe.skip('benchmark', function () {
   })
 })
 
-describe('custom runner', function () {
+describe('custom runner', () => {
   it('module from file', async () => {
     const proc = await execa('./cli.js', [
       'mocks/tinybench.js',
@@ -347,7 +347,7 @@ describe('custom runner', function () {
   })
 })
 
-describe('taps', function () {
+describe('taps', () => {
   it('basic', async () => {
     const proc = await execa('./cli.js', ['mocks/tops'])
 
@@ -363,7 +363,7 @@ describe('taps', function () {
   })
 })
 
-describe('stdout / stderr', function () {
+describe('stdout / stderr', () => {
   it('does not add line breaks', async () => {
     const proc = await execa('./cli.js', [
       'mocks/none/stdout.test.js',

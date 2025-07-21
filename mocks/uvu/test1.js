@@ -1,15 +1,16 @@
-/* eslint-disable no-empty-function */
-import { test } from 'uvu'
 import delay from 'delay'
-import { type, is } from 'uvu/assert'
+import { test } from 'uvu'
+import { is, type } from 'uvu/assert'
 
 test('sum', () => {
+  // biome-ignore lint/suspicious/noEmptyBlockStatements: <explanation>
   type(() => {}, 'function')
   is(3, 3)
 })
 
 test('sum', async () => {
   await delay(100)
+  // biome-ignore lint/suspicious/noEmptyBlockStatements: <explanation>
   type(() => {}, 'function')
   is(3, 3)
 })

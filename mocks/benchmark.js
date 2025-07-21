@@ -1,6 +1,3 @@
-/* eslint-disable no-unused-expressions */
-'use strict'
-
 // const Benchmark = require('benchmark')
 
 import Benchmark from 'benchmark'
@@ -20,10 +17,12 @@ suite
   })
   // add listeners
   .on('cycle', (event) => {
+    // biome-ignore lint/suspicious/noConsoleLog: <explanation>
     console.log(String(event.target))
   })
   .on('complete', function () {
-    console.log('Fastest is ' + this.filter('fastest').map('name'))
+    // biome-ignore lint/suspicious/noConsoleLog: <explanation>
+    console.log(`Fastest is ${this.filter('fastest').map('name')}`)
   })
   // run async
   .run({ async: true })

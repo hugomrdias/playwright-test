@@ -1,6 +1,3 @@
-/* eslint-disable no-only-tests/no-only-tests */
-/* eslint-disable no-unsafe-finally */
-/* eslint-disable no-console */
 import kleur from 'kleur'
 import pTimeout from 'p-timeout'
 import { hrtime, stack } from './utils.js'
@@ -17,13 +14,8 @@ globalThis.TAPS_ONLY = false
  * @param {Error} err
  */
 function formatError(ctx, err) {
-  let out =
-    '\n' +
-    kleur.bgRed().bold(' FAILURE ') +
-    ' ' +
-    kleur.red(`"${ctx.suite ? ctx.suite + ' > ' : ''}${ctx.name}"`) +
-    '\n'
-  out += `${err.name}: ${err.message}` + kleur.gray(stack(err))
+  let out = `\n${kleur.bgRed().bold(' FAILURE ')} ${kleur.red(`"${ctx.suite ? `${ctx.suite} > ` : ''}${ctx.name}"`)}\n`
+  out += `${err.name}: ${err.message}${kleur.gray(stack(err))}`
 
   if (err.cause instanceof Error && err.cause.stack) {
     out += kleur.gray(
@@ -70,12 +62,13 @@ function log(ctx, fail, time) {
       ? kleur.yellow('-')
       : kleur.green('✔')
   const _time = kleur.gray(`(${time})`)
-  const _msg = `${ctx.suite ? ctx.suite + ' > ' : ''}${ctx.name}`
+  const _msg = `${ctx.suite ? `${ctx.suite} > ` : ''}${ctx.name}`
 
   const msg = `${symbol} ${kleur.gray(ctx.number)} ${
     fail ? kleur.red(_msg) : ctx.skip ? kleur.yellow(_msg) : _msg
   } ${_time}`
 
+  // biome-ignore lint/suspicious/noConsoleLog: <explanation>
   console.log(msg)
 }
 
@@ -177,6 +170,7 @@ async function runner(ctx, testCount) {
         errors.push(formatErrorSuite(`${name}: after hook`, err))
       }
     }
+    // biome-ignore lint/correctness/noUnsafeFinally: <explanation>
     return [errors, passed, skips, total]
   }
 }
@@ -214,26 +208,26 @@ export function suite(name = '') {
 
   test.test = test
 
-  test.before = function (/** @type {import("./types.js").Hook} */ fn) {
+  test.before = (/** @type {import("./types.js").Hook} */ fn) => {
     ctx.before.push(fn)
   }
 
-  test.after = function (/** @type {import("./types.js").Hook} */ fn) {
+  test.after = (/** @type {import("./types.js").Hook} */ fn) => {
     ctx.after.push(fn)
   }
 
-  test.beforeEach = function (/** @type {import("./types.js").Hook} */ fn) {
+  test.beforeEach = (/** @type {import("./types.js").Hook} */ fn) => {
     ctx.beforeEach.push(fn)
   }
 
-  test.afterEach = function (/** @type {import("./types.js").Hook} */ fn) {
+  test.afterEach = (/** @type {import("./types.js").Hook} */ fn) => {
     ctx.afterEach.push(fn)
   }
 
   /**
    * @type {import('./types.js').Suite}
    */
-  test.skip = function (name, fn, options = defaultOptions) {
+  test.skip = (name, fn, options = defaultOptions) => {
     ctx.tests.push({
       name,
       fn,
@@ -244,7 +238,7 @@ export function suite(name = '') {
   /**
    * @type {import('./types.js').Suite}
    */
-  test.only = function (name, fn, options = defaultOptions) {
+  test.only = (name, fn, options = defaultOptions) => {
     globalThis.TAPS_ONLY = true
     ctx.only.push({
       name,
@@ -264,10 +258,18 @@ export function suite(name = '') {
   test.skip.test = test.skip
   test.skip.skip = test.skip
   test.skip.only = test.only
-  test.skip.after = () => {}
-  test.skip.before = () => {}
-  test.skip.beforeEach = () => {}
-  test.skip.afterEach = () => {}
+  test.skip.after = () => {
+    // noop
+  }
+  test.skip.before = () => {
+    // noop
+  }
+  test.skip.beforeEach = () => {
+    // noop
+  }
+  test.skip.afterEach = () => {
+    // noop
+  }
 
   TAPS_QUEUE.push(runner.bind(0, ctx))
 

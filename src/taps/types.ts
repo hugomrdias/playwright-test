@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-types */
 import type _assert from 'assert'
 import type { instance, subset, type } from './assert'
 
@@ -8,6 +7,7 @@ export interface TypeMap {
   string: string
   object: object
   undefined: undefined
+  // biome-ignore lint/complexity/noBannedTypes: <explanation>
   function: Function
 }
 

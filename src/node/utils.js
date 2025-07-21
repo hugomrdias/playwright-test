@@ -1,6 +1,7 @@
 import path from 'path'
 import esbuild from 'esbuild'
 import { wasmLoader } from 'esbuild-plugin-wasm'
+// @ts-ignore
 import mergeOptions from 'merge-options'
 
 const merge = mergeOptions.bind({

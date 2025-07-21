@@ -38,13 +38,13 @@ export const IS_NODE =
 export const HAS_PROCESS = typeof process !== 'undefined' && 'exit' in process
 
 export const milli = (/** @type {number[]} */ arr) =>
-  (arr[0] * 1e3 + arr[1] / 1e6).toFixed(2) + 'ms'
+  `${(arr[0] * 1e3 + arr[1] / 1e6).toFixed(2)}ms`
 
 /** @type {(now?: [number, number]) => () => string} */
 let _hrtime =
   (now = [Date.now(), 0]) =>
   () =>
-    (Date.now() - now[0]).toFixed(2) + 'ms'
+    `${(Date.now() - now[0]).toFixed(2)}ms`
 
 if (IS_NODE && 'hrtime' in process) {
   _hrtime =
@@ -57,7 +57,7 @@ if ('performance' in globalThis && 'now' in globalThis.performance) {
   _hrtime =
     (now = [performance.now(), 0]) =>
     () =>
-      (performance.now() - now[0]).toFixed(2) + 'ms'
+      `${(performance.now() - now[0]).toFixed(2)}ms`
 }
 
 export const hrtime = _hrtime
@@ -84,10 +84,10 @@ export function stack(err) {
   for (let i = 0; i < arr.length; i++) {
     const line = arr[i].trim()
     if (line.length > 0 && !IGNORE.test(line)) {
-      out += '\n    ' + line
+      out += `\n    ${line}`
     }
   }
-  return '\n' + out + '\n'
+  return `\n${out}\n`
 }
 
 /**
@@ -185,12 +185,12 @@ export function internalMatch(string, regexp, message, fn, fnName) {
     message =
       message ||
       (typeof string === 'string'
-        ? (match
-            ? 'The input did not match the regular expression '
-            : 'The input was expected to not match the regular expression ') +
-          `${inspect(regexp)}. Input:\n\n${inspect(string)}\n`
-        : 'The "string" argument must be of type string. Received type ' +
-          `${typeof string} (${inspect(string)})`)
+        ? `${
+            match
+              ? 'The input did not match the regular expression '
+              : 'The input was expected to not match the regular expression '
+          }${inspect(regexp)}. Input:\n\n${inspect(string)}\n`
+        : `The "string" argument must be of type string. Received type ${typeof string} (${inspect(string)})`)
     const err = new AssertionError({
       actual: string,
       expected: regexp,

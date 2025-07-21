@@ -1,7 +1,7 @@
 /** @type {import('../src/runner.js').RunnerOptions} */
 const config = {
   testRunner: {
-    compileRuntime: (options, paths) => {
+    compileRuntime: (_options, paths) => {
       return `
 import mocha from 'mocha/mocha.js'
 mocha.setup({

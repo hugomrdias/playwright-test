@@ -21,7 +21,7 @@ const signalFinished = () => {
       if (options.mode === 'worker') {
         postMessage({ pwRunEnded: true })
       } else {
-        self.PW_TEST.end()
+        globalThis.PW_TEST.end()
       }
     }, 1000)
   }

@@ -11,6 +11,7 @@ import esbuild from 'esbuild'
 import { wasmLoader } from 'esbuild-plugin-wasm'
 import { globbySync } from 'globby'
 import kleur from 'kleur'
+// @ts-ignore
 import mergeOptions from 'merge-options'
 import ora from 'ora'
 import polka from 'polka'
@@ -47,8 +48,12 @@ export const defaultOptions = {
   buildConfig: {},
   buildSWConfig: {},
   browserContextOptions: {},
-  beforeTests: async () => {},
-  afterTests: async () => {},
+  beforeTests: async () => {
+    // noop
+  },
+  afterTests: async () => {
+    // noop
+  },
 }
 
 export const log = {

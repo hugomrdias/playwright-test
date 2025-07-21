@@ -86,7 +86,7 @@ export const tape = {
   },
   compileRuntime(options, paths) {
     return `
-${options.mode === 'node' ? `globalThis.location={}` : ``}
+${options.mode === 'node' ? 'globalThis.location={}' : ''}
 import { onFailure, onFinish } from 'tape'
 
 self.TAPE_RUN_FAIL = false

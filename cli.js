@@ -3,14 +3,20 @@
 
 /* eslint-disable no-console */
 
+import fs from 'fs'
 import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
-import fs from 'fs'
-import sade from 'sade'
-import kleur from 'kleur'
 import { gracefulExit } from 'exit-hook'
+import kleur from 'kleur'
 import { lilconfig } from 'lilconfig'
+// @ts-ignore
 import mergeOptions from 'merge-options'
+import sade from 'sade'
+import { NodeRunner } from './src/node/runner.js'
+import { Runner } from './src/runner.js'
+import { benchmark, mocha, none, tape, uvu, zora } from './src/test-runners.js'
+import * as DefaultRunners from './src/test-runners.js'
+import { detectTestRunner } from './src/utils/auto-detect.js'
 import {
   defaultOptions,
   findTests,
@@ -18,11 +24,6 @@ import {
   resolveTestRunner,
   runnerOptions,
 } from './src/utils/index.js'
-import { Runner } from './src/runner.js'
-import { NodeRunner } from './src/node/runner.js'
-import { benchmark, mocha, none, tape, uvu, zora } from './src/test-runners.js'
-import { detectTestRunner } from './src/utils/auto-detect.js'
-import * as DefaultRunners from './src/test-runners.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -102,6 +103,7 @@ const sade2 = new Proxy(sade('playwright-test [files]', true), {
         const out = targetValue.apply(this, args)
 
         if (prop === 'help') {
+          // biome-ignore lint/suspicious/noConsoleLog: <explanation>
           console.log(extra)
         }
 

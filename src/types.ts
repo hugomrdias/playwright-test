@@ -62,7 +62,7 @@ export interface CliOptions {
   config?: string
 }
 
-export type ConfigFn = (options: CliOptions) => RunnerOptions
+export type ConfigFn = (options: CliOptions) => Partial<RunnerOptions>
 
 export type PwResult<TBrowser> = TBrowser extends 'webkit'
   ? WebKitBrowser

@@ -1,6 +1,7 @@
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { build } from 'esbuild'
+// @ts-ignore
 import mergeOptions from 'merge-options'
 import { temporaryWriteSync } from 'tempy'
 

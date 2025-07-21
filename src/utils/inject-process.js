@@ -3,11 +3,7 @@
 const _process = require('process/browser')
 
 const performance = globalThis.performance || {}
-const performanceNow =
-  performance.now ||
-  function () {
-    return Date.now()
-  }
+const performanceNow = performance.now || (() => Date.now())
 
 // generate timestamp or delta
 // see http://nodejs.org/api/process.html#process_process_hrtime
@@ -43,15 +39,13 @@ const p = {
       } else {
         globalThis.PW_TEST.end(false)
       }
+    } else if (options.mode === 'worker') {
+      postMessage({
+        pwRunEnded: true,
+        pwRunFailed: true,
+      })
     } else {
-      if (options.mode === 'worker') {
-        postMessage({
-          pwRunEnded: true,
-          pwRunFailed: true,
-        })
-      } else {
-        globalThis.PW_TEST.end(true)
-      }
+      globalThis.PW_TEST.end(true)
     }
   },
   stdout: {

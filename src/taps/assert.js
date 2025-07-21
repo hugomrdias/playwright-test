@@ -140,7 +140,7 @@ ${kleur.red('Actual')} ${formatObj(actual)}`,
  * @returns {asserts actual is T} - returns true if actual and expected are the same type
  */
 export function instance(actual, expected, msg) {
-  const name = '`' + (expected.name || expected.constructor.name) + '`'
+  const name = `\`${expected.name || expected.constructor.name}\``
   if (!(actual instanceof expected)) {
     throw new _assert.AssertionError({
       message:

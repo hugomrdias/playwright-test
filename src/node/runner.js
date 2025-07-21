@@ -5,8 +5,10 @@ import path from 'path'
 import { watch } from 'chokidar'
 import { execa } from 'execa'
 import { asyncExitHook, gracefulExit } from 'exit-hook'
+// @ts-ignore
 import mergeOptions from 'merge-options'
 import { nanoid } from 'nanoid'
+// @ts-ignore
 import { premove } from 'premove'
 import * as DefaultRunners from '../test-runners.js'
 import { createPolka, findTests, log } from '../utils/index.js'
@@ -46,8 +48,12 @@ const defaultOptions = {
   buildConfig: {},
   buildSWConfig: {},
   browserContextOptions: {},
-  beforeTests: async () => {},
-  afterTests: async () => {},
+  beforeTests: async () => {
+    // noop
+  },
+  afterTests: async () => {
+    // noop
+  },
 }
 
 export class NodeRunner {
@@ -181,7 +187,9 @@ export class NodeRunner {
           stdio: 'inherit',
         }
       )
-    } catch {}
+    } catch {
+      // noop
+    }
 
     // Watch for changes
     const watcher = watch([...files], {
@@ -233,9 +241,9 @@ export class NodeRunner {
    * @param {boolean} fail
    * @param {string | undefined} [msg]
    */
-  async stop(fail, msg) {
+  stop(fail, msg) {
     if (this.stopped || this.options.debug) {
-      return
+      return Promise.resolve()
     }
     this.stopped = true
 
