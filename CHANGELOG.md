@@ -1,5 +1,13 @@
 # Changelog
 
+## [14.1.10](https://github.com/hugomrdias/playwright-test/compare/v14.1.9...v14.1.10) (2025-07-21)
+
+
+### Bug Fixes
+
+* fix taps utils and update deps ([aca36bb](https://github.com/hugomrdias/playwright-test/commit/aca36bb829e833d6492cd0acfefd4fd53d09d672))
+* refactor cli.js imports and update package.json scripts ([704a485](https://github.com/hugomrdias/playwright-test/commit/704a4855695dfadf012978c936a1c4b52de8d8ba))
+
 ## [14.1.9](https://github.com/hugomrdias/playwright-test/compare/v14.1.8...v14.1.9) (2025-02-11)
 
 
