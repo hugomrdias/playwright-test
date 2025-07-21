@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.1.11](https://github.com/hugomrdias/playwright-test/compare/v14.1.10...v14.1.11) (2025-07-21)
+
+
+### Bug Fixes
+
+* fix npm types ([ac14965](https://github.com/hugomrdias/playwright-test/commit/ac14965034e688b52a638db2d1ee73e8583547d6))
+
 ## [14.1.10](https://github.com/hugomrdias/playwright-test/compare/v14.1.9...v14.1.10) (2025-07-21)
 
 
