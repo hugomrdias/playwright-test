@@ -1,7 +1,6 @@
 /* eslint-disable no-console */
 
 import { mkdirSync } from 'fs'
-import { copyFile } from 'fs/promises'
 import path from 'path'
 import ora from 'ora'
 import { nanoid } from 'nanoid'
@@ -20,6 +19,7 @@ import { compileSw } from './utils/build-sw.js'
 import mergeOptions from 'merge-options'
 import { fileURLToPath } from 'node:url'
 import { watch } from 'chokidar'
+import { cp } from 'fs/promises'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const merge = mergeOptions.bind({ ignoreUndefined: true })
@@ -95,7 +95,7 @@ export class Runner {
 
   async launch() {
     // copy files to be served
-    await copyFile(path.join(__dirname, './../static') + '/**', this.dir)
+    await cp(path.join(__dirname, './../static'), this.dir, { recursive: true })
 
     // setup http server
     await createPolka(this)
