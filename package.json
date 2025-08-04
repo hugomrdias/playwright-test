@@ -55,7 +55,6 @@
     "cpy": "^9.0.1",
     "esbuild": "0.16.10",
     "events": "^3.3.0",
-    "globby": "^13.1.1",
     "kleur": "^4.1.4",
     "lilconfig": "^2.0.5",
     "lodash": "^4.17.21",
@@ -76,6 +75,7 @@
     "tape": "^5.5.3",
     "tempy": "^3.0.0",
     "test-exclude": "^6.0.0",
+    "tinyglobby": "^0.2.14",
     "v8-to-istanbul": "^9.0.0"
   },
   "devDependencies": {

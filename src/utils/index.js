@@ -9,7 +9,7 @@ import sirv from 'sirv'
 import esbuild from 'esbuild'
 import V8ToIstanbul from 'v8-to-istanbul'
 import { promisify } from 'util'
-import { globbySync } from 'globby'
+import { globSync } from 'tinyglobby'
 import ora from 'ora'
 import { createServer } from 'http'
 import polka from 'polka'
@@ -84,22 +84,15 @@ export function defaultTestPatterns(extensions) {
  * @param {string[]} patterns
  */
 function globFiles(cwd, patterns) {
-  const files = globbySync(patterns, {
+  const files = globSync(patterns, {
     absolute: false,
-    braceExpansion: true,
     caseSensitiveMatch: false,
     cwd,
     dot: false,
     expandDirectories: true,
-    extglob: true,
     followSymbolicLinks: true,
-    gitignore: false,
-    globstar: true,
     ignore: defaultIgnorePatterns,
-    baseNameMatch: false,
-    onlyFiles: true,
-    stats: false,
-    unique: true,
+    onlyFiles: true
   })
 
   // Return absolute file paths. This has the side-effect of normalizing paths
