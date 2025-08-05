@@ -1,24 +1,58 @@
 import fs from 'fs'
 import path from 'path'
-import { ok, is } from 'uvu/assert'
-import { execa } from 'execa'
+import { execa, execaSync } from 'execa'
+import { is, ok } from 'uvu/assert'
 
-describe('mocha', function () {
+describe('mocha', () => {
   it('basic', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/test.mocha.js',
+      '--runner',
+      'mocha',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('passing'), 'process stdout')
+  })
+
+  it('fixtures', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/fixtures.mocha.js',
+      '--runner',
+      'mocha',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('passing'), 'process stdout')
+  })
+
+  it('node', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/test.mocha.js',
+      '--runner',
+      'mocha',
+      '--mode',
+      'node',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('passing'), 'process stdout')
+  })
+
+  it('auto detect', async () => {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js'])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('5 passing'), 'process stdout')
+    ok(proc.stderr.includes('Autodetected "mocha" as the runner'), proc.stderr)
   })
 
   it('coverage', async () => {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--cov'])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('5 passing'), 'process stdout')
+    ok(proc.stdout.includes('passing'), 'process stdout')
 
     const cov = JSON.parse(
-      // eslint-disable-next-line unicorn/prefer-json-parse-buffer
       fs.readFileSync('.nyc_output/coverage-pw.json', 'utf8')
     )
     ok(path.resolve('mocks/test.mocha.js') in cov, 'test coverage')
@@ -33,10 +67,9 @@ describe('mocha', function () {
     ])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('5 passing'), 'process stdout')
+    ok(proc.stdout.includes('passing'), 'process stdout')
 
     const cov = JSON.parse(
-      // eslint-disable-next-line unicorn/prefer-json-parse-buffer
       fs.readFileSync('.coverage/coverage-pw.json', 'utf8')
     )
     ok(path.resolve('mocks/test.mocha.js') in cov, 'test coverage')
@@ -50,7 +83,7 @@ describe('mocha', function () {
     ])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('5 passing'), 'process stdout')
+    ok(proc.stdout.includes('passing'), 'process stdout')
   })
 
   it('coverage with cwd', async () => {
@@ -62,10 +95,9 @@ describe('mocha', function () {
     ])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('5 passing'), 'process stdout')
+    ok(proc.stdout.includes('passing'), 'process stdout')
 
     const cov = JSON.parse(
-      // eslint-disable-next-line unicorn/prefer-json-parse-buffer
       fs.readFileSync('mocks/.nyc_output/coverage-pw.json', 'utf8')
     )
 
@@ -78,7 +110,7 @@ describe('mocha', function () {
     })
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('5 passing'), 'process stdout')
+    ok(proc.stdout.includes('passing'), 'process stdout')
     ok(proc.stdout.includes('app test pass'), 'debug output')
   })
 
@@ -86,7 +118,7 @@ describe('mocha', function () {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--incognito'])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('5 passing'), 'process stdout')
+    ok(proc.stdout.includes('passing'), 'process stdout')
   })
 
   it('mode:worker', async () => {
@@ -97,25 +129,26 @@ describe('mocha', function () {
     ])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('5 passing'), 'process stdout')
+    ok(proc.stdout.includes('passing'), 'process stdout')
   })
 
   it('mocha extension', async () => {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--extension'])
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('5 passing'), 'process stdout')
+    ok(proc.stdout.includes('passing'), 'process stdout')
   })
 
-  it('sw', async () => {
-    const proc = await execa('./cli.js', [
+  it('sw', () => {
+    const proc = execaSync('./cli.js', [
       'mocks/sw/sw-test.js',
       '--sw',
       'mocks/sw/sw.js',
       '--config',
-      'mocks/sw/sw.config.js',
+      'mocks/sw/sw.config.cjs',
     ])
 
     is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('1 passing'), 'process stdout')
   })
 
   it('supports esm config files', async () => {
@@ -128,6 +161,7 @@ describe('mocha', function () {
     ])
 
     is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('1 passing'), 'process stdout')
   })
 
   it('supports esm config files that return promises', async () => {
@@ -140,6 +174,7 @@ describe('mocha', function () {
     ])
 
     is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('1 passing'), 'process stdout')
   })
 
   it('supports esm config files that return functions', async () => {
@@ -152,10 +187,11 @@ describe('mocha', function () {
     ])
 
     is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('1 passing'), 'process stdout')
   })
 })
 
-describe('tape', function () {
+describe('tape', () => {
   it('tape', async () => {
     const proc = await execa('./cli.js', [
       'mocks/test.tape.js',
@@ -165,6 +201,26 @@ describe('tape', function () {
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('# pass  5'), 'process stdout')
+  })
+
+  it('node', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/test.tape.js',
+      '--runner',
+      'tape',
+      '--mode',
+      'node',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('# pass  5'), 'process stdout')
+  })
+
+  it('autodetect', async () => {
+    const proc = await execa('./cli.js', ['mocks/test.tape.js'])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stderr.includes('Autodetected "tape" as the runner'), proc.stderr)
   })
 
   it('tape mode:worker', async () => {
@@ -197,13 +253,24 @@ describe('zora', () => {
     ok(proc.stdout.includes('# pass  2'), 'process stdout')
   })
 
+  it('autodetect', async () => {
+    const proc = await execa('./cli.js', ['mocks/*.zora.js'], {
+      env: {
+        ZORA_ONLY: 'true',
+      },
+    })
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stderr.includes('Autodetected "zora" as the runner'), proc.stderr)
+  })
+
   it('zora mode:worker', async () => {
     const proc = await execa(
       './cli.js',
       ['mocks/*.zora.js', '--runner', 'zora', '--mode', 'worker'],
       {
         env: {
-          RUN_ONLY: 'true',
+          ZORA_ONLY: 'true',
           INDENT: 'true',
         },
       }
@@ -214,7 +281,36 @@ describe('zora', () => {
   })
 })
 
-describe.skip('benchmark', function () {
+describe('uvu', () => {
+  it('basic', async () => {
+    const proc = await execa('./cli.js', ['mocks/uvu', '--runner', 'uvu'])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('Skipped:   0'), 'process stdout')
+  })
+
+  it('autodetect', async () => {
+    const proc = await execa('./cli.js', ['mocks/uvu'])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stderr.includes('Autodetected "uvu" as the runner'), proc.stderr)
+  })
+
+  it('mode:worker', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/uvu',
+      '--runner',
+      'uvu',
+      '--mode',
+      'worker',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('Skipped:   0'), 'process stdout')
+  })
+})
+
+describe.skip('benchmark', () => {
   it('benchmark', async () => {
     const proc = await execa('./cli.js', [
       'mocks/benchmark.js',
@@ -224,5 +320,97 @@ describe.skip('benchmark', function () {
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('Fastest is String#indexOf'), 'process stdout')
+  })
+})
+
+describe('custom runner', () => {
+  it('module from file', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/tinybench.js',
+      '--runner',
+      './mocks/custom-runner.js',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('Task Name'), 'process stdout')
+  })
+
+  it('module from config', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/test.mocha.js',
+      '--config',
+      'mocks/config.js',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('passing'), 'process stdout')
+  })
+})
+
+describe('taps', () => {
+  it('basic', async () => {
+    const proc = await execa('./cli.js', ['mocks/tops'])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('passing'), 'process stdout')
+  })
+
+  it('node', async () => {
+    const proc = await execa('./cli.js', ['mocks/tops', '--mode', 'node'])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('passing'), 'process stdout')
+  })
+})
+
+describe('stdout / stderr', () => {
+  it('does not add line breaks', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/none/stdout.test.js',
+      '--runner',
+      'none',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('hello world!'), 'process stdout')
+  })
+
+  it('works in worker', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/none/stdout.test.js',
+      '--runner',
+      'none',
+      '--mode',
+      'worker',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('hello world!'), 'process stdout')
+  })
+
+  it('prints to stderr', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/none/stderr.test.js',
+      '--runner',
+      'none',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('hello '), 'process stdout')
+    ok(proc.stderr.includes('world!'), 'process stdout')
+  })
+
+  it('prints to stderr in worker', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/none/stderr.test.js',
+      '--runner',
+      'none',
+      '--mode',
+      'worker',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('hello '), 'process stdout')
+    ok(proc.stderr.includes('world!'), 'process stdout')
   })
 })

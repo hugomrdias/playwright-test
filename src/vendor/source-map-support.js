@@ -1,8 +1,5 @@
-// @ts-nocheck
-'use strict'
-
-import { SourceMapConsumer } from 'source-map'
 import { dirname, resolve } from 'path'
+import { SourceMapConsumer } from 'source-map'
 
 let fs
 
@@ -80,7 +77,7 @@ function hasGlobalProcessEventEmitter() {
 }
 
 function handlerExec(list) {
-  return function (arg) {
+  return (arg) => {
     for (let i = 0; i < list.length; i++) {
       const ret = list[i](arg)
 
@@ -427,9 +424,7 @@ function cloneCallSite(frame) {
 
   Object.getOwnPropertyNames(Object.getPrototypeOf(frame)).forEach((name) => {
     object[name] = /^(?:is|get)/.test(name)
-      ? function () {
-          return frame[name].call(frame)
-        }
+      ? () => frame[name].call(frame)
       : frame[name]
   })
   object.toString = CallSiteToString
@@ -488,25 +483,17 @@ function wrapCallSite(frame, state) {
     frame = cloneCallSite(frame)
     const originalFunctionName = frame.getFunctionName
 
-    frame.getFunctionName = function () {
+    frame.getFunctionName = () => {
       if (state.nextPosition == null) {
         return originalFunctionName()
       }
 
       return state.nextPosition.name || originalFunctionName()
     }
-    frame.getFileName = function () {
-      return position.source
-    }
-    frame.getLineNumber = function () {
-      return position.line
-    }
-    frame.getColumnNumber = function () {
-      return position.column + 1
-    }
-    frame.getScriptNameOrSourceURL = function () {
-      return position.source
-    }
+    frame.getFileName = () => position.source
+    frame.getLineNumber = () => position.line
+    frame.getColumnNumber = () => position.column + 1
+    frame.getScriptNameOrSourceURL = () => position.source
 
     return frame
   }
@@ -517,9 +504,7 @@ function wrapCallSite(frame, state) {
   if (origin) {
     origin = mapEvalOrigin(origin)
     frame = cloneCallSite(frame)
-    frame.getEvalOrigin = function () {
-      return origin
-    }
+    frame.getEvalOrigin = () => origin
 
     return frame
   }

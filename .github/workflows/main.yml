@@ -10,54 +10,56 @@ on:
 
 jobs:
   linux:
-    name: 'Linux'
+    name: Linux
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: pnpm/action-setup@v2
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
         with:
-          version: 7
-      - uses: actions/setup-node@v3
+          version: latest
+      - uses: actions/setup-node@v4
         with:
-          node-version: 18
-          cache: 'pnpm'
+          node-version: lts/*
+          cache: pnpm
       - run: pnpm install
-      - run: npx playwright install --with-deps
+      - run: npx playwright install-deps
       - run: pnpm run lint
-      - run: xvfb-run -a pnpm run test
+      - run: pnpm run test
       - run: ./cli.js mocks/test.mocha.js --browser firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
 
   macos:
-    name: 'Mac'
+    name: Mac
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: pnpm/action-setup@v2
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
         with:
-          version: 7
-      - uses: actions/setup-node@v3
+          version: latest
+      - uses: actions/setup-node@v4
         with:
-          node-version: 18
-          cache: 'pnpm'
+          node-version: lts/*
+          cache: pnpm
       - run: pnpm install
+      - run: pnpm run lint
       - run: pnpm test
       - run: ./cli.js mocks/test.mocha.js --browser firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
 
   win:
-    name: 'Win'
+    name: Win
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: pnpm/action-setup@v2
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
         with:
-          version: 7
-      - uses: actions/setup-node@v3
+          version: latest
+      - uses: actions/setup-node@v4
         with:
-          node-version: 18
-          cache: 'pnpm'
+          node-version: lts/*
+          cache: pnpm
       - run: pnpm install
+      - run: npx playwright install winldd
       - run: pnpm test
       - run: ./cli.js mocks/test.mocha.js --browser firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
@@ -69,24 +71,26 @@ jobs:
       - win
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     steps:
-      - uses: GoogleCloudPlatform/release-please-action@v2
+      - uses: googleapis/release-please-action@v4
         id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           release-type: node
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         if: ${{ steps.release.outputs.release_created }}
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v4
         if: ${{ steps.release.outputs.release_created }}
         with:
-          version: 7
-      - uses: actions/setup-node@v3
+          version: latest
+      - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: lts/*
           registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
+          cache: pnpm
         if: ${{ steps.release.outputs.release_created }}
       - run: pnpm install
+        if: ${{ steps.release.outputs.release_created }}
+      - run: pnpm run lint
         if: ${{ steps.release.outputs.release_created }}
       - run: pnpm publish
         env:

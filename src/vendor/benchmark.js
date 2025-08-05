@@ -6,9 +6,7 @@
  * Modified by John-David Dalton <http://allyoucanleet.com/>
  * Available under MIT license <https://mths.be/mit>
  */
-;(function () {
-  'use strict'
-
+;(() => {
   /** Used as a safe reference for `undefined` in pre ES5 environments. */
   let undefined
 
@@ -155,279 +153,47 @@
     18: [7, 12, 18, 24, 30, 36, 42, 48, 55, 61, 67, 74, 80, 86, 93, 99],
     19: [7, 13, 19, 25, 32, 38, 45, 52, 58, 65, 72, 78, 85, 92, 99, 106, 113],
     20: [
-      8,
-      14,
-      20,
-      27,
-      34,
-      41,
-      48,
-      55,
-      62,
-      69,
-      76,
-      83,
-      90,
-      98,
-      105,
-      112,
-      119,
-      127,
+      8, 14, 20, 27, 34, 41, 48, 55, 62, 69, 76, 83, 90, 98, 105, 112, 119, 127,
     ],
     21: [
-      8,
-      15,
-      22,
-      29,
-      36,
-      43,
-      50,
-      58,
-      65,
-      73,
-      80,
-      88,
-      96,
-      103,
-      111,
-      119,
-      126,
-      134,
-      142,
+      8, 15, 22, 29, 36, 43, 50, 58, 65, 73, 80, 88, 96, 103, 111, 119, 126,
+      134, 142,
     ],
     22: [
-      9,
-      16,
-      23,
-      30,
-      38,
-      45,
-      53,
-      61,
-      69,
-      77,
-      85,
-      93,
-      101,
-      109,
-      117,
-      125,
-      133,
-      141,
-      150,
-      158,
+      9, 16, 23, 30, 38, 45, 53, 61, 69, 77, 85, 93, 101, 109, 117, 125, 133,
+      141, 150, 158,
     ],
     23: [
-      9,
-      17,
-      24,
-      32,
-      40,
-      48,
-      56,
-      64,
-      73,
-      81,
-      89,
-      98,
-      106,
-      115,
-      123,
-      132,
-      140,
-      149,
-      157,
-      166,
-      175,
+      9, 17, 24, 32, 40, 48, 56, 64, 73, 81, 89, 98, 106, 115, 123, 132, 140,
+      149, 157, 166, 175,
     ],
     24: [
-      10,
-      17,
-      25,
-      33,
-      42,
-      50,
-      59,
-      67,
-      76,
-      85,
-      94,
-      102,
-      111,
-      120,
-      129,
-      138,
-      147,
-      156,
-      165,
-      174,
-      183,
-      192,
+      10, 17, 25, 33, 42, 50, 59, 67, 76, 85, 94, 102, 111, 120, 129, 138, 147,
+      156, 165, 174, 183, 192,
     ],
     25: [
-      10,
-      18,
-      27,
-      35,
-      44,
-      53,
-      62,
-      71,
-      80,
-      89,
-      98,
-      107,
-      117,
-      126,
-      135,
-      145,
-      154,
-      163,
-      173,
-      182,
-      192,
-      201,
-      211,
+      10, 18, 27, 35, 44, 53, 62, 71, 80, 89, 98, 107, 117, 126, 135, 145, 154,
+      163, 173, 182, 192, 201, 211,
     ],
     26: [
-      11,
-      19,
-      28,
-      37,
-      46,
-      55,
-      64,
-      74,
-      83,
-      93,
-      102,
-      112,
-      122,
-      132,
-      141,
-      151,
-      161,
-      171,
-      181,
-      191,
-      200,
-      210,
-      220,
-      230,
+      11, 19, 28, 37, 46, 55, 64, 74, 83, 93, 102, 112, 122, 132, 141, 151, 161,
+      171, 181, 191, 200, 210, 220, 230,
     ],
     27: [
-      11,
-      20,
-      29,
-      38,
-      48,
-      57,
-      67,
-      77,
-      87,
-      97,
-      107,
-      118,
-      125,
-      138,
-      147,
-      158,
-      168,
-      178,
-      188,
-      199,
-      209,
-      219,
-      230,
-      240,
-      250,
+      11, 20, 29, 38, 48, 57, 67, 77, 87, 97, 107, 118, 125, 138, 147, 158, 168,
+      178, 188, 199, 209, 219, 230, 240, 250,
     ],
     28: [
-      12,
-      21,
-      30,
-      40,
-      50,
-      60,
-      70,
-      80,
-      90,
-      101,
-      111,
-      122,
-      132,
-      143,
-      154,
-      164,
-      175,
-      186,
-      196,
-      207,
-      218,
-      228,
-      239,
-      250,
-      261,
-      272,
+      12, 21, 30, 40, 50, 60, 70, 80, 90, 101, 111, 122, 132, 143, 154, 164,
+      175, 186, 196, 207, 218, 228, 239, 250, 261, 272,
     ],
     29: [
-      13,
-      22,
-      32,
-      42,
-      52,
-      62,
-      73,
-      83,
-      94,
-      105,
-      116,
-      127,
-      138,
-      149,
-      160,
-      171,
-      182,
-      193,
-      204,
-      215,
-      226,
-      238,
-      249,
-      260,
-      271,
-      282,
-      294,
+      13, 22, 32, 42, 52, 62, 73, 83, 94, 105, 116, 127, 138, 149, 160, 171,
+      182, 193, 204, 215, 226, 238, 249, 260, 271, 282, 294,
     ],
     30: [
-      13,
-      23,
-      33,
-      43,
-      54,
-      65,
-      76,
-      87,
-      98,
-      109,
-      120,
-      131,
-      143,
-      154,
-      166,
-      177,
-      189,
-      200,
-      212,
-      223,
-      235,
-      247,
-      258,
-      270,
-      282,
-      293,
-      305,
-      317,
+      13, 23, 33, 43, 54, 65, 76, 87, 98, 109, 120, 131, 143, 154, 166, 177,
+      189, 200, 212, 223, 235, 247, 258, 270, 282, 293, 305, 317,
     ],
   }
 
@@ -459,7 +225,7 @@
       : root
 
     /** Native constructor references. */
-    let Array = context.Array,
+    const Array = context.Array,
       Date = context.Date,
       Function = context.Function,
       Math = context.Math,
@@ -468,11 +234,11 @@
       String = context.String
 
     /** Used for `Array` and `Object` method references. */
-    let arrayRef = [],
+    const arrayRef = [],
       objectProto = Object.prototype
 
     /** Native method shortcuts. */
-    let abs = Math.abs,
+    const abs = Math.abs,
       clearTimeout = context.clearTimeout,
       floor = Math.floor,
       log = Math.log,
@@ -516,8 +282,7 @@
      * @type Object
      */
     const support = {}
-
-    ;(function () {
+    ;(() => {
       /**
        * Detect if running in a browser environment.
        *
@@ -554,12 +319,10 @@
           Function(
             (
               'return (' +
-              function (x) {
-                return {
-                  x: String(String(1 + x)),
-                  y: 0,
-                }
-              } +
+              ((x) => ({
+                x: String(String(1 + x)),
+                y: 0,
+              })) +
               ')'
             )
               // Avoid issues with code added by Istanbul.
@@ -689,10 +452,8 @@
      * });
      */
     function Benchmark(name, fn, options) {
-      const bench = this
-
       // Allow instance creation without the `new` operator.
-      if (!(bench instanceof Benchmark)) {
+      if (!(this instanceof Benchmark)) {
         return new Benchmark(name, fn, options)
       }
       // Juggle arguments.
@@ -707,18 +468,18 @@
         // 2 arguments (name, options).
         options = fn
         fn = null
-        bench.name = name
+        this.name = name
       } else {
         // 3 arguments (name, fn [, options]).
-        bench.name = name
+        this.name = name
       }
-      setOptions(bench, options)
+      setOptions(this, options)
 
-      bench.id || (bench.id = ++counter)
-      bench.fn == null && (bench.fn = fn)
+      this.id || (this.id = ++counter)
+      this.fn == null && (this.fn = fn)
 
-      bench.stats = cloneDeep(bench.stats)
-      bench.times = cloneDeep(bench.times)
+      this.stats = cloneDeep(this.stats)
+      this.times = cloneDeep(this.times)
     }
 
     /**
@@ -729,13 +490,11 @@
      * @param {Object} clone The cloned benchmark instance.
      */
     function Deferred(clone) {
-      const deferred = this
-
-      if (!(deferred instanceof Deferred)) {
+      if (!(this instanceof Deferred)) {
         return new Deferred(clone)
       }
-      deferred.benchmark = clone
-      clock(deferred)
+      this.benchmark = clone
+      clock(this)
     }
 
     /**
@@ -746,15 +505,13 @@
      * @param {Object|string} type The event type.
      */
     function Event(type) {
-      const event = this
-
       if (type instanceof Event) {
         return type
       }
 
-      return event instanceof Event
+      return this instanceof Event
         ? _.assign(
-            event,
+            this,
             { timeStamp: _.now() },
             typeof type == 'string' ? { type: type } : type
           )
@@ -804,10 +561,8 @@
      * });
      */
     function Suite(name, options) {
-      const suite = this
-
       // Allow instance creation without the `new` operator.
-      if (!(suite instanceof Suite)) {
+      if (!(this instanceof Suite)) {
         return new Suite(name, options)
       }
       // Juggle arguments.
@@ -816,9 +571,9 @@
         options = name
       } else {
         // 2 arguments (name [, options]).
-        suite.name = name
+        this.name = name
       }
-      setOptions(suite, options)
+      setOptions(this, options)
     }
 
     /* ------------------------------------------------------------------------*/
@@ -848,7 +603,7 @@
      */
     function createFunction() {
       // Lazy define.
-      createFunction = function (args, body) {
+      createFunction = (args, body) => {
         let result,
           anchor = freeDefine ? freeDefine.amd : Benchmark,
           prop = uid + 'createFunction'
@@ -1041,7 +796,7 @@
         // Remove the inserted script *before* running the code to avoid differences
         // in the expected script element count/order of the document.
         script.appendChild(doc.createTextNode(prefix + code))
-        anchor[prop] = function () {
+        anchor[prop] = () => {
           destroyElement(script)
         }
       } catch (e) {
@@ -1089,22 +844,21 @@
      * @memberOf Benchmark.Deferred
      */
     function resolve() {
-      let deferred = this,
-        clone = deferred.benchmark,
+      const clone = this.benchmark,
         bench = clone._original
 
       if (bench.aborted) {
         // cycle() -> clone cycle/complete event -> compute()'s invoked bench.run() cycle/complete.
-        deferred.teardown()
+        this.teardown()
         clone.running = false
-        cycle(deferred)
-      } else if (++deferred.cycles < clone.count) {
-        clone.compiled.call(deferred, context, timer)
+        cycle(this)
+      } else if (++this.cycles < clone.count) {
+        clone.compiled.call(this, context, timer)
       } else {
-        timer.stop(deferred)
-        deferred.teardown()
+        timer.stop(this)
+        this.teardown()
         delay(clone, () => {
-          cycle(deferred)
+          cycle(this)
         })
       }
     }
@@ -1138,9 +892,8 @@
     function filter(array, callback) {
       if (callback === 'successful') {
         // Callback to exclude those that are errored, unrun, or have hz of Infinity.
-        callback = function (bench) {
-          return bench.cycles && _.isFinite(bench.hz) && !bench.error
-        }
+        callback = (bench) =>
+          bench.cycles && _.isFinite(bench.hz) && !bench.error
       } else if (callback === 'fastest' || callback === 'slowest') {
         // Get successful, sort by period + margin of error, and filter fastest/slowest.
         const result = filter(array, 'successful').sort((a, b) => {
@@ -1379,7 +1132,7 @@
      * @returns {string} The joined result.
      */
     function join(object, separator1, separator2) {
-      let result = [],
+      const result = [],
         length = (object = Object(object)).length,
         arrayLike = length === length >>> 0
 
@@ -1402,26 +1155,25 @@
      */
     function abortSuite() {
       let event,
-        suite = this,
         resetting = calledBy.resetSuite
 
-      if (suite.running) {
+      if (this.running) {
         event = Event('abort')
-        suite.emit(event)
+        this.emit(event)
         if (!event.cancelled || resetting) {
           // Avoid infinite recursion.
           calledBy.abortSuite = true
-          suite.reset()
+          this.reset()
           delete calledBy.abortSuite
 
           if (!resetting) {
-            suite.aborted = true
-            invoke(suite, 'abort')
+            this.aborted = true
+            invoke(this, 'abort')
           }
         }
       }
 
-      return suite
+      return this
     }
 
     /**
@@ -1462,18 +1214,17 @@
      * });
      */
     function add(name, fn, options) {
-      let suite = this,
-        bench = new Benchmark(name, fn, options),
+      const bench = new Benchmark(name, fn, options),
         event = Event({
           type: 'add',
           target: bench,
         })
 
-      if ((suite.emit(event), !event.cancelled)) {
-        suite.push(bench)
+      if ((this.emit(event), !event.cancelled)) {
+        this.push(bench)
       }
 
-      return suite
+      return this
     }
 
     /**
@@ -1485,11 +1236,10 @@
      * @returns {Object} The new suite instance.
      */
     function cloneSuite(options) {
-      let suite = this,
-        result = new suite.constructor(_.assign({}, suite.options, options))
+      const result = new this.constructor(_.assign({}, this.options, options))
 
       // Copy own properties.
-      _.forOwn(suite, (value, key) => {
+      _.forOwn(this, (value, key) => {
         if (!_.has(result, key)) {
           result[key] = _.isFunction(_.get(value, 'clone'))
             ? value.clone()
@@ -1509,10 +1259,9 @@
      * @returns {Object} A new suite of benchmarks that passed callback filter.
      */
     function filterSuite(callback) {
-      let suite = this,
-        result = new suite.constructor(suite.options)
+      const result = new this.constructor(this.options)
 
-      result.push.apply(result, filter(suite, callback))
+      result.push.apply(result, filter(this, callback))
 
       return result
     }
@@ -1526,27 +1275,26 @@
      */
     function resetSuite() {
       let event,
-        suite = this,
         aborting = calledBy.abortSuite
 
-      if (suite.running && !aborting) {
+      if (this.running && !aborting) {
         // No worries, `resetSuite()` is called within `abortSuite()`.
         calledBy.resetSuite = true
-        suite.abort()
+        this.abort()
         delete calledBy.resetSuite
       }
       // Reset if the state has changed.
       else if (
-        (suite.aborted || suite.running) &&
-        (suite.emit((event = Event('reset'))), !event.cancelled)
+        (this.aborted || this.running) &&
+        (this.emit((event = Event('reset'))), !event.cancelled)
       ) {
-        suite.aborted = suite.running = false
+        this.aborted = this.running = false
         if (!aborting) {
-          invoke(suite, 'reset')
+          invoke(this, 'reset')
         }
       }
 
-      return suite
+      return this
     }
 
     /**
@@ -1565,38 +1313,36 @@
      * suite.run({ 'async': true, 'queued': true });
      */
     function runSuite(options) {
-      const suite = this
-
-      suite.reset()
-      suite.running = true
+      this.reset()
+      this.running = true
       options || (options = {})
 
-      invoke(suite, {
+      invoke(this, {
         name: 'run',
         args: options,
         queued: options.queued,
-        onStart: function (event) {
-          suite.emit(event)
+        onStart: (event) => {
+          this.emit(event)
         },
-        onCycle: function (event) {
+        onCycle: (event) => {
           const bench = event.target
 
           if (bench.error) {
-            suite.emit({
+            this.emit({
               type: 'error',
               target: bench,
             })
           }
-          suite.emit(event)
-          event.aborted = suite.aborted
+          this.emit(event)
+          event.aborted = this.aborted
         },
-        onComplete: function (event) {
-          suite.running = false
-          suite.emit(event)
+        onComplete: (event) => {
+          this.running = false
+          this.emit(event)
         },
       })
 
-      return suite
+      return this
     }
 
     /* ------------------------------------------------------------------------*/
@@ -1611,13 +1357,12 @@
      */
     function emit(type) {
       let listeners,
-        object = this,
         event = Event(type),
-        events = object.events,
+        events = this.events,
         args = ((arguments[0] = event), arguments)
 
-      event.currentTarget || (event.currentTarget = object)
-      event.target || (event.target = object)
+      event.currentTarget || (event.currentTarget = this)
+      event.target || (event.target = this)
       delete event.result
 
       if (
@@ -1625,7 +1370,7 @@
         (listeners = _.has(events, event.type) && events[event.type])
       ) {
         _.each(listeners.slice(), (listener) => {
-          if ((event.result = listener.apply(object, args)) === false) {
+          if ((event.result = listener.apply(this, args)) === false) {
             event.cancelled = true
           }
 
@@ -1645,8 +1390,7 @@
      * @returns {Array} The listeners array.
      */
     function listeners(type) {
-      let object = this,
-        events = object.events || (object.events = {})
+      const events = this.events || (this.events = {})
 
       return _.has(events, type) ? events[type] : (events[type] = [])
     }
@@ -1678,11 +1422,10 @@
      * bench.off();
      */
     function off(type, listener) {
-      let object = this,
-        events = object.events
+      const events = this.events
 
       if (!events) {
-        return object
+        return this
       }
       _.each(type ? type.split(' ') : events, (listeners, type) => {
         let index
@@ -1703,7 +1446,7 @@
         }
       })
 
-      return object
+      return this
     }
 
     /**
@@ -1722,8 +1465,7 @@
      * bench.on('start cycle', listener);
      */
     function on(type, listener) {
-      let object = this,
-        events = object.events || (object.events = {})
+      const events = this.events || (this.events = {})
 
       _.each(type.split(' '), (type) => {
         ;(_.has(events, type) ? events[type] : (events[type] = [])).push(
@@ -1731,7 +1473,7 @@
         )
       })
 
-      return object
+      return this
     }
 
     /* ------------------------------------------------------------------------*/
@@ -1744,30 +1486,29 @@
      */
     function abort() {
       let event,
-        bench = this,
         resetting = calledBy.reset
 
-      if (bench.running) {
+      if (this.running) {
         event = Event('abort')
-        bench.emit(event)
+        this.emit(event)
         if (!event.cancelled || resetting) {
           // Avoid infinite recursion.
           calledBy.abort = true
-          bench.reset()
+          this.reset()
           delete calledBy.abort
 
           if (support.timeout) {
-            clearTimeout(bench._timerId)
-            delete bench._timerId
+            clearTimeout(this._timerId)
+            delete this._timerId
           }
           if (!resetting) {
-            bench.aborted = true
-            bench.running = false
+            this.aborted = true
+            this.running = false
           }
         }
       }
 
-      return bench
+      return this
     }
 
     /**
@@ -1783,18 +1524,13 @@
      * });
      */
     function clone(options) {
-      let bench = this,
-        result = new bench.constructor(_.assign({}, bench, options))
+      const result = new this.constructor(_.assign({}, this, options))
 
       // Correct the `options` object.
-      result.options = _.assign(
-        {},
-        cloneDeep(bench.options),
-        cloneDeep(options)
-      )
+      result.options = _.assign({}, cloneDeep(this.options), cloneDeep(options))
 
       // Copy own custom properties.
-      _.forOwn(bench, (value, key) => {
+      _.forOwn(this, (value, key) => {
         if (!_.has(result, key)) {
           result[key] = cloneDeep(value)
         }
@@ -1811,15 +1547,13 @@
      * @returns {number} Returns `-1` if slower, `1` if faster, and `0` if indeterminate.
      */
     function compare(other) {
-      const bench = this
-
       // Exit early if comparing the same benchmark.
-      if (bench == other) {
+      if (this == other) {
         return 0
       }
       let critical,
         zStat,
-        sample1 = bench.stats.sample,
+        sample1 = this.stats.sample,
         sample2 = other.stats.sample,
         size1 = sample1.length,
         size2 = sample2.length,
@@ -1873,15 +1607,13 @@
      * @returns {Object} The benchmark instance.
      */
     function reset() {
-      const bench = this
-
-      if (bench.running && !calledBy.abort) {
+      if (this.running && !calledBy.abort) {
         // No worries, `reset()` is called within `abort()`.
         calledBy.reset = true
-        bench.abort()
+        this.abort()
         delete calledBy.reset
 
-        return bench
+        return this
       }
       let event,
         index = 0,
@@ -1891,11 +1623,11 @@
       // A non-recursive solution to check if properties have changed.
       // For more information see http://www.jslab.dk/articles/non.recursive.preorder.traversal.part4.
       let data = {
-        destination: bench,
+        destination: this,
         source: _.assign(
           {},
-          cloneDeep(bench.constructor.prototype),
-          cloneDeep(bench.options)
+          cloneDeep(this.constructor.prototype),
+          cloneDeep(this.options)
         ),
       }
 
@@ -1955,14 +1687,14 @@
       // If changed emit the `reset` event and if it isn't cancelled reset the benchmark.
       if (
         changes.length &&
-        (bench.emit((event = Event('reset'))), !event.cancelled)
+        (this.emit((event = Event('reset'))), !event.cancelled)
       ) {
         _.each(changes, (data) => {
           data.destination[data.key] = data.value
         })
       }
 
-      return bench
+      return this
     }
 
     /**
@@ -1973,23 +1705,20 @@
      * @returns {string} A string representation of the benchmark instance.
      */
     function toStringBench() {
-      let bench = this,
-        error = bench.error,
-        hz = bench.hz,
-        id = bench.id,
-        stats = bench.stats,
+      let error = this.error,
+        hz = this.hz,
+        id = this.id,
+        stats = this.stats,
         size = stats.sample.length,
         pm = '\xb1',
-        result = bench.name || (_.isNaN(id) ? id : '<Test #' + id + '>')
+        result = this.name || (_.isNaN(id) ? id : '<Test #' + id + '>')
 
       if (error) {
         let errorStr
 
         if (!_.isObject(error)) {
           errorStr = String(error)
-        } else if (!_.isError(Error)) {
-          errorStr = join(error)
-        } else {
+        } else if (_.isError(Error)) {
           // Error#name and Error#message properties are non-enumerable.
           errorStr = join(
             _.assign(
@@ -2000,6 +1729,8 @@
               error
             )
           )
+        } else {
+          errorStr = join(error)
         }
         result += ': ' + errorStr
       } else {
@@ -2029,7 +1760,7 @@
      * @returns {number} The time taken.
      */
     function clock() {
-      let options = Benchmark.options,
+      const options = Benchmark.options,
         templateData = {},
         timers = [
           {
@@ -2040,7 +1771,7 @@
         ]
 
       // Lazy define for hi-res timers.
-      clock = function (clone) {
+      clock = (clone) => {
         let deferred
 
         if (clone instanceof Deferred) {
@@ -2084,12 +1815,10 @@
           : 'var r#,s#,m#=this,f#=m#.fn,i#=m#.count,n#=t#.ns;${setup}\n${begin};' +
             'while(i#--){${fn}\n}${end};${teardown}\nreturn{elapsed:r#,uid:"${uid}"}'
 
-        let compiled = (bench.compiled = clone.compiled = createCompiled(
-            bench,
-            decompilable,
-            deferred,
-            funcBody
-          )),
+        let compiled =
+            (bench.compiled =
+            clone.compiled =
+              createCompiled(bench, decompilable, deferred, funcBody)),
           isEmpty = !(templateData.fn || stringable)
 
         try {
@@ -2143,12 +1872,10 @@
         }
         // If no errors run the full test loop.
         if (!clone.error) {
-          compiled = bench.compiled = clone.compiled = createCompiled(
-            bench,
-            decompilable,
-            deferred,
-            funcBody
-          )
+          compiled =
+            bench.compiled =
+            clone.compiled =
+              createCompiled(bench, decompilable, deferred, funcBody)
           result = compiled.call(deferred || bench, context, timer).elapsed
         }
 
@@ -2161,7 +1888,7 @@
        * Creates a compiled function from the given function `body`.
        */
       function createCompiled(bench, decompilable, deferred, body) {
-        let fn = bench.fn,
+        const fn = bench.fn,
           fnArg = deferred ? getFirstArgument(fn) || 'deferred' : ''
 
         templateData.uid = uid + uidCounter++
@@ -2267,7 +1994,7 @@
           if (measured > 0) {
             sample.push(measured)
           } else {
-            sample.push(Infinity)
+            sample.push(Number.POSITIVE_INFINITY)
             break
           }
         }
@@ -2327,7 +2054,7 @@
       timer = _.minBy(timers, 'res')
 
       // Error if there are no working timers.
-      if (timer.res == Infinity) {
+      if (timer.res == Number.POSITIVE_INFINITY) {
         throw new Error('Benchmark.js was unable to find a working timer.')
       }
       // Resolve time span required to achieve a percent uncertainty of at most 1%.
@@ -2377,16 +2104,15 @@
        * Updates the clone/original benchmarks to keep their data in sync.
        */
       function update(event) {
-        let clone = this,
-          type = event.type
+        const type = event.type
 
         if (bench.running) {
           if (type == 'start') {
             // Note: `clone.minTime` prop is inited in `clock()`.
-            clone.count = bench.initCount
+            this.count = bench.initCount
           } else {
             if (type == 'error') {
-              bench.error = clone.error
+              bench.error = this.error
             }
             if (type == 'abort') {
               bench.abort()
@@ -2398,8 +2124,8 @@
           }
         } else if (bench.aborted) {
           // Clear abort listeners to avoid triggering bench's abort/cycle again.
-          clone.events.abort.length = 0
-          clone.abort()
+          this.events.abort.length = 0
+          this.abort()
         }
       }
 
@@ -2423,12 +2149,10 @@
             size >= minSamples &&
             (elapsed += now - clone.times.timeStamp) / 1e3 > bench.maxTime,
           times = bench.times,
-          varOf = function (sum, x) {
-            return sum + pow(x - mean, 2)
-          }
+          varOf = (sum, x) => sum + pow(x - mean, 2)
 
         // Exit early for aborted or unclockable tests.
-        if (done || clone.hz == Infinity) {
+        if (done || clone.hz == Number.POSITIVE_INFINITY) {
           maxedOut = !(size = sample.length = queue.length = 0)
         }
 
@@ -2471,7 +2195,7 @@
             done = true
             times.elapsed = (now - times.timeStamp) / 1e3
           }
-          if (bench.hz != Infinity) {
+          if (bench.hz != Number.POSITIVE_INFINITY) {
             bench.hz = 1 / mean
             times.cycle = mean * bench.count
             times.period = mean
@@ -2492,7 +2216,7 @@
         args: { async: async },
         queued: true,
         onCycle: evaluate,
-        onComplete: function () {
+        onComplete: () => {
           bench.emit('complete')
         },
       })
@@ -2569,7 +2293,7 @@
           if (count <= clone.count) {
             count += Math.ceil((minTime - clocked) / period)
           }
-          clone.running = count != Infinity
+          clone.running = count != Number.POSITIVE_INFINITY
         }
       }
       // Should we exit early?
@@ -2619,41 +2343,40 @@
      * bench.run({ 'async': true });
      */
     function run(options) {
-      let bench = this,
-        event = Event('start')
+      const event = Event('start')
 
       // Set `running` to `false` so `reset()` won't call `abort()`.
-      bench.running = false
-      bench.reset()
-      bench.running = true
+      this.running = false
+      this.reset()
+      this.running = true
 
-      bench.count = bench.initCount
-      bench.times.timeStamp = _.now()
-      bench.emit(event)
+      this.count = this.initCount
+      this.times.timeStamp = _.now()
+      this.emit(event)
 
       if (!event.cancelled) {
         options = {
           async:
             ((options = options && options.async) == null
-              ? bench.async
+              ? this.async
               : options) && support.timeout,
         }
 
         // For clones created within `compute()`.
-        if (bench._original) {
-          if (bench.defer) {
-            Deferred(bench)
+        if (this._original) {
+          if (this.defer) {
+            Deferred(this)
           } else {
-            cycle(bench, options)
+            cycle(this, options)
           }
         }
         // For original benchmarks.
         else {
-          compute(bench, options)
+          compute(this, options)
         }
       }
 
-      return bench
+      return this
     }
 
     /* ------------------------------------------------------------------------*/
@@ -3301,11 +3024,10 @@
       const func = arrayRef[methodName]
 
       Suite.prototype[methodName] = function () {
-        let value = this,
-          result = func.apply(value, arguments)
+        const result = func.apply(this, arguments)
 
-        if (value.length === 0) {
-          delete value[0]
+        if (this.length === 0) {
+          delete this[0]
         }
 
         return result
@@ -3315,11 +3037,9 @@
     // Avoid buggy `Array#unshift` in IE < 8 which doesn't return the new
     // length of the array.
     Suite.prototype.unshift = function () {
-      const value = this
+      unshift.apply(this, arguments)
 
-      unshift.apply(value, arguments)
-
-      return value.length
+      return this.length
     }
 
     return Benchmark
@@ -3355,4 +3075,4 @@
       root.Benchmark = Benchmark
     }
   }
-}.call(this))
+}).call(this)

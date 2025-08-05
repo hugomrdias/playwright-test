@@ -1,8 +1,9 @@
 /* eslint-disable no-undef */
 // eslint-disable-next-line strict
-const { is } = require('uvu/assert')
+const { is, ok, equal } = require('uvu/assert')
 const debug = require('debug')('app')
 const { good, bad } = require('./lib')
+const Client = require('../src/client')
 
 describe('Array', () => {
   describe('#indexOf()', () => {
@@ -25,6 +26,34 @@ describe('Array', () => {
 
     it('should return "bad"', async () => {
       is(await bad(), 'bad')
+    })
+
+    it('should has import.meta.url', () => {
+      ok(import.meta.url)
+    })
+
+    it('should has import.meta.env', () => {
+      equal(import.meta.env, process.env)
+    })
+
+    it('should has server', () => {
+      equal(process.env.PW_SERVER, Client.server)
+    })
+
+    it('should setoffline', async () => {
+      if (Client.mode === 'main' && Client.options.extension === false) {
+        globalThis.addEventListener('offline', () => {
+          // biome-ignore lint/suspicious/noConsoleLog: <explanation>
+          console.log('offlineee')
+        })
+        // try {
+        //   fetch('https://example.comeeee')
+        // } catch (error) {}
+        await Client.context.setOffline(true)
+        equal(navigator.onLine, false)
+        await Client.context.setOffline(false)
+        equal(navigator.onLine, true)
+      }
     })
   })
 })

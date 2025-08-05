@@ -1,8 +1,8 @@
 /* eslint-disable no-undef */
 // eslint-disable-next-line strict
-const { is } = require('uvu/assert')
+import { is } from 'uvu/assert'
 
-const { KV } = require('./sw-globals')
+import { KV } from './sw-globals'
 
 describe('sw', () => {
   it('should intercept and return kv and env', async () => {
