@@ -1,5 +1,424 @@
 # Changelog
 
+## [14.1.11](https://github.com/hugomrdias/playwright-test/compare/v14.1.10...v14.1.11) (2025-07-21)
+
+
+### Bug Fixes
+
+* fix npm types ([ac14965](https://github.com/hugomrdias/playwright-test/commit/ac14965034e688b52a638db2d1ee73e8583547d6))
+
+## [14.1.10](https://github.com/hugomrdias/playwright-test/compare/v14.1.9...v14.1.10) (2025-07-21)
+
+
+### Bug Fixes
+
+* fix taps utils and update deps ([aca36bb](https://github.com/hugomrdias/playwright-test/commit/aca36bb829e833d6492cd0acfefd4fd53d09d672))
+* refactor cli.js imports and update package.json scripts ([704a485](https://github.com/hugomrdias/playwright-test/commit/704a4855695dfadf012978c936a1c4b52de8d8ba))
+
+## [14.1.9](https://github.com/hugomrdias/playwright-test/compare/v14.1.8...v14.1.9) (2025-02-11)
+
+
+### Bug Fixes
+
+* support jsx extension by default ([2652496](https://github.com/hugomrdias/playwright-test/commit/26524961d9c84acef66d3a72270d54a64b4a2c46))
+
+## [14.1.8](https://github.com/hugomrdias/playwright-test/compare/v14.1.7...v14.1.8) (2025-02-10)
+
+
+### Bug Fixes
+
+* extension testing with new chromium headless ([88b5559](https://github.com/hugomrdias/playwright-test/commit/88b555907a3de713a218ffb48fa0427929fe30a0))
+* fix source map support resolve in node runner ([bad569d](https://github.com/hugomrdias/playwright-test/commit/bad569d5b63c4ae0ea27a83d3acccfff0b24257c))
+* make it fast again with headless-shell and update playwright ([9bc1b16](https://github.com/hugomrdias/playwright-test/commit/9bc1b16051831c871f3b862e081d0af3b735a9c1))
+
+## [14.1.7](https://github.com/hugomrdias/playwright-test/compare/v14.1.6...v14.1.7) (2024-11-19)
+
+
+### Bug Fixes
+
+* pass channel to playwright ([#685](https://github.com/hugomrdias/playwright-test/issues/685)) ([810adfb](https://github.com/hugomrdias/playwright-test/commit/810adfb0582f2ff74f8f265b7bf6b1703f9ad2b3))
+
+## [14.1.6](https://github.com/hugomrdias/playwright-test/compare/v14.1.5...v14.1.6) (2024-09-10)
+
+
+### Bug Fixes
+
+* log playwright browser download progress on stderr ([#682](https://github.com/hugomrdias/playwright-test/issues/682)) ([bb6955c](https://github.com/hugomrdias/playwright-test/commit/bb6955c974dad31c9e071424b4305b2e30e6742e))
+
+## [14.1.5](https://github.com/hugomrdias/playwright-test/compare/v14.1.4...v14.1.5) (2024-09-06)
+
+
+### Bug Fixes
+
+* typo Count/Could ([#678](https://github.com/hugomrdias/playwright-test/issues/678)) ([9cd2adb](https://github.com/hugomrdias/playwright-test/commit/9cd2adbd16817928cfec590b5092f837647eb442))
+
+## [14.1.4](https://github.com/hugomrdias/playwright-test/compare/v14.1.3...v14.1.4) (2024-07-23)
+
+
+### Bug Fixes
+
+* updated deps ([1cddcf2](https://github.com/hugomrdias/playwright-test/commit/1cddcf2ad5179706b16ea24bb854c1ce9f8b230c))
+
+## [14.1.3](https://github.com/hugomrdias/playwright-test/compare/v14.1.2...v14.1.3) (2024-05-07)
+
+
+### Bug Fixes
+
+* test for skipped browser warnings early ([#661](https://github.com/hugomrdias/playwright-test/issues/661)) ([f7248e9](https://github.com/hugomrdias/playwright-test/commit/f7248e971f60282b4156d6f746cc7c85b496d8e4))
+
+## [14.1.2](https://github.com/hugomrdias/playwright-test/compare/v14.1.1...v14.1.2) (2024-05-02)
+
+
+### Bug Fixes
+
+* allow latest playwright-core ([#658](https://github.com/hugomrdias/playwright-test/issues/658)) ([4c3f7d6](https://github.com/hugomrdias/playwright-test/commit/4c3f7d6d42b88a047434affc2cb2b387baad3ae7))
+
+## [14.1.1](https://github.com/hugomrdias/playwright-test/compare/v14.1.0...v14.1.1) (2024-02-08)
+
+
+### Bug Fixes
+
+* allow loading gzipped fixtures ([#644](https://github.com/hugomrdias/playwright-test/issues/644)) ([2764b63](https://github.com/hugomrdias/playwright-test/commit/2764b6303490265f597bae27c3aff82cdc6309ca))
+
+## [14.1.0](https://github.com/hugomrdias/playwright-test/compare/v14.0.0...v14.1.0) (2024-01-31)
+
+
+### Features
+
+* update playwright core and dim browser msgs ([727cc1e](https://github.com/hugomrdias/playwright-test/commit/727cc1e82c41a0d4071f7b214604b58d57da26f4))
+
+## [14.0.0](https://github.com/hugomrdias/playwright-test/compare/v13.0.1...v14.0.0) (2023-11-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* config function receives cli options and process.env.PW_TEST remove in favor of stringified process.env.PW_OPTIONS
+
+### Features
+
+* config function receives cli options and process.env.PW_TEST remove in favor of stringified process.env.PW_OPTIONS ([6d6892f](https://github.com/hugomrdias/playwright-test/commit/6d6892f5422f158b90c1c984421cf34e10a11d2b))
+
+
+### Bug Fixes
+
+* update playwright and lilconfig ([0e40e69](https://github.com/hugomrdias/playwright-test/commit/0e40e69bf9e84d4c590b3e28d3eadf6a2ffba905))
+
+## [13.0.1](https://github.com/hugomrdias/playwright-test/compare/v13.0.0...v13.0.1) (2023-11-17)
+
+
+### Bug Fixes
+
+* make skip and only also a suite ([d7a5c41](https://github.com/hugomrdias/playwright-test/commit/d7a5c417a3ba1c4aed1216a748b3ff39c6215d7d))
+
+## [13.0.0](https://github.com/hugomrdias/playwright-test/compare/v12.6.1...v13.0.0) (2023-11-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* before/after hooks receive the runner env instead of just the options.
+
+### Features
+
+* before/after hooks receive the runner env instead of just the options. ([b392f7d](https://github.com/hugomrdias/playwright-test/commit/b392f7d9c629927c47ee815c2de1f00fc100accd))
+
+## [12.6.1](https://github.com/hugomrdias/playwright-test/compare/v12.6.0...v12.6.1) (2023-11-13)
+
+
+### Bug Fixes
+
+* avoid nodejs console.timeEnd warning ([6cf6f6e](https://github.com/hugomrdias/playwright-test/commit/6cf6f6e8b6713dc3df216d189e839dd1e0481fbd))
+
+## [12.6.0](https://github.com/hugomrdias/playwright-test/compare/v12.5.0...v12.6.0) (2023-11-09)
+
+
+### Features
+
+* add support for .node files ([67300ce](https://github.com/hugomrdias/playwright-test/commit/67300ce4ee086d7ccc76dea5585581efa98cf46b))
+
+## [12.5.0](https://github.com/hugomrdias/playwright-test/compare/v12.4.3...v12.5.0) (2023-11-09)
+
+
+### Features
+
+* add server url to the client ([454abec](https://github.com/hugomrdias/playwright-test/commit/454abecb72c4180345e5e12c5df3ccf1eac66e1f))
+
+## [12.4.3](https://github.com/hugomrdias/playwright-test/compare/v12.4.2...v12.4.3) (2023-10-19)
+
+
+### Bug Fixes
+
+* move client to src and export properly ([6238117](https://github.com/hugomrdias/playwright-test/commit/6238117ea74bcf80b4baa55985642b77c93ab6bd))
+
+## [12.4.2](https://github.com/hugomrdias/playwright-test/compare/v12.4.1...v12.4.2) (2023-10-19)
+
+
+### Bug Fixes
+
+* add client to npm ([d93e74a](https://github.com/hugomrdias/playwright-test/commit/d93e74a22095e8b86abb36a91825af56245de7cb))
+
+## [12.4.1](https://github.com/hugomrdias/playwright-test/compare/v12.4.0...v12.4.1) (2023-10-19)
+
+
+### Bug Fixes
+
+* normalize logs and stop node run ([4403489](https://github.com/hugomrdias/playwright-test/commit/4403489913cfa25a95a2b5786367e65c8d107f64))
+
+## [12.4.0](https://github.com/hugomrdias/playwright-test/compare/v12.3.8...v12.4.0) (2023-10-17)
+
+
+### Features
+
+* added playwright/client to exposes browser context methods to the tests ([7111801](https://github.com/hugomrdias/playwright-test/commit/7111801a64524e1974c80883ae9e07fd3a4a3e57)), closes [#540](https://github.com/hugomrdias/playwright-test/issues/540)
+* safer exit and logging ([b3710e1](https://github.com/hugomrdias/playwright-test/commit/b3710e137a4f812003f3f985338bb18b7c191019))
+
+
+### Bug Fixes
+
+* skip before and after hooks when no tests ([2c5ca4f](https://github.com/hugomrdias/playwright-test/commit/2c5ca4ff7af1078cc52af17bb1f154472669c6e2))
+
+## [12.3.8](https://github.com/hugomrdias/playwright-test/compare/v12.3.7...v12.3.8) (2023-10-02)
+
+
+### Bug Fixes
+
+* improve node errors and suite errors ([43bc597](https://github.com/hugomrdias/playwright-test/commit/43bc597b7c69188f9eb96aad7ea2a849b062b62f))
+
+## [12.3.7](https://github.com/hugomrdias/playwright-test/compare/v12.3.6...v12.3.7) (2023-09-29)
+
+
+### Bug Fixes
+
+* add NODE_ENV=test, fix autodetect and external msw/node ([62fe8e1](https://github.com/hugomrdias/playwright-test/commit/62fe8e177fd38bce7c72461edbdd6fdbe37afa86))
+
+## [12.3.6](https://github.com/hugomrdias/playwright-test/compare/v12.3.5...v12.3.6) (2023-09-29)
+
+
+### Bug Fixes
+
+* keep watching even if build fails ([b244658](https://github.com/hugomrdias/playwright-test/commit/b2446582e2246d00062610b65a14b48793960caf))
+
+## [12.3.5](https://github.com/hugomrdias/playwright-test/compare/v12.3.4...v12.3.5) (2023-09-25)
+
+
+### Bug Fixes
+
+* **deps:** bump playwright-core from 1.38.0 to 1.38.1 ([#593](https://github.com/hugomrdias/playwright-test/issues/593)) ([dd79c5a](https://github.com/hugomrdias/playwright-test/commit/dd79c5a6b68ccc4ede2a3729e5043d91076d84bd))
+
+## [12.3.4](https://github.com/hugomrdias/playwright-test/compare/v12.3.3...v12.3.4) (2023-09-18)
+
+
+### Miscellaneous Chores
+
+* release 12.3.4 ([4b47065](https://github.com/hugomrdias/playwright-test/commit/4b4706510530938e12e32d2113a23a449da58652))
+
+## [12.3.3](https://github.com/hugomrdias/playwright-test/compare/v12.3.2...v12.3.3) (2023-09-15)
+
+
+### Bug Fixes
+
+* fix node mode watch and top level imports ([36c8ce2](https://github.com/hugomrdias/playwright-test/commit/36c8ce2210d6e67724a3a0a3fa288f9d7e60d136))
+
+## [12.3.2](https://github.com/hugomrdias/playwright-test/compare/v12.3.1...v12.3.2) (2023-09-15)
+
+
+### Bug Fixes
+
+* export Suite type ([2ea03ef](https://github.com/hugomrdias/playwright-test/commit/2ea03ef39cb80459cd9a9a04511115834734d243))
+
+## [12.3.1](https://github.com/hugomrdias/playwright-test/compare/v12.3.0...v12.3.1) (2023-09-13)
+
+
+### Bug Fixes
+
+* export types ([e0f0508](https://github.com/hugomrdias/playwright-test/commit/e0f0508378bdf2cde02dfa352e69a9da2a3e94d0))
+
+## [12.3.0](https://github.com/hugomrdias/playwright-test/compare/v12.2.0...v12.3.0) (2023-09-05)
+
+
+### Features
+
+* big refactor to taps ([ee90fd6](https://github.com/hugomrdias/playwright-test/commit/ee90fd622e2af58f16574d6b0d5418c75a7912ce))
+
+
+### Bug Fixes
+
+* fix stack formating in and colors in taps ([c63eebd](https://github.com/hugomrdias/playwright-test/commit/c63eebd4f16a078607f4ab93ca4dd80d4b634e5f))
+* remove assert from callback ([4a8c22f](https://github.com/hugomrdias/playwright-test/commit/4a8c22fcbb770471453f6708cb22f59fdb655c4a))
+
+## [12.2.0](https://github.com/hugomrdias/playwright-test/compare/v12.1.2...v12.2.0) (2023-09-01)
+
+
+### Features
+
+* add assert exports to taps ([6369dcd](https://github.com/hugomrdias/playwright-test/commit/6369dcd5700772617d43961e988da110ee84ed47))
+
+
+### Bug Fixes
+
+* fix autodetect for mocha only/skip ([d0ae762](https://github.com/hugomrdias/playwright-test/commit/d0ae7621e8ca0af71a2ff549cdae1826f7bef83c)), closes [#572](https://github.com/hugomrdias/playwright-test/issues/572)
+
+## [12.1.2](https://github.com/hugomrdias/playwright-test/compare/v12.1.1...v12.1.2) (2023-08-28)
+
+
+### Bug Fixes
+
+* taps types and dependabot ([a18cc8c](https://github.com/hugomrdias/playwright-test/commit/a18cc8c095fe763793b5954238269ffbe35037d3))
+* taps types and dependabot ([2142223](https://github.com/hugomrdias/playwright-test/commit/21422231ad8f5e27807aa04e55736e5ad8779f1c))
+* update deps ([5d67a1c](https://github.com/hugomrdias/playwright-test/commit/5d67a1cf8fbb37e6c76c9f620764e9eee957c38a))
+
+## [12.1.1](https://github.com/hugomrdias/playwright-test/compare/v12.1.0...v12.1.1) (2023-07-14)
+
+
+### Bug Fixes
+
+* add wasm loader to node mode ([f71280d](https://github.com/hugomrdias/playwright-test/commit/f71280d44acdb3c1ae756e17129dd610464f6f46))
+
+## [12.1.0](https://github.com/hugomrdias/playwright-test/compare/v12.0.0...v12.1.0) (2023-07-14)
+
+
+### Features
+
+* add support for wasm loader ([f223465](https://github.com/hugomrdias/playwright-test/commit/f223465d893d1ba339af927d3beed7ace3344e97))
+* update playwright to 1.36.0 ([a59e0a4](https://github.com/hugomrdias/playwright-test/commit/a59e0a4474c1ed491f9f76681d05233f22f6f272))
+
+## [12.0.0](https://github.com/hugomrdias/playwright-test/compare/v11.0.4...v12.0.0) (2023-07-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* process.stdout/stderr without console.log ([#563](https://github.com/hugomrdias/playwright-test/issues/563))
+
+### Features
+
+* process.stdout/stderr without console.log ([#563](https://github.com/hugomrdias/playwright-test/issues/563)) ([2f5baf0](https://github.com/hugomrdias/playwright-test/commit/2f5baf01254dad6e01845a6f6ba1c964117b8764))
+
+## [11.0.4](https://github.com/hugomrdias/playwright-test/compare/v11.0.3...v11.0.4) (2023-07-13)
+
+
+### Bug Fixes
+
+* support ts in autodetect ([2d8ea1e](https://github.com/hugomrdias/playwright-test/commit/2d8ea1eeb6fc32c2d8a95bec4545e964a2f29517))
+
+## [11.0.3](https://github.com/hugomrdias/playwright-test/compare/v11.0.2...v11.0.3) (2023-07-07)
+
+
+### Bug Fixes
+
+* auto detect logic for requires ([88638bd](https://github.com/hugomrdias/playwright-test/commit/88638bdab3481a592086cf4c0163027890bc0f54))
+* runner/module resolution logic ([#562](https://github.com/hugomrdias/playwright-test/issues/562)) ([a0c5be5](https://github.com/hugomrdias/playwright-test/commit/a0c5be5d32fa9ca70b845c45dbe3b5eb59eb328a))
+
+## [11.0.2](https://github.com/hugomrdias/playwright-test/compare/v11.0.1...v11.0.2) (2023-07-04)
+
+
+### Bug Fixes
+
+* fix dependencies ([ed11fd2](https://github.com/hugomrdias/playwright-test/commit/ed11fd263bc7322979d5d2ed37980728668489ec))
+
+## [11.0.1](https://github.com/hugomrdias/playwright-test/compare/v11.0.0...v11.0.1) (2023-06-30)
+
+
+### Bug Fixes
+
+* add missing dep execa ([51b4487](https://github.com/hugomrdias/playwright-test/commit/51b44876718ffc874702ed5b3bd8904ab757608f))
+
+## [11.0.0](https://github.com/hugomrdias/playwright-test/compare/v10.0.1...v11.0.0) (2023-06-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add support for node, internal runner autodetect, path module ids and taps.
+
+### Features
+
+* Add support for node, internal runner autodetect, path module ids and taps. ([1d73a36](https://github.com/hugomrdias/playwright-test/commit/1d73a36723048c850eb387f41b20d33c4e559826))
+
+
+### Bug Fixes
+
+* fix windows paths ([#555](https://github.com/hugomrdias/playwright-test/issues/555)) ([18639f4](https://github.com/hugomrdias/playwright-test/commit/18639f4b76acb7db04da92d149f2cc5736ca356a))
+
+## [10.0.1](https://github.com/hugomrdias/playwright-test/compare/v10.0.0...v10.0.1) (2023-06-29)
+
+
+### Bug Fixes
+
+* more colors and experiental runner and autodetect ([477ec99](https://github.com/hugomrdias/playwright-test/commit/477ec995b26075389f61ba1d1d04d1d6d5ec2ede))
+
+## [10.0.0](https://github.com/hugomrdias/playwright-test/compare/v9.2.0...v10.0.0) (2023-06-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* add support for custom test runners https://github.com/hugomrdias/playwright-test#custom-test-runner
+
+### Features
+
+* add support for custom test runners https://github.com/hugomrdias/playwright-test#custom-test-runner ([f5fb924](https://github.com/hugomrdias/playwright-test/commit/f5fb9246e50c003aa3d8f16d871e9fe9258cd0f6))
+
+
+### Bug Fixes
+
+* add import.meta.env support ([8073767](https://github.com/hugomrdias/playwright-test/commit/80737675922b3159b39e269431d8381eb2253076)), closes [#549](https://github.com/hugomrdias/playwright-test/issues/549)
+* update multiple deps ([1847dc9](https://github.com/hugomrdias/playwright-test/commit/1847dc9d8ebbe8df20f6e411af4f763d658e606c))
+
+
+### Miscellaneous Chores
+
+* release 10.0.0 ([e4b288d](https://github.com/hugomrdias/playwright-test/commit/e4b288d42fada596650a89288201fdda1cb68c62))
+
+## [9.2.0](https://www.github.com/hugomrdias/playwright-test/compare/v9.1.0...v9.2.0) (2023-06-15)
+
+
+### Miscellaneous Chores
+
+* release 9.2.0 ([2c72d0d](https://www.github.com/hugomrdias/playwright-test/commit/2c72d0dda0307d2001460b7cdf48562ea457c12f))
+
+## [9.1.0](https://www.github.com/hugomrdias/playwright-test/compare/v9.0.0...v9.1.0) (2023-05-12)
+
+
+### Features
+
+* add process.exit ([#542](https://www.github.com/hugomrdias/playwright-test/issues/542)) ([2685431](https://www.github.com/hugomrdias/playwright-test/commit/268543178e105ac027b20f5156ca6d2bb9f07dd9))
+
+## [9.0.0](https://www.github.com/hugomrdias/playwright-test/compare/v8.4.0...v9.0.0) (2023-04-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* tests now run as ESM modules
+
+### Features
+
+* 'none' runner ([d205423](https://www.github.com/hugomrdias/playwright-test/commit/d2054238b6ecc74117676a7b1a0a4f4eebc929a7))
+* tests now run as ESM modules ([e7bde86](https://www.github.com/hugomrdias/playwright-test/commit/e7bde86b161f950d9fc1587ad2feb50683df790f))
+
+
+### Bug Fixes
+
+* add exit code 1 on cli error ([f2f5fbb](https://www.github.com/hugomrdias/playwright-test/commit/f2f5fbb4bc37a66fa2d934bcc59ae26620106438))
+* esm sw test ([c7873a6](https://www.github.com/hugomrdias/playwright-test/commit/c7873a685440fc60df37ad564da1e949e2245d64))
+* fix load esm config on windows ([527dcda](https://www.github.com/hugomrdias/playwright-test/commit/527dcda9a37277fc65caff32574073a0aee464d1))
+
+## [8.4.0](https://www.github.com/hugomrdias/playwright-test/compare/v8.3.0...v8.4.0) (2023-04-28)
+
+
+### Features
+
+* extensions use the new headless mode ([9d33a74](https://www.github.com/hugomrdias/playwright-test/commit/9d33a74402370f50c700a9a7abf8698bf9718e7d))
+* update deps ([afc261c](https://www.github.com/hugomrdias/playwright-test/commit/afc261cabe5a43a5107916018c989ba0da713c79))
+
+
+### Bug Fixes
+
+* only install deps not browser in ci linux ([db46d19](https://www.github.com/hugomrdias/playwright-test/commit/db46d1947fa473a2a7c9fb8a3439a311f0df2b4c))
+
+## [8.3.0](https://www.github.com/hugomrdias/playwright-test/compare/v8.2.0...v8.3.0) (2023-04-06)
+
+
+### Features
+
+* upgrade deps ([10fc905](https://www.github.com/hugomrdias/playwright-test/commit/10fc9059400798c7df84b856d12de6e3b478ffb7))
+
 ## [8.2.0](https://www.github.com/hugomrdias/playwright-test/compare/v8.1.2...v8.2.0) (2023-01-27)
 
 

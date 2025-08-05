@@ -1,20 +1,23 @@
 /* eslint-disable no-console */
 
-import mergeOptions from 'merge-options'
-import path from 'path'
 import fs from 'fs'
-import kleur from 'kleur'
-import camelCase from 'camelcase'
-import sirv from 'sirv'
-import esbuild from 'esbuild'
-import V8ToIstanbul from 'v8-to-istanbul'
-import { promisify } from 'util'
-import { globbySync } from 'globby'
-import ora from 'ora'
 import { createServer } from 'http'
-import polka from 'polka'
 import { createRequire } from 'module'
-import { fileURLToPath } from 'url'
+import path from 'path'
+import { fileURLToPath, pathToFileURL } from 'url'
+import { promisify } from 'util'
+import camelCase from 'camelcase'
+import esbuild from 'esbuild'
+import { wasmLoader } from 'esbuild-plugin-wasm'
+import { globbySync } from 'globby'
+import kleur from 'kleur'
+// @ts-ignore
+import mergeOptions from 'merge-options'
+import ora from 'ora'
+import polka from 'polka'
+import sirv from 'sirv'
+import V8ToIstanbul from 'v8-to-istanbul'
+import * as DefaultRunners from '../test-runners.js'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -23,6 +26,74 @@ const merge = mergeOptions.bind({
   ignoreUndefined: true,
   concatArrays: true,
 })
+
+/**
+ * @type {import('../types').RunnerOptions}
+ */
+export const defaultOptions = {
+  cwd: process.cwd(),
+  assets: '',
+  browser: 'chromium',
+  debug: false,
+  mode: 'main', // worker
+  incognito: false,
+  input: undefined,
+  extension: false,
+  testRunner: DefaultRunners.none,
+  before: undefined,
+  sw: undefined,
+  cov: false,
+  reportDir: '.nyc_output',
+  extensions: 'js,cjs,mjs,ts,tsx,jsx',
+  buildConfig: {},
+  buildSWConfig: {},
+  browserContextOptions: {},
+  beforeTests: async () => {
+    // noop
+  },
+  afterTests: async () => {
+    // noop
+  },
+}
+
+export const log = {
+  /**
+   * @param {string} message
+   * @param {boolean} quiet
+   */
+  info(message, quiet = false) {
+    if (!quiet) {
+      console.error(kleur.blue('ℹ'), message)
+    }
+  },
+  /**
+   * @param {string} message
+   * @param {boolean} quiet
+   */
+  warn(message, quiet = false) {
+    if (!quiet) {
+      console.warn(kleur.yellow('-'), message)
+    }
+  },
+  /**
+   * @param {string} message
+   * @param {boolean} quiet
+   */
+  error(message, quiet = false) {
+    if (!quiet) {
+      console.warn(kleur.red('✘'), message)
+    }
+  },
+  /**
+   * @param {string} message
+   * @param {boolean} quiet
+   */
+  success(message, quiet = false) {
+    if (!quiet) {
+      console.warn(kleur.green('✔'), message)
+    }
+  },
+}
 
 /**
  * @typedef {import('../types').RunnerOptions } RunnerOptions
@@ -125,11 +196,18 @@ function findFiles({ cwd, extensions, filePatterns }) {
  * Find the tests files
  *
  * @param {object} options
- * @param {string} options.cwd
- * @param {string[]} options.extensions
- * @param {string[]} options.filePatterns
+ * @param {string} options.cwd - Current working directory
+ * @param {string[]} options.extensions - File extensions allowed in the bundle
+ * @param {string[]} options.filePatterns - File patterns to search for
  */
 export function findTests({ cwd, extensions, filePatterns }) {
+  if (
+    !filePatterns ||
+    filePatterns.length === 0 ||
+    filePatterns[0] === undefined
+  ) {
+    filePatterns = defaultTestPatterns(extensions)
+  }
   return findFiles({
     cwd,
     extensions,
@@ -170,7 +248,7 @@ const messageTypeToConsoleFn = {
   endGroup: console.groupEnd,
   table: console.table,
   count: console.count,
-  timeEnd: console.timeEnd,
+  timeEnd: console.log,
 
   // we ignore calls to console.clear, as we don't want the page to clear our terminal
   // clear: console.clear
@@ -187,7 +265,18 @@ export async function redirectConsole(msg) {
     return
   }
   const text = msg.text()
-  const { url, lineNumber, columnNumber } = msg.location()
+
+  // skip browser informational warnings
+  if (
+    text?.includes(
+      'Synchronous XMLHttpRequest on the main thread is deprecated'
+    ) ||
+    text?.includes('Clear-Site-Data')
+  ) {
+    return
+  }
+
+  // const { url, lineNumber, columnNumber } = msg.location()
   let msgArgs
 
   try {
@@ -201,57 +290,25 @@ export async function redirectConsole(msg) {
   if (msgArgs && msgArgs.length > 0) {
     consoleFn.apply(console, msgArgs)
   } else if (text) {
-    let color = 'white'
-
-    if (
-      text.includes(
-        'Synchronous XMLHttpRequest on the main thread is deprecated'
-      )
-    ) {
-      return
-    }
-    switch (type) {
-      case 'error': {
-        color = 'red'
-        break
-      }
-      case 'warning': {
-        color = 'yellow'
-        break
-      }
-      case 'info':
-      case 'debug': {
-        color = 'blue'
-        break
-      }
-      default: {
-        break
-      }
-    }
-
-    // @ts-ignore
-    consoleFn(kleur[color](text))
-
-    console.info(
-      kleur.gray(
-        `${url}${
-          lineNumber
-            ? ':' + lineNumber + (columnNumber ? ':' + columnNumber : '')
-            : ''
-        }`
-      )
-    )
+    console.error(kleur.dim(`🌐${text}`))
   }
 }
 
 /**
  * @template {RunnerOptions["browser"]} TBrowser
  * @param {TBrowser} browserName
+ * @param {boolean} debug
+ * @param {boolean} extension
  * @returns {Promise<import('playwright-core').BrowserType<import('../types').PwResult<TBrowser>>>}
  */
-export async function getPw(browserName) {
+export async function getPw(browserName, debug, extension) {
   if (!['chromium', 'firefox', 'webkit'].includes(String(browserName))) {
     throw new Error(`Browser not supported: ${browserName}`)
+  }
+
+  if (browserName === 'chromium' && !debug && !extension) {
+    // @ts-ignore
+    browserName = 'chromium-headless-shell'
   }
 
   // @ts-ignore
@@ -259,8 +316,25 @@ export async function getPw(browserName) {
   const api = await import('playwright-core')
   const browser = registry.findExecutable(browserName)
 
-  await registry.install([browser])
+  // playwright will log browser download progress to stdout, temporarily
+  // redirect the output to stderr
+  const log = console.log
+  const info = console.info
 
+  try {
+    console.log = console.error
+    console.info = console.error
+    await registry.install([browser])
+  } finally {
+    console.log = log
+    console.info = info
+  }
+  // @ts-ignore
+  if (browserName === 'chromium-headless-shell') {
+    return api.chromium
+  }
+
+  // @ts-ignore
   return api[browserName]
 }
 
@@ -269,10 +343,16 @@ export async function getPw(browserName) {
  */
 export function addWorker(filePath) {
   return `
-const w = new Worker("${filePath}");
+const w = new Worker("${filePath}", { type: "module" });
 w.onmessage = function(e) {
     if(e.data.pwRunEnded) {
         self.PW_TEST.end(e.data.pwRunFailed)
+    }
+    if (e.data.pwStdout != null) {
+        self.PW_TEST_STDOUT_WRITE(e.data.pwStdout)
+    }
+    if (e.data.pwStderr != null) {
+        self.PW_TEST_STDERR_WRITE(e.data.pwStderr)
     }
 }
 `
@@ -284,7 +364,6 @@ w.onmessage = function(e) {
 export function runnerOptions(flags) {
   const opts = {}
 
-  // eslint-disable-next-line guard-for-in
   for (const key in flags) {
     const value = flags[key]
     const localFlags = [
@@ -299,9 +378,10 @@ export function runnerOptions(flags) {
       'extensions',
       'assets',
       'before',
-      'node',
       'cov',
       'config',
+      'sw',
+      'report-dir',
       '_',
       'd',
       'r',
@@ -340,26 +420,27 @@ export async function build(runner, config = {}, tmpl = '', mode = 'bundle') {
 
   // main script template
   let infileContent = `
-'use strict'
-require('${sourceMapSupport.replace(/\\/g, '/')}').install();
+import { install } from '${sourceMapSupport.replaceAll('\\', '/')}'
+install()
 process.env = ${JSON.stringify(runner.env)}
+import.meta.env = ${JSON.stringify(runner.env)}
 
 ${tmpl}
-
-${runner.tests.map((t) => `require('${t.replace(/\\/g, '/')}')`).join('\n')}
 `
-
   // before script template
   if (mode === 'before' && runner.options.before) {
     infileContent = `
-'use strict'
-require('${sourceMapSupport.replace(/\\/g, '/')}').install();
+import { install } from '${sourceMapSupport.replaceAll('\\', '/')}'
+install()
 process.env = ${JSON.stringify(runner.env)}
+import.meta.env = ${JSON.stringify(runner.env)}
 
-require('${require.resolve('../static/setup.js').replace(/\\/g, '/')}')
-require('${require
+await import('${require
+      .resolve('../../static/setup.js')
+      .replaceAll('\\', '/')}')
+await import('${require
       .resolve(path.join(runner.options.cwd, runner.options.before))
-      .replace(/\\/g, '/')}')
+      .replaceAll('\\', '/')}')
 `
   }
 
@@ -391,9 +472,12 @@ require('${require
     // sourceRoot: runner.dir,
     bundle: true,
     sourcemap: 'inline',
-    plugins: [nodePlugin, watchPlugin],
+    platform: 'browser',
+    format: 'esm',
+    plugins: [nodePlugin, watchPlugin, wasmLoader()],
     outfile: outPath,
     inject: [path.join(__dirname, 'inject-process.js')],
+    external: ['node:async_hooks', 'node:fs', 'msw/node'],
     define: {
       global: 'globalThis',
       PW_TEST_SOURCEMAP: runner.options.debug ? 'false' : 'true',
@@ -438,12 +522,10 @@ export async function createCov(runner, coverage, file, outputDir) {
         // }
       )
 
-      // eslint-disable-next-line no-await-in-loop
       await converter.load()
       converter.applyCoverage(entry.functions)
       const instanbul = converter.toIstanbul()
 
-      // eslint-disable-next-line guard-for-in
       for (const key in instanbul) {
         if (f.has(key)) {
           // @ts-ignore
@@ -461,6 +543,51 @@ export async function createCov(runner, coverage, file, outputDir) {
     JSON.stringify(entries)
   )
   spinner.succeed('Code coverage generated, run "npx nyc report".')
+}
+
+/**
+ * Resolves module id from give base or cwd
+ *
+ * @param {string} id - module id
+ * @param {string} [base] - base path
+ */
+export async function resolveModule(id, base = process.cwd()) {
+  try {
+    // Note we need to ensure base has trailing `/` or the the
+    // last entry is going to be dropped during resolution.
+    const path = createRequire(toDirectoryPath(base)).resolve(id)
+    const url = pathToFileURL(path)
+    return await import(url.href)
+  } catch (error) {
+    throw new Error(
+      `Cannot resolve module "${id}" from "${base}"\n${
+        /** @type {Error} */ (error).message
+      }`
+    )
+  }
+}
+
+/**
+ * Ensures that path ends with a path separator
+ *
+ * @param {string} source
+ */
+export const toDirectoryPath = (source) =>
+  source.endsWith(path.sep) ? source : `${source}${path.sep}`
+
+/**
+ *
+ * @param {string} runner
+ * @param {string} cwd
+ */
+export async function resolveTestRunner(runner, cwd) {
+  const module = await resolveModule(runner, cwd)
+  /** @type {import('../types.js').TestRunner} */
+  const testRunner = module.playwrightTestRunner
+  if (!testRunner) {
+    throw new Error(`Cannot find playwrightTestRunner export in ${path}`)
+  }
+  return testRunner
 }
 
 /**
@@ -493,9 +620,14 @@ function getPort(port = 3000, host = '127.0.0.1') {
 }
 
 /**
- * @param {import('../runner').Runner} runner
+ * Create polka server
+ *
+ * @param {string} dir - Runner directory
+ * @param {string} cwd - Current working directory
+ * @param {string} assets - Assets directory
+ * @returns {Promise<{ url: string; server: import('http').Server }>}
  */
-export async function createPolka(runner) {
+export async function createPolka(dir, cwd, assets) {
   const host = '127.0.0.1'
   const port = await getPort(0, host)
   const url = `http://${host}:${port}/`
@@ -503,7 +635,7 @@ export async function createPolka(runner) {
     const { server } = polka()
       .use(
         // @ts-ignore
-        sirv(runner.dir, {
+        sirv(dir, {
           dev: true,
           setHeaders: (
             /** @type {{ setHeader: (arg0: string, arg1: string) => void; }} */ rsp,
@@ -518,19 +650,32 @@ export async function createPolka(runner) {
       )
       .use(
         // @ts-ignore
-        sirv(path.join(runner.options.cwd, runner.options.assets), {
+        sirv(path.join(cwd, assets), {
           dev: true,
+          setHeaders: (
+            /** @type {{ setHeader: (arg0: string, arg1: string) => void; }} */ rsp,
+            /** @type {string} */ pathname
+          ) => {
+            // workaround for https://github.com/lukeed/sirv/issues/158 - we
+            // can't unset the `Content-Encoding` header because sirv sets it
+            // after this function is invoked and will only set it if it's not
+            // already set, so we need to set it to a garbage value that will be
+            // ignored by browsers
+            if (pathname.endsWith('.gz')) {
+              rsp.setHeader('Content-Encoding', 'unsupported-encoding')
+            }
+          },
         })
       )
       .listen(port, host, (/** @type {Error} */ err) => {
         if (err) {
-          reject(err)
-
-          return
+          return reject(err)
         }
-        runner.url = url
-        runner.server = server
-        resolve(true)
+
+        if (!server) {
+          return reject(new Error('No server'))
+        }
+        resolve({ url, server })
       })
   })
 }

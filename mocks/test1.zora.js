@@ -1,5 +1,5 @@
 import { test } from 'zora'
-import { good, bad } from './lib'
+import { bad, good } from './lib'
 
 test('a first sub test', (t) => {
   t.ok(true)

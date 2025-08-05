@@ -1,69 +1,54 @@
 /* eslint-disable no-console */
 
 import { mkdirSync } from 'fs'
+import { fileURLToPath } from 'node:url'
 import path from 'path'
-import ora from 'ora'
+import { watch } from 'chokidar'
+import { asyncExitHook, gracefulExit } from 'exit-hook'
+import { cp } from 'fs/promises'
+import kleur from 'kleur'
+// @ts-ignore
+import mergeOptions from 'merge-options'
 import { nanoid } from 'nanoid'
-import { temporaryDirectory } from 'tempy'
+// @ts-ignore
 import { premove } from 'premove/sync'
+import { temporaryDirectory } from 'tempy'
+import { compileSw } from './utils/build-sw.js'
 import {
-  redirectConsole,
-  getPw,
   addWorker,
-  findTests,
-  defaultTestPatterns,
+  build,
   createCov,
   createPolka,
+  defaultOptions,
+  findTests,
+  getPw,
+  log,
+  redirectConsole,
 } from './utils/index.js'
-import { compileSw } from './utils/build-sw.js'
-import mergeOptions from 'merge-options'
-import { fileURLToPath } from 'node:url'
-import { watch } from 'chokidar'
-import { cp } from 'fs/promises'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const merge = mergeOptions.bind({ ignoreUndefined: true })
+const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
 
 /**
  * @typedef {import('playwright-core').Page} Page
  * @typedef {import('playwright-core').BrowserContext} Context
  * @typedef {import('playwright-core').Browser} Browser
- * @typedef {import('./types').RunnerOptions} RunnerOptions
  * @typedef {import('playwright-core').ChromiumBrowserContext} ChromiumBrowserContext
+ * @typedef {import('./types').RunnerOptions} RunnerOptions
+ * @typedef {import('./types').TestRunner} TestRunner
+ * @typedef {import('./types').RunnerEnv} RunnerEnv
+ * @typedef {import('./types').CliOptions} CliOptions
+ * @typedef {import('./types').ConfigFn} ConfigFn
  */
-
-/**
- * @type {RunnerOptions}
- */
-const defaultOptions = {
-  cwd: process.cwd(),
-  assets: '',
-  browser: 'chromium',
-  debug: false,
-  mode: 'main', // worker
-  incognito: false,
-  input: undefined,
-  extension: false,
-  runnerOptions: {},
-  before: undefined,
-  sw: undefined,
-  cov: false,
-  reportDir: '.nyc_output',
-  extensions: 'js,cjs,mjs,ts,tsx',
-  buildConfig: {},
-  buildSWConfig: {},
-  browserContextOptions: {},
-  beforeTests: async () => {},
-  afterTests: async () => {},
-}
 
 export class Runner {
   /**
    *
-   * @param {Partial<import('./types').RunnerOptions>} [options]
+   * @param {Partial<import('./types').RunnerOptions>} options
+   * @param {string[]} [testFiles]
    */
-  constructor(options = {}) {
-    /** @type {RunnerOptions} */
+  constructor(options = {}, testFiles) {
+    /** @type {import('./types').RunnerOptions} */
     this.options = merge(defaultOptions, options)
     /** @type {import('polka').Polka["server"] | undefined} */
     this.server = undefined
@@ -76,16 +61,20 @@ export class Runner {
     this.url = ''
     this.stopped = false
     this.watching = false
+
+    /** @type {import('./types').RunnerEnv} */
     this.env = merge(JSON.parse(JSON.stringify(process.env)), {
-      PW_TEST: this.options,
+      PW_OPTIONS: JSON.stringify(this.options),
+      NODE_ENV: 'test',
     })
-    this.extensions = this.options.extensions.split(',')
-    this.beforeTestsOutput = undefined
-    this.tests = findTests({
-      cwd: this.options.cwd,
-      extensions: this.extensions,
-      filePatterns: this.options.input ?? defaultTestPatterns(this.extensions),
-    })
+    this.tests =
+      testFiles ??
+      findTests({
+        cwd: this.options.cwd,
+        extensions: this.options.extensions.split(','),
+        filePatterns: options.input ?? [],
+      })
+
     if (this.tests.length === 0) {
       this.stop(false, 'No test files were found.')
     }
@@ -93,26 +82,47 @@ export class Runner {
     process.env.DEBUG += ',-pw:*'
   }
 
-  async launch() {
+  async setupContext() {
     // copy files to be served
     await cp(path.join(__dirname, './../static'), this.dir, { recursive: true })
 
     // setup http server
-    await createPolka(this)
+    const { server, url } = await createPolka(
+      this.dir,
+      this.options.cwd,
+      this.options.assets
+    )
+    this.env.PW_SERVER = url
+    this.url = url
+    this.server = server
 
     // download playwright if needed
-    const pw = await getPw(this.options.browser)
+    const pw = await getPw(
+      this.options.browser,
+      this.options.debug,
+      this.options.extension
+    )
 
     /** @type {import('playwright-core').LaunchOptions} */
     const pwOptions = {
-      headless: !this.options.extension && !this.options.debug,
+      // optin to new chromium headless for extension testing
+      // https://github.com/microsoft/playwright/issues/33566
+      channel: this.options.extension ? this.options.browser : undefined,
+      headless: !this.options.debug,
       devtools: this.options.browser === 'chromium' && this.options.debug,
       args: this.options.extension
         ? [
             `--disable-extensions-except=${this.dir}`,
             `--load-extension=${this.dir}`,
+            ...(this.options.browser === 'chromium' && this.options.debug
+              ? ['--auto-open-devtools-for-tabs']
+              : []),
           ]
-        : [],
+        : [
+            ...(this.options.browser === 'chromium' && this.options.debug
+              ? ['--auto-open-devtools-for-tabs']
+              : []),
+          ],
     }
 
     // create context
@@ -127,6 +137,52 @@ export class Runner {
         ...this.options.browserContextOptions,
       })
     }
+    // bindings
+    await this.context.exposeFunction(
+      'pwContextSetOffline',
+      async (/** @type {boolean} */ offline) => {
+        await this.context?.setOffline(offline)
+      }
+    )
+
+    await this.context.exposeFunction(
+      'pwContextGrantPermissions',
+      async (
+        /** @type {string[]} */ permissions,
+        /** @type {{ origin?: string | undefined; } | undefined} */ options
+      ) => {
+        await this.context?.grantPermissions(permissions, options)
+      }
+    )
+
+    await this.context.exposeFunction(
+      'pwContextSetGeolocation',
+      async (
+        /** @type {{ latitude: number; longitude: number; accuracy?: number | undefined; } | null} */ geolocation
+      ) => {
+        await this.context?.setGeolocation(geolocation)
+      }
+    )
+
+    await this.context.exposeFunction(
+      'PW_TEST_STDOUT_WRITE',
+      (/** @type {string | Uint8Array} */ msg) =>
+        new Promise((resolve, reject) =>
+          process.stdout.write(msg, (error) =>
+            error ? reject(error) : resolve(error)
+          )
+        )
+    )
+
+    await this.context.exposeFunction(
+      'PW_TEST_STDERR_WRITE',
+      (/** @type {string | Uint8Array} */ msg) =>
+        new Promise((resolve, reject) =>
+          process.stderr.write(msg, (error) =>
+            error ? reject(error) : resolve(error)
+          )
+        )
+    )
 
     return this.context
   }
@@ -153,7 +209,7 @@ export class Runner {
 
     if (this.options.extension) {
       const context = /** @type {ChromiumBrowserContext} */ (this.context)
-      const backgroundPages = await context.backgroundPages()
+      const backgroundPages = context.backgroundPages()
       this.page =
         backgroundPages.length > 0
           ? backgroundPages[0]
@@ -200,15 +256,20 @@ export class Runner {
       await this.page.coverage.startJSCoverage()
     }
 
+    // Setup page events
     this.page.on('console', redirectConsole)
+
     // uncaught rejections
     this.page.on('pageerror', (err) => {
-      console.error(err)
-      this.stop(
-        true,
-        'Uncaught exception happened within the page. Run with --debug.'
+      log.error(
+        `Uncaught exception happened within the page. Run with --debug. \n${kleur.dim(
+          err.stack?.toString() ?? err.toString()
+        )}`
       )
     })
+
+    await this.page.waitForLoadState('domcontentloaded')
+
     return this.page
   }
 
@@ -226,13 +287,25 @@ export class Runner {
     const { outName, files: mainFiles } = await this.compiler()
     files.push(...mainFiles)
 
+    // Inject and register the service worker
+    if (this.options.sw) {
+      const { files: swFiles } = await compileSw(this, {
+        entry: this.options.sw,
+      })
+      files.push(...swFiles)
+      await page.evaluate(() => {
+        navigator.serviceWorker.register('/sw-out.js')
+        return navigator.serviceWorker.ready
+      })
+    }
+
+    // Choose the mode
     switch (this.options.mode) {
       case 'main': {
-        await page.addScriptTag({ url: outName })
+        await page.addScriptTag({ url: outName, type: 'module' })
         break
       }
       case 'worker': {
-        // do not await for the promise because we will wait for the 'worker' event after
         page.evaluate(addWorker(outName))
         break
       }
@@ -241,62 +314,53 @@ export class Runner {
       }
     }
 
-    // inject and register the service
-    if (this.options.sw) {
-      const { files: swFiles } = await compileSw(this, {
-        entry: this.options.sw,
-      })
-      files.push(...swFiles)
-      await page.evaluate(() => {
-        navigator.serviceWorker.register(`/sw-out.js`)
-        return navigator.serviceWorker.ready
-      })
-    }
-
     return { outName, files }
   }
 
   async run() {
-    this.beforeTestsOutput = await this.options.beforeTests(this.options)
-
-    const spinner = ora(`Setting up ${this.options.browser}`).start()
+    asyncExitHook(this.#clean.bind(this), {
+      wait: 1000,
+    })
 
     try {
-      // get the context
-      const context = await this.launch()
+      // Setup the context
+      const context = await this.setupContext()
+      this.beforeTestsOutput = await this.options.beforeTests(this.env)
 
-      // run the before script
+      // Run the before script
       if (this.options.before) {
-        await this.runBefore(context)
+        await this.setupBeforePage(context)
       }
 
-      // get the page
+      // Setup page
       const page = await this.setupPage(context)
-      spinner.succeed(`${this.options.browser} set up`)
+      log.info(`Browser "${this.options.browser}" setup complete.`)
 
+      const { outName } = await this.runTests(page)
+
+      // Re run on page reload
       if (this.options.debug) {
-        page.on('load', async () => {
+        page.on('load', () => {
           this.runTests(page).catch((error) => {
+            // biome-ignore lint/suspicious/noConsoleLog: <explanation>
             console.log(error)
           })
         })
       }
-      // run tests
-      const { outName } = await this.runTests(page)
 
-      // Re run on page reload
+      // run tests
       if (!this.options.debug) {
         // wait for the tests
         await page.waitForFunction(
           // @ts-ignore
-          () => self.PW_TEST.ended === true,
+          () => globalThis.PW_TEST.ended === true,
           undefined,
           {
             timeout: 0,
             polling: 100, // need to be polling raf doesnt work in extensions
           }
         )
-        const testsFailed = await page.evaluate('self.PW_TEST.failed')
+        const testsFailed = await page.evaluate('globalThis.PW_TEST.failed')
 
         // coverage
         if (this.options.cov && page.coverage) {
@@ -309,10 +373,12 @@ export class Runner {
         }
 
         // exit
-        await this.stop(testsFailed)
+        await this.stop(
+          testsFailed,
+          testsFailed ? 'Tests failed.' : 'Tests passed.'
+        )
       }
     } catch (/** @type {any} */ error) {
-      spinner.fail('Running tests failed.')
       await this.stop(true, error)
     }
   }
@@ -322,13 +388,17 @@ export class Runner {
    *
    * @param {Context} context
    */
-  async runBefore(context) {
+  async setupBeforePage(context) {
     const page = await context.newPage()
-    await page.goto(this.url + 'before.html')
+    await page.goto(`${this.url}before.html`)
 
     page.on('console', redirectConsole)
     page.on('pageerror', (err) => {
-      this.stop(true, `Before page:\n ${err}`)
+      log.error(
+        `Uncaught exception happened within the before page. Run with --debug. \n${kleur.dim(
+          err.stack?.toString() ?? err.toString()
+        )}`
+      )
     })
 
     const { outName } = await this.compiler('before')
@@ -339,16 +409,23 @@ export class Runner {
   }
 
   async watch() {
-    const spinner = ora(`Setting up ${this.options.browser}`).start()
+    asyncExitHook(this.#clean.bind(this), {
+      wait: 1000,
+    })
 
-    const context = await this.launch()
+    // Setup the context
+    const context = await this.setupContext()
+    await this.options.beforeTests(this.env)
+
+    // Run the before script
     if (this.options.before) {
-      spinner.text = 'Running before script'
-      await this.runBefore(context)
+      await this.setupBeforePage(context)
     }
-    const page = await this.setupPage(context)
 
-    spinner.succeed()
+    // Setup page
+    const page = await this.setupPage(context)
+    log.info(`Browser "${this.options.browser}" setup complete.`)
+
     const { files } = await this.runTests(page)
 
     const watcher = watch([...files], {
@@ -362,27 +439,22 @@ export class Runner {
         return regs[0] ? regs[0].unregister() : Promise.resolve()
       })
       await page.reload()
-      const { files } = await this.runTests(page)
-      watcher.add([...files])
+      try {
+        console.error()
+        log.info('Reloading tests...')
+        const { files } = await this.runTests(page)
+        watcher.add([...files])
+      } catch (/** @type {any} */ error) {
+        console.error(error.stack)
+      }
     })
   }
 
-  /**
-   * @param {boolean} fail
-   * @param {string | undefined} [msg]
-   */
-  async stop(fail, msg) {
-    if (this.stopped || this.options.debug) {
-      return
-    }
-    this.stopped = true
-
+  async #clean() {
     // Run after tests hook
-    await this.options.afterTests(this.options, this.beforeTestsOutput)
+    await this.options.afterTests(this.env)
 
-    if (this.context) {
-      await this.context.close()
-    }
+    premove(this.dir)
 
     const serverClose = new Promise((resolve, reject) => {
       if (this.server) {
@@ -399,17 +471,28 @@ export class Runner {
 
     await serverClose
 
-    premove(this.dir)
-    // premove(this.browserDir)
+    if (this.context) {
+      await this.context.close()
+    }
+  }
+
+  /**
+   * @param {boolean} fail
+   * @param {string | undefined} [msg]
+   */
+  stop(fail, msg) {
+    if (this.stopped || this.options.debug) {
+      return Promise.resolve()
+    }
+    this.stopped = true
 
     if (fail && msg) {
-      console.error(msg)
+      log.error(msg)
     } else if (msg) {
-      console.log(msg)
+      log.success(msg)
     }
 
-    // eslint-disable-next-line unicorn/no-process-exit
-    process.exit(fail ? 1 : 0)
+    gracefulExit(fail ? 1 : 0)
   }
 
   /**
@@ -419,7 +502,16 @@ export class Runner {
    * @returns {Promise<import('./types').CompilerOutput>} file to be loaded in the page
    */
   async compiler(mode = 'bundle') {
-    //
-    throw new Error('abstract method')
+    return build(
+      this,
+      this.options.testRunner.buildConfig
+        ? this.options.testRunner.buildConfig(this.options)
+        : {},
+      this.options.testRunner.compileRuntime(
+        this.options,
+        this.tests.map((t) => t.replaceAll('\\', '/'))
+      ),
+      mode
+    )
   }
 }

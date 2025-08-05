@@ -1,125 +1,131 @@
 {
-  "name": "playwright-test",
-  "version": "8.2.0",
-  "description": "Run mocha, zora, uvu, tape and benchmark.js scripts inside real browsers with playwright.",
-  "repository": "hugomrdias/playwright-test",
-  "author": "Hugo Dias <hugomrdias@gmail.com> (hugodias.me)",
-  "license": "MIT",
-  "type": "module",
-  "main": "src/runner.js",
-  "types": "dist/src/runner.d.ts",
-  "exports": {
-    ".": "./src/runner.js",
-    "./package.json": "./package.json"
-  },
-  "bin": {
-    "playwright-test": "cli.js",
-    "pw-test": "cli.js"
-  },
-  "engines": {
-    "node": ">=16.0.0"
-  },
-  "scripts": {
-    "prepare": "tsc && copyfiles 'src/**/*.d.ts' dist",
-    "test": "mocha test.js --bail --timeout 50000",
-    "lint": "eslint '**/*.js' && prettier --check '*.{js,json}' --ignore-path .gitignore && tsc"
-  },
-  "files": [
-    "dist/src/runner.d.ts",
-    "dist/src/runner.d.ts.map",
-    "dist/src/types.d.ts",
-    "static",
-    "src",
-    "cli.js"
-  ],
-  "keywords": [
-    "playwright",
-    "test",
-    "tests",
-    "test-runner",
-    "mocha",
-    "tape",
-    "benchmark",
-    "benchmark.js",
-    "zora",
-    "coverage",
-    "istanbul",
-    "nyc",
-    "code coverage",
-    "uvu"
-  ],
-  "dependencies": {
-    "buffer": "^6.0.3",
-    "camelcase": "^7.0.1",
-    "chokidar": "^3.5.3",
-    "esbuild": "0.16.10",
-    "events": "^3.3.0",
-    "globby": "^13.1.1",
-    "kleur": "^4.1.4",
-    "lilconfig": "^2.0.5",
-    "lodash": "^4.17.21",
-    "merge-options": "^3.0.4",
-    "nanoid": "^4.0.0",
-    "ora": "^6.1.0",
-    "p-wait-for": "5.0.0",
-    "path-browserify": "^1.0.1",
-    "playwright-core": "1.29.0",
-    "polka": "^0.5.2",
-    "premove": "^4.0.0",
-    "process": "^0.11.10",
-    "sade": "^1.8.1",
-    "sirv": "^2.0.2",
-    "source-map": "0.6.1",
-    "stream-browserify": "^3.0.0",
-    "strip-ansi": "^7.0.0",
-    "tape": "^5.5.3",
-    "tempy": "^3.0.0",
-    "test-exclude": "^6.0.0",
-    "v8-to-istanbul": "^9.0.0"
-  },
-  "devDependencies": {
-    "@types/mocha": "^10.0.1",
-    "@types/polka": "^0.5.4",
-    "benchmark": "^2.1.4",
-    "copyfiles": "^2.4.1",
-    "debug": "^4.3.4",
-    "delay": "^5.0.0",
-    "execa": "^6.1.0",
-    "hd-scripts": "^3.0.2",
-    "lint-staged": "^13.1.0",
-    "mocha": "^10.0.0",
-    "simple-git-hooks": "^2.6.1",
-    "typescript": "^4.6.4",
-    "uvu": "^0.5.3",
-    "zora": "^5.0.3"
-  },
-  "simple-git-hooks": {
-    "pre-commit": "npx lint-staged"
-  },
-  "lint-staged": {
-    "*.{js,ts,md,yml,json}": "prettier --write",
-    "*.js": "eslint --fix"
-  },
-  "eslintConfig": {
-    "env": {
-      "mocha": true
-    },
-    "extends": [
-      "./node_modules/hd-scripts/eslint/index.js"
-    ],
-    "parserOptions": {
-      "sourceType": "module"
-    }
-  },
-  "eslintIgnore": [
-    "node_modules",
-    "coverage",
-    "dist",
-    "src/vendor/benchmark.js",
-    "src/setup-bench.js",
-    "src/vendor/source-map-support.js",
-    "mocks"
-  ],
-  "prettier": "hd-scripts/prettier.config.js",
-  "packageManager": "pnpm@10.11.0+sha512.6540583f41cc5f628eb3d9773ecee802f4f9ef9923cc45b69890fb47991d4b092964694ec3a4f738a420c918a333062c8b925d312f42e4f0c263eb603551f977"
+	"name": "playwright-test",
+	"type": "module",
+	"version": "14.1.11",
+	"description": "Run mocha, zora, uvu, tape and benchmark.js scripts inside real browsers with playwright.",
+	"author": "Hugo Dias <hugomrdias@gmail.com> (hugodias.me)",
+	"license": "MIT",
+	"repository": "hugomrdias/playwright-test",
+	"keywords": [
+		"playwright",
+		"test",
+		"tests",
+		"test-runner",
+		"mocha",
+		"tape",
+		"benchmark",
+		"benchmark.js",
+		"zora",
+		"coverage",
+		"istanbul",
+		"nyc",
+		"code coverage",
+		"uvu"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/src/runner.d.ts",
+			"default": "./src/runner.js"
+		},
+		"./package.json": "./package.json",
+		"./taps": {
+			"types": "./dist/src/taps/index.d.ts",
+			"default": "./src/taps/index.js"
+		},
+		"./client": {
+			"types": "./dist/src/client/index.d.ts",
+			"default": "./src/client/index.js"
+		}
+	},
+	"main": "src/runner.js",
+	"types": "dist/src/runner.d.ts",
+	"typesVersions": {
+		"*": {
+			"taps": [
+				"dist/src/taps/index.d.ts"
+			],
+			"client": [
+				"dist/src/client/index.d.ts"
+			]
+		}
+	},
+	"bin": {
+		"playwright-test": "cli.js",
+		"pw-test": "cli.js"
+	},
+	"files": [
+		"dist/src/runner.d.ts",
+		"dist/src/runner.d.ts.map",
+		"dist/src/types.d.ts",
+		"dist/src/taps",
+		"dist/src/client",
+		"static",
+		"src",
+		"cli.js"
+	],
+	"engines": {
+		"node": ">=16.0.0"
+	},
+	"scripts": {
+		"clean": "rm -rf pnpm-lock.yaml .coverage .nyc_output dist node_modules .tmp",
+		"fix": "biome check --fix --no-errors-on-unmatched --files-ignore-unknown=true",
+		"lint": "tsc && biome check --no-errors-on-unmatched --files-ignore-unknown=true .",
+		"test": "mocha test.js --bail --timeout 50000"
+	},
+	"dependencies": {
+		"acorn-loose": "^8.3.0",
+		"assert": "^2.1.0",
+		"buffer": "^6.0.3",
+		"c8": "^10.1.3",
+		"camelcase": "^8.0.0",
+		"chokidar": "^4.0.3",
+		"esbuild": "0.25.8",
+		"esbuild-plugin-wasm": "^1.1.0",
+		"events": "^3.3.0",
+		"execa": "^9.3.0",
+		"exit-hook": "^4.0.0",
+		"globby": "^14.0.2",
+		"kleur": "^4.1.5",
+		"lilconfig": "^3.1.3",
+		"lodash": "^4.17.21",
+		"merge-options": "^3.0.4",
+		"nanoid": "^5.0.9",
+		"ora": "^8.0.1",
+		"p-timeout": "^6.1.4",
+		"path-browserify": "^1.0.1",
+		"playwright-core": "1.54.1",
+		"polka": "^0.5.2",
+		"premove": "^4.0.0",
+		"process": "^0.11.10",
+		"sade": "^1.8.1",
+		"sirv": "^3.0.0",
+		"source-map": "0.6.1",
+		"source-map-support": "^0.5.21",
+		"stream-browserify": "^3.0.0",
+		"tempy": "^3.1.0",
+		"test-exclude": "^7.0.1",
+		"util": "^0.12.5",
+		"v8-to-istanbul": "^9.3.0"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "1.9.4",
+		"@hugomrdias/configs": "^0.1.9",
+		"@types/mocha": "^10.0.10",
+		"@types/polka": "^0.5.4",
+		"benchmark": "^2.1.4",
+		"debug": "^4.4.0",
+		"delay": "^6.0.0",
+		"mocha": "^11.1.0",
+		"p-defer": "^4.0.1",
+		"simple-git-hooks": "^2.11.1",
+		"tape": "^5.8.1",
+		"tinybench": "^4.0.1",
+		"typescript": "^5.5.4",
+		"uvu": "^0.5.6",
+		"zora": "^5.2.0"
+	},
+	"simple-git-hooks": {
+		"pre-commit": "pnpm exec biome check --no-errors-on-unmatched --files-ignore-unknown=true --staged"
+	},
+	"packageManager": "pnpm@10.11.0+sha512.6540583f41cc5f628eb3d9773ecee802f4f9ef9923cc45b69890fb47991d4b092964694ec3a4f738a420c918a333062c8b925d312f42e4f0c263eb603551f977"
 }

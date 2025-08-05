@@ -1,9 +1,8 @@
-/* eslint-disable no-console */
-
 import path from 'path'
-import { build } from 'esbuild'
-import mergeOptions from 'merge-options'
 import { fileURLToPath } from 'url'
+import { build } from 'esbuild'
+// @ts-ignore
+import mergeOptions from 'merge-options'
 import { temporaryWriteSync } from 'tempy'
 
 const merge = mergeOptions.bind({
@@ -38,7 +37,7 @@ self.addEventListener('activate', (event) => {
   return self.clients.claim()
 })
 
-import "${path.join(runner.options.cwd, entry).replace(/\\/g, '/')}"
+import "${path.join(runner.options.cwd, entry).replaceAll('\\', '/')}"
 `
   const entryPoint = temporaryWriteSync(content, { extension: 'js' })
   /** @type {ESBuildPlugin} */

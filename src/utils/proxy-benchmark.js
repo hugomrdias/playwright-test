@@ -4,7 +4,7 @@
 // Run benchmarkjs in the browser https://github.com/bestiejs/benchmark.js/issues/128#issuecomment-271615298
 // const process = require('process');
 const _ = require('lodash')
-require('./vendor/benchmark')
+require('../vendor/benchmark')
 
 const BenchmarkSpecial = globalThis.Benchmark.runInContext({
   _,
@@ -16,11 +16,12 @@ let runningCount = 0
 const signalFinished = () => {
   if (runningCount === 0) {
     setTimeout(() => {
+      const options = JSON.parse(process.env.PW_OPTIONS)
       // eslint-disable-next-line no-undef
-      if (process.env.PW_TEST.mode === 'worker') {
+      if (options.mode === 'worker') {
         postMessage({ pwRunEnded: true })
       } else {
-        self.PW_TEST.end()
+        globalThis.PW_TEST.end()
       }
     }, 1000)
   }
