@@ -9,13 +9,13 @@ import { promisify } from 'util'
 import camelCase from 'camelcase'
 import esbuild from 'esbuild'
 import { wasmLoader } from 'esbuild-plugin-wasm'
-import { globbySync } from 'globby'
 import kleur from 'kleur'
 // @ts-ignore
 import mergeOptions from 'merge-options'
 import ora from 'ora'
 import polka from 'polka'
 import sirv from 'sirv'
+import { globSync } from 'tinyglobby'
 import V8ToIstanbul from 'v8-to-istanbul'
 import * as DefaultRunners from '../test-runners.js'
 
@@ -155,22 +155,15 @@ export function defaultTestPatterns(extensions) {
  * @param {string[]} patterns
  */
 function globFiles(cwd, patterns) {
-  const files = globbySync(patterns, {
+  const files = globSync(patterns, {
     absolute: false,
-    braceExpansion: true,
     caseSensitiveMatch: false,
     cwd,
     dot: false,
     expandDirectories: true,
-    extglob: true,
     followSymbolicLinks: true,
-    gitignore: false,
-    globstar: true,
     ignore: defaultIgnorePatterns,
-    baseNameMatch: false,
     onlyFiles: true,
-    stats: false,
-    unique: true,
   })
 
   // Return absolute file paths. This has the side-effect of normalizing paths
