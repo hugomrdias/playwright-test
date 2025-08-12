@@ -1,5 +1,13 @@
 # Changelog
 
+## [14.1.12](https://github.com/hugomrdias/playwright-test/compare/v14.1.11...v14.1.12) (2025-08-12)
+
+
+### Bug Fixes
+
+* **deps:** replace `globby` with `tinyglobby` ([#699](https://github.com/hugomrdias/playwright-test/issues/699)) ([3901dbe](https://github.com/hugomrdias/playwright-test/commit/3901dbe3f3bc7b5f3b95d1e2de65a2db293eb805))
+* remove `cpy` in favor `fs.copyFile` ([#698](https://github.com/hugomrdias/playwright-test/issues/698)) ([b518acb](https://github.com/hugomrdias/playwright-test/commit/b518acb8692b13f1a7bf72a819cb1059e34fb476))
+
 ## [14.1.11](https://github.com/hugomrdias/playwright-test/compare/v14.1.10...v14.1.11) (2025-07-21)
 
 
