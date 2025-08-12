@@ -4,8 +4,8 @@ import { mkdirSync } from 'fs'
 import { fileURLToPath } from 'node:url'
 import path from 'path'
 import { watch } from 'chokidar'
-import cpy from 'cpy'
 import { asyncExitHook, gracefulExit } from 'exit-hook'
+import { cp } from 'fs/promises'
 import kleur from 'kleur'
 // @ts-ignore
 import mergeOptions from 'merge-options'
@@ -84,7 +84,7 @@ export class Runner {
 
   async setupContext() {
     // copy files to be served
-    await cpy(`${path.join(__dirname, './../static')}/**`, this.dir)
+    await cp(path.join(__dirname, './../static'), this.dir, { recursive: true })
 
     // setup http server
     const { server, url } = await createPolka(
