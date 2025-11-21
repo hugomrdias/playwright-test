@@ -32,7 +32,7 @@ const require = createRequire(import.meta.url)
  */
 const defaultOptions = {
   cwd: process.cwd(),
-  assets: '',
+  assets: undefined,
   browser: 'chromium',
   debug: false,
   mode: 'main', // worker
