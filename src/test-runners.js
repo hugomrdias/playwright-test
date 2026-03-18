@@ -48,7 +48,7 @@ ${paths.map((url) => `await import('${url}')`).join('\n')}
 export const none = {
   moduleId: 'none',
   options: {},
-  compileRuntime(options, paths) {
+  compileRuntime(_options, paths) {
     return `
 ${paths.map((url) => `await import('${url}')`).join('\n')}
 `
@@ -124,7 +124,7 @@ export const benchmark = {
       ],
     }
   },
-  compileRuntime(options, paths) {
+  compileRuntime(_options, paths) {
     return `
 ${paths.map((url) => `await import('${url}')`).join('\n')}
 `
@@ -135,7 +135,7 @@ ${paths.map((url) => `await import('${url}')`).join('\n')}
 export const uvu = {
   moduleId: 'uvu',
   options: {},
-  compileRuntime(options, paths) {
+  compileRuntime(_options, paths) {
     return `
 globalThis.UVU_DEFER = 1
 globalThis.UVU_QUEUE = []
@@ -161,7 +161,7 @@ uvu.exec(true).then((r) => {
 export const zora = {
   moduleId: 'zora',
   options: {},
-  compileRuntime(options, paths) {
+  compileRuntime(_options, paths) {
     return `
 const {hold, report, createTAPReporter} = await import('zora')
 hold()
@@ -186,7 +186,7 @@ const out = report({
 export const taps = {
   moduleId: 'playwright-test/taps',
   options: {},
-  compileRuntime(options, paths) {
+  compileRuntime(_options, paths) {
     return `
 const {exec, hold} = await import('playwright-test/taps')
 hold()
@@ -207,7 +207,7 @@ exec().then(() => {
 export const tapsLocal = {
   moduleId: '../../src/taps/index.js',
   options: {},
-  compileRuntime(options, paths) {
+  compileRuntime(_options, paths) {
     const tapsPath = path
       .resolve(__dirname, 'taps/index.js')
       .replaceAll('\\', '/')

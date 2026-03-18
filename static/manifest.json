@@ -3,13 +3,16 @@
   "description": "Stub extension to run tests.",
   "version": "2.0",
   "background": {
-    "scripts": ["background.js"],
-    "persistent": true
+    "service_worker": "service-worker.js",
+    "type": "module"
   },
   "permissions": ["developerPrivate", "management"],
-  "browser_action": {
-    "default_title": "Make this page red"
+  "action": {
+    "default_title": "Make this page red",
+    "default_popup": "popup.html"
   },
-  "manifest_version": 2,
-  "content_security_policy": "script-src 'self' 'unsafe-eval'"
+  "manifest_version": 3,
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'"
+  }
 }

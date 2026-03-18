@@ -109,7 +109,6 @@ export class Runner {
       // https://github.com/microsoft/playwright/issues/33566
       channel: this.options.extension ? this.options.browser : undefined,
       headless: !this.options.debug,
-      devtools: this.options.browser === 'chromium' && this.options.debug,
       args: this.options.extension
         ? [
             `--disable-extensions-except=${this.dir}`,
@@ -209,26 +208,23 @@ export class Runner {
 
     if (this.options.extension) {
       const context = /** @type {ChromiumBrowserContext} */ (this.context)
-      const backgroundPages = context.backgroundPages()
-      this.page =
-        backgroundPages.length > 0
-          ? backgroundPages[0]
-          : await context.waitForEvent('backgroundpage')
+      let [serviceWorker] = context.serviceWorkers()
+      if (!serviceWorker)
+        serviceWorker = await context.waitForEvent('serviceworker')
 
-      if (!this.page) {
-        throw new Error('Could not find the background page for the extension.')
-      }
+      const extensionId = serviceWorker.url().split('/')[2]
+      this.page = context.pages()[0]
+      await this.page.goto(`chrome-extension://${extensionId}/popup.html`)
+
+      // if (!this.page) {
+      //   throw new Error('Could not find the background page for the extension.')
+      // }
 
       if (this.options.debug) {
         // Open extension devtools window
         const extPage = await context.newPage()
 
-        await extPage.goto(
-          `chrome://extensions/?id=${
-            // @ts-ignore
-            this.page._mainFrame._initializer.url.split('/')[2]
-          }`
-        )
+        await extPage.goto(`chrome://extensions/?id=${extensionId}`)
 
         const buttonHandle = await extPage.evaluateHandle(
           'document.querySelector("body > extensions-manager").shadowRoot.querySelector("extensions-toolbar").shadowRoot.querySelector("#devMode")'

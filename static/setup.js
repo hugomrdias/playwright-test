@@ -26,3 +26,4 @@ class PwTestController {
 }
 
 globalThis.PW_TEST = new PwTestController()
+console.log('Setup complete')
