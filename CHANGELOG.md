@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.1.13](https://github.com/hugomrdias/playwright-test/compare/v14.1.12...v14.1.13) (2026-03-18)
+
+
+### Bug Fixes
+
+* update playwright-core to version 1.58.2 and migrate to manifest v3 with service worker ([7917eba](https://github.com/hugomrdias/playwright-test/commit/7917ebad8c4c34421d3319642fd920af9227fd13))
+
 ## [14.1.12](https://github.com/hugomrdias/playwright-test/compare/v14.1.11...v14.1.12) (2025-08-12)
 
 
