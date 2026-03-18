@@ -32,7 +32,7 @@ const merge = mergeOptions.bind({
  */
 export const defaultOptions = {
   cwd: process.cwd(),
-  assets: '',
+  assets: undefined,
   browser: 'chromium',
   debug: false,
   mode: 'main', // worker
@@ -617,13 +617,21 @@ function getPort(port = 3000, host = '127.0.0.1') {
  *
  * @param {string} dir - Runner directory
  * @param {string} cwd - Current working directory
- * @param {string} assets - Assets directory
+ * @param {string[]| undefined} assets - Assets directories
  * @returns {Promise<{ url: string; server: import('http').Server }>}
  */
 export async function createPolka(dir, cwd, assets) {
   const host = '127.0.0.1'
   const port = await getPort(0, host)
   const url = `http://${host}:${port}/`
+  if (typeof assets === 'string') {
+    assets = [assets]
+  } else if (assets === undefined || assets === null) {
+    assets = []
+  }
+  if (!assets.includes(cwd)) {
+    assets.push(cwd)
+  }
   return new Promise((resolve, reject) => {
     const { server } = polka()
       .use(
@@ -643,22 +651,24 @@ export async function createPolka(dir, cwd, assets) {
       )
       .use(
         // @ts-ignore
-        sirv(path.join(cwd, assets), {
-          dev: true,
-          setHeaders: (
-            /** @type {{ setHeader: (arg0: string, arg1: string) => void; }} */ rsp,
-            /** @type {string} */ pathname
-          ) => {
-            // workaround for https://github.com/lukeed/sirv/issues/158 - we
-            // can't unset the `Content-Encoding` header because sirv sets it
-            // after this function is invoked and will only set it if it's not
-            // already set, so we need to set it to a garbage value that will be
-            // ignored by browsers
-            if (pathname.endsWith('.gz')) {
-              rsp.setHeader('Content-Encoding', 'unsupported-encoding')
-            }
-          },
-        })
+        ...assets.map((dir) =>
+          sirv(dir, {
+            dev: true,
+            setHeaders: (
+              /** @type {{ setHeader: (arg0: string, arg1: string) => void; }} */ rsp,
+              /** @type {string} */ pathname
+            ) => {
+              // workaround for https://github.com/lukeed/sirv/issues/158 - we
+              // can't unset the `Content-Encoding` header because sirv sets it
+              // after this function is invoked and will only set it if it's not
+              // already set, so we need to set it to a garbage value that will be
+              // ignored by browsers
+              if (pathname.endsWith('.gz')) {
+                rsp.setHeader('Content-Encoding', 'unsupported-encoding')
+              }
+            },
+          })
+        )
       )
       .listen(port, host, (/** @type {Error} */ err) => {
         if (err) {

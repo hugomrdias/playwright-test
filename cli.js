@@ -182,7 +182,7 @@ sade2
   .option('--sw', 'Path to a script to be loaded in a service worker.')
   .option(
     '--assets',
-    'Folder with assets to be served by the http server.  (default process.cwd())'
+    'One or more folders with assets to be served by the http server.  (default process.cwd() will always be included)'
   )
   .option('--cwd', 'Current directory.', defaultOptions.cwd)
   .option(
@@ -219,6 +219,7 @@ sade2
        *
        * @type {import('./src/types.js').RunnerOptions}
        */
+
       const options = merge(config ? config.config : {}, {
         input: input ? [input, ...opts._] : undefined,
         testFiles: [],
