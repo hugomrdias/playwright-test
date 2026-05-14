@@ -305,8 +305,9 @@ export async function getPw(browserName, debug, extension) {
   }
 
   // @ts-ignore
-  const { registry } = await import('playwright-core/lib/server')
+  const { registry: registryExports } = await import('playwright-core/lib/coreBundle')
   const api = await import('playwright-core')
+  const { registry } = registryExports
   const browser = registry.findExecutable(browserName)
 
   // playwright will log browser download progress to stdout, temporarily
