@@ -310,7 +310,37 @@ describe('uvu', () => {
   })
 })
 
-describe.skip('benchmark', () => {
+describe('assets', () => {
+  it('1 asset', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/assets/test.a.js',
+      '--runner',
+      'mocha',
+      '--assets',
+      './mocks/assets/a',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('passing'), 'process stdout')
+  })
+
+  it('2 assets', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/assets/test.ab.js',
+      '--runner',
+      'mocha',
+      '--assets',
+      './mocks/assets/a',
+      '--assets',
+      './mocks/assets/b',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('passing'), 'process stdout')
+  })
+})
+
+describe.skip('benchmark', function () {
   it('benchmark', async () => {
     const proc = await execa('./cli.js', [
       'mocks/benchmark.js',
