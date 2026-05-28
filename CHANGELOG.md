@@ -1,5 +1,13 @@
 # Changelog
 
+## [14.1.14](https://github.com/hugomrdias/playwright-test/compare/v14.1.13...v14.1.14) (2026-05-28)
+
+
+### Bug Fixes
+
+* bump camelcase from 8.0.0 to 9.0.0 ([#714](https://github.com/hugomrdias/playwright-test/issues/714)) ([d926e2c](https://github.com/hugomrdias/playwright-test/commit/d926e2c68d55c9e5711b161d9b92eb94bf930814))
+* bump lodash from 4.17.21 to 4.18.1 ([#719](https://github.com/hugomrdias/playwright-test/issues/719)) ([76dd538](https://github.com/hugomrdias/playwright-test/commit/76dd5383f192288e9f20cfe99cd1d72b9f6f8349))
+
 ## [14.1.13](https://github.com/hugomrdias/playwright-test/compare/v14.1.12...v14.1.13) (2026-03-18)
 
 
