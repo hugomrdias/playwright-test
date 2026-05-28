@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.1.15](https://github.com/hugomrdias/playwright-test/compare/v14.1.14...v14.1.15) (2026-05-28)
+
+
+### Bug Fixes
+
+* update token permissions to allow publishing ([ceb9dc8](https://github.com/hugomrdias/playwright-test/commit/ceb9dc87feadd7184f4afb5bb4d1a7bdb2bdc824))
+
 ## [14.1.14](https://github.com/hugomrdias/playwright-test/compare/v14.1.13...v14.1.14) (2026-05-28)
 
 
