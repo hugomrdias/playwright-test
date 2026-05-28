@@ -70,6 +70,10 @@ jobs:
       - macos
       - win
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    permissions:
+      contents: write
+      id-token: write
+      pull-requests: write
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
