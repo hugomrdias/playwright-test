@@ -304,8 +304,10 @@ export async function getPw(browserName, debug, extension) {
     browserName = 'chromium-headless-shell'
   }
 
-  // @ts-ignore
-  const { registry } = await import('playwright-core/lib/server')
+  const {
+    registry: { registry },
+    // @ts-ignore
+  } = await import('playwright-core/lib/coreBundle')
   const api = await import('playwright-core')
   const browser = registry.findExecutable(browserName)
 
