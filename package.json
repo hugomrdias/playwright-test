@@ -114,7 +114,7 @@
 		"@types/polka": "^0.5.4",
 		"benchmark": "^2.1.4",
 		"debug": "^4.4.0",
-		"delay": "^6.0.0",
+		"delay": "^7.0.0",
 		"mocha": "^11.1.0",
 		"p-defer": "^4.0.1",
 		"simple-git-hooks": "^2.11.1",
