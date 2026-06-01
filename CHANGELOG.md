@@ -1,5 +1,16 @@
 # Changelog
 
+## [15.0.0](https://github.com/hugomrdias/playwright-test/compare/v14.1.15...v15.0.0) (2026-06-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* many deps updates
+
+### Features
+
+* many deps updates ([e003aeb](https://github.com/hugomrdias/playwright-test/commit/e003aebc975ed3373cd0e31fef68caa56b1c33c5))
+
 ## [14.1.15](https://github.com/hugomrdias/playwright-test/compare/v14.1.14...v14.1.15) (2026-05-28)
 
 
