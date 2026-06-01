@@ -22,6 +22,7 @@ jobs:
           node-version: lts/*
           cache: pnpm
       - run: pnpm install
+      - run: pnpm exec playwright-core install-deps webkit
       - run: pnpm run lint
       - run: pnpm run test
       - run: ./cli.js mocks/test.mocha.js --browser chromium
