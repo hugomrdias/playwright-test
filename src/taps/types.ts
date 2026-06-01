@@ -7,7 +7,7 @@ export interface TypeMap {
   string: string
   object: object
   undefined: undefined
-  // biome-ignore lint/complexity/noBannedTypes: <explanation>
+  // biome-ignore lint/complexity/noBannedTypes: its ok
   function: Function
 }
 

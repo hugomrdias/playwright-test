@@ -17,11 +17,11 @@ suite
   })
   // add listeners
   .on('cycle', (event) => {
-    // biome-ignore lint/suspicious/noConsoleLog: <explanation>
+    // biome-ignore lint/suspicious/noConsole: test
     console.log(String(event.target))
   })
   .on('complete', function () {
-    // biome-ignore lint/suspicious/noConsoleLog: <explanation>
+    // biome-ignore lint/suspicious/noConsole: test
     console.log(`Fastest is ${this.filter('fastest').map('name')}`)
   })
   // run async

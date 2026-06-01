@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/suspicious/noConsole: its ok */
 class PwTestController {
   constructor() {
     this.beforeEnded = false

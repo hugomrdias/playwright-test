@@ -1,7 +1,7 @@
-/* eslint-disable no-console */
+/** biome-ignore-all lint/suspicious/noConsole: its ok */
 import kleur from 'kleur'
-import { TAPS_QUEUE, suite } from './harness.js'
-import { HAS_PROCESS, IS_ENV_WITH_DOM, IS_NODE, hrtime } from './utils.js'
+import { suite, TAPS_QUEUE } from './harness.js'
+import { HAS_PROCESS, hrtime, IS_ENV_WITH_DOM, IS_NODE } from './utils.js'
 
 /**
  * @typedef {import('./types.js').Suite} Suite
@@ -9,9 +9,8 @@ import { HAS_PROCESS, IS_ENV_WITH_DOM, IS_NODE, hrtime } from './utils.js'
 
 export const test = suite()
 
-export { suite } from './harness.js'
-
 export * from './assert.js'
+export { suite } from './harness.js'
 
 /**
  * Execute the queued tests.
@@ -36,24 +35,20 @@ export async function exec() {
 
   // report
   if (passes > 0) {
-    // biome-ignore lint/suspicious/noConsoleLog: <explanation>
     console.log(
       `\n${kleur.green(`  ${passes} passing`)}`,
       kleur.gray(`(${timer()})`)
     )
   }
   if (skips > 0) {
-    // biome-ignore lint/suspicious/noConsoleLog: <explanation>
     console.log(kleur.yellow(`  ${skips} skipping`))
   }
   if (errors.length > 0) {
-    // biome-ignore lint/suspicious/noConsoleLog: <explanation>
     console.log(kleur.red(`  ${total - skips - passes} failing`))
   }
 
   // errors
   if (errors.length > 0) {
-    // biome-ignore lint/suspicious/noConsoleLog: <explanation>
     console.log(errors.join('\n'))
     code = 1
   }

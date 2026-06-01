@@ -5,14 +5,14 @@ import { is, type } from 'uvu/assert'
 const test = suite('suite')
 
 test('sum', () => {
-  // biome-ignore lint/suspicious/noEmptyBlockStatements: <explanation>
+  // biome-ignore lint/suspicious/noEmptyBlockStatements: test
   type(() => {}, 'function')
   is(3, 3)
 })
 
 test('sum', async () => {
   await delay(2000)
-  // biome-ignore lint/suspicious/noEmptyBlockStatements: <explanation>
+  // biome-ignore lint/suspicious/noEmptyBlockStatements: test
   type(() => {}, 'function')
   is(3, 3)
 })

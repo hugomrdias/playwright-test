@@ -1,10 +1,10 @@
+/** biome-ignore-all lint/suspicious/noConsole: its ok */
 import delay from 'delay'
-import { assert, test as _test, suite } from '../../src/taps/index.js'
+import { assert, suite } from '../../src/taps/index.js'
 
 const test = suite('test3').skip
 
 test.before(() => {
-  // biome-ignore lint/suspicious/noConsoleLog: <explanation>
   console.log('before')
 })
 
@@ -21,7 +21,7 @@ test(
   'test timeout',
   async () => {
     await delay(200)
-    // biome-ignore lint/suspicious/noEmptyBlockStatements: <explanation>
+    // biome-ignore lint/suspicious/noEmptyBlockStatements: its ok
     assert.type(() => {}, 'function')
   },
   { timeout: 100 }

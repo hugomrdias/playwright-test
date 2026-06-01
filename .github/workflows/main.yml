@@ -22,9 +22,9 @@ jobs:
           node-version: lts/*
           cache: pnpm
       - run: pnpm install
-      - run: npx playwright install-deps
       - run: pnpm run lint
       - run: pnpm run test
+      - run: ./cli.js mocks/test.mocha.js --browser chromium
       - run: ./cli.js mocks/test.mocha.js --browser firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
 
@@ -42,7 +42,8 @@ jobs:
           cache: pnpm
       - run: pnpm install
       - run: pnpm run lint
-      - run: pnpm test
+      - run: pnpm run test
+      - run: ./cli.js mocks/test.mocha.js --browser chromium
       - run: ./cli.js mocks/test.mocha.js --browser firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
 
@@ -59,8 +60,8 @@ jobs:
           node-version: lts/*
           cache: pnpm
       - run: pnpm install
-      - run: npx playwright install winldd
-      - run: pnpm test
+      - run: pnpm run test
+      - run: ./cli.js mocks/test.mocha.js --browser chromium
       - run: ./cli.js mocks/test.mocha.js --browser firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
   release:
@@ -89,7 +90,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
-          registry-url: 'https://registry.npmjs.org'
+          registry-url: "https://registry.npmjs.org"
           cache: pnpm
         if: ${{ steps.release.outputs.release_created }}
       - run: pnpm install
@@ -97,6 +98,4 @@ jobs:
       - run: pnpm run lint
         if: ${{ steps.release.outputs.release_created }}
       - run: pnpm publish
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
         if: ${{ steps.release.outputs.release_created }}

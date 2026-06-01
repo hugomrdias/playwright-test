@@ -8,7 +8,7 @@ export default {
     inject: [path.join(__dirname, 'sw-globals.js')],
   },
   afterTests: () => {
-    // biome-ignore lint/suspicious/noConsoleLog: <explanation>
+    // biome-ignore lint/suspicious/noConsole: test
     console.log('AFTER')
   },
 }

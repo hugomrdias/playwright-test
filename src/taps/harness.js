@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/suspicious/noConsole: its ok */
 import kleur from 'kleur'
 import pTimeout from 'p-timeout'
 import { hrtime, stack } from './utils.js'
@@ -26,9 +27,9 @@ function formatError(ctx, err) {
         .join('\n    ')}`
     )
   }
-  // @ts-ignore
+  // @ts-expect-error
   if (err.details) {
-    // @ts-ignore
+    // @ts-expect-error
     out += err.details
   }
 
@@ -68,7 +69,6 @@ function log(ctx, fail, time) {
     fail ? kleur.red(_msg) : ctx.skip ? kleur.yellow(_msg) : _msg
   } ${_time}`
 
-  // biome-ignore lint/suspicious/noConsoleLog: <explanation>
   console.log(msg)
 }
 
@@ -124,7 +124,7 @@ async function runner(ctx, testCount) {
               throw new Error('beforeEach hook failed', { cause: error })
             }
           }
-          // @ts-ignore
+          // @ts-expect-error
           await pTimeout(test.fn(), {
             milliseconds: test.options.timeout,
           })
@@ -170,7 +170,7 @@ async function runner(ctx, testCount) {
         errors.push(formatErrorSuite(`${name}: after hook`, err))
       }
     }
-    // biome-ignore lint/correctness/noUnsafeFinally: <explanation>
+    // biome-ignore lint/correctness/noUnsafeFinally: its ok
     return [errors, passed, skips, total]
   }
 }

@@ -1,5 +1,7 @@
+/** biome-ignore-all lint/suspicious/noConsole: its ok */
 import delay from 'delay'
 import { assert, test } from '../../src/taps/index.js'
+
 // test.before(() => {
 //   console.log('before')
 // })
@@ -9,7 +11,6 @@ import { assert, test } from '../../src/taps/index.js'
 // })
 
 test.beforeEach(() => {
-  // biome-ignore lint/suspicious/noConsoleLog: <explanation>
   console.log('before each')
 })
 
@@ -19,13 +20,13 @@ test.beforeEach(() => {
 // })
 
 test('sum1', () => {
-  // biome-ignore lint/suspicious/noEmptyBlockStatements: <explanation>
+  // biome-ignore lint/suspicious/noEmptyBlockStatements: its ok
   assert.type(() => {}, 'function')
 })
 
 test.skip('sum2', async () => {
   await delay(100)
-  // biome-ignore lint/suspicious/noEmptyBlockStatements: <explanation>
+  // biome-ignore lint/suspicious/noEmptyBlockStatements: its ok
   assert.type(() => {}, 'function')
 })
 

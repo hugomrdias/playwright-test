@@ -1,16 +1,16 @@
-/* eslint-disable no-console */
+/** biome-ignore-all lint/suspicious/noConsole: its ok */
 
-import { mkdirSync } from 'fs'
 import { fileURLToPath } from 'node:url'
-import path from 'path'
 import { watch } from 'chokidar'
 import { asyncExitHook, gracefulExit } from 'exit-hook'
+import { mkdirSync } from 'fs'
 import { cp } from 'fs/promises'
 import kleur from 'kleur'
-// @ts-ignore
+// @ts-expect-error
 import mergeOptions from 'merge-options'
 import { nanoid } from 'nanoid'
-// @ts-ignore
+import path from 'path'
+// @ts-expect-error
 import { premove } from 'premove/sync'
 import { temporaryDirectory } from 'tempy'
 import { compileSw } from './utils/build-sw.js'
@@ -47,7 +47,7 @@ export class Runner {
    * @param {Partial<import('./types').RunnerOptions>} options
    * @param {string[]} [testFiles]
    */
-  constructor(options = {}, testFiles) {
+  constructor(options, testFiles) {
     /** @type {import('./types').RunnerOptions} */
     this.options = merge(defaultOptions, options)
     /** @type {import('polka').Polka["server"] | undefined} */
@@ -230,14 +230,12 @@ export class Runner {
           'document.querySelector("body > extensions-manager").shadowRoot.querySelector("extensions-toolbar").shadowRoot.querySelector("#devMode")'
         )
 
-        // @ts-ignore
         await buttonHandle.click()
 
         const backgroundPageLink = await extPage.evaluateHandle(
           'document.querySelector("body > extensions-manager").shadowRoot.querySelector("#viewManager > extensions-detail-view").shadowRoot.querySelector("#inspect-views > li:nth-child(2) > a")'
         )
 
-        // @ts-ignore
         await backgroundPageLink.click()
       }
     } else if (this.options.incognito) {
@@ -338,7 +336,6 @@ export class Runner {
       if (this.options.debug) {
         page.on('load', () => {
           this.runTests(page).catch((error) => {
-            // biome-ignore lint/suspicious/noConsoleLog: <explanation>
             console.log(error)
           })
         })
@@ -348,7 +345,7 @@ export class Runner {
       if (!this.options.debug) {
         // wait for the tests
         await page.waitForFunction(
-          // @ts-ignore
+          // @ts-expect-error
           () => globalThis.PW_TEST.ended === true,
           undefined,
           {
@@ -497,7 +494,7 @@ export class Runner {
    * @param {"before" | "bundle" | "watch"} mode
    * @returns {Promise<import('./types').CompilerOutput>} file to be loaded in the page
    */
-  async compiler(mode = 'bundle') {
+  compiler(mode = 'bundle') {
     return build(
       this,
       this.options.testRunner.buildConfig

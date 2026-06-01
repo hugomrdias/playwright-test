@@ -1,9 +1,9 @@
-import path from 'path'
-import { fileURLToPath } from 'url'
 import { build } from 'esbuild'
-// @ts-ignore
+// @ts-expect-error
 import mergeOptions from 'merge-options'
+import path from 'path'
 import { temporaryWriteSync } from 'tempy'
+import { fileURLToPath } from 'url'
 
 const merge = mergeOptions.bind({
   ignoreUndefined: true,
@@ -44,7 +44,6 @@ import "${path.join(runner.options.cwd, entry).replaceAll('\\', '/')}"
   const watchPlugin = {
     name: 'watcher',
     setup(build) {
-      // @ts-ignore
       build.onLoad({ filter: /.*/, namespace: 'file' }, (args) => {
         if (args.path !== outPath && args.path !== entryPoint) {
           files.add(args.path)

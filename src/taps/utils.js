@@ -107,7 +107,7 @@ export function compare(expected, actual) {
   if (typeof expected !== 'object' || expected === null) {
     return expected === actual
   }
-  if (Boolean(expected) && !actual) {
+  if (expected && !actual) {
     return false
   }
 
@@ -116,9 +116,7 @@ export function compare(expected, actual) {
       return false
     }
     const aa = Array.prototype.slice.call(actual)
-    // @ts-ignore
     return expected.every((exp) => {
-      // @ts-ignore
       return aa.some((act) => {
         return compare(exp, act)
       })

@@ -1,6 +1,5 @@
-import fs from 'fs'
-
 import { parse } from 'acorn-loose'
+import fs from 'fs'
 
 /**
  *
@@ -17,7 +16,6 @@ export function detectTestRunner(path, runners) {
   /** @type {string[]} */
   const ids = []
 
-  // @ts-ignore
   for (const node of parsedCode.body) {
     if (
       node.type === 'ImportDeclaration' &&
@@ -45,11 +43,11 @@ export function detectTestRunner(path, runners) {
       node.expression.callee &&
       node.expression.callee.type === 'MemberExpression' &&
       node.expression.callee.object &&
-      // @ts-ignore
+      // @ts-expect-error
       node.expression.callee.object.name === 'describe' &&
-      // @ts-ignore
+      // @ts-expect-error
       (node.expression.callee.property.name === 'only' ||
-        // @ts-ignore
+        // @ts-expect-error
         node.expression.callee.property.name === 'skip')
     ) {
       ids.push('mocha')
@@ -61,11 +59,11 @@ export function detectTestRunner(path, runners) {
       node.expression.callee &&
       node.expression.callee.type === 'MemberExpression' &&
       node.expression.callee.object &&
-      // @ts-ignore
+      // @ts-expect-error
       node.expression.callee.object.name === 'it' &&
-      // @ts-ignore
+      // @ts-expect-error
       (node.expression.callee.property.name === 'only' ||
-        // @ts-ignore
+        // @ts-expect-error
         node.expression.callee.property.name === 'skip')
     ) {
       ids.push('mocha')
@@ -74,16 +72,16 @@ export function detectTestRunner(path, runners) {
     if (
       node.type === 'VariableDeclaration' &&
       node.declarations[0].init &&
-      // @ts-ignore
+      // @ts-expect-error
       node.declarations[0].init.callee &&
-      // @ts-ignore
+      // @ts-expect-error
       node.declarations[0].init.callee.name === 'require' &&
-      // @ts-ignore
+      // @ts-expect-error
       node.declarations[0].init.arguments &&
-      // @ts-ignore
+      // @ts-expect-error
       node.declarations[0].init.arguments[0].type === 'Literal'
     ) {
-      // @ts-ignore
+      // @ts-expect-error
       ids.push(node.declarations[0].init.arguments[0].value)
     }
   }

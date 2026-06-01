@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/suspicious/noConsole: its ok */
 import { Bench } from 'tinybench'
 
 const bench = new Bench({ time: 100 })

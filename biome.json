@@ -1,7 +1,7 @@
 {
-  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.16/schema.json",
   "extends": ["@hugomrdias/configs/biome"],
   "files": {
-    "ignore": ["src/vendor/*.js"]
+    "includes": ["!src/vendor/*.js"]
   }
 }

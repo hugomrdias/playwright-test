@@ -4,6 +4,7 @@
   "exclude": ["src/vendor"],
   "compilerOptions": {
     "emitDeclarationOnly": true,
-    "outDir": "dist"
+    "outDir": "dist",
+    "types": ["mocha", "polka"]
   }
 }

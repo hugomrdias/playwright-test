@@ -1,5 +1,5 @@
 import pdefer from 'p-defer'
-import { equal, is, ok } from 'uvu/assert'
+import { equal, is } from 'uvu/assert'
 import * as Client from '../src/client'
 
 it.skip('Array', () => {

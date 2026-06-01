@@ -1,6 +1,6 @@
+import { execa, execaSync } from 'execa'
 import fs from 'fs'
 import path from 'path'
-import { execa, execaSync } from 'execa'
 import { is, ok } from 'uvu/assert'
 
 describe('mocha', () => {

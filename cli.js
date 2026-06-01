@@ -1,21 +1,20 @@
 #!/usr/bin/env node
-/* eslint-disable unicorn/prefer-ternary */
 
-/* eslint-disable no-console */
+/** biome-ignore-all lint/suspicious/noConsole: its ok */
 
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath, pathToFileURL } from 'url'
 import { gracefulExit } from 'exit-hook'
+import fs from 'fs'
 import kleur from 'kleur'
 import { lilconfig } from 'lilconfig'
-// @ts-ignore
+// @ts-expect-error
 import mergeOptions from 'merge-options'
+import path from 'path'
 import sade from 'sade'
+import { fileURLToPath, pathToFileURL } from 'url'
 import { NodeRunner } from './src/node/runner.js'
 import { Runner } from './src/runner.js'
-import { benchmark, mocha, none, tape, uvu, zora } from './src/test-runners.js'
 import * as DefaultRunners from './src/test-runners.js'
+import { benchmark, mocha, none, tape, uvu, zora } from './src/test-runners.js'
 import { detectTestRunner } from './src/utils/auto-detect.js'
 import {
   defaultOptions,
@@ -99,11 +98,10 @@ const sade2 = new Proxy(sade('playwright-test [files]', true), {
 
     if (typeof targetValue === 'function') {
       return function (/** @type {any} */ ...args) {
-        // @ts-ignore
+        // @ts-expect-error
         const out = targetValue.apply(this, args)
 
         if (prop === 'help') {
-          // biome-ignore lint/suspicious/noConsoleLog: <explanation>
           console.log(extra)
         }
 

@@ -1,8 +1,8 @@
-import path from 'path'
 import esbuild from 'esbuild'
 import { wasmLoader } from 'esbuild-plugin-wasm'
-// @ts-ignore
+// @ts-expect-error
 import mergeOptions from 'merge-options'
+import path from 'path'
 
 const merge = mergeOptions.bind({
   ignoreUndefined: true,
@@ -38,7 +38,6 @@ ${tmpl}
   const watchPlugin = {
     name: 'watcher',
     setup(build) {
-      // @ts-ignore
       build.onLoad({ filter: /.*/, namespace: 'file' }, (args) => {
         files.add(args.path)
       })

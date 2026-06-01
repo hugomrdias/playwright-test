@@ -1,4 +1,4 @@
-import { assert, test as _test, suite } from '../../src/taps/index.js'
+import { test as _test, assert, suite } from '../../src/taps/index.js'
 
 let { test } = suite('suite2')
 
@@ -44,7 +44,7 @@ _test('default suite', () => {
 test(
   'should fail if Promise never resolves :: GC',
   async () => {
-    // biome-ignore lint/suspicious/noEmptyBlockStatements: <explanation>
+    // biome-ignore lint/suspicious/noEmptyBlockStatements: test
     await new Promise(() => {})
   },
   { timeout: 100, skip: true }

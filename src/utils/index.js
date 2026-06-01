@@ -1,21 +1,21 @@
-/* eslint-disable no-console */
+/** biome-ignore-all lint/suspicious/noConsole: its ok */
 
-import fs from 'fs'
-import { createServer } from 'http'
-import { createRequire } from 'module'
-import path from 'path'
-import { fileURLToPath, pathToFileURL } from 'url'
-import { promisify } from 'util'
 import camelCase from 'camelcase'
 import esbuild from 'esbuild'
 import { wasmLoader } from 'esbuild-plugin-wasm'
+import fs from 'fs'
+import { createServer } from 'http'
 import kleur from 'kleur'
-// @ts-ignore
+// @ts-expect-error
 import mergeOptions from 'merge-options'
+import { createRequire } from 'module'
 import ora from 'ora'
+import path from 'path'
 import polka from 'polka'
 import sirv from 'sirv'
 import { globSync } from 'tinyglobby'
+import { fileURLToPath, pathToFileURL } from 'url'
+import { promisify } from 'util'
 import V8ToIstanbul from 'v8-to-istanbul'
 import * as DefaultRunners from '../test-runners.js'
 
@@ -300,13 +300,13 @@ export async function getPw(browserName, debug, extension) {
   }
 
   if (browserName === 'chromium' && !debug && !extension) {
-    // @ts-ignore
+    // @ts-expect-error
     browserName = 'chromium-headless-shell'
   }
 
   const {
     registry: { registry },
-    // @ts-ignore
+    // @ts-expect-error
   } = await import('playwright-core/lib/coreBundle')
   const api = await import('playwright-core')
   const browser = registry.findExecutable(browserName)
@@ -324,12 +324,11 @@ export async function getPw(browserName, debug, extension) {
     console.log = log
     console.info = info
   }
-  // @ts-ignore
   if (browserName === 'chromium-headless-shell') {
     return api.chromium
   }
 
-  // @ts-ignore
+  // @ts-expect-error
   return api[browserName]
 }
 
@@ -388,7 +387,7 @@ export function runnerOptions(flags) {
     ]
 
     if (!localFlags.includes(key)) {
-      // @ts-ignore
+      // @ts-expect-error
       opts[camelCase(key)] = value
     }
   }
@@ -452,7 +451,6 @@ await import('${require
   const watchPlugin = {
     name: 'watcher',
     setup(build) {
-      // @ts-ignore
       build.onLoad({ filter: /.*/, namespace: 'file' }, (args) => {
         files.add(args.path)
       })
@@ -496,16 +494,16 @@ export async function createCov(runner, coverage, file, outputDir) {
   const spinner = ora('Generating code coverage.').start()
   const entries = {}
   const { cwd } = runner.options
-  // @ts-ignore
+  // @ts-expect-error
   const TestExclude = require('test-exclude')
   const exclude = new TestExclude({ cwd })
-  // @ts-ignore
+  // @ts-expect-error
   const f = new Set(exclude.globSync().map((f) => path.join(cwd, f)))
   for (const entry of coverage) {
     const filePath = path.resolve(runner.dir, entry.url.replace(runner.url, ''))
 
     if (filePath.includes(file)) {
-      // @ts-ignore
+      // @ts-expect-error
       const converter = new V8ToIstanbul(
         filePath,
         0,
@@ -523,7 +521,7 @@ export async function createCov(runner, coverage, file, outputDir) {
 
       for (const key in instanbul) {
         if (f.has(key)) {
-          // @ts-ignore
+          // @ts-expect-error
           entries[key] = instanbul[key]
         }
       }
@@ -597,7 +595,7 @@ function getPort(port = 3000, host = '127.0.0.1') {
 
   return new Promise((resolve, reject) => {
     server.on('error', (err) => {
-      // @ts-ignore
+      // @ts-expect-error
       if (err.code === 'EADDRINUSE' || err.code === 'EACCES') {
         server.listen(0, host)
       } else {
@@ -605,7 +603,7 @@ function getPort(port = 3000, host = '127.0.0.1') {
       }
     })
     server.on('listening', () => {
-      // @ts-ignore
+      // @ts-expect-error
       const { port } = server.address()
 
       server.close(() => resolve(port))
@@ -629,7 +627,6 @@ export async function createPolka(dir, cwd, assets) {
   return new Promise((resolve, reject) => {
     const { server } = polka()
       .use(
-        // @ts-ignore
         sirv(dir, {
           dev: true,
           setHeaders: (
@@ -644,7 +641,6 @@ export async function createPolka(dir, cwd, assets) {
         })
       )
       .use(
-        // @ts-ignore
         sirv(path.join(cwd, assets), {
           dev: true,
           setHeaders: (

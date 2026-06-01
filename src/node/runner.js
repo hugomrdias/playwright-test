@@ -1,14 +1,14 @@
-import { mkdirSync } from 'fs'
-import { createRequire } from 'module'
 import { fileURLToPath } from 'node:url'
-import path from 'path'
 import { watch } from 'chokidar'
 import { execa } from 'execa'
 import { asyncExitHook, gracefulExit } from 'exit-hook'
-// @ts-ignore
+import { mkdirSync } from 'fs'
+// @ts-expect-error
 import mergeOptions from 'merge-options'
+import { createRequire } from 'module'
 import { nanoid } from 'nanoid'
-// @ts-ignore
+import path from 'path'
+// @ts-expect-error
 import { premove } from 'premove'
 import * as DefaultRunners from '../test-runners.js'
 import { createPolka, findTests, log } from '../utils/index.js'
@@ -62,7 +62,7 @@ export class NodeRunner {
    * @param {Partial<import('../types.js').RunnerOptions>} options
    * @param {string[]} [testFiles]
    */
-  constructor(options = {}, testFiles) {
+  constructor(options, testFiles) {
     /** @type {import('../types.js').RunnerOptions} */
     this.options = merge(defaultOptions, options)
     /** @type {import('polka').Polka["server"] | undefined} */
@@ -212,6 +212,7 @@ export class NodeRunner {
         if ('command' in error) {
           return
         }
+        // biome-ignore lint/suspicious/noConsole: its ok
         console.error(error.stack)
       }
     })
