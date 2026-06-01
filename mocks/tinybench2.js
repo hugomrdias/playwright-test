@@ -18,12 +18,6 @@ async function run() {
 
 await run()
 
-console.table(
-  bench.tasks.map(({ name, result }) => ({
-    'Task Name': name,
-    'Average Time (ps)': result?.mean * 1000,
-    'Variance (ps)': result?.variance * 1000,
-  }))
-)
+console.table(bench.table())
 
 process.exit(0)

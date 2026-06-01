@@ -332,7 +332,7 @@ describe('custom runner', () => {
     ])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('Task Name'), 'process stdout')
+    ok(proc.stdout.includes('Setup complete'), 'process stdout')
   })
 
   it('module from config', async () => {

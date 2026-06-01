@@ -124,9 +124,8 @@ async function runner(ctx, testCount) {
               throw new Error('beforeEach hook failed', { cause: error })
             }
           }
-          // @ts-expect-error
-          await pTimeout(test.fn(), {
-            milliseconds: test.options.timeout,
+          await pTimeout(Promise.resolve(test.fn()), {
+            milliseconds: test.options.timeout ?? 5000,
           })
           passed++
 
