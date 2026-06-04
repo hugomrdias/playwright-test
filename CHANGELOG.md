@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.0.1](https://github.com/hugomrdias/playwright-test/compare/v15.0.0...v15.0.1) (2026-06-04)
+
+
+### Bug Fixes
+
+* bump googleapis/release-please-action from 4 to 5 ([#727](https://github.com/hugomrdias/playwright-test/issues/727)) ([ce4e35f](https://github.com/hugomrdias/playwright-test/commit/ce4e35f3cc3d4c668d85c61f140f130ace1c9e70))
+
 ## [15.0.0](https://github.com/hugomrdias/playwright-test/compare/v14.1.15...v15.0.0) (2026-06-01)
 
 
