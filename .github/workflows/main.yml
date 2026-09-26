@@ -14,14 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/setup@v3
         with:
-          version: latest
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-          cache: pnpm
-      - run: pnpm install
+          cache: true
       - run: pnpm exec playwright-core install-deps webkit
       - run: pnpm run lint
       - run: pnpm run test
@@ -34,14 +29,9 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/setup@v3
         with:
-          version: latest
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-          cache: pnpm
-      - run: pnpm install
+          cache: true
       - run: pnpm run lint
       - run: pnpm run test
       - run: ./cli.js mocks/test.mocha.js --browser chromium
@@ -53,14 +43,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/setup@v3
         with:
-          version: latest
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-          cache: pnpm
-      - run: pnpm install
+          cache: true
       - run: pnpm run test
       - run: ./cli.js mocks/test.mocha.js --browser chromium
       - run: ./cli.js mocks/test.mocha.js --browser firefox
@@ -84,18 +69,10 @@ jobs:
           release-type: node
       - uses: actions/checkout@v7
         if: ${{ steps.release.outputs.release_created }}
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/setup@v3
         if: ${{ steps.release.outputs.release_created }}
         with:
-          version: latest
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-          registry-url: "https://registry.npmjs.org"
-          cache: pnpm
-        if: ${{ steps.release.outputs.release_created }}
-      - run: pnpm install
-        if: ${{ steps.release.outputs.release_created }}
+          cache: true
       - run: pnpm run lint
         if: ${{ steps.release.outputs.release_created }}
       - run: pnpm publish

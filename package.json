@@ -66,6 +66,14 @@
   "engines": {
     "node": ">=16.0.0"
   },
+  "packageManager": "pnpm@12.7.0",
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^24.0.0",
+      "onFail": "download"
+    }
+  },
   "scripts": {
     "clean": "rm -rf pnpm-lock.yaml .coverage .nyc_output dist node_modules .tmp",
     "fix": "biome check --fix .",
