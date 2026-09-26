@@ -18,8 +18,10 @@ export const mocha = {
   },
   compileRuntime(options, paths) {
     return `
-import mocha from 'mocha/mocha.js'
+import 'mocha/mocha.js'
 ${options.mode === 'node' ? 'globalThis.location={}' : ''}
+
+const mocha = globalThis.mocha
 
 const options = JSON.parse(process.env.PW_OPTIONS)
 const { allowUncaught, bail, reporter, timeout, color, ui, grep } = options.testRunner.options

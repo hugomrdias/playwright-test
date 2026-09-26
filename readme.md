@@ -147,7 +147,9 @@ const config = {
   testRunner: {
     compileRuntime: (options, paths) => {
       return `
-import mocha from 'mocha/mocha.js'
+import 'mocha/mocha.js'
+
+const mocha = globalThis.mocha
 mocha.setup({
     reporter: 'spec',
     timeout: 5000,
