@@ -1,5 +1,15 @@
 # Changelog
 
+## [15.0.1](https://github.com/hugomrdias/playwright-test/compare/v15.0.0...v15.0.1) (2026-09-26)
+
+
+### Bug Fixes
+
+* bump actions/checkout from 6 to 7 ([#734](https://github.com/hugomrdias/playwright-test/issues/734)) ([f9d8f4d](https://github.com/hugomrdias/playwright-test/commit/f9d8f4dedfbab9baf08ee413899474c89bd038b6))
+* bump googleapis/release-please-action from 4 to 5 ([#727](https://github.com/hugomrdias/playwright-test/issues/727)) ([ce4e35f](https://github.com/hugomrdias/playwright-test/commit/ce4e35f3cc3d4c668d85c61f140f130ace1c9e70))
+* bump playwright-core from 1.60.0 to 1.63.0 ([ccbec9c](https://github.com/hugomrdias/playwright-test/commit/ccbec9cc92d3d939f728d81ae654f92224a01fad))
+* support mocha 12 by reading mocha from globalThis ([d51afe0](https://github.com/hugomrdias/playwright-test/commit/d51afe0d9e06ba94e8e01df3682d4d0870ac1ff4))
+
 ## [15.0.0](https://github.com/hugomrdias/playwright-test/compare/v14.1.15...v15.0.0) (2026-06-01)
 
 
