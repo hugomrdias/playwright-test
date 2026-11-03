@@ -308,9 +308,6 @@ importers:
       uvu:
         specifier: ^0.5.6
         version: 0.5.6
-      zora:
-        specifier: ^5.2.0
-        version: 5.2.0
 
 packages:
 
@@ -1992,9 +1989,6 @@ packages:
   yoctocolors@2.2.0:
     resolution: {integrity: sha512-xYqdZFUK/VYazNl/oCDYN+3WloWQwMfZxBoiNt6qNyk+xfOdi598muWE42rNZFp1kNOiqW936q5RhUdnpqElSg==}
     engines: {node: '>=18'}
-
-  zora@5.2.0:
-    resolution: {integrity: sha512-FSZOvfJVfMWhk/poictNsDBCXq/Z+2Zu2peWs6d8OhWWb9nY++czw95D47hdw06L/kfjasLevwrbUtnXyWLAJw==}
 
 snapshots:
 
@@ -3679,5 +3673,3 @@ snapshots:
   yoctocolors@2.1.2: {}
 
   yoctocolors@2.2.0: {}
-
-  zora@5.2.0: {}

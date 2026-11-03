@@ -45,7 +45,7 @@ export interface RunnerEnv extends NodeJS.ProcessEnv {
 }
 
 export interface CliOptions {
-  runner: 'mocha' | 'zora' | 'tape' | 'uvu' | 'benchmark' | 'none'
+  runner: 'mocha' | 'tape' | 'uvu' | 'benchmark' | 'none'
   browser: 'chromium' | 'firefox' | 'webkit'
   mode: 'main' | 'worker' | 'node'
   debug: boolean

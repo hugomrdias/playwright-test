@@ -265,65 +265,6 @@ describe('tape', () => {
   })
 })
 
-describe('zora', () => {
-  it('zora', async () => {
-    const proc = await execa(
-      './cli.js',
-      ['mocks/*.zora.js', '--runner', 'zora'],
-      {
-        env: {
-          ZORA_ONLY: 'true',
-        },
-      }
-    )
-
-    is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('# pass  2'), 'process stdout')
-  })
-
-  it('autodetect', async () => {
-    const proc = await execa('./cli.js', ['mocks/*.zora.js'], {
-      env: {
-        ZORA_ONLY: 'true',
-      },
-    })
-
-    is(proc.exitCode, 0, 'exit code')
-    ok(proc.stderr.includes('Autodetected "zora" as the runner'), proc.stderr)
-  })
-
-  it('zora mode:worker', async () => {
-    const proc = await execa(
-      './cli.js',
-      ['mocks/*.zora.js', '--runner', 'zora', '--mode', 'worker'],
-      {
-        env: {
-          ZORA_ONLY: 'true',
-          INDENT: 'true',
-        },
-      }
-    )
-
-    is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('# pass  2'), 'process stdout')
-  })
-
-  it('zora mode:node', async () => {
-    const proc = await execa(
-      './cli.js',
-      ['mocks/*.zora.js', '--runner', 'zora', '--mode', 'node'],
-      {
-        env: {
-          ZORA_ONLY: 'true',
-        },
-      }
-    )
-
-    is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('# pass  2'), 'process stdout')
-  })
-})
-
 describe('uvu', () => {
   it('basic', async () => {
     const proc = await execa('./cli.js', ['mocks/uvu', '--runner', 'uvu'])
