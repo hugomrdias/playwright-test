@@ -422,7 +422,9 @@ export class Runner {
     const { files } = await this.runTests(page)
 
     const watcher = watch([...files], {
-      ignored: /(^|[/\\])\../,
+      // Match dot files relative to cwd, so projects inside dot folders still work
+      ignored: (file) =>
+        /(^|[/\\])\../.test(path.relative(this.options.cwd, file)),
       ignoreInitial: true,
       awaitWriteFinish: { pollInterval: 100, stabilityThreshold: 500 },
     }).on('change', async () => {
