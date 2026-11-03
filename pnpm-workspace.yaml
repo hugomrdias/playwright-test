@@ -1,8 +1,8 @@
 allowBuilds:
-  '@biomejs/biome': true
+  "@biomejs/biome": true
   esbuild: true
   simple-git-hooks: true
 onlyBuiltDependencies:
-  - '@biomejs/biome'
+  - "@biomejs/biome"
   - esbuild
   - simple-git-hooks
