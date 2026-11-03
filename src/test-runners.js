@@ -1,6 +1,6 @@
 import { createRequire } from 'module'
 import path from 'path'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -89,16 +89,16 @@ export const tape = {
   compileRuntime(options, paths) {
     return `
 ${options.mode === 'node' ? 'globalThis.location={}' : ''}
-import { onFailure, onFinish } from 'tape'
+import tape from 'tape'
 
-self.TAPE_RUN_FAIL = false
+globalThis.TAPE_RUN_FAIL = false
 
-onFailure(() => {
-  self.TAPE_RUN_FAIL = true
+tape.onFailure(() => {
+  globalThis.TAPE_RUN_FAIL = true
 })
 
-onFinish(() => {
-  process.exit(self.TAPE_RUN_FAIL ? 1 : 0)
+tape.onFinish(() => {
+  process.exit(globalThis.TAPE_RUN_FAIL ? 1 : 0)
 })
 
 ${paths.map((url) => `await import('${url}')`).join('\n')}
@@ -209,10 +209,13 @@ exec().then(() => {
 export const tapsLocal = {
   moduleId: '../../src/taps/index.js',
   options: {},
-  compileRuntime(_options, paths) {
-    const tapsPath = path
-      .resolve(__dirname, 'taps/index.js')
-      .replaceAll('\\', '/')
+  compileRuntime(options, paths) {
+    const tapsFile = path.resolve(__dirname, 'taps/index.js')
+    // node needs a file URL for absolute paths on Windows, esbuild needs a path
+    const tapsPath =
+      options.mode === 'node'
+        ? pathToFileURL(tapsFile).href
+        : tapsFile.replaceAll('\\', '/')
     return `
 const {exec, hold} = await import('${tapsPath}')
 hold()

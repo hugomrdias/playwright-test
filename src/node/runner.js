@@ -1,28 +1,21 @@
-import { fileURLToPath } from 'node:url'
+import { mkdirSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { watch } from 'chokidar'
 import { execa } from 'execa'
 import { asyncExitHook, gracefulExit } from 'exit-hook'
-import { mkdirSync } from 'fs'
 // @ts-expect-error
 import mergeOptions from 'merge-options'
-import { createRequire } from 'module'
 import { nanoid } from 'nanoid'
-import path from 'path'
 // @ts-expect-error
 import { premove } from 'premove'
 import * as DefaultRunners from '../test-runners.js'
 import { createPolka, findTests, log } from '../utils/index.js'
-import { build } from './utils.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const merge = mergeOptions.bind({ ignoreUndefined: true })
-const require = createRequire(import.meta.url)
 
 /**
- * @typedef {import('playwright-core').Page} Page
- * @typedef {import('playwright-core').BrowserContext} Context
- * @typedef {import('playwright-core').Browser} Browser
- * @typedef {import('playwright-core').ChromiumBrowserContext} ChromiumBrowserContext
  * @typedef {import('../types.js').RunnerOptions} RunnerOptions
  * @typedef {import('../types.js').TestRunner} TestRunner
  */
@@ -56,6 +49,12 @@ const defaultOptions = {
   },
 }
 
+/**
+ * Runs tests directly in Node.js without bundling.
+ *
+ * The test runner entry is piped to `node --input-type=module` through stdin so
+ * imports resolve from `options.cwd`, just like a module living in the project.
+ */
 export class NodeRunner {
   /**
    *
@@ -105,22 +104,44 @@ export class NodeRunner {
   }
 
   /**
-   * Run the tests
-   *
+   * Compile the test runner entry module
    */
-  async runTests() {
-    const { outName, files } = await build(
-      this,
-      this.options.testRunner.buildConfig
-        ? this.options.testRunner.buildConfig(this.options)
-        : {},
-      this.options.testRunner.compileRuntime(
-        this.options,
-        this.tests.map((t) => t.replaceAll('\\', '/'))
+  #entry() {
+    return this.options.testRunner.compileRuntime(
+      this.options,
+      this.tests.map(
+        (t) => pathToFileURL(path.resolve(this.options.cwd, t)).href
       )
     )
+  }
 
-    return { outName, files }
+  /**
+   * Run the tests in a node subprocess
+   */
+  runTests() {
+    const nodeArgs = ['--enable-source-maps', '--input-type=module']
+    const [file, args] = this.options.cov
+      ? [
+          'c8',
+          [
+            '--reporter=text',
+            '--reporter=json',
+            '--report-dir',
+            this.options.reportDir,
+            'node',
+            ...nodeArgs,
+          ],
+        ]
+      : ['node', nodeArgs]
+
+    return execa(file, args, {
+      cwd: this.options.cwd,
+      env: this.env,
+      input: this.#entry(),
+      preferLocal: true,
+      stdout: 'inherit',
+      stderr: 'inherit',
+    })
   }
 
   async run() {
@@ -130,39 +151,9 @@ export class NodeRunner {
 
     await this.#setupServer()
     await this.options.beforeTests(this.env)
-    const sourceMapRegisterPath = require.resolve('source-map-support/register')
 
     try {
-      const { outName } = await this.runTests()
-      await (this.options.cov
-        ? execa(
-            'c8',
-            [
-              '--reporter=text',
-              '--reporter=json',
-              '--report-dir',
-              this.options.reportDir,
-              '--exclude-after-remap',
-              '--src',
-              this.dir,
-              'node',
-              '-r',
-              sourceMapRegisterPath,
-              path.join(this.dir, outName),
-            ],
-            {
-              preferLocal: true,
-              stdio: 'inherit',
-            }
-          )
-        : execa(
-            'node',
-            ['-r', sourceMapRegisterPath, path.join(this.dir, outName)],
-            {
-              preferLocal: true,
-              stdio: 'inherit',
-            }
-          ))
+      await this.runTests()
     } catch {
       await this.stop(true, 'Tests failed.')
     }
@@ -176,46 +167,55 @@ export class NodeRunner {
 
     await this.#setupServer()
     await this.options.beforeTests(this.env)
-    const sourceMapRegisterPath = require.resolve('source-map-support/register')
 
-    const { files, outName } = await this.runTests()
-    try {
-      await execa(
-        'node',
-        ['-r', sourceMapRegisterPath, path.join(this.dir, outName)],
-        {
-          stdio: 'inherit',
-        }
-      )
-    } catch {
+    const cwd = this.options.cwd
+    const extensions = this.options.extensions.split(',')
+    const noop = () => {
       // noop
     }
+    let subprocess = this.runTests()
+    subprocess.catch(noop)
+    let restarting = false
+    let pending = false
 
-    // Watch for changes
-    const watcher = watch([...files], {
-      ignored: /(^|[/\\])\../,
+    // Wait for the previous run to exit before starting the next one, and
+    // coalesce changes that happen while restarting into a single run
+    const restart = async () => {
+      if (restarting) {
+        pending = true
+        return
+      }
+      restarting = true
+      do {
+        pending = false
+        log.info('Reloading tests...')
+        // execa sends SIGKILL if the process is still alive after 5s
+        subprocess.kill()
+        await subprocess.catch(noop)
+        subprocess = this.runTests()
+        subprocess.catch(noop)
+      } while (pending)
+      restarting = false
+    }
+
+    // Watch for changes in the project, ignoring dot folders and node_modules
+    watch(cwd, {
+      ignored: (file, stats) => {
+        const rel = path.relative(cwd, file)
+        if (
+          rel
+            .split(path.sep)
+            .some((part) => part.startsWith('.') || part === 'node_modules')
+        ) {
+          return true
+        }
+        return Boolean(
+          stats?.isFile() && !extensions.includes(path.extname(file).slice(1))
+        )
+      },
       ignoreInitial: true,
       awaitWriteFinish: { pollInterval: 100, stabilityThreshold: 500 },
-    }).on('change', async () => {
-      try {
-        log.info('Reloading tests...')
-        const { files, outName } = await this.runTests()
-        await execa(
-          'node',
-          ['-r', sourceMapRegisterPath, path.join(this.dir, outName)],
-          {
-            stdio: 'inherit',
-          }
-        )
-        watcher.add([...files])
-      } catch (/** @type {any} */ error) {
-        if ('command' in error) {
-          return
-        }
-        // biome-ignore lint/suspicious/noConsole: its ok
-        console.error(error.stack)
-      }
-    })
+    }).on('change', restart)
   }
 
   async #clean() {

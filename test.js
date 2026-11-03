@@ -39,6 +39,34 @@ describe('mocha', () => {
     ok(proc.stdout.includes('passing'), 'process stdout')
   })
 
+  it('node typescript', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/test.mocha.ts',
+      '--runner',
+      'mocha',
+      '--mode',
+      'node',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('passing'), 'process stdout')
+  })
+
+  it('node coverage', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/test.mocha.js',
+      '--runner',
+      'mocha',
+      '--mode',
+      'node',
+      '--cov',
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('passing'), 'process stdout')
+    ok(proc.stdout.includes('test.mocha.js'), 'coverage maps to source files')
+  })
+
   it('auto detect', async () => {
     const proc = await execa('./cli.js', ['mocks/test.mocha.js'])
 
@@ -279,11 +307,39 @@ describe('zora', () => {
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('# pass  2'), 'process stdout')
   })
+
+  it('zora mode:node', async () => {
+    const proc = await execa(
+      './cli.js',
+      ['mocks/*.zora.js', '--runner', 'zora', '--mode', 'node'],
+      {
+        env: {
+          ZORA_ONLY: 'true',
+        },
+      }
+    )
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('# pass  2'), 'process stdout')
+  })
 })
 
 describe('uvu', () => {
   it('basic', async () => {
     const proc = await execa('./cli.js', ['mocks/uvu', '--runner', 'uvu'])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('Skipped:   0'), 'process stdout')
+  })
+
+  it('node', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/uvu',
+      '--runner',
+      'uvu',
+      '--mode',
+      'node',
+    ])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('Skipped:   0'), 'process stdout')

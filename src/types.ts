@@ -95,11 +95,12 @@ export interface TestRunner {
    */
   options?: unknown
   /**
-   * Esbuild config for the test runner
+   * Esbuild config for the test runner (ignored in node mode)
    */
   buildConfig?: (options: RunnerOptions) => BuildOptions
   /**
-   * Compile runtime entry point for esbuild
+   * Compile runtime entry point. In browser modes it is bundled with esbuild,
+   * in node mode it is run as an ES module and `testPaths` are file URLs.
    *
    * @param options - Runner options
    * @param testPaths - Test paths
