@@ -77,6 +77,20 @@ Description
     $ playwright-test test/** BAD
 ```
 
+## Node mode
+
+`--mode node` runs your tests directly in Node.js without bundling. The test files are imported as native ES modules from the project `cwd`, so the usual Node rules apply:
+
+- Relative imports need file extensions (`./lib.js`, not `./lib`) and directory imports are not supported.
+- TypeScript files work through Node's built-in [type stripping](https://nodejs.org/api/typescript.html#type-stripping), so only erasable syntax is supported (no `enum`, `namespace`, parameter properties or `.tsx`).
+- `buildConfig` and the test runner `buildConfig` are ignored.
+- `import.meta.env` is not defined, use `process.env` instead.
+- `--watch` re-runs the tests when any file matching `--extensions` changes in `cwd` (ignoring `node_modules` and dot folders).
+
+```shell
+playwright-test "test/**/*.spec.js" --mode node
+```
+
 ## Client
 
 This client package exposes the `playwright-test` options and some Playwright browser context methods to be used in tests.
@@ -189,11 +203,12 @@ export interface TestRunner {
    */
   options?: unknown
   /**
-   * Esbuild config for the test runner
+   * Esbuild config for the test runner (ignored in node mode)
    */
   buildConfig?: BuildOptions
   /**
-   * Compile runtime entry point for esbuild
+   * Compile runtime entry point. In browser modes it is bundled with esbuild,
+   * in node mode it is run as an ES module and `testPaths` are file URLs.
    *
    * @param options - Runner options
    * @param testPaths - Test paths
@@ -247,7 +262,7 @@ The config file can also export a function that receives the cli options as argu
 function buildConfig(cliOptions) {
   return {
     buildConfig: {
-      bundle: cliOptions.mode !== 'node',
+      minify: cliOptions.mode === 'worker',
     },
   }
 }

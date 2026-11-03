@@ -1,6 +1,6 @@
 import pdefer from 'p-defer'
 import { equal, is } from 'uvu/assert'
-import * as Client from '../src/client'
+import * as Client from '../src/client/index.js'
 
 it.skip('Array', () => {
   describe('#indexOf()', () => {

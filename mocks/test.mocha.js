@@ -1,9 +1,9 @@
-/* eslint-disable no-undef */
-// eslint-disable-next-line strict
-const { is, ok, equal } = require('uvu/assert')
-const debug = require('debug')('app')
-const { good, bad } = require('./lib')
-const Client = require('../src/client')
+import createDebug from 'debug'
+import { equal, is, ok } from 'uvu/assert'
+import * as Client from '../src/client/index.js'
+import { bad, good } from './lib.js'
+
+const debug = createDebug('app')
 
 describe('Array', () => {
   describe('#indexOf()', () => {
@@ -33,7 +33,10 @@ describe('Array', () => {
     })
 
     it('should has import.meta.env', () => {
-      equal(import.meta.env, process.env)
+      // import.meta.env is only injected by the bundler (browser modes)
+      if (Client.mode !== 'node') {
+        equal(import.meta.env, process.env)
+      }
     })
 
     it('should has server', () => {

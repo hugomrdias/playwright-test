@@ -89,16 +89,16 @@ export const tape = {
   compileRuntime(options, paths) {
     return `
 ${options.mode === 'node' ? 'globalThis.location={}' : ''}
-import { onFailure, onFinish } from 'tape'
+import tape from 'tape'
 
-self.TAPE_RUN_FAIL = false
+globalThis.TAPE_RUN_FAIL = false
 
-onFailure(() => {
-  self.TAPE_RUN_FAIL = true
+tape.onFailure(() => {
+  globalThis.TAPE_RUN_FAIL = true
 })
 
-onFinish(() => {
-  process.exit(self.TAPE_RUN_FAIL ? 1 : 0)
+tape.onFinish(() => {
+  process.exit(globalThis.TAPE_RUN_FAIL ? 1 : 0)
 })
 
 ${paths.map((url) => `await import('${url}')`).join('\n')}

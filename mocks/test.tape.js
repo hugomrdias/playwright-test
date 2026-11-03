@@ -1,5 +1,5 @@
-const test = require('tape')
-const debug = require('debug')
+import debug from 'debug'
+import test from 'tape'
 
 const error = debug('app:error')
 
