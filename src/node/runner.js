@@ -170,10 +170,33 @@ export class NodeRunner {
 
     const cwd = this.options.cwd
     const extensions = this.options.extensions.split(',')
-    let subprocess = this.runTests()
-    subprocess.catch(() => {
+    const noop = () => {
       // noop
-    })
+    }
+    let subprocess = this.runTests()
+    subprocess.catch(noop)
+    let restarting = false
+    let pending = false
+
+    // Wait for the previous run to exit before starting the next one, and
+    // coalesce changes that happen while restarting into a single run
+    const restart = async () => {
+      if (restarting) {
+        pending = true
+        return
+      }
+      restarting = true
+      do {
+        pending = false
+        log.info('Reloading tests...')
+        // execa sends SIGKILL if the process is still alive after 5s
+        subprocess.kill()
+        await subprocess.catch(noop)
+        subprocess = this.runTests()
+        subprocess.catch(noop)
+      } while (pending)
+      restarting = false
+    }
 
     // Watch for changes in the project, ignoring dot folders and node_modules
     watch(cwd, {
@@ -192,14 +215,7 @@ export class NodeRunner {
       },
       ignoreInitial: true,
       awaitWriteFinish: { pollInterval: 100, stabilityThreshold: 500 },
-    }).on('change', () => {
-      log.info('Reloading tests...')
-      subprocess.kill()
-      subprocess = this.runTests()
-      subprocess.catch(() => {
-        // noop
-      })
-    })
+    }).on('change', restart)
   }
 
   async #clean() {

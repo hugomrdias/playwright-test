@@ -1,6 +1,6 @@
 import { createRequire } from 'module'
 import path from 'path'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -209,10 +209,13 @@ exec().then(() => {
 export const tapsLocal = {
   moduleId: '../../src/taps/index.js',
   options: {},
-  compileRuntime(_options, paths) {
-    const tapsPath = path
-      .resolve(__dirname, 'taps/index.js')
-      .replaceAll('\\', '/')
+  compileRuntime(options, paths) {
+    const tapsFile = path.resolve(__dirname, 'taps/index.js')
+    // node needs a file URL for absolute paths on Windows, esbuild needs a path
+    const tapsPath =
+      options.mode === 'node'
+        ? pathToFileURL(tapsFile).href
+        : tapsFile.replaceAll('\\', '/')
     return `
 const {exec, hold} = await import('${tapsPath}')
 hold()
