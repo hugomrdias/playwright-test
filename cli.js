@@ -14,7 +14,7 @@ import { fileURLToPath, pathToFileURL } from 'url'
 import { NodeRunner } from './src/node/runner.js'
 import { Runner } from './src/runner.js'
 import * as DefaultRunners from './src/test-runners.js'
-import { benchmark, mocha, none, tape, uvu, zora } from './src/test-runners.js'
+import { benchmark, mocha, none, tape, uvu } from './src/test-runners.js'
 import { detectTestRunner } from './src/utils/auto-detect.js'
 import {
   defaultOptions,
@@ -131,11 +131,11 @@ const configLoaders = {
 sade2
   .version(version)
   .describe(
-    'Run mocha, zora, uvu, tape and benchmark.js scripts inside real browsers with `playwright` and in Node.'
+    'Run mocha, uvu, tape and benchmark.js scripts inside real browsers with `playwright` and in Node.'
   )
   .option(
     '-r, --runner',
-    'Test runner. Options: mocha, tape, zora, uvu, none, taps and benchmark. It also accepts a path to a module or a module name that exports a `playwrightTestRunner` object.'
+    'Test runner. Options: mocha, tape, uvu, none, taps and benchmark. It also accepts a path to a module or a module name that exports a `playwrightTestRunner` object.'
   )
   .option(
     '-b, --browser',
@@ -245,10 +245,6 @@ sade2
       switch (opts.runner) {
         case 'uvu': {
           options.testRunner = uvu
-          break
-        }
-        case 'zora': {
-          options.testRunner = zora
           break
         }
         case 'mocha': {

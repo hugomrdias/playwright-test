@@ -159,27 +159,6 @@ uvu.exec(true).then((r) => {
   },
 }
 
-/** @type {import('./types.js').TestRunner} */
-export const zora = {
-  moduleId: 'zora',
-  options: {},
-  compileRuntime(_options, paths) {
-    return `
-const {hold, report, createTAPReporter} = await import('zora')
-hold()
-
-${paths.map((url) => `await import('${url}')`).join('\n')}
-
-const out = report({
-    reporter: createTAPReporter()
-}).then((r) => {
-    process.exit(process.exitCode)
-})
-        
-`
-  },
-}
-
 /**
  * Playwright Test Runner
  *

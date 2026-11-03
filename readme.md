@@ -1,6 +1,6 @@
 # playwright-test [![NPM Version](https://img.shields.io/npm/v/playwright-test.svg)](https://www.npmjs.com/package/playwright-test) [![NPM Downloads](https://img.shields.io/npm/dt/playwright-test.svg)](https://www.npmjs.com/package/playwright-test) [![NPM License](https://img.shields.io/npm/l/playwright-test.svg)](https://www.npmjs.com/package/playwright-test) ![tests](https://github.com/hugomrdias/playwright-test/workflows/tests/badge.svg)
 
-> Run mocha, zora, uvu, tape and benchmark.js scripts inside real browsers with `playwright`.
+> Run mocha, uvu, tape and benchmark.js scripts inside real browsers with `playwright`.
 
 ## Install
 
@@ -21,13 +21,13 @@ pw-test [files] [options]
 
 ```shell
 Description
-    Run mocha, zora, uvu, tape and benchmark.js scripts inside real browsers with `playwright` and in Node.
+    Run mocha, uvu, tape and benchmark.js scripts inside real browsers with `playwright` and in Node.
 
   Usage
     $ playwright-test [files] [options]
 
   Options
-    -r, --runner       Test runner. Options: mocha, tape, zora, uvu, none, taps and benchmark. Internal runners are autodetected by default. It also accepts a path to a module or a module ID that exports a `playwrightTestRunner` object.
+    -r, --runner       Test runner. Options: mocha, tape, uvu, none, taps and benchmark. Internal runners are autodetected by default. It also accepts a path to a module or a module ID that exports a `playwrightTestRunner` object.
     -b, --browser      Browser to run tests. Options: chromium, firefox, webkit.  (default chromium)
     -m, --mode         Run mode. Options: main, worker and node.  (default main)
     -d, --debug        Debug mode, keeps browser window open.  (default false)
