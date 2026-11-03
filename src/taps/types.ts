@@ -1,6 +1,11 @@
 import type _assert from 'assert'
 import type { instance, subset, type } from './assert'
 
+declare global {
+  /** Set when any test uses `test.only` */
+  var TAPS_ONLY: boolean
+}
+
 export interface TypeMap {
   boolean: boolean
   number: number
