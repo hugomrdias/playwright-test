@@ -28,6 +28,7 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
+const CONSOLE_FLUSH_TIMEOUT = 5000
 
 /**
  * @typedef {import('playwright-core').Page} Page
@@ -61,6 +62,8 @@ export class Runner {
     this.url = ''
     this.stopped = false
     this.watching = false
+    /** @type {Set<Promise<void>>} */
+    this.pendingConsole = new Set()
 
     /** @type {import('./types').RunnerEnv} */
     this.env = merge(JSON.parse(JSON.stringify(process.env)), {
@@ -251,7 +254,7 @@ export class Runner {
     }
 
     // Setup page events
-    this.page.on('console', redirectConsole)
+    this.page.on('console', this.#onConsole)
 
     // uncaught rejections
     this.page.on('pageerror', (err) => {
@@ -385,7 +388,7 @@ export class Runner {
     const page = await context.newPage()
     await page.goto(`${this.url}before.html`)
 
-    page.on('console', redirectConsole)
+    page.on('console', this.#onConsole)
     page.on('pageerror', (err) => {
       log.error(
         `Uncaught exception happened within the before page. Run with --debug. \n${kleur.dim(
@@ -445,6 +448,58 @@ export class Runner {
     })
   }
 
+  /**
+   * Print a console message and keep track of it until it's done
+   *
+   * @param {import('playwright-core').ConsoleMessage} msg
+   */
+  #onConsole = (msg) => {
+    const pending = redirectConsole(msg).finally(() => {
+      this.pendingConsole.delete(pending)
+    })
+    this.pendingConsole.add(pending)
+  }
+
+  /**
+   * Wait for the browser console messages to be printed, closing the browser
+   * rejects the ones still reading their arguments and drops the ones still on
+   * their way. A stuck page only delays the exit up to the timeout.
+   */
+  async #flushConsole() {
+    const flush = async () => {
+      // Console messages come in order with evaluate results from the same
+      // target, after this round trip the older ones already reached node.
+      // Workers need their own, the message ending the run can overtake them.
+      await Promise.allSettled(
+        (this.context?.pages() ?? []).flatMap((page) => [
+          page.evaluate('0'),
+          ...page.workers().map((worker) => worker.evaluate('0')),
+        ])
+      )
+
+      while (this.pendingConsole.size > 0) {
+        await Promise.allSettled(this.pendingConsole)
+      }
+      return true
+    }
+
+    /** @type {NodeJS.Timeout | undefined} */
+    let timer
+    const flushed = await Promise.race([
+      flush(),
+      new Promise((resolve) => {
+        timer = setTimeout(resolve, CONSOLE_FLUSH_TIMEOUT, false)
+      }),
+    ])
+    clearTimeout(timer)
+
+    if (!flushed) {
+      log.warn(
+        'Timed out waiting for browser console output, some may be lost.'
+      )
+    }
+  }
+
   async #clean() {
     // Run after tests hook
     await this.options.afterTests(this.env)
@@ -475,11 +530,15 @@ export class Runner {
    * @param {boolean} fail
    * @param {string | undefined} [msg]
    */
-  stop(fail, msg) {
+  async stop(fail, msg) {
     if (this.stopped || this.options.debug) {
-      return Promise.resolve()
+      return
     }
     this.stopped = true
+
+    if (this.context) {
+      await this.#flushConsole()
+    }
 
     if (fail && msg) {
       log.error(msg)
