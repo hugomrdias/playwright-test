@@ -365,29 +365,45 @@ export async function getPw(browserName, debug, extension) {
   }
 
   const {
-    registry: { registry },
+    registry: { browserDirectoryToMarkerFilePath, registry },
     // @ts-expect-error
   } = await import('playwright-core/lib/coreBundle')
   const api = await import('playwright-core')
   const browser = registry.findExecutable(browserName)
+  // Validating the browser on Windows needs winldd, same as Playwright's own install.
+  const executables =
+    process.platform === 'win32'
+      ? [registry.findExecutable('winldd'), browser]
+      : [browser]
 
-  // playwright will log browser download progress to stdout, temporarily
-  // redirect the output to stderr
-  const log = console.log
-  const info = console.info
-
-  try {
-    console.log = console.error
-    console.info = console.error
-    // Validating the browser on Windows needs winldd, same as Playwright's own install.
-    await registry.install(
-      process.platform === 'win32'
-        ? [registry.findExecutable('winldd'), browser]
-        : [browser]
+  // registry.install locks the whole browsers folder even when there is nothing
+  // to download, and a run that finds it locked sleeps for at least a second, so
+  // only call it when something is missing. Playwright writes the marker file
+  // last, so a download still in progress goes through the lock and waits for it.
+  /** @param {{ directory: string, executablePath: () => string | undefined }} executable */
+  const isInstalled = (executable) => {
+    const executablePath = executable.executablePath()
+    return (
+      executablePath !== undefined &&
+      fs.existsSync(executablePath) &&
+      fs.existsSync(browserDirectoryToMarkerFilePath(executable.directory))
     )
-  } finally {
-    console.log = log
-    console.info = info
+  }
+
+  if (!executables.every(isInstalled)) {
+    // playwright will log browser download progress to stdout, temporarily
+    // redirect the output to stderr
+    const log = console.log
+    const info = console.info
+
+    try {
+      console.log = console.error
+      console.info = console.error
+      await registry.install(executables)
+    } finally {
+      console.log = log
+      console.info = info
+    }
   }
   if (browserName === 'chromium-headless-shell') {
     return api.chromium
