@@ -201,7 +201,6 @@ describe('node:test runner', () => {
     /** @type {string} */
     let dir
     before(() => {
-      // The cli takes globs, which can't be absolute paths with backslashes on Windows
       dir = fs.mkdtempSync('mocks/tmp-hooks-')
     })
     after(() => {

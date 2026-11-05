@@ -11,7 +11,6 @@ describe('runner auto detection', () => {
   let count = 0
 
   before(() => {
-    // The cli takes globs, which can't be absolute paths with backslashes on Windows
     dir = fs.mkdtempSync('mocks/tmp-detect-')
   })
   after(() => {

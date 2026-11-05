@@ -74,6 +74,9 @@ Description
     Do not let your shell expand globs, always wrap them.
     $ playwright-test "test/**" GOOD
     $ playwright-test test/** BAD
+
+    A path that exists is used as is, even with glob characters in it.
+    $ playwright-test "app/[id].test.js"
 ```
 
 ## Node mode

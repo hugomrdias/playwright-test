@@ -12,7 +12,7 @@ import ora from 'ora'
 import path from 'path'
 import polka from 'polka'
 import sirv from 'sirv'
-import { globSync } from 'tinyglobby'
+import { convertPathToPattern, globSync } from 'tinyglobby'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { promisify } from 'util'
 import V8ToIstanbul from 'v8-to-istanbul'
@@ -184,7 +184,7 @@ export function defaultTestPatterns(extensions) {
  * @param {string} cwd
  * @param {string[]} patterns
  */
-function globFiles(cwd, patterns) {
+function search(cwd, patterns) {
   const files = globSync(patterns, {
     absolute: false,
     caseSensitiveMatch: false,
@@ -199,6 +199,46 @@ function globFiles(cwd, patterns) {
   // Return absolute file paths. This has the side-effect of normalizing paths
   // on Windows.
   return files.map((file) => path.join(cwd, file))
+}
+
+/**
+ * A pattern that names an existing path is that path, not a glob. Otherwise
+ * Windows separators read as escapes, and so do `[id].test.js` or `(a)/b.js` as
+ * glob syntax.
+ *
+ * @param {string} cwd
+ * @param {string[]} patterns
+ */
+function globFiles(cwd, patterns) {
+  /** @type {string[]} */
+  const globs = []
+  /** @type {string[]} */
+  const otherDrives = []
+
+  for (const pattern of patterns) {
+    const target = path.resolve(cwd, pattern)
+    if (!pattern || !fs.existsSync(target)) {
+      globs.push(pattern)
+      continue
+    }
+
+    const relative = path.relative(cwd, target)
+    if (path.isAbsolute(relative)) {
+      // Another Windows drive, which a search from cwd can't get to
+      otherDrives.push(
+        ...search(path.dirname(target), [
+          convertPathToPattern(path.basename(target)),
+        ])
+      )
+    } else {
+      // Separators first, it reads `app\[id].js` as an escape and not as a folder
+      globs.push(
+        convertPathToPattern(relative.replaceAll(path.sep, '/')) || '.'
+      )
+    }
+  }
+
+  return [...search(cwd, globs), ...otherDrives]
 }
 
 /**
