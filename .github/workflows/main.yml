@@ -55,9 +55,9 @@ jobs:
         with:
           cache: true
       - run: pnpm run test
-      - run: ./cli.js mocks/test.mocha.js --browser chromium
-      - run: ./cli.js mocks/test.mocha.js --browser firefox
-      - run: ./cli.js mocks/test.mocha.js --browser webkit
+      - run: node cli.js mocks/test.mocha.js --browser chromium
+      - run: node cli.js mocks/test.mocha.js --browser firefox
+      - run: node cli.js mocks/test.mocha.js --browser webkit
       - run: node cli.js mocks/node-test/context.test.js --runner ./mocks/node-test/runner.js --browser firefox
       - run: node cli.js mocks/node-test/context.test.js --runner ./mocks/node-test/runner.js --browser webkit
       - run: node mocks/node-test/assert-compare.js --browser firefox
