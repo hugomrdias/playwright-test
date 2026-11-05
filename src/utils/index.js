@@ -242,20 +242,6 @@ function globFiles(cwd, patterns) {
 }
 
 /**
- * Find files
- *
- * @param {object} options
- * @param {string} options.cwd
- * @param {string[]} options.extensions
- * @param {string[]} options.filePatterns
- */
-function findFiles({ cwd, extensions, filePatterns }) {
-  return globFiles(cwd, filePatterns).filter((file) =>
-    hasExtension(extensions, file)
-  )
-}
-
-/**
  * Find the tests files
  *
  * @param {object} options
@@ -271,11 +257,10 @@ export function findTests({ cwd, extensions, filePatterns }) {
   ) {
     filePatterns = defaultTestPatterns(extensions)
   }
-  return findFiles({
-    cwd,
-    extensions,
-    filePatterns,
-  }).filter((file) => !path.basename(file).startsWith('_'))
+  return globFiles(cwd, filePatterns).filter(
+    (file) =>
+      hasExtension(extensions, file) && !path.basename(file).startsWith('_')
+  )
 }
 
 /**
