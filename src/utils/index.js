@@ -461,15 +461,6 @@ await import('${require
   }
 
   /** @type {ESBuildPlugin} */
-  const nodePlugin = {
-    name: 'node built ins',
-    setup(build) {
-      build.onResolve({ filter: /^path$/ }, () => {
-        return { path: require.resolve('path-browserify') }
-      })
-    },
-  }
-  /** @type {ESBuildPlugin} */
   const watchPlugin = {
     name: 'watcher',
     setup(build) {
@@ -489,7 +480,7 @@ await import('${require
     sourcemap: 'inline',
     platform: 'browser',
     format: 'esm',
-    plugins: [nodePlugin, watchPlugin, wasmLoader()],
+    plugins: [watchPlugin, wasmLoader()],
     outfile: outPath,
     inject: [path.join(__dirname, 'inject-process.js')],
     alias: polyfillAliases,

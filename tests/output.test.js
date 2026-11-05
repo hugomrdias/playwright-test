@@ -76,6 +76,36 @@ describe('process in the browser', () => {
   }
 })
 
+describe('path in the browser', () => {
+  for (const mode of ['main', 'worker']) {
+    it(`resolves every import to the same module with mode:${mode}`, async () => {
+      const proc = await runCli([
+        'mocks/none/path-imports.test.js',
+        '--runner',
+        'none',
+        '--mode',
+        mode,
+      ])
+
+      is(proc.exitCode, 0, proc.stderr)
+      ok(proc.stdout.includes('imports are fine'), 'stdout')
+    })
+  }
+
+  it('resolves in a service worker', async () => {
+    const proc = await runCli([
+      'mocks/none/stdout.test.js',
+      '--runner',
+      'none',
+      '--sw',
+      'mocks/sw/sw-path.js',
+    ])
+
+    is(proc.exitCode, 0, proc.stderr)
+    ok(proc.stdout.includes('hello world!'), 'stdout')
+  })
+})
+
 for (const browser of ['chromium', 'firefox']) {
   // Firefox is where the messages arrive late
   describe(`console output when the run ends in ${browser}`, () => {
