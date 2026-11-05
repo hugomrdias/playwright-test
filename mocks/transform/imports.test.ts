@@ -1,5 +1,5 @@
+import { strictEqual as is, ok } from 'node:assert/strict'
 import { createRequire } from 'node:module'
-import { is, ok } from 'uvu/assert'
 import { fromCommonjs } from './commonjs/index'
 import { fromCts, shout } from './lib/common.cts'
 import { indexed } from './lib/dir'

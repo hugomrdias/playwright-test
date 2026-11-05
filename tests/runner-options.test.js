@@ -106,30 +106,25 @@ describe('runner options', () => {
     })
   }
 
-  for (const [runner, file] of [
-    ['tape', 'mocks/test2.tape.js'],
-    ['none', 'mocks/none/stdout.test.js'],
-  ]) {
-    it(`${runner} warns they are ignored`, async () => {
-      const proc = await runCli(
-        [
-          file,
-          '--runner',
-          runner,
-          '--mode',
-          'node',
-          '--test-name-pattern',
-          'a',
-          '--test-timeout',
-          '100',
-        ],
-        { reject: false }
-      )
+  it('none warns they are ignored', async () => {
+    const proc = await runCli(
+      [
+        'mocks/none/stdout.test.js',
+        '--runner',
+        'none',
+        '--mode',
+        'node',
+        '--test-name-pattern',
+        'a',
+        '--test-timeout',
+        '100',
+      ],
+      { reject: false }
+    )
 
-      ok(proc.stderr.includes('ignoring --test-name-pattern'), proc.stderr)
-      ok(proc.stderr.includes('ignoring --test-timeout'), proc.stderr)
-    })
-  }
+    ok(proc.stderr.includes('ignoring --test-name-pattern'), proc.stderr)
+    ok(proc.stderr.includes('ignoring --test-timeout'), proc.stderr)
+  })
 
   describe('testRunner.options in the config file', () => {
     const config = ['--config', 'mocks/runner-options/no-bail.config.js']

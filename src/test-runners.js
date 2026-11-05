@@ -1,9 +1,7 @@
-import { createRequire } from 'module'
 import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { toRegExp } from './utils/name-pattern.js'
 
-const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 /** @type {import('./types.js').TestRunner} */
@@ -55,81 +53,6 @@ export const none = {
   compileRuntime(_options, paths) {
     return `
 ${paths.map((url) => `await import('${url}')`).join('\n')}
-`
-  },
-}
-
-/** @type {import('esbuild').Plugin} */
-const tapeEsbuildPlugin = {
-  name: 'swap tape',
-  setup(build) {
-    build.onResolve({ filter: /^stream$/ }, () => {
-      return { path: require.resolve('stream-browserify') }
-    })
-    build.onResolve({ filter: /^fs$/ }, () => {
-      return { path: require.resolve('./utils/resolve-empty-fs.js') }
-    })
-  },
-}
-
-/**
- * Tape test runner
- *
- * @type {import('./types.js').TestRunner}
- */
-export const tape = {
-  moduleId: 'tape',
-  buildConfig: (options) => {
-    if (options.mode === 'node') {
-      return {}
-    }
-    return {
-      plugins: [tapeEsbuildPlugin],
-      inject: [path.join(__dirname, 'utils/inject-buffer.js')],
-    }
-  },
-  compileRuntime(options, paths) {
-    return `
-${options.mode === 'node' ? 'globalThis.location={}' : ''}
-import tape from 'tape'
-
-globalThis.TAPE_RUN_FAIL = false
-
-tape.onFailure(() => {
-  globalThis.TAPE_RUN_FAIL = true
-})
-
-tape.onFinish(() => {
-  process.exit(globalThis.TAPE_RUN_FAIL ? 1 : 0)
-})
-
-${paths.map((url) => `await import('${url}')`).join('\n')}
-`
-  },
-}
-
-/** @type {import('./types.js').TestRunner} */
-export const uvu = {
-  moduleId: 'uvu',
-  options: {},
-  compileRuntime(_options, paths) {
-    return `
-globalThis.UVU_DEFER = 1
-globalThis.UVU_QUEUE = []
-let idx=0;
-${paths
-  .map(
-    (url) =>
-      `globalThis.UVU_INDEX = idx++; globalThis.UVU_QUEUE.push(['${url}']);`
-  )
-  .join('\n')}
-        
-${paths.map((url) => `await import('${url}')`).join('\n')}
-        
-const uvu = await import('uvu')
-uvu.exec(true).then((r) => {
-    process.exit()
-})
 `
   },
 }

@@ -1,4 +1,4 @@
-const { equal } = require('uvu/assert')
+const { deepStrictEqual: equal } = require('node:assert/strict')
 
 describe('fixtures', () => {
   it('should load a gzipped tar file', async () => {

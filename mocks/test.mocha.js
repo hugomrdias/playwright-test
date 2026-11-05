@@ -1,5 +1,9 @@
+import {
+  deepStrictEqual as equal,
+  strictEqual as is,
+  ok,
+} from 'node:assert/strict'
 import createDebug from 'debug'
-import { equal, is, ok } from 'uvu/assert'
 import * as Client from '../src/client/index.js'
 import { bad, good } from './lib.js'
 

@@ -39,15 +39,23 @@ describe('runner auto detection', () => {
 
   /** @type {Array<[string, string, string[], string?]>} */
   const cases = [
-    ['import', "import test from 'tape'", ['tape']],
+    ['import', "import test from 'node:test'", ['node:test']],
     ['side effect import', "import 'mocha'", ['mocha']],
-    ['require', "const test = require('tape')", ['tape']],
-    ['require member', "const test = require('tape').test", ['tape']],
-    ['require destructured', "const { test } = require('uvu')", ['uvu']],
-    ['not the first declarator', "const a = 1, b = require('uvu')", ['uvu']],
-    ['require statement', "require('tape')", ['tape']],
-    ['dynamic import', "const t = await import('uvu')", ['uvu']],
-    ['dynamic import then', "import('uvu').then(() => {})", ['uvu']],
+    ['require', "const test = require('node:test')", ['node:test']],
+    ['require member', "const test = require('node:test').test", ['node:test']],
+    [
+      'require destructured',
+      "const { test } = require('node:test')",
+      ['node:test'],
+    ],
+    [
+      'not the first declarator',
+      "const a = 1, b = require('mocha')",
+      ['mocha'],
+    ],
+    ['require statement', "require('mocha')", ['mocha']],
+    ['dynamic import', "const t = await import('mocha')", ['mocha']],
+    ['dynamic import then', "import('mocha').then(() => {})", ['mocha']],
     ['node:test', "import { test } from 'node:test'", ['node:test']],
     [
       'node:test entrypoint',
@@ -79,8 +87,8 @@ describe('runner auto detection', () => {
     ['require without arguments', 'const a = require()', []],
     ['require of a variable', 'const a = require(b)', []],
     ['the module none', "import 'none'", []],
-    ['submodule', "import { equal } from 'uvu/assert'", []],
-    ['similar name', "import 'tape-promise'", []],
+    ['submodule', "import 'mocha/mocha.js'", []],
+    ['similar name', "import 'mocha-promise'", []],
     [
       'describe from elsewhere',
       "import { describe, it } from 'vitest'\ndescribe('a', () => {})\nit('a', () => {})",
@@ -94,21 +102,31 @@ describe('runner auto detection', () => {
     ['describe not at the top', "function a() { describe('a') }", []],
     ['other member', "describe.each('a')", []],
     ['other object', "lib.describe('a')", []],
-    ['require not at the top', "test('a', () => require('tape'))", []],
-    ['a string', 'const a = "import test from \'tape\'"', []],
-    ['a comment', "// import test from 'tape'", []],
+    ['require not at the top', "test('a', () => require('mocha'))", []],
+    ['a string', 'const a = "import test from \'node:test\'"', []],
+    ['a comment', "// import test from 'node:test'", []],
     // Types
-    ['type import', "import type { Test } from 'tape'", [], 'ts'],
-    ['inline type import', "import { type Test } from 'tape'", [], 'ts'],
+    ['type import', "import type { Test } from 'mocha'", [], 'ts'],
+    ['inline type import', "import { type Test } from 'mocha'", [], 'ts'],
     [
       'ts import',
-      "import test from 'tape'\ntest('a', (t: any) => {})",
-      ['tape'],
+      "import test from 'node:test'\ntest('a', (t: any) => {})",
+      ['node:test'],
       'ts',
     ],
-    ['ts annotated require', "const a: any = require('tape')", ['tape'], 'ts'],
+    [
+      'ts annotated require',
+      "const a: any = require('mocha')",
+      ['mocha'],
+      'ts',
+    ],
     ['ts generic call', "describe<string>('a', () => {})", ['mocha'], 'ts'],
-    ['tsx', "import 'uvu'\nconst a = <div />\nconsole.log(a)", ['uvu'], 'tsx'],
+    [
+      'tsx',
+      "import 'mocha'\nconst a = <div />\nconsole.log(a)",
+      ['mocha'],
+      'tsx',
+    ],
   ]
 
   for (const [name, source, expected, ext] of cases) {
@@ -118,16 +136,16 @@ describe('runner auto detection', () => {
   }
 
   it('looks past a first file that says nothing', () => {
-    equal(detect([write('export const a = 1'), write("import 'tape'")]), [
-      'tape',
+    equal(detect([write('export const a = 1'), write("import 'node:test'")]), [
+      'node:test',
     ])
   })
 
   it('reports every runner it finds', () => {
-    equal(detect([write("import 'tape'"), write("describe('a')")]), [
-      'tape',
-      'mocha',
-    ])
+    equal(
+      detect([write("import 'playwright-test/taps'"), write("describe('a')")]),
+      ['playwright-test/taps', 'mocha']
+    )
   })
 
   describe('cli', () => {
@@ -141,13 +159,13 @@ describe('runner auto detection', () => {
 
     it('fails naming the runners when they conflict', async () => {
       const proc = await runCli(
-        [write("import 'tape'"), write("describe('a', () => {})")],
+        [write("import 'node:test'"), write("describe('a', () => {})")],
         { reject: false }
       )
 
       is(proc.exitCode, 1, 'exit code')
       ok(
-        proc.stderr.includes('Found more than one test runner: "tape"'),
+        proc.stderr.includes('Found more than one test runner: "node:test"'),
         proc.stderr
       )
       ok(proc.stderr.includes('"mocha"'), proc.stderr)
@@ -157,7 +175,7 @@ describe('runner auto detection', () => {
     it('--runner skips it', async () => {
       const proc = await runCli(
         [
-          write("import 'tape'\ndescribe('a', () => {})"),
+          write("import 'playwright-test/taps'\ndescribe('a', () => {})"),
           '--runner',
           'none',
           '--mode',

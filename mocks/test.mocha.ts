@@ -1,5 +1,5 @@
+import { deepStrictEqual as equal, strictEqual as is } from 'node:assert/strict'
 import pdefer from 'p-defer'
-import { equal, is } from 'uvu/assert'
 import * as Client from '../src/client/index.js'
 
 it.skip('Array', () => {

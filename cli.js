@@ -48,7 +48,7 @@ process.once('unhandledRejection', (err) => {
 
 const extra = `
   ${kleur.bold('Examples')}
-    ${kleur.dim('$ playwright-test test.js --runner tape')}
+    ${kleur.dim('$ playwright-test test.js --runner mocha')}
     ${kleur.dim('$ playwright-test test --debug')}
     ${kleur.dim(
       '$ playwright-test "test/**/*.spec.js" --browser webkit --mode worker --incognito --debug'
@@ -126,8 +126,6 @@ const builtInRunners = {
   'node-test': DefaultRunners.nodeTest,
   none: DefaultRunners.none,
   taps: DefaultRunners.taps,
-  tape: DefaultRunners.tape,
-  uvu: DefaultRunners.uvu,
 }
 
 /**
@@ -264,11 +262,11 @@ const configLoaders = {
 sade2
   .version(version)
   .describe(
-    'Run mocha, uvu and tape scripts inside real browsers with `playwright` and in Node.'
+    'Run mocha, node:test and taps scripts inside real browsers with `playwright` and in Node.'
   )
   .option(
     '-r, --runner',
-    'Test runner. Options: mocha, tape, uvu, none, taps and node-test. It also accepts a path to a module or a module name that exports a `playwrightTestRunner` object.'
+    'Test runner. Options: mocha, none, taps and node-test. It also accepts a path to a module or a module name that exports a `playwrightTestRunner` object.'
   )
   .option(
     '-b, --browser',
