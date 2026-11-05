@@ -41,6 +41,10 @@ jobs:
       # Tests would download them on first use, which counts against their timeouts
       - run: pnpm exec playwright-core install chromium firefox webkit
       - run: pnpm run test
+        env:
+          # Browser profiles are slow on C:, the default temp folder, Chromium can
+          # take 18s to navigate. The runner temp folder is on D:.
+          PW_TEST_CHILD_TEMP: ${{ runner.os == 'Windows' && runner.temp || '' }}
 
   release:
     runs-on: ubuntu-latest
