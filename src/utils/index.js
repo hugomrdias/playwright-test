@@ -30,6 +30,34 @@ const merge = mergeOptions.bind({
 /**
  * @type {import('../types').RunnerOptions}
  */
+/** A hung test shouldn't hang the run forever, long enough for any real suite. */
+export const DEFAULT_RUN_TIMEOUT = 30 * 60 * 1000
+
+/**
+ * Check `runTimeout` before anything starts. setTimeout fires right away for
+ * anything that isn't a number and for delays over 2^31 - 1.
+ *
+ * @param {unknown} value
+ */
+export function assertRunTimeout(value) {
+  if (
+    !Number.isInteger(value) ||
+    /** @type {number} */ (value) < 0 ||
+    /** @type {number} */ (value) > 2 ** 31 - 1
+  ) {
+    throw new TypeError(
+      `Invalid run timeout "${value}", expected milliseconds or 0 to turn it off.`
+    )
+  }
+}
+
+/**
+ * @param {number} ms
+ */
+export function runTimeoutMessage(ms) {
+  return `Run timed out after ${ms}ms, use --run-timeout to change it.`
+}
+
 export const defaultOptions = {
   cwd: process.cwd(),
   assets: '',
@@ -46,6 +74,7 @@ export const defaultOptions = {
   reportDir: '.nyc_output',
   extensions: 'js,cjs,mjs,ts,tsx,jsx',
   transform: true,
+  runTimeout: DEFAULT_RUN_TIMEOUT,
   buildConfig: {},
   buildSWConfig: {},
   browserContextOptions: {},
@@ -388,6 +417,7 @@ export function runnerOptions(flags) {
       'sw',
       'report-dir',
       'transform',
+      'run-timeout',
       '_',
       'd',
       'r',

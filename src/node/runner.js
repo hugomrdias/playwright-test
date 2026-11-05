@@ -10,7 +10,14 @@ import { nanoid } from 'nanoid'
 // @ts-expect-error
 import { premove } from 'premove'
 import * as DefaultRunners from '../test-runners.js'
-import { createPolka, findTests, log } from '../utils/index.js'
+import {
+  assertRunTimeout,
+  createPolka,
+  DEFAULT_RUN_TIMEOUT,
+  findTests,
+  log,
+  runTimeoutMessage,
+} from '../utils/index.js'
 import { killTree, withLocalBins } from '../utils/process.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -40,6 +47,7 @@ const defaultOptions = {
   reportDir: '.nyc_output',
   extensions: 'js,cjs,mjs,ts,tsx,jsx',
   transform: true,
+  runTimeout: DEFAULT_RUN_TIMEOUT,
   buildConfig: {},
   buildSWConfig: {},
   browserContextOptions: {},
@@ -80,6 +88,7 @@ export class NodeRunner {
   constructor(options, testFiles) {
     /** @type {import('../types.js').RunnerOptions} */
     this.options = merge(defaultOptions, options)
+    assertRunTimeout(this.options.runTimeout)
     /** @type {import('polka').Polka["server"] | undefined} */
     this.server = undefined
     /** @type {import('node:child_process').ChildProcess | undefined} */
@@ -190,9 +199,22 @@ export class NodeRunner {
     await this.#setupServer()
     await this.options.beforeTests(this.env)
 
-    const passed = await this.runTests().finished
+    const { child, finished } = this.runTests()
+    const ms = this.options.runTimeout
+    let timedOut = false
+    /** @type {NodeJS.Timeout | undefined} */
+    let timer
+    if (ms > 0 && !this.options.debug) {
+      timer = setTimeout(() => {
+        timedOut = true
+        killTree(child)
+      }, ms)
+    }
+
+    const passed = await finished
+    clearTimeout(timer)
     if (!passed) {
-      await this.stop(true, 'Tests failed.')
+      await this.stop(true, timedOut ? runTimeoutMessage(ms) : 'Tests failed.')
     }
     this.stop(false, 'Tests passed.')
   }

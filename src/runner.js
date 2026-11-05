@@ -16,6 +16,7 @@ import { temporaryDirectory } from 'tempy'
 import { compileSw } from './utils/build-sw.js'
 import {
   addWorker,
+  assertRunTimeout,
   build,
   createCov,
   createPolka,
@@ -24,6 +25,7 @@ import {
   getPw,
   log,
   redirectConsole,
+  runTimeoutMessage,
 } from './utils/index.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -51,6 +53,7 @@ export class Runner {
   constructor(options, testFiles) {
     /** @type {import('./types').RunnerOptions} */
     this.options = merge(defaultOptions, options)
+    assertRunTimeout(this.options.runTimeout)
     /** @type {import('polka').Polka["server"] | undefined} */
     this.server = undefined
 
@@ -322,6 +325,8 @@ export class Runner {
     try {
       // Setup the context
       const context = await this.setupContext()
+      // After setupContext, downloading a browser doesn't count
+      this.#startRunTimeout()
       this.beforeTestsOutput = await this.options.beforeTests(this.env)
 
       // Run the before script
@@ -446,6 +451,17 @@ export class Runner {
         console.error(error.stack)
       }
     })
+  }
+
+  /**
+   * Fail the run when it takes too long. Nothing in the page can be trusted to
+   * end it, a test stuck in a loop blocks the thread it would report from.
+   */
+  #startRunTimeout() {
+    const ms = this.options.runTimeout
+    if (ms > 0 && !this.options.debug) {
+      setTimeout(() => this.stop(true, runTimeoutMessage(ms)), ms).unref()
+    }
   }
 
   /**
