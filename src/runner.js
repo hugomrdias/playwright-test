@@ -30,7 +30,9 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
-const CONSOLE_FLUSH_TIMEOUT = 5000
+// Tests of stuck pages lower it, they always wait for all of it
+const CONSOLE_FLUSH_TIMEOUT =
+  Number(process.env.PW_TEST_CONSOLE_FLUSH_TIMEOUT) || 5000
 
 /**
  * @typedef {import('playwright-core').Page} Page

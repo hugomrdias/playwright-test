@@ -1,1 +1,1 @@
-it('is too slow', () => new Promise((resolve) => setTimeout(resolve, 500)))
+it('is too slow', () => new Promise((resolve) => setTimeout(resolve, 200)))

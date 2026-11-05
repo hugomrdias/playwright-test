@@ -11,7 +11,7 @@ test('sum', () => {
 })
 
 test('sum', async () => {
-  await delay(2000)
+  await delay(200)
   // biome-ignore lint/suspicious/noEmptyBlockStatements: test
   type(() => {}, 'function')
   is(3, 3)
