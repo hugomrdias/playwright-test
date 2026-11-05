@@ -109,33 +109,6 @@ ${paths.map((url) => `await import('${url}')`).join('\n')}
 }
 
 /** @type {import('./types.js').TestRunner} */
-export const benchmark = {
-  moduleId: 'benchmark',
-  buildConfig: (options) => {
-    if (options.mode === 'node') {
-      return {}
-    }
-    return {
-      plugins: [
-        {
-          name: 'swap benchmark',
-          setup(build) {
-            build.onResolve({ filter: /^benchmark$/ }, () => {
-              return { path: path.join(__dirname, 'utils/proxy-benchmark.js') }
-            })
-          },
-        },
-      ],
-    }
-  },
-  compileRuntime(_options, paths) {
-    return `
-${paths.map((url) => `await import('${url}')`).join('\n')}
-`
-  },
-}
-
-/** @type {import('./types.js').TestRunner} */
 export const uvu = {
   moduleId: 'uvu',
   options: {},

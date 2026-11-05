@@ -601,7 +601,7 @@ export async function resolveTestRunner(runner, cwd) {
   /** @type {import('../types.js').TestRunner} */
   const testRunner = module.playwrightTestRunner
   if (!testRunner) {
-    throw new Error(`Cannot find playwrightTestRunner export in ${path}`)
+    throw new Error(`Cannot find playwrightTestRunner export in "${runner}"`)
   }
   return testRunner
 }

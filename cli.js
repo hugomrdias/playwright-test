@@ -54,11 +54,6 @@ const extra = `
       '$ playwright-test "test/**/*.spec.js" --browser webkit --mode worker --incognito --debug'
     )}
 
-    ${kleur.dim('$ playwright-test bench.js --runner benchmark')}
-    ${kleur.gray(
-      '# Uses benchmark.js to run your benchmark see playwright-test/mocks/benchmark.js for an example.'
-    )}
-
     ${kleur.dim(
       '$ playwright-test test --cov && npx nyc report --reporter=html'
     )}
@@ -127,7 +122,6 @@ class UsageError extends Error {}
 
 /** @type {Record<string, import('./src/types.js').TestRunner>} */
 const builtInRunners = {
-  benchmark: DefaultRunners.benchmark,
   mocha: DefaultRunners.mocha,
   'node-test': DefaultRunners.nodeTest,
   none: DefaultRunners.none,
@@ -270,11 +264,11 @@ const configLoaders = {
 sade2
   .version(version)
   .describe(
-    'Run mocha, uvu, tape and benchmark.js scripts inside real browsers with `playwright` and in Node.'
+    'Run mocha, uvu and tape scripts inside real browsers with `playwright` and in Node.'
   )
   .option(
     '-r, --runner',
-    'Test runner. Options: mocha, tape, uvu, none, taps, node-test and benchmark. It also accepts a path to a module or a module name that exports a `playwrightTestRunner` object.'
+    'Test runner. Options: mocha, tape, uvu, none, taps and node-test. It also accepts a path to a module or a module name that exports a `playwrightTestRunner` object.'
   )
   .option(
     '-b, --browser',
