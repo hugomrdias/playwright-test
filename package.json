@@ -77,7 +77,7 @@
     "clean": "rm -rf pnpm-lock.yaml .coverage .nyc_output dist node_modules .tmp",
     "fix": "biome check --fix .",
     "lint": "tsc && biome check .",
-    "test": "mocha test.js --bail --timeout 50000"
+    "test": "node --test --test-isolation=none --test-force-exit --test-timeout=50000 \"tests/*.test.js\""
   },
   "dependencies": {
     "acorn-loose": "^8.5.2",
@@ -116,7 +116,6 @@
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
     "@hugomrdias/configs": "^2.0.0",
-    "@types/mocha": "^10.0.10",
     "@types/polka": "^0.5.8",
     "benchmark": "^2.1.4",
     "debug": "^4.4.3",
