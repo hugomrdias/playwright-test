@@ -1,8 +1,6 @@
 import { after, before, describe, it } from 'node:test'
 import { execa } from 'execa'
 import fs from 'fs'
-import os from 'os'
-import path from 'path'
 import { is, ok } from 'uvu/assert'
 
 describe('node:test runner', () => {
@@ -203,7 +201,8 @@ describe('node:test runner', () => {
     /** @type {string} */
     let dir
     before(() => {
-      dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-hooks-'))
+      // The cli takes globs, which can't be absolute paths with backslashes on Windows
+      dir = fs.mkdtempSync('mocks/tmp-hooks-')
     })
     after(() => {
       fs.rmSync(dir, { recursive: true })
@@ -213,7 +212,7 @@ describe('node:test runner', () => {
     for (const mode of modes) {
       for (const [name, source, exitCode] of cases) {
         it(`${mode} ${name}`, async () => {
-          const file = path.join(dir, `${count++}.test.js`)
+          const file = `${dir}/${count++}.test.js`
           fs.writeFileSync(file, `${imports}\n${source}\n`)
           const proc = await execa(
             './cli.js',

@@ -1,8 +1,6 @@
 import { after, before, describe, it } from 'node:test'
 import { execa } from 'execa'
 import fs from 'fs'
-import os from 'os'
-import path from 'path'
 import { equal, is, ok } from 'uvu/assert'
 import * as runners from '../src/test-runners.js'
 import { detectTestRunners } from '../src/utils/auto-detect.js'
@@ -13,7 +11,8 @@ describe('runner auto detection', () => {
   let count = 0
 
   before(() => {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-detect-'))
+    // The cli takes globs, which can't be absolute paths with backslashes on Windows
+    dir = fs.mkdtempSync('mocks/tmp-detect-')
   })
   after(() => {
     fs.rmSync(dir, { recursive: true })
@@ -24,7 +23,7 @@ describe('runner auto detection', () => {
    * @param {string} [ext]
    */
   const write = (source, ext = 'js') => {
-    const file = path.join(dir, `${count++}.${ext}`)
+    const file = `${dir}/${count++}.${ext}`
     fs.writeFileSync(file, source)
     return file
   }
