@@ -47,9 +47,9 @@ jobs:
         with:
           cache: true
       - run: pnpm run test
-      - run: ./cli.js mocks/test.mocha.js --browser chromium
-      - run: ./cli.js mocks/test.mocha.js --browser firefox
-      - run: ./cli.js mocks/test.mocha.js --browser webkit
+      - run: node cli.js mocks/test.mocha.js --browser chromium
+      - run: node cli.js mocks/test.mocha.js --browser firefox
+      - run: node cli.js mocks/test.mocha.js --browser webkit
   release:
     runs-on: ubuntu-latest
     needs:
