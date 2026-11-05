@@ -117,6 +117,25 @@ export function createStackMapper(dir) {
     return removeInternalFrames(lines).join('\n')
   }
 
+  /**
+   * Map text written as bytes, anything else has to stay exactly as it is.
+   *
+   * @param {Uint8Array} bytes
+   */
+  function mapBytes(bytes) {
+    let text
+    try {
+      text = new TextDecoder('utf-8', {
+        fatal: true,
+        ignoreBOM: true,
+      }).decode(bytes)
+    } catch {
+      return bytes
+    }
+    const mapped = mapString(text)
+    return mapped === text ? bytes : new TextEncoder().encode(mapped)
+  }
+
   return {
     /**
      * Forget the source maps, the bundles were built again
@@ -126,8 +145,9 @@ export function createStackMapper(dir) {
     },
 
     /**
-     * Map a string, or the strings in a value logged in the browser. Those are
-     * copies only used for printing, so they are changed in place.
+     * Map a string, text written as bytes, or the strings in a value logged in
+     * the browser. Those are copies only used for printing, so they are changed
+     * in place.
      *
      * @template T
      * @param {T} value
@@ -146,6 +166,9 @@ export function createStackMapper(dir) {
   function mapValue(value, seen) {
     if (typeof value === 'string') {
       return mapString(value)
+    }
+    if (value instanceof Uint8Array) {
+      return mapBytes(value)
     }
     if (typeof value !== 'object' || value === null || seen.has(value)) {
       return value

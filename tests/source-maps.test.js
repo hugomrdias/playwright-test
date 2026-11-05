@@ -178,6 +178,38 @@ globalThis.out = [fromMocha, fromSource]
     )
   })
 
+  it('maps text written as bytes and leaves other bytes alone', () => {
+    const { map } = createStackMapper(dir)
+    const at = positionIn('bundle-out.js', 'new Error("fromSource")')
+    const encode = (/** @type {string} */ text) =>
+      new TextEncoder().encode(text)
+
+    is(
+      new TextDecoder().decode(
+        map(encode(`at fn (http://127.0.0.1:1234/bundle-out.js:${at})`))
+      ),
+      `at fn (${path.join(dir, 'source.js')}:3:33)`
+    )
+    // A Buffer is also a Uint8Array
+    ok(
+      new TextDecoder()
+        .decode(map(Buffer.from(`at fn (bundle-out.js:${at})`)))
+        .includes('source.js:3:33')
+    )
+
+    // Same object when there's nothing to map, not a copy with the same text
+    const text = encode('﻿nothing to see here')
+    is(map(text), text)
+    // Not utf-8, even with a position in it
+    const binary = new Uint8Array([
+      0xff,
+      0xfe,
+      ...encode(`at fn (bundle-out.js:${at})`),
+    ])
+    is(map(binary), binary)
+    equal(binary.slice(0, 2), new Uint8Array([0xff, 0xfe]))
+  })
+
   it('maps the strings in logged values', () => {
     const { map } = createStackMapper(dir)
     const at = positionIn('bundle-out.js', 'new Error("fromSource")')
@@ -372,6 +404,24 @@ for (const browser of ['chromium', 'firefox', 'webkit']) {
       is(count(proc.stdout, 'console.js:3:'), 6, proc.stdout)
       is(count(proc.stderr, 'console.js:3:'), 1, proc.stderr)
     })
+
+    for (const mode of ['main', 'worker']) {
+      it(`stack traces written as bytes in ${mode}`, async () => {
+        const proc = await runCli([
+          'mocks/source-maps/bytes.js',
+          '--runner',
+          'none',
+          '--mode',
+          mode,
+          ...flags,
+        ])
+
+        is(proc.exitCode, 0, 'exit code')
+        is(count(proc.stdout, 'bytes.js:2:'), 1, proc.stdout)
+        is(count(proc.stderr, 'bytes.js:2:'), 1, proc.stderr)
+        assertNoInternals(`${proc.stdout}${proc.stderr}`)
+      })
+    }
 
     it('uncaught exceptions', async () => {
       const proc = await runCli([
