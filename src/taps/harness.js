@@ -32,8 +32,8 @@ export function configure({ testNamePattern, testTimeout } = {}) {
 }
 
 /**
- * Whether a test matches `--test-name-pattern`, with its own name, the name of
- * any of its ancestors or all of those names joined by a space.
+ * Whether a test matches `--test-name-pattern`, with the name of the test or of
+ * any of its ancestors, on its own or joined by a space with its ancestors'.
  *
  * @param {string[]} names - The name of the test and then of its ancestors
  */
@@ -41,9 +41,10 @@ export function matchesNamePattern(names) {
   const { namePattern } = config
   return (
     namePattern === null ||
-    [...names, names.toReversed().join(' ')].some(
-      (name) => name.search(namePattern) !== -1
-    )
+    [
+      ...names,
+      ...names.map((_, i) => names.slice(i).toReversed().join(' ')),
+    ].some((name) => name.search(namePattern) !== -1)
   )
 }
 

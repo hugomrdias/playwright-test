@@ -79,6 +79,8 @@ describe('node:test runner', () => {
         ['beta', ['beta']],
         ['suite a', ['alpha one', 'beta']],
         ['suite a beta', ['beta']],
+        // the full name of an ancestor, not only of the test
+        ['^outer inner$', ['leaf']],
         ['does not match', []],
       ]
       const all = [
@@ -86,6 +88,7 @@ describe('node:test runner', () => {
         'beta',
         'alpha two',
         'gamma',
+        'leaf',
         'alpha top',
         'delta',
         'alpha nested',

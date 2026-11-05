@@ -23,6 +23,14 @@ describe('other', () => {
   })
 })
 
+describe('outer', () => {
+  describe('inner', () => {
+    it('leaf', () => {
+      // noop
+    })
+  })
+})
+
 test('alpha top', () => {
   // noop
 })

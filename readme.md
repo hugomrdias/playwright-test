@@ -298,7 +298,7 @@ playwright-test test.js --test-timeout 10000
 | `taps`                             | Filters the tests                    | Timeout of tests without their own |
 | `tape`, `uvu`, `benchmark`, `none` | Warns and is ignored                 | Warns and is ignored               |
 
-- `--test-name-pattern` is a regular expression, or `/expression/flags`. A test matches with its own name, the name of a suite it's in, or all of those names joined by a space. With `mocha` only the last one counts, so `^adds$` won't match a test inside a suite.
+- `--test-name-pattern` is a regular expression, or `/expression/flags`. A test matches with its own name, the name of a suite it's in, or any of those joined by a space with the names above them. With `mocha` only the last one counts, so `^adds$` won't match a test inside a suite.
 - `--test-timeout` is in milliseconds, `0` means no timeout. It's different from `--run-timeout`, which is for the whole run.
 
 Both can also be set as `testNamePattern` and `testTimeout` in the config file. A custom runner reads them from the options it gets, and lists them in `supports` so the cli doesn't warn.
