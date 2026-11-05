@@ -88,6 +88,30 @@ export default {
     ok(proc.stderr.includes('Could not start tests:'), proc.stderr)
   })
 
+  it('runs with the same node and the binaries of the project', async () => {
+    fs.writeFileSync(
+      path.join(project, 'entry.test.js'),
+      `console.log('EXEC', process.execPath)
+console.log('BIN', process.env.PATH.split(${JSON.stringify(path.delimiter)})[0])
+`
+    )
+
+    const proc = await execa(
+      process.execPath,
+      [cli, 'entry.test.js', ...none],
+      { cwd: project, reject: false }
+    )
+
+    is(proc.exitCode, 0, proc.stderr)
+    ok(proc.stdout.includes(`EXEC ${process.execPath}`), proc.stdout)
+    ok(
+      proc.stdout.includes(
+        `BIN ${path.join(fs.realpathSync(project), 'node_modules', '.bin')}`
+      ),
+      proc.stdout
+    )
+  })
+
   it('failing tests only report the failure', async () => {
     fs.writeFileSync(path.join(project, 'entry.test.js'), 'process.exit(1)\n')
 
