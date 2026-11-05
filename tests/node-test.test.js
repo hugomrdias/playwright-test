@@ -1,7 +1,11 @@
+import {
+  deepStrictEqual as equal,
+  strictEqual as is,
+  ok,
+} from 'node:assert/strict'
 import { before, describe, it } from 'node:test'
-import { execa } from 'execa'
 import { pathToFileURL } from 'url'
-import { equal, is, ok } from 'uvu/assert'
+import { execa, runCli } from './helpers.js'
 
 describe('taps node:test api', () => {
   const runner = ['--runner', './mocks/node-test/runner.js']
@@ -26,11 +30,9 @@ describe('taps node:test api', () => {
    * @param {string} mode
    */
   async function runApi(name, mode) {
-    const proc = await execa(
-      './cli.js',
-      [fixture(name), ...runner, '--mode', mode],
-      { reject: false }
-    )
+    const proc = await runCli([fixture(name), ...runner, '--mode', mode], {
+      reject: false,
+    })
     const output = lines(proc.stdout)
     const results = output.flatMap((line) => {
       const match = line.match(/^(✔|✘|-) \d+ (.*) \(\d+\.\d+ms\)$/)
@@ -211,7 +213,7 @@ describe('taps node:test api', () => {
       })
 
       it('multiple files share the run', async () => {
-        const proc = await execa('./cli.js', [
+        const proc = await runCli([
           'mocks/node-test/multi',
           ...runner,
           '--mode',
@@ -306,8 +308,7 @@ describe('taps node:test api', () => {
     })
 
     it('runner none in node mode', async () => {
-      const { exitCode, stdout } = await execa(
-        './cli.js',
+      const { exitCode, stdout } = await runCli(
         [fixture('fail-root-each'), '--runner', 'none', '--mode', 'node'],
         { reject: false }
       )
@@ -318,7 +319,7 @@ describe('taps node:test api', () => {
   })
 
   describe('node:assert', () => {
-    // Fails on any difference with the real node:assert, CI also runs it in firefox and webkit.
+    // Fails on any difference with the real node:assert, browsers.test.js runs it in the others.
     it('same results as the real one', async () => {
       const { exitCode, stdout, stderr } = await execa(
         process.execPath,
@@ -334,8 +335,7 @@ describe('taps node:test api', () => {
 
     for (const mode of ['main', 'worker']) {
       it(`${mode}: exports and unsupported`, async () => {
-        const { exitCode, stdout } = await execa(
-          './cli.js',
+        const { exitCode, stdout } = await runCli(
           [fixture('assert-exports'), '--runner', 'none', '--mode', mode],
           { reject: false }
         )

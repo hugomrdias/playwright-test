@@ -1,17 +1,17 @@
+import { strictEqual as is, ok } from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { execa } from 'execa'
-import { is, ok } from 'uvu/assert'
+import { runCli } from './helpers.js'
 
 describe('taps', () => {
   it('basic', async () => {
-    const proc = await execa('./cli.js', ['mocks/tops'])
+    const proc = await runCli(['mocks/tops'])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('passing'), 'process stdout')
   })
 
   it('node', async () => {
-    const proc = await execa('./cli.js', ['mocks/tops', '--mode', 'node'])
+    const proc = await runCli(['mocks/tops', '--mode', 'node'])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('passing'), 'process stdout')
