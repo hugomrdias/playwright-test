@@ -14,7 +14,14 @@
  */
 import kleur from 'kleur'
 import { start } from '../taps/exec.js'
-import { formatError, log, TAPS_QUEUE } from '../taps/harness.js'
+import {
+  config,
+  configure,
+  formatError,
+  log,
+  matchesNamePattern,
+  TAPS_QUEUE,
+} from '../taps/harness.js'
 // Before the queue push below, so with both entrypoints the order of the queue
 // is always the same. Whichever one is imported first.
 import { exec, hold } from '../taps/index.js'
@@ -585,7 +592,9 @@ class TestHook {
     this.hookType = hookType
     this.fn = typeof fn === 'function' ? fn : noop
     this.timeout =
-      timeout == null || timeout === Number.POSITIVE_INFINITY ? null : timeout
+      timeout === Number.POSITIVE_INFINITY
+        ? null
+        : (timeout ?? (config.timeout || null))
     this.outerSignal = signal
   }
 
@@ -717,7 +726,7 @@ class Test {
     /** @type {Test | null} */
     this.parent = parent ?? null
     this.only = only
-    this.timeout = parent?.timeout ?? null
+    this.timeout = parent?.timeout ?? (config.timeout || null)
     /** @type {string[]} */
     this.tags = [...(parent?.tags ?? []), ...(tags ?? [])]
 
@@ -771,7 +780,14 @@ class Test {
   }
 
   applyFilters() {
-    if (this.error || this.only || this.hasOnlyTests) {
+    if (this.error) {
+      return
+    }
+    if (this.isFilteredByName()) {
+      this.filtered = true
+      return
+    }
+    if (this.only || this.hasOnlyTests) {
       return
     }
     const parent = /** @type {Test} */ (this.parent)
@@ -783,6 +799,10 @@ class Test {
     ) {
       this.filtered = true
     }
+  }
+
+  isFilteredByName() {
+    return !matchesName(this)
   }
 
   /**
@@ -1238,6 +1258,11 @@ class Suite extends Test {
     return super.filteredRun()
   }
 
+  /** What's in the suite is only known once it's built, see {@link run}. */
+  isFilteredByName() {
+    return false
+  }
+
   async run() {
     const parent = /** @type {Test} */ (this.parent)
     this.computeInheritedHooks()
@@ -1250,6 +1275,15 @@ class Suite extends Test {
     try {
       parent.active = true
       await this.buildPromise
+      if (
+        config.namePattern !== null &&
+        !this.error &&
+        !(await hasNameMatch(this))
+      ) {
+        this.filtered = true
+        parent.active = false
+        return this.filteredRun()
+      }
       this.startTime = hrtime()
       this.enter()
 
@@ -1409,6 +1443,38 @@ function getFullName(test) {
     fullName = `${t.name} > ${fullName}`
   }
   return fullName
+}
+
+/**
+ * @param {Test} test
+ */
+function matchesName(test) {
+  const names = []
+  for (let t = test; t.parent !== null; t = t.parent) {
+    names.push(t.name)
+  }
+  return matchesNamePattern(names)
+}
+
+/**
+ * Whether a test matches or, for a suite, anything inside of it does.
+ *
+ * @param {Test} test
+ * @returns {Promise<boolean>}
+ */
+async function hasNameMatch(test) {
+  if (matchesName(test)) {
+    return true
+  }
+  if (test instanceof Suite) {
+    await test.buildPromise
+    for (const subtest of test.subtests) {
+      if (await hasNameMatch(subtest)) {
+        return true
+      }
+    }
+  }
+  return false
 }
 
 function newCounters() {
@@ -1785,6 +1851,6 @@ test.it = test
 /** @type {typeof import('node:test').it} */
 export const it = test
 
-export { exec, hold }
+export { configure, exec, hold }
 
 export default test

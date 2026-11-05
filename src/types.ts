@@ -39,6 +39,16 @@ export interface RunnerOptions {
    */
   runTimeout: number
   /**
+   * Only run tests whose name matches this regular expression, or
+   * `/expression/flags`. Each test is matched by its own name, the name of its
+   * ancestors and all of those names joined by a space.
+   */
+  testNamePattern?: string
+  /**
+   * Timeout in milliseconds for tests without their own, `0` for none.
+   */
+  testTimeout?: number
+  /**
    * Esbuild config. In node mode only `define`, `loader`, the `jsx*` options and
    * `tsconfigRaw` apply.
    */
@@ -66,7 +76,7 @@ export interface RunnerEnv extends NodeJS.ProcessEnv {
 }
 
 export interface CliOptions {
-  runner: 'mocha' | 'tape' | 'uvu' | 'benchmark' | 'none'
+  runner: 'mocha' | 'tape' | 'uvu' | 'benchmark' | 'none' | 'taps' | 'node-test'
   browser: 'chromium' | 'firefox' | 'webkit'
   mode: 'main' | 'worker' | 'node'
   debug: boolean
@@ -81,10 +91,19 @@ export interface CliOptions {
   cwd: string
   extensions: string
   transform?: boolean
+  testNamePattern?: string
+  testTimeout?: number
   config?: string
 }
 
-export type ConfigFn = (options: CliOptions) => Partial<RunnerOptions>
+/**
+ * A `testRunner` with only `options` configures whichever runner gets used.
+ */
+export type Config = Partial<Omit<RunnerOptions, 'testRunner'>> & {
+  testRunner?: Partial<TestRunner>
+}
+
+export type ConfigFn = (options: CliOptions) => Config
 
 export type PwResult<TBrowser> = TBrowser extends 'webkit'
   ? WebKitBrowser
@@ -106,6 +125,14 @@ export interface TestRunner {
    */
   moduleId: string
   /**
+   * Other module IDs that also tell a test file uses this runner.
+   */
+  aliases?: string[]
+  /**
+   * The runner options it applies. The cli warns when any other is set.
+   */
+  supports?: Array<'testNamePattern' | 'testTimeout'>
+  /**
    * Options made available to the compiled runtime.
    * This is useful to pass options to the test runner.
    *
@@ -120,6 +147,10 @@ export interface TestRunner {
    * Esbuild config for the test runner (ignored in node mode)
    */
   buildConfig?: (options: RunnerOptions) => BuildOptions
+  /**
+   * Extra flags for the node process that runs the tests in node mode
+   */
+  nodeArgs?: (options: RunnerOptions) => string[]
   /**
    * Compile runtime entry point. In browser modes it is bundled with esbuild,
    * in node mode it is run as an ES module and `testPaths` are file URLs.

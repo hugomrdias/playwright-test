@@ -27,7 +27,7 @@ Description
     $ playwright-test [files] [options]
 
   Options
-    -r, --runner       Test runner. Options: mocha, tape, uvu, none, taps and benchmark. Internal runners are autodetected by default. It also accepts a path to a module or a module ID that exports a `playwrightTestRunner` object.
+    -r, --runner       Test runner. Options: mocha, tape, uvu, none, taps, node-test and benchmark. Internal runners are autodetected by default, see [auto detection](#runner-auto-detection). It also accepts a path to a module or a module ID that exports a `playwrightTestRunner` object.
     -b, --browser      Browser to run tests. Options: chromium, firefox, webkit.  (default chromium)
     -m, --mode         Run mode. Options: main, worker and node.  (default main)
     -d, --debug        Debug mode, keeps browser window open.  (default false)
@@ -64,11 +64,8 @@ Description
     # Important: You need to call `self.PW_TEST.beforeEnd()` to start the main script.
 
   Runner Options
-    All arguments passed to the cli not listed above will be fowarded to the runner.
-    $ playwright-test test.js --runner mocha --bail --grep 'should fail'
-
-    To send a `false` flag use --no-bail.
-    Check https://mochajs.org/api/mocha for `mocha` options or `npx mocha --help`.
+    Everything else a runner takes goes in the config file, under `testRunner.options`.
+    Check https://github.com/hugomrdias/playwright-test#runner-options
 
   Notes
     DEBUG env var filtering for 'debug' package logging will work as expected.
@@ -121,7 +118,7 @@ NODE_OPTIONS="--import @nubjs/runner" playwright-test "test/**/*.spec.ts" --mode
 
 ## `node:test` API
 
-`playwright-test/node-test` is an implementation of the [`node:test`](https://nodejs.org/api/test.html) API built on the `taps` harness, so the same test file runs in real browsers (main thread and worker modes) and in Node. It has no dependency on mocha, and `playwright-test/taps` keeps working as it did.
+`playwright-test/node-test` is an implementation of the [`node:test`](https://nodejs.org/api/test.html) API built on the `taps` harness, so the same test file runs in real browsers (main thread and worker modes) and in Node.
 
 ```js
 import { strict as assert } from 'assert'
@@ -156,31 +153,22 @@ test('mocks', { timeout: 1000 }, (t) => {
 })
 ```
 
-There's no built-in runner option for it yet, so pass a [custom test runner](#custom-test-runner) that drives it with `exec` and `hold`:
-
-```js
-// node-test-runner.js
-export const playwrightTestRunner = {
-  moduleId: 'playwright-test/node-test',
-  compileRuntime(_options, paths) {
-    return `
-const { exec, hold } = await import('playwright-test/node-test')
-hold()
-${paths.map((url) => `await import('${url}')`).join('\n')}
-
-exec().then(() => {
-  process.exit(process.exitCode)
-})
-`
-  },
-}
-```
+Run it with the `node-test` runner, it's also autodetected from an import of `node:test` or `playwright-test/node-test`:
 
 ```shell
-playwright-test "test/**/*.test.js" --runner ./node-test-runner.js
-playwright-test "test/**/*.test.js" --runner ./node-test-runner.js --mode worker
-playwright-test "test/**/*.test.js" --runner ./node-test-runner.js --mode node
+playwright-test "test/**/*.test.js" --runner node-test
+playwright-test "test/**/*.test.js" --runner node-test --mode worker
+playwright-test "test/**/*.test.js" --runner node-test --mode node
 ```
+
+Files can import `node:test` instead, and they don't need to change to run anywhere:
+
+- In browsers `node:test` resolves to `playwright-test/node-test`, and `node:assert` to [our own](#nodeassert-api).
+- In node mode `node:test` is the real one, with all of its API and reporters, and everything under [what's different](#whats-different-from-nodetest) doesn't apply. A file that imports `playwright-test/node-test` keeps using that one, so it gets the same behaviour everywhere.
+
+`--test-name-pattern` and `--test-timeout` work the same with both. To use a `node:test` reporter in node mode set `testRunner.options.reporter` in the [config file](#runner-options), the output of `playwright-test/node-test` and of browsers is always the `taps` format.
+
+In node mode the process isn't forced to exit when the tests end, like `node:test`, so `--run-timeout` is what ends a run that something keeps alive.
 
 The types are the ones from `node:test`, which come from `@types/node`.
 
@@ -249,6 +237,16 @@ In browsers:
 - The `ok()` message can't show your source code, it always reads `assert.ok(value)`.
 - A promise shows as `Promise { <unknown> }`, its state can't be read. The entries of map and set iterators can't be read either, and proxies look like the object they wrap.
 
+## `node:util` API
+
+`playwright-test/node-util` is `node:util` for code that also runs in browsers. In Node it's the built-in, in browsers it's [our own](#assert-and-util-in-browsers).
+
+```js
+import { inspect, promisify } from 'playwright-test/node-util'
+```
+
+The named exports are the ones both have and that aren't deprecated: `callbackify`, `debug`, `debuglog`, `deprecate`, `format`, `formatWithOptions`, `inherits`, `inspect`, `isDeepStrictEqual`, `promisify`, `stripVTControlCharacters`, `TextDecoder`, `TextEncoder`, `toUSVString` and `types`. The default export is the whole module, which has more in Node.
+
 ## `assert` and `util` in browsers
 
 Bundles resolve `assert`, `assert/strict`, `util` and `util/types`, also with the `node:` prefix, to `src/polyfills`, there's no npm polyfill and anything installed with those names is ignored. `inspect`, `format`, `AssertionError` and its diff are the code from Node.js, in `src/vendor`.
@@ -292,6 +290,52 @@ it('should geolocation', async () => {
   }
 })
 ```
+
+## Runner options
+
+Two options are ours and get mapped to whichever runner is used:
+
+```shell
+playwright-test test.js --test-name-pattern "suite a|^adds"
+playwright-test test.js --test-timeout 10000
+```
+
+| Runner                             | `--test-name-pattern`                | `--test-timeout`                   |
+| ---------------------------------- | ------------------------------------ | ---------------------------------- |
+| `mocha`                            | `grep`                               | `timeout`                          |
+| `node-test` with the real one      | `--test-name-pattern` of `node:test` | `--test-timeout` of `node:test`    |
+| `node-test` with our API           | Filters the tests                    | Timeout of tests without their own |
+| `taps`                             | Filters the tests                    | Timeout of tests without their own |
+| `tape`, `uvu`, `benchmark`, `none` | Warns and is ignored                 | Warns and is ignored               |
+
+- `--test-name-pattern` is a regular expression, or `/expression/flags`. A test matches with its own name, the name of a suite it's in, or any of those joined by a space with the names above them. With `mocha` only the last one counts, so `^adds$` won't match a test inside a suite.
+- `--test-timeout` is in milliseconds, `0` means no timeout. It's different from `--run-timeout`, which is for the whole run.
+
+Both can also be set as `testNamePattern` and `testTimeout` in the config file. A custom runner reads them from the options it gets, and lists them in `supports` so the cli doesn't warn.
+
+Nothing else is forwarded, an unknown flag is an error. Whatever else a runner takes goes in the config file, under `testRunner.options`. It applies to the runner in use, from `--runner` or auto detection:
+
+```js
+// playwright-test.config.js
+export default {
+  testRunner: {
+    options: {
+      bail: false, // mocha
+      ui: 'tdd', // mocha
+      reporter: 'tap', // the real node:test in node mode
+    },
+  },
+}
+```
+
+## Runner auto detection
+
+Without `--runner` or a `testRunner` in the config file, every test file is read to find the runner:
+
+- A file importing the module of a runner asks for it, through `import`, `require()` or `import()`. Only the exact module counts, `uvu/assert` isn't `uvu`, and neither do type only imports.
+- A top level call to `describe` or `it`, also `.only` and `.skip`, asks for `mocha`, unless the file declares or imports that name itself.
+- When nothing asks for a runner it's `none`, with a warning.
+- When files ask for different runners it's an error that names them. `node-test` and `taps` can be used together, the `node-test` runner runs both.
 
 ## Flow control
 
@@ -355,6 +399,14 @@ export interface TestRunner {
    * Used in auto detection of the test runner.
    */
   moduleId: string
+  /**
+   * Other module IDs that also tell a test file uses this runner.
+   */
+  aliases?: string[]
+  /**
+   * The runner options it applies. The cli warns when any other is set.
+   */
+  supports?: Array<'testNamePattern' | 'testTimeout'>
   /**
    * Options made available to the compiled runtime.
    * This is useful to pass options to the test runner.

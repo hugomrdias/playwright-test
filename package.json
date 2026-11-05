@@ -39,6 +39,10 @@
       "types": "./dist/src/node/assert.d.ts",
       "default": "./src/node/assert.js"
     },
+    "./node-util": {
+      "types": "./dist/src/node/util.d.ts",
+      "default": "./src/node/util.js"
+    },
     "./client": {
       "types": "./dist/src/client/index.d.ts",
       "default": "./src/client/index.js"
@@ -56,6 +60,9 @@
       ],
       "node-assert": [
         "dist/src/node/assert.d.ts"
+      ],
+      "node-util": [
+        "dist/src/node/util.d.ts"
       ],
       "client": [
         "dist/src/client/index.d.ts"
@@ -98,7 +105,6 @@
     "acorn-loose": "^8.5.2",
     "buffer": "^6.0.3",
     "c8": "^12.0.0",
-    "camelcase": "^10.0.0",
     "chokidar": "^6.0.0",
     "esbuild": "0.28.2",
     "esbuild-plugin-wasm": "^1.1.0",

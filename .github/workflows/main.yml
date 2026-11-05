@@ -27,7 +27,9 @@ jobs:
           PW_TEST_BROWSER: firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
       - run: ./cli.js mocks/node-test/context.test.js --runner ./mocks/node-test/runner.js --browser firefox
+      - run: ./cli.js mocks/node-test-runner/pass.test.js --runner node-test --browser firefox
       - run: ./cli.js mocks/node-test/context.test.js --runner ./mocks/node-test/runner.js --browser webkit
+      - run: ./cli.js mocks/node-test-runner/pass.test.js --runner node-test --browser webkit
       - run: node mocks/node-test/assert-compare.js --browser firefox
       - run: node mocks/node-test/assert-compare.js --browser webkit
 
@@ -49,7 +51,9 @@ jobs:
           PW_TEST_BROWSER: firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
       - run: ./cli.js mocks/node-test/context.test.js --runner ./mocks/node-test/runner.js --browser firefox
+      - run: ./cli.js mocks/node-test-runner/pass.test.js --runner node-test --browser firefox
       - run: ./cli.js mocks/node-test/context.test.js --runner ./mocks/node-test/runner.js --browser webkit
+      - run: ./cli.js mocks/node-test-runner/pass.test.js --runner node-test --browser webkit
       - run: node mocks/node-test/assert-compare.js --browser firefox
       - run: node mocks/node-test/assert-compare.js --browser webkit
 
@@ -70,7 +74,9 @@ jobs:
           PW_TEST_BROWSER: firefox
       - run: node cli.js mocks/test.mocha.js --browser webkit
       - run: node cli.js mocks/node-test/context.test.js --runner ./mocks/node-test/runner.js --browser firefox
+      - run: node cli.js mocks/node-test-runner/pass.test.js --runner node-test --browser firefox
       - run: node cli.js mocks/node-test/context.test.js --runner ./mocks/node-test/runner.js --browser webkit
+      - run: node cli.js mocks/node-test-runner/pass.test.js --runner node-test --browser webkit
       - run: node mocks/node-test/assert-compare.js --browser firefox
       - run: node mocks/node-test/assert-compare.js --browser webkit
   release:

@@ -1,6 +1,5 @@
 /** biome-ignore-all lint/suspicious/noConsole: its ok */
 
-import camelCase from 'camelcase'
 import esbuild from 'esbuild'
 import { wasmLoader } from 'esbuild-plugin-wasm'
 import fs from 'fs'
@@ -391,51 +390,6 @@ w.onmessage = function(e) {
     }
 }
 `
-}
-
-/**
- * @param {{ [x: string]: any; }} flags
- */
-export function runnerOptions(flags) {
-  const opts = {}
-
-  for (const key in flags) {
-    const value = flags[key]
-    const localFlags = [
-      'browser',
-      'runner',
-      'watch',
-      'debug',
-      'mode',
-      'incognito',
-      'extension',
-      'cwd',
-      'extensions',
-      'assets',
-      'before',
-      'cov',
-      'config',
-      'sw',
-      'report-dir',
-      'transform',
-      'run-timeout',
-      '_',
-      'd',
-      'r',
-      'b',
-      'm',
-      'w',
-      'i',
-      'e',
-    ]
-
-    if (!localFlags.includes(key)) {
-      // @ts-expect-error
-      opts[camelCase(key)] = value
-    }
-  }
-
-  return opts
 }
 
 /**

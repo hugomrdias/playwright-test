@@ -8,4 +8,4 @@ export const test = suite()
 
 export * from './assert.js'
 export { exec, hold } from './exec.js'
-export { suite } from './harness.js'
+export { configure, suite } from './harness.js'
