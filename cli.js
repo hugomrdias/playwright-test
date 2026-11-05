@@ -55,13 +55,6 @@ const extra = `
     )}
 
     ${kleur.dim(
-      '$ playwright-test test --cov && npx nyc report --reporter=html'
-    )}
-    ${kleur.gray(
-      '# Enable code coverage in istanbul format which can be used by nyc.'
-    )}
-
-    ${kleur.dim(
       '$ playwright-test "test/**/*.spec.js" --debug --before ./mocks/before.js'
     )}
     ${kleur.gray(
@@ -163,7 +156,6 @@ const KNOWN_FLAGS = new Set([
   'before',
   'browser',
   'config',
-  'cov',
   'cwd',
   'd',
   'debug',
@@ -176,7 +168,6 @@ const KNOWN_FLAGS = new Set([
   'mode',
   'no-transform',
   'r',
-  'report-dir',
   'run-timeout',
   'runner',
   'sw',
@@ -295,16 +286,6 @@ sade2
     defaultOptions.extension
   )
   .option(
-    '--cov',
-    "Enable code coverage in istanbul format. Outputs '.nyc_output/coverage-pw.json'.",
-    defaultOptions.cov
-  )
-  .option(
-    '--report-dir',
-    'Where to output code coverage in instanbul format.',
-    defaultOptions.reportDir
-  )
-  .option(
     '--before',
     'Path to a script to be loaded on a separate tab before the main script.'
   )
@@ -378,8 +359,6 @@ sade2
         extension: opts.extension,
         before: opts.before,
         sw: opts.sw,
-        cov: opts.cov,
-        reportDir: opts['report-dir'],
         extensions: opts.extensions,
         transform: opts.transform,
         runTimeout: opts['run-timeout'],

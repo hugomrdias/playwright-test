@@ -50,22 +50,6 @@ describe('run timeout', () => {
     is(proc.timedOut, false, 'ended by itself')
   })
 
-  it('fails a test that never ends with coverage', async () => {
-    const proc = await run('never-ends', [
-      '--mode',
-      'node',
-      '--cov',
-      '--report-dir',
-      '.coverage/run-timeout',
-      '--run-timeout',
-      '1000',
-    ])
-
-    is(proc.timedOut, false, 'ended by itself')
-    is(proc.exitCode, 1, 'exit code')
-    ok(proc.stderr.includes('Run timed out after 1000ms'), proc.stderr)
-  })
-
   for (const mode of ['main', 'node']) {
     it(`leaves a run that ends in time alone with mode:${mode}`, async () => {
       const proc = await run('stdout', [

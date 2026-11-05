@@ -18,7 +18,6 @@ import {
   addWorker,
   assertRunTimeout,
   build,
-  createCov,
   createPolka,
   defaultOptions,
   findTests,
@@ -27,6 +26,7 @@ import {
   redirectConsole,
   runTimeoutMessage,
 } from './utils/index.js'
+import { createStackMapper } from './utils/stack-map.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
@@ -63,6 +63,7 @@ export class Runner {
     mkdirSync(this.dir, {
       recursive: true,
     })
+    this.stackMapper = createStackMapper(this.dir)
     this.browserDir = temporaryDirectory()
     this.url = ''
     this.stopped = false
@@ -178,7 +179,7 @@ export class Runner {
       'PW_TEST_STDOUT_WRITE',
       (/** @type {string | Uint8Array} */ msg) =>
         new Promise((resolve, reject) =>
-          process.stdout.write(msg, (error) =>
+          process.stdout.write(this.stackMapper.map(msg), (error) =>
             error ? reject(error) : resolve(error)
           )
         )
@@ -188,7 +189,7 @@ export class Runner {
       'PW_TEST_STDERR_WRITE',
       (/** @type {string | Uint8Array} */ msg) =>
         new Promise((resolve, reject) =>
-          process.stderr.write(msg, (error) =>
+          process.stderr.write(this.stackMapper.map(msg), (error) =>
             error ? reject(error) : resolve(error)
           )
         )
@@ -205,16 +206,6 @@ export class Runner {
   async setupPage(context) {
     if (this.options.extension && this.options.browser !== 'chromium') {
       throw new Error('Extension testing is only supported in chromium')
-    }
-
-    if (this.options.cov && this.options.browser !== 'chromium') {
-      throw new Error('Coverage is only supported in chromium')
-    }
-
-    if (this.options.cov && this.options.mode !== 'main') {
-      throw new Error(
-        'Coverage is only supported in the main thread use mode:"main" '
-      )
     }
 
     if (this.options.extension) {
@@ -257,10 +248,6 @@ export class Runner {
       await this.page.goto(this.url)
     }
 
-    if (this.options.cov && this.page.coverage) {
-      await this.page.coverage.startJSCoverage()
-    }
-
     // Setup page events
     this.page.on('console', this.#onConsole)
 
@@ -268,7 +255,7 @@ export class Runner {
     this.page.on('pageerror', (err) => {
       log.error(
         `Uncaught exception happened within the page. Run with --debug. \n${kleur.dim(
-          err.stack?.toString() ?? err.toString()
+          this.stackMapper.map(err.stack?.toString() ?? err.toString())
         )}`
       )
     })
@@ -288,6 +275,7 @@ export class Runner {
     await page.evaluate(
       `localStorage.debug = "${this.env.DEBUG},-pw:*,-mocha:*"`
     )
+    this.stackMapper.reset()
     const files = []
     const { outName, files: mainFiles } = await this.compiler()
     files.push(...mainFiles)
@@ -343,7 +331,7 @@ export class Runner {
       const page = await this.setupPage(context)
       log.info(`Browser "${this.options.browser}" setup complete.`)
 
-      const { outName } = await this.runTests(page)
+      await this.runTests(page)
 
       // Re run on page reload
       if (this.options.debug) {
@@ -367,16 +355,6 @@ export class Runner {
           }
         )
         const testsFailed = await page.evaluate('globalThis.PW_TEST.failed')
-
-        // coverage
-        if (this.options.cov && page.coverage) {
-          await createCov(
-            this,
-            await page.coverage.stopJSCoverage(),
-            outName,
-            this.options.reportDir
-          )
-        }
 
         // exit
         await this.stop(
@@ -402,7 +380,7 @@ export class Runner {
     page.on('pageerror', (err) => {
       log.error(
         `Uncaught exception happened within the before page. Run with --debug. \n${kleur.dim(
-          err.stack?.toString() ?? err.toString()
+          this.stackMapper.map(err.stack?.toString() ?? err.toString())
         )}`
       )
     })
@@ -475,7 +453,7 @@ export class Runner {
    * @param {import('playwright-core').ConsoleMessage} msg
    */
   #onConsole = (msg) => {
-    const pending = redirectConsole(msg).finally(() => {
+    const pending = redirectConsole(msg, this.stackMapper.map).finally(() => {
       this.pendingConsole.delete(pending)
     })
     this.pendingConsole.add(pending)

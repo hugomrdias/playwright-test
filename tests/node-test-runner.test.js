@@ -255,17 +255,4 @@ describe('node:test runner', () => {
     is(proc.exitCode, 0, output(proc))
     ok(proc.stdout.includes('3 passing'), proc.stdout)
   })
-
-  it('--cov in node mode', async () => {
-    const proc = await run('pass', 'node', [
-      '--runner',
-      'node-test',
-      '--cov',
-      '--report-dir',
-      '.coverage/node-test-runner',
-    ])
-
-    is(proc.exitCode, 0, output(proc))
-    ok(proc.stdout.includes('% Stmts'), proc.stdout)
-  })
 })

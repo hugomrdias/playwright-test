@@ -8,8 +8,8 @@ onlyBuiltDependencies:
   - "@biomejs/biome"
   - esbuild
   - simple-git-hooks
-# The latest mocha and test-exclude still ask for these majors, and the fixes
-# only exist in the next ones. Drop these once both packages move up.
+# The latest mocha still asks for these majors, and the fixes only exist in the
+# next ones. Drop these once it moves up.
 # GHSA-3g3m-2fjr-6pw4 (glob), GHSA-g3hv-75wg-m249 (minimatch)
 overrides:
   glob@^13: ^14.0.3

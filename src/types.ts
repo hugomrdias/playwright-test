@@ -19,8 +19,6 @@ export interface RunnerOptions {
   assets: string
   before?: string
   sw?: string
-  cov: boolean
-  reportDir: string
   /**
    * Transform project files with esbuild in node mode (full TypeScript, JSX,
    * extensionless imports and `import.meta.env`). Turn it off to get plain Node
@@ -82,8 +80,6 @@ export interface CliOptions {
   debug: boolean
   incognito: boolean
   extension: boolean
-  cov: boolean
-  reportDir: string
   watch?: boolean
   before?: string
   sw?: string

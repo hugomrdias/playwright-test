@@ -1,4 +1,5 @@
 import { inspect } from 'util'
+import { removeInternalFrames } from '../utils/stack-frames.js'
 
 export const IS_ENV_WITH_DOM =
   typeof window === 'object' &&
@@ -37,7 +38,18 @@ if ('performance' in globalThis && 'now' in globalThis.performance) {
 
 export const hrtime = _hrtime
 
-const IGNORE = /^\s*at.*[\s(](?:node|(internal\/[\w/]*)|(.*taps\/[\w/]*))/
+const IGNORE = /^\s*at.*[\s(](?:node:|internal\/[\w/]*)|^\s*at.*\[eval\d*\]/
+
+/**
+ * Only in node mode, where frames have real paths. In browsers they are in the
+ * bundle here, the runner removes them when mapping what the page prints.
+ *
+ * @param {string} line
+ */
+function isInternalFrame(line) {
+  const src = process.env.PW_TEST_SRC
+  return IGNORE.test(line) || (src !== undefined && line.includes(src))
+}
 
 /**
  * Clean up stack trace
@@ -49,19 +61,18 @@ export function stack(err) {
     return ''
   }
   const idx = err.stack ? err.stack.indexOf('    at ') : 0
-  let out = ''
-  const arr = err.stack
+  const lines = err.stack
     ?.slice(Math.max(0, idx))
     .replaceAll('\\', '/')
     .replaceAll('file://', '')
     .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((text) => ({ text, internal: isInternalFrame(text) }))
 
-  for (let i = 0; i < arr.length; i++) {
-    const line = arr[i].trim()
-    if (line.length > 0 && !IGNORE.test(line)) {
-      out += `\n    ${line}`
-    }
-  }
+  const out = removeInternalFrames(lines)
+    .map((line) => `\n    ${line}`)
+    .join('')
   return `\n${out}\n`
 }
 

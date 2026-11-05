@@ -34,8 +34,6 @@ Description
     -w, --watch        Watch files for changes and re-run tests.
     -i, --incognito    Use incognito window to run tests.  (default false)
     -e, --extension    Use extension background_page to run tests.  (default false)
-    --cov              Enable code coverage in istanbul format. Outputs '.nyc_output/coverage-pw.json'.  (default false)
-    --report-dir       Where to output code coverage in instanbul format.  (default .nyc_output)
     --before           Path to a script to be loaded on a separate tab before the main script.
     --sw               Path to a script to be loaded in a service worker.
     --assets           Folder with assets to be served by the http server.  (default process.cwd())
@@ -52,9 +50,6 @@ Description
     $ playwright-test test.js --runner mocha
     $ playwright-test test --debug
     $ playwright-test "test/**/*.spec.js" --browser webkit --mode worker --incognito --debug
-
-    $ playwright-test test --cov && npx nyc report --reporter=html
-    # Enable code coverage in istanbul format which can be used by nyc.
 
     $ playwright-test "test/**/*.spec.js" --debug --before ./mocks/before.js
     # Run a script in a separate tab. Check ./mocks/before.js for an example.
@@ -271,6 +266,12 @@ The default export is the whole object and these are also named exports, importi
 Bundles resolve `path` and `path/posix`, also with the `node:` prefix, to [`path-browserify`](https://github.com/browserify/path-browserify), including in service workers. Anything installed with those names is ignored.
 
 It only has POSIX paths: `path.win32` is `null`, and `path/win32` and other subpaths fail when bundling. `path.matchesGlob` doesn't exist, and relative paths resolve from `/`, which is what `process.cwd()` returns in browsers.
+
+## Stack traces
+
+Browsers don't apply source maps to `Error.stack`, so the runner maps stack traces in everything the page prints: `console`, `process.stdout`, `process.stderr` and uncaught exceptions. This works the same in every browser and mode. Frames from the runner and its test runners are removed from the failures they report, here and in node mode.
+
+Reading `error.stack` inside the page gives positions in the bundle.
 
 ## Client
 
@@ -521,8 +522,6 @@ export interface RunnerOptions {
   assets: string
   before?: string
   sw?: string
-  cov: boolean
-  reportDir: string
   transform: boolean
   buildConfig: BuildOptions
   buildSWConfig: BuildOptions
