@@ -1,7 +1,106 @@
 import { execa, execaSync } from 'execa'
 import fs from 'fs'
+import os from 'os'
 import path from 'path'
 import { is, ok } from 'uvu/assert'
+
+describe('node mode outside the package', () => {
+  const cli = path.resolve('cli.js')
+  const none = ['--runner', 'none', '--mode', 'node']
+  /** @type {string} */
+  let project
+
+  beforeEach(() => {
+    // The temp dir has no node_modules/.bin in any of its parent folders
+    project = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-test-'))
+  })
+
+  afterEach(() => {
+    fs.rmSync(project, { recursive: true, force: true })
+  })
+
+  /**
+   * PATH without the folders where c8 can be found, `pnpm run` adds our own
+   */
+  function envWithoutC8() {
+    const key =
+      Object.keys(process.env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH'
+    const dirs = (process.env[key] ?? '')
+      .split(path.delimiter)
+      .filter(
+        (dir) =>
+          !['c8', 'c8.cmd'].some((bin) => fs.existsSync(path.join(dir, bin)))
+      )
+    return { [key]: dirs.join(path.delimiter) }
+  }
+
+  it('coverage without c8 in the project', async () => {
+    // c8 leaves test files out of the report
+    fs.writeFileSync(path.join(project, 'lib.js'), 'export const a = 1\n')
+    fs.writeFileSync(
+      path.join(project, 'entry.test.js'),
+      "import { a } from './lib.js'\nconsole.log('hello from entry', a)\n"
+    )
+
+    const proc = await execa(
+      process.execPath,
+      [cli, 'entry.test.js', '--cov', ...none],
+      { cwd: project, env: envWithoutC8(), reject: false }
+    )
+
+    is(proc.exitCode, 0, proc.stderr)
+    ok(proc.stdout.includes('hello from entry'), proc.stdout)
+    ok(proc.stdout.includes('lib.js'), proc.stdout)
+    ok(fs.existsSync(path.join(project, '.nyc_output/coverage-final.json')))
+  })
+
+  it('reports why tests could not start', async () => {
+    fs.mkdirSync(path.join(project, 'sub'))
+    fs.writeFileSync(path.join(project, 'sub/entry.test.js'), '')
+    // Removing the cwd right before the tests start makes the spawn fail
+    fs.writeFileSync(
+      path.join(project, 'pw.config.mjs'),
+      `import fs from 'node:fs'
+export default {
+  beforeTests() {
+    fs.rmSync('sub', { recursive: true })
+  },
+}
+`
+    )
+
+    const proc = await execa(
+      process.execPath,
+      [
+        cli,
+        'entry.test.js',
+        '--cwd',
+        'sub',
+        '--config',
+        'pw.config.mjs',
+        ...none,
+      ],
+      { cwd: project, reject: false }
+    )
+
+    is(proc.exitCode, 1, 'exit code')
+    ok(proc.stderr.includes('Could not start tests:'), proc.stderr)
+  })
+
+  it('failing tests only report the failure', async () => {
+    fs.writeFileSync(path.join(project, 'entry.test.js'), 'process.exit(1)\n')
+
+    const proc = await execa(
+      process.execPath,
+      [cli, 'entry.test.js', ...none],
+      { cwd: project, reject: false }
+    )
+
+    is(proc.exitCode, 1, 'exit code')
+    ok(proc.stderr.includes('Tests failed.'), proc.stderr)
+    ok(!proc.stderr.includes('Could not start tests:'), proc.stderr)
+  })
+})
 
 describe('mocha', () => {
   it('basic', async () => {

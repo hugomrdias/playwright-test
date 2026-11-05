@@ -63,6 +63,18 @@ const COVERAGE_EXTENSIONS = [
 ]
 
 /**
+ * Explain why the tests never started. Failing tests have an exit code and
+ * report themselves, and a killed subprocess has a signal.
+ *
+ * @param {any} error
+ */
+function reportStartFailure(error) {
+  if (error.exitCode === undefined && error.signal === undefined) {
+    log.error(`Could not start tests: ${error.shortMessage ?? error.message}`)
+  }
+}
+
+/**
  * Runs tests directly in Node.js without bundling.
  *
  * The test runner entry is piped to `node --input-type=module` through stdin so
@@ -140,8 +152,10 @@ export class NodeRunner {
     }
     const [file, args] = this.options.cov
       ? [
-          'c8',
+          // c8 is our dependency, the project may not be able to reach its bin
+          process.execPath,
           [
+            fileURLToPath(import.meta.resolve('c8/bin/c8.js')),
             '--reporter=text',
             '--reporter=json',
             '--report-dir',
@@ -173,7 +187,8 @@ export class NodeRunner {
 
     try {
       await this.runTests()
-    } catch {
+    } catch (error) {
+      reportStartFailure(error)
       await this.stop(true, 'Tests failed.')
     }
     this.stop(false, 'Tests passed.')
@@ -193,7 +208,7 @@ export class NodeRunner {
       // noop
     }
     let subprocess = this.runTests()
-    subprocess.catch(noop)
+    subprocess.catch(reportStartFailure)
     let restarting = false
     let pending = false
 
@@ -212,7 +227,7 @@ export class NodeRunner {
         subprocess.kill()
         await subprocess.catch(noop)
         subprocess = this.runTests()
-        subprocess.catch(noop)
+        subprocess.catch(reportStartFailure)
       } while (pending)
       restarting = false
     }
