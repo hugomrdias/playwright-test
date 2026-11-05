@@ -1,9 +1,13 @@
+import {
+  deepStrictEqual as equal,
+  strictEqual as is,
+  ok,
+} from 'node:assert/strict'
 import { after, before, describe, it } from 'node:test'
 import fs from 'fs'
-import { equal, is, ok } from 'uvu/assert'
 import * as runners from '../src/test-runners.js'
 import { detectTestRunners } from '../src/utils/auto-detect.js'
-import { execa } from './helpers.js'
+import { runCli } from './helpers.js'
 
 describe('runner auto detection', () => {
   /** @type {string} */
@@ -128,11 +132,7 @@ describe('runner auto detection', () => {
 
   describe('cli', () => {
     it('falls back to none with a warning', async () => {
-      const proc = await execa('./cli.js', [
-        write('console.log("ran")'),
-        '--mode',
-        'node',
-      ])
+      const proc = await runCli([write('console.log("ran")'), '--mode', 'node'])
 
       is(proc.exitCode, 0, 'exit code')
       ok(proc.stdout.includes('ran'), proc.stdout)
@@ -140,8 +140,7 @@ describe('runner auto detection', () => {
     })
 
     it('fails naming the runners when they conflict', async () => {
-      const proc = await execa(
-        './cli.js',
+      const proc = await runCli(
         [write("import 'tape'"), write("describe('a', () => {})")],
         { reject: false }
       )
@@ -156,8 +155,7 @@ describe('runner auto detection', () => {
     })
 
     it('--runner skips it', async () => {
-      const proc = await execa(
-        './cli.js',
+      const proc = await runCli(
         [
           write("import 'tape'\ndescribe('a', () => {})"),
           '--runner',
@@ -173,7 +171,7 @@ describe('runner auto detection', () => {
     })
 
     it('says so when there are no test files', async () => {
-      const proc = await execa('./cli.js', ['mocks/does-not-exist.js'], {
+      const proc = await runCli(['mocks/does-not-exist.js'], {
         reject: false,
       })
 
@@ -184,8 +182,7 @@ describe('runner auto detection', () => {
     })
 
     it('a config runner is not reported as detected', async () => {
-      const proc = await execa(
-        './cli.js',
+      const proc = await runCli(
         ['mocks/test.mocha.js', '--config', 'mocks/config.js'],
         { reject: false }
       )
@@ -194,8 +191,7 @@ describe('runner auto detection', () => {
     })
 
     it('--runner taps', async () => {
-      const proc = await execa(
-        './cli.js',
+      const proc = await runCli(
         ['mocks/tops/test1.test.js', '--runner', 'taps', '--mode', 'node'],
         { reject: false }
       )

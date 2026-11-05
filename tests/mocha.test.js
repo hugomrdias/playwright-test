@@ -1,34 +1,26 @@
+import { strictEqual as is, ok } from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import fs from 'fs'
 import path from 'path'
-import { is, ok } from 'uvu/assert'
-import { execa, execaSync } from './helpers.js'
+import { execaSync, runCli } from './helpers.js'
 
 describe('mocha', () => {
   it('basic', async () => {
-    const proc = await execa('./cli.js', [
-      'mocks/test.mocha.js',
-      '--runner',
-      'mocha',
-    ])
+    const proc = await runCli(['mocks/test.mocha.js', '--runner', 'mocha'])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('passing'), 'process stdout')
   })
 
   it('fixtures', async () => {
-    const proc = await execa('./cli.js', [
-      'mocks/fixtures.mocha.js',
-      '--runner',
-      'mocha',
-    ])
+    const proc = await runCli(['mocks/fixtures.mocha.js', '--runner', 'mocha'])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('passing'), 'process stdout')
   })
 
   it('node', async () => {
-    const proc = await execa('./cli.js', [
+    const proc = await runCli([
       'mocks/test.mocha.js',
       '--runner',
       'mocha',
@@ -41,7 +33,7 @@ describe('mocha', () => {
   })
 
   it('node typescript', async () => {
-    const proc = await execa('./cli.js', [
+    const proc = await runCli([
       'mocks/test.mocha.ts',
       '--runner',
       'mocha',
@@ -54,7 +46,7 @@ describe('mocha', () => {
   })
 
   it('node coverage', async () => {
-    const proc = await execa('./cli.js', [
+    const proc = await runCli([
       'mocks/test.mocha.js',
       '--runner',
       'mocha',
@@ -69,14 +61,14 @@ describe('mocha', () => {
   })
 
   it('auto detect', async () => {
-    const proc = await execa('./cli.js', ['mocks/test.mocha.js'])
+    const proc = await runCli(['mocks/test.mocha.js'])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stderr.includes('Autodetected "mocha" as the runner'), proc.stderr)
   })
 
   it('coverage', async () => {
-    const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--cov'])
+    const proc = await runCli(['mocks/test.mocha.js', '--cov'])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('passing'), 'process stdout')
@@ -88,7 +80,7 @@ describe('mocha', () => {
   })
 
   it('coverage with alternate report dir', async () => {
-    const proc = await execa('./cli.js', [
+    const proc = await runCli([
       'mocks/test.mocha.js',
       '--cov',
       '--report-dir',
@@ -105,18 +97,14 @@ describe('mocha', () => {
   })
 
   it('cwd', async () => {
-    const proc = await execa('./cli.js', [
-      'test.mocha.js',
-      '--cwd',
-      path.resolve('mocks'),
-    ])
+    const proc = await runCli(['test.mocha.js', '--cwd', path.resolve('mocks')])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('passing'), 'process stdout')
   })
 
   it('coverage with cwd', async () => {
-    const proc = await execa('./cli.js', [
+    const proc = await runCli([
       'test.mocha.js',
       '--cwd',
       path.resolve('mocks'),
@@ -134,7 +122,7 @@ describe('mocha', () => {
   })
 
   it('with DEBUG=app', async () => {
-    const proc = await execa('./cli.js', ['mocks/test.mocha.js'], {
+    const proc = await runCli(['mocks/test.mocha.js'], {
       env: { DEBUG: 'app' },
     })
 
@@ -144,25 +132,21 @@ describe('mocha', () => {
   })
 
   it('incognito', async () => {
-    const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--incognito'])
+    const proc = await runCli(['mocks/test.mocha.js', '--incognito'])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('passing'), 'process stdout')
   })
 
   it('mode:worker', async () => {
-    const proc = await execa('./cli.js', [
-      'mocks/test.mocha.js',
-      '--mode',
-      'worker',
-    ])
+    const proc = await runCli(['mocks/test.mocha.js', '--mode', 'worker'])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('passing'), 'process stdout')
   })
 
   it('mocha extension', async () => {
-    const proc = await execa('./cli.js', ['mocks/test.mocha.js', '--extension'])
+    const proc = await runCli(['mocks/test.mocha.js', '--extension'])
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('passing'), 'process stdout')
   })
@@ -181,7 +165,7 @@ describe('mocha', () => {
   })
 
   it('supports esm config files', async () => {
-    const proc = await execa('./cli.js', [
+    const proc = await runCli([
       'mocks/sw/sw-test.js',
       '--sw',
       'mocks/sw/sw.js',
@@ -194,7 +178,7 @@ describe('mocha', () => {
   })
 
   it('supports esm config files that return promises', async () => {
-    const proc = await execa('./cli.js', [
+    const proc = await runCli([
       'mocks/sw/sw-test.js',
       '--sw',
       'mocks/sw/sw.js',
@@ -207,7 +191,7 @@ describe('mocha', () => {
   })
 
   it('supports esm config files that return functions', async () => {
-    const proc = await execa('./cli.js', [
+    const proc = await runCli([
       'mocks/sw/sw-test.js',
       '--sw',
       'mocks/sw/sw.js',

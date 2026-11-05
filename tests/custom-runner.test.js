@@ -1,10 +1,10 @@
+import { strictEqual as is, ok } from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { is, ok } from 'uvu/assert'
-import { execa } from './helpers.js'
+import { runCli } from './helpers.js'
 
 describe('custom runner', () => {
   it('module from file', async () => {
-    const proc = await execa('./cli.js', [
+    const proc = await runCli([
       'mocks/tinybench.js',
       '--runner',
       './mocks/custom-runner.js',
@@ -15,7 +15,7 @@ describe('custom runner', () => {
   })
 
   it('module from config', async () => {
-    const proc = await execa('./cli.js', [
+    const proc = await runCli([
       'mocks/test.mocha.js',
       '--config',
       'mocks/config.js',
@@ -26,8 +26,7 @@ describe('custom runner', () => {
   })
 
   it('names the module when it has no runner export', async () => {
-    const proc = await execa(
-      './cli.js',
+    const proc = await runCli(
       ['mocks/test.mocha.js', '--runner', './mocks/no-runner-export.js'],
       { reject: false }
     )

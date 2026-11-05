@@ -63,7 +63,7 @@ jobs:
         if: ${{ steps.release.outputs.release_created }}
         with:
           cache: true
-      - run: pnpm run lint
+      - run: pnpm run build
         if: ${{ steps.release.outputs.release_created }}
       - run: pnpm publish
         if: ${{ steps.release.outputs.release_created }}

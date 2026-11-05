@@ -1,6 +1,6 @@
+import { strictEqual as is, ok } from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { is, ok } from 'uvu/assert'
-import { execa } from './helpers.js'
+import { runCli } from './helpers.js'
 
 describe('run timeout', () => {
   /**
@@ -8,8 +8,7 @@ describe('run timeout', () => {
    * @param {string[]} args
    */
   function run(fixture, args) {
-    return execa(
-      './cli.js',
+    return runCli(
       [`mocks/none/${fixture}.test.js`, '--runner', 'none', ...args],
       // Fail here when the run timeout doesn't work, instead of hanging
       { reject: false, timeout: 40_000 }

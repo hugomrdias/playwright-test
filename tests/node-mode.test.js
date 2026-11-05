@@ -1,9 +1,9 @@
+import { strictEqual as is, ok } from 'node:assert/strict'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import { is, ok } from 'uvu/assert'
-import { execa } from './helpers.js'
+import { execa, runCli } from './helpers.js'
 
 describe('node mode outside the package', () => {
   const cli = path.resolve('cli.js')
@@ -133,27 +133,21 @@ describe('node mode transform', () => {
   const none = ['--runner', 'none', ...node]
 
   it('full typescript', async () => {
-    const proc = await execa('./cli.js', [
-      'mocks/transform/syntax.test.ts',
-      ...mocha,
-    ])
+    const proc = await runCli(['mocks/transform/syntax.test.ts', ...mocha])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('4 passing'), proc.stdout)
   })
 
   it('jsx, resolution, module formats and import.meta.env', async () => {
-    const proc = await execa('./cli.js', [
-      'mocks/transform/imports.test.ts',
-      ...mocha,
-    ])
+    const proc = await runCli(['mocks/transform/imports.test.ts', ...mocha])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('13 passing'), proc.stdout)
   })
 
   it('buildConfig', async () => {
-    const proc = await execa('./cli.js', [
+    const proc = await runCli([
       'mocks/transform/config.test.tsx',
       '--config',
       'mocks/transform/pw.config.js',
@@ -165,7 +159,7 @@ describe('node mode transform', () => {
   })
 
   it('stack traces point at the typescript source', async () => {
-    const proc = await execa('./cli.js', ['mocks/transform/stack.ts', ...none])
+    const proc = await runCli(['mocks/transform/stack.ts', ...none])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('stack.ts:11:11'), proc.stdout)
@@ -173,7 +167,7 @@ describe('node mode transform', () => {
   })
 
   it('coverage maps to the source files', async () => {
-    const proc = await execa('./cli.js', [
+    const proc = await runCli([
       'mocks/transform/imports.test.ts',
       '--report-dir',
       '.coverage/node-mode',
@@ -195,14 +189,14 @@ describe('node mode transform', () => {
   })
 
   it('import.meta.env', async () => {
-    const proc = await execa('./cli.js', ['mocks/transform/plain.ts', ...none])
+    const proc = await runCli(['mocks/transform/plain.ts', ...none])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('import.meta.env: object'), proc.stdout)
   })
 
   it('--no-transform runs erasable typescript as plain node', async () => {
-    const proc = await execa('./cli.js', [
+    const proc = await runCli([
       'mocks/transform/plain.ts',
       '--no-transform',
       ...none,
@@ -213,8 +207,7 @@ describe('node mode transform', () => {
   })
 
   it('--no-transform rejects non-erasable typescript', async () => {
-    const proc = await execa(
-      './cli.js',
+    const proc = await runCli(
       ['mocks/transform/syntax.test.ts', '--no-transform', ...mocha],
       { reject: false }
     )
@@ -224,7 +217,7 @@ describe('node mode transform', () => {
   })
 
   it('transform: false in the config file', async () => {
-    const proc = await execa('./cli.js', [
+    const proc = await runCli([
       'mocks/transform/plain.ts',
       '--config',
       'mocks/transform/no-transform.config.js',

@@ -3,5 +3,17 @@
   "extends": ["@hugomrdias/configs/biome"],
   "files": {
     "includes": ["!src/vendor/*.js", "!.github/ISSUE_TEMPLATE/*.md"]
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["mocks/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noIdenticalTestTitle": "off"
+          }
+        }
+      }
+    }
+  ]
 }

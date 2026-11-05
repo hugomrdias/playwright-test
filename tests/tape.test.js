@@ -1,21 +1,17 @@
+import { strictEqual as is, ok } from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { is, ok } from 'uvu/assert'
-import { execa } from './helpers.js'
+import { runCli } from './helpers.js'
 
 describe('tape', () => {
   it('tape', async () => {
-    const proc = await execa('./cli.js', [
-      'mocks/test.tape.js',
-      '--runner',
-      'tape',
-    ])
+    const proc = await runCli(['mocks/test.tape.js', '--runner', 'tape'])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('# pass  5'), 'process stdout')
   })
 
   it('node', async () => {
-    const proc = await execa('./cli.js', [
+    const proc = await runCli([
       'mocks/test.tape.js',
       '--runner',
       'tape',
@@ -28,14 +24,14 @@ describe('tape', () => {
   })
 
   it('autodetect', async () => {
-    const proc = await execa('./cli.js', ['mocks/test.tape.js'])
+    const proc = await runCli(['mocks/test.tape.js'])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stderr.includes('Autodetected "tape" as the runner'), proc.stderr)
   })
 
   it('tape mode:worker', async () => {
-    const proc = await execa('./cli.js', [
+    const proc = await runCli([
       'mocks/test.tape.js',
       '--runner',
       'tape',

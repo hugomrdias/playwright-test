@@ -94,9 +94,10 @@
     }
   },
   "scripts": {
-    "clean": "rm -rf pnpm-lock.yaml .coverage .nyc_output dist node_modules .tmp",
+    "build": "tsc",
+    "clean": "rm -rf .coverage .nyc_output dist node_modules .tmp",
     "fix": "biome check --fix .",
-    "lint": "tsc && biome check .",
+    "lint": "tsc --noEmit && biome check .",
     "test": "node --test --test-force-exit --test-timeout=50000 --test-concurrency=4 \"tests/*.test.js\""
   },
   "dependencies": {

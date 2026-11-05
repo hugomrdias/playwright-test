@@ -1,5 +1,5 @@
+import { strictEqual as is } from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { is } from 'uvu/assert'
 import { execa } from './helpers.js'
 
 // The other files run in chromium, this checks the main paths in the other browsers.

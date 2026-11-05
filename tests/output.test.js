@@ -1,21 +1,17 @@
+import { strictEqual as is, ok } from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { is, ok } from 'uvu/assert'
-import { execa } from './helpers.js'
+import { runCli } from './helpers.js'
 
 describe('stdout / stderr', () => {
   it('does not add line breaks', async () => {
-    const proc = await execa('./cli.js', [
-      'mocks/none/stdout.test.js',
-      '--runner',
-      'none',
-    ])
+    const proc = await runCli(['mocks/none/stdout.test.js', '--runner', 'none'])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('hello world!'), 'process stdout')
   })
 
   it('works in worker', async () => {
-    const proc = await execa('./cli.js', [
+    const proc = await runCli([
       'mocks/none/stdout.test.js',
       '--runner',
       'none',
@@ -28,11 +24,7 @@ describe('stdout / stderr', () => {
   })
 
   it('prints to stderr', async () => {
-    const proc = await execa('./cli.js', [
-      'mocks/none/stderr.test.js',
-      '--runner',
-      'none',
-    ])
+    const proc = await runCli(['mocks/none/stderr.test.js', '--runner', 'none'])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('hello '), 'process stdout')
@@ -40,7 +32,7 @@ describe('stdout / stderr', () => {
   })
 
   it('prints to stderr in worker', async () => {
-    const proc = await execa('./cli.js', [
+    const proc = await runCli([
       'mocks/none/stderr.test.js',
       '--runner',
       'none',
@@ -64,8 +56,7 @@ for (const browser of ['chromium', 'firefox']) {
      * @param {string} mode
      */
     function run(fixture, mode) {
-      return execa(
-        './cli.js',
+      return runCli(
         [
           `mocks/none/${fixture}.test.js`,
           '--runner',

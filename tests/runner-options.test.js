@@ -1,6 +1,6 @@
+import { strictEqual as is, ok } from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { is, ok } from 'uvu/assert'
-import { execa } from './helpers.js'
+import { execa, runCli } from './helpers.js'
 
 describe('runner options', () => {
   const fixture = (/** @type {string} */ name) =>
@@ -11,7 +11,7 @@ describe('runner options', () => {
    * @param {string[]} args
    */
   const run = (name, args) =>
-    execa('./cli.js', [fixture(name), ...args], { reject: false })
+    runCli([fixture(name), ...args], { reject: false })
 
   /**
    * @param {import('execa').Result} proc
@@ -111,8 +111,7 @@ describe('runner options', () => {
     ['none', 'mocks/none/stdout.test.js'],
   ]) {
     it(`${runner} warns they are ignored`, async () => {
-      const proc = await execa(
-        './cli.js',
+      const proc = await runCli(
         [
           file,
           '--runner',

@@ -1,7 +1,7 @@
+import { strictEqual as is, ok } from 'node:assert/strict'
 import { after, before, describe, it } from 'node:test'
 import fs from 'fs'
-import { is, ok } from 'uvu/assert'
-import { execa } from './helpers.js'
+import { execa, runCli } from './helpers.js'
 
 describe('node:test runner', () => {
   const modes = ['node', 'main', 'worker']
@@ -14,7 +14,7 @@ describe('node:test runner', () => {
    * @param {string[]} [args]
    */
   const run = (name, mode, args = ['--runner', 'node-test']) =>
-    execa('./cli.js', [fixture(name), '--mode', mode, ...args], {
+    runCli([fixture(name), '--mode', mode, ...args], {
       reject: false,
     })
 
@@ -213,8 +213,7 @@ describe('node:test runner', () => {
         it(`${mode} ${name}`, async () => {
           const file = `${dir}/${count++}.test.js`
           fs.writeFileSync(file, `${imports}\n${source}\n`)
-          const proc = await execa(
-            './cli.js',
+          const proc = await runCli(
             [
               file,
               '--runner',
