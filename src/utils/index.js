@@ -438,7 +438,7 @@ export async function build(runner, config = {}, tmpl = '', mode = 'bundle') {
   let infileContent = `
 import { install } from '${sourceMapSupport.replaceAll('\\', '/')}'
 install()
-process.env = ${JSON.stringify(runner.env)}
+Object.assign(process.env, ${JSON.stringify(runner.env)})
 import.meta.env = ${JSON.stringify(runner.env)}
 
 ${tmpl}
@@ -448,7 +448,7 @@ ${tmpl}
     infileContent = `
 import { install } from '${sourceMapSupport.replaceAll('\\', '/')}'
 install()
-process.env = ${JSON.stringify(runner.env)}
+Object.assign(process.env, ${JSON.stringify(runner.env)})
 import.meta.env = ${JSON.stringify(runner.env)}
 
 await import('${require

@@ -255,6 +255,17 @@ Bundles resolve `assert`, `assert/strict`, `util` and `util/types`, also with th
 
 `util` has `format`, `formatWithOptions`, `inspect`, `isDeepStrictEqual`, `promisify`, `callbackify`, `inherits`, `deprecate`, `debuglog`, `debug`, `log`, `stripVTControlCharacters`, `toUSVString`, `_extend`, `types`, `TextEncoder`, `TextDecoder` and the `isArray` style checks. Importing anything else by name fails when bundling. `isExternal`, `isKeyObject` and `isProxy` from `types` are always `false`, a browser can't tell.
 
+## `process` in browsers
+
+`process` is a global in browser bundles. Bundles also resolve `process`, `process/browser` and `process/browser.js`, also with the `node:` prefix, to the same object in `src/polyfills/process.js`. Anything installed with those names is ignored, and any other subpath of `process` fails when bundling.
+
+- `stdout.write`, `stderr.write` and `exit` talk to the runner, and `env` has the environment of the run.
+- `hrtime` uses `performance.now()`. `nextTick` runs its callbacks on a timer, after pending promise callbacks, unlike in Node.
+- `cwd()` returns `/`, `umask()` returns `0`, `listeners()` returns `[]`, and `on`, `once`, `off`, `emit` and the other event methods do nothing. `chdir` and `binding` throw.
+- `title`, `browser`, `argv`, `version` and `versions` are `browser`, `true`, `[]`, `''` and `{}`.
+
+The default export is the whole object and these are also named exports, importing anything else by name fails when bundling. Other properties, like `process.platform`, are `undefined`.
+
 ## Client
 
 This client package exposes the `playwright-test` options and some Playwright browser context methods to be used in tests.

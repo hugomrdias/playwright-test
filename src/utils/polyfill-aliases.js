@@ -13,6 +13,10 @@ export const polyfillAliases = Object.fromEntries(
   Object.entries({
     assert: 'assert.js',
     'assert/strict': 'assert-strict.js',
+    process: 'process.js',
+    // Without these esbuild looks for them inside `process.js`
+    'process/browser': 'process.js',
+    'process/browser.js': 'process.js',
     util: 'util.js',
     'util/types': 'util-types.js',
   }).flatMap(([name, file]) => {
