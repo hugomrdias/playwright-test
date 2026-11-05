@@ -82,7 +82,10 @@ export class Runner {
       })
 
     if (this.tests.length === 0) {
-      this.stop(false, 'No test files were found.')
+      // Not with `stop`, under --debug it would wait with nothing to debug
+      this.stopped = true
+      log.error('No test files were found.')
+      gracefulExit(1)
     }
 
     process.env.DEBUG += ',-pw:*'
