@@ -14,7 +14,7 @@ globalThis.TAPS_ONLY = false
  * @param {import("./types.js").TestContext} ctx
  * @param {Error} err
  */
-function formatError(ctx, err) {
+export function formatError(ctx, err) {
   let out = `\n${kleur.bgRed().bold(' FAILURE ')} ${kleur.red(`"${ctx.suite ? `${ctx.suite} > ` : ''}${ctx.name}"`)}\n`
   out += `${err.name}: ${err.message}${kleur.gray(stack(err))}`
 
@@ -56,7 +56,7 @@ ${`${err.name}: ${err.message} `} ${kleur.gray(stack(err))}
  * @param {boolean} fail
  * @param {string} time
  */
-function log(ctx, fail, time) {
+export function log(ctx, fail, time) {
   const symbol = fail
     ? kleur.red('✘')
     : ctx.skip

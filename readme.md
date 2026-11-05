@@ -118,6 +118,134 @@ NODE_OPTIONS="--import tsx" playwright-test "test/**/*.spec.ts" --mode node --no
 NODE_OPTIONS="--import @nubjs/runner" playwright-test "test/**/*.spec.ts" --mode node --no-transform
 ```
 
+## `node:test` API
+
+`playwright-test/taps/node-test` is an implementation of the [`node:test`](https://nodejs.org/api/test.html) API built on the `taps` harness, so the same test file runs in real browsers (main thread and worker modes) and in Node. It has no dependency on mocha, and `playwright-test/taps` keeps working as it did.
+
+```js
+import { strict as assert } from 'assert'
+import {
+  after,
+  before,
+  describe,
+  it,
+  mock,
+  test,
+} from 'playwright-test/taps/node-test'
+
+describe('math', () => {
+  before(() => console.log('setup'))
+  after(() => console.log('teardown'))
+
+  it('adds', () => {
+    assert.equal(1 + 1, 2)
+  })
+
+  it('has subtests', async (t) => {
+    await t.test('a subtest', () => {
+      t.assert.ok(true)
+    })
+  })
+})
+
+test('mocks', { timeout: 1000 }, (t) => {
+  const fn = t.mock.fn(() => 1)
+  fn()
+  assert.equal(fn.mock.callCount(), 1)
+})
+```
+
+There's no built-in runner option for it yet, so pass a [custom test runner](#custom-test-runner) that drives it with `exec` and `hold`:
+
+```js
+// node-test-runner.js
+export const playwrightTestRunner = {
+  moduleId: 'playwright-test/taps/node-test',
+  compileRuntime(_options, paths) {
+    return `
+const { exec, hold } = await import('playwright-test/taps/node-test')
+hold()
+${paths.map((url) => `await import('${url}')`).join('\n')}
+
+exec().then(() => {
+  process.exit(process.exitCode)
+})
+`
+  },
+}
+```
+
+```shell
+playwright-test "test/**/*.test.js" --runner ./node-test-runner.js
+playwright-test "test/**/*.test.js" --runner ./node-test-runner.js --mode worker
+playwright-test "test/**/*.test.js" --runner ./node-test-runner.js --mode node
+```
+
+The types are the ones from `node:test`, which come from `@types/node`.
+
+### What's supported
+
+- `test` (also the default export), `it`, `describe`, `suite`, `before`, `after`, `beforeEach`, `afterEach`, `mock`, `getTestContext`, and `assert.register`.
+- `test(name?, options?, fn?)`, which returns a promise, and `.skip`, `.todo` and `.only` on all of them.
+- The options `skip`, `todo`, `only`, `timeout`, `plan`, `signal`, `tags` and `concurrency`. There's no default timeout.
+- Suites to any depth, async suites and hooks scoped to their suite. Everything runs in declaration order.
+- The test context: `t.test`, `t.name`, `t.fullName`, `t.skip`, `t.todo`, `t.diagnostic`, `t.log`, `t.plan`, `t.assert`, `t.signal`, `t.mock`, `t.waitFor`, `t.runOnly`, `t.error`, `t.passed`, `t.tags`, `t.before`, `t.after`, `t.beforeEach`, `t.afterEach` and `(t, done)` callbacks, also in hooks.
+- `mock.fn`, `mock.method`, `mock.getter`, `mock.setter`, `mock.property`, `mock.reset` and `mock.restoreAll`. `t.mock` is restored when the test ends.
+
+`test.js` runs its fixtures with this API and with the real `node:test`, and compares execution order, per test results and exit codes.
+
+### What throws
+
+These aren't implemented and throw an error that names them, they never silently do nothing:
+
+- `mock.timers` and `mock.module()`
+- `t.assert.snapshot()`, `t.assert.fileSnapshot()` and `snapshot.setDefaultSnapshotSerializers()`, `snapshot.setResolveSnapshotPath()`
+- `run()`
+- `test.expectFailure()` and the `expectFailure` option
+
+### What's different from `node:test`
+
+- Tests run serially, `concurrency` is accepted and ignored.
+- `.only` always filters, there's no `--test-only` flag to pass.
+- A test that never settles fails in node mode, where `node:test` hangs. A browser can't tell it will never settle and also waits forever, so use the `timeout` option.
+- A throw in a root `after` hook fails the run, it exits with 0 in `node:test`.
+- A root `after` hook runs when the whole run ends, `node:test` can run it earlier when using top level `await`.
+- There's no async context in browsers, so a running test is what's used to find out where things belong. A global `test()` call while a test is running creates a subtest of that test, and an uncaught error fails the running test even when an earlier test caused it. Only one async `describe` body runs at a time, the others wait for it.
+- All the files of a run share the root hooks, like `--test-isolation=none`.
+- A top level `await test()` runs before anything else, so an `.only` declared later doesn't filter it. A test declared after the run ended throws.
+- Awaiting `t.test()` on a test that already finished resolves and the subtest fails, it hangs in `node:test`.
+- `t.assert` always counts for `t.plan()`, in `node:test` it doesn't if it was read before calling `t.plan()`.
+- The output is the `taps` format, not a `node:test` reporter. `t.filePath` and `t.workerId` are `undefined`.
+
+### With `playwright-test/taps` in the same file
+
+They share the same `exec` and `hold`, reporting and exit code. A run has the default `test` suite of `playwright-test/taps` first, then all the `node:test` tests as one block, then the suites from `suite()` in the order they were created. `.only` in any of them filters out all the others. Root hooks only apply to `node:test` tests.
+
+## `node:assert` API
+
+`playwright-test/taps/node-assert` is `node:assert/strict` for tests that also run in browsers. In Node it's the built-in, in browsers it's an implementation ported from Node. `t.assert` of `playwright-test/taps/node-test` uses it too, with the loose `equal` and `deepEqual` that `t.assert` has in `node:test`.
+
+```js
+import assert, { deepEqual, throws } from 'playwright-test/taps/node-assert'
+import test from 'playwright-test/taps/node-test'
+
+test('compares', () => {
+  deepEqual({ a: 1 }, { a: 1 })
+  throws(() => assert.fail('nope'), { code: 'ERR_ASSERTION' })
+})
+```
+
+It's a separate entrypoint because `node:test` has its own `assert` export, with `assert.register()`. The exports are the ones from `node:assert/strict`: `ok`, `equal`, `notEqual`, `deepEqual`, `notDeepEqual`, `strictEqual`, `notStrictEqual`, `deepStrictEqual`, `notDeepStrictEqual`, `partialDeepStrictEqual`, `throws`, `doesNotThrow`, `rejects`, `doesNotReject`, `match`, `doesNotMatch`, `ifError`, `fail`, `AssertionError`, `Assert`, `CallTracker` and `strict`. The default export is `strict`, and `legacy` is the same thing with the shape of `node:assert`.
+
+`test.js` runs the same cases in chromium and with the real `node:assert`, comparing the result, `name`, `code`, `operator` and `generatedMessage` of each one. CI also runs them in firefox and webkit.
+
+In browsers:
+
+- Error messages can be worded differently, and the `diff` option of `Assert` is ignored.
+- `CallTracker` throws an error that says it isn't supported. It's deprecated in Node.
+- Two different `CryptoKey`s are never deep equal, the key material isn't readable.
+- `AssertionError` comes from the `assert` polyfill, so it isn't the same class as the one in Node.
+
 ## Client
 
 This client package exposes the `playwright-test` options and some Playwright browser context methods to be used in tests.

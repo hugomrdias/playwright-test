@@ -31,6 +31,14 @@
       "types": "./dist/src/taps/index.d.ts",
       "default": "./src/taps/index.js"
     },
+    "./taps/node-test": {
+      "types": "./dist/src/taps/node-test.d.ts",
+      "default": "./src/taps/node-test.js"
+    },
+    "./taps/node-assert": {
+      "types": "./dist/src/taps/node-assert.d.ts",
+      "default": "./src/taps/node-assert.js"
+    },
     "./client": {
       "types": "./dist/src/client/index.d.ts",
       "default": "./src/client/index.js"
@@ -42,6 +50,12 @@
     "*": {
       "taps": [
         "dist/src/taps/index.d.ts"
+      ],
+      "taps/node-test": [
+        "dist/src/taps/node-test.d.ts"
+      ],
+      "taps/node-assert": [
+        "dist/src/taps/node-assert.d.ts"
       ],
       "client": [
         "dist/src/client/index.d.ts"
