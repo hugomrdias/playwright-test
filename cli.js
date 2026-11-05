@@ -67,7 +67,7 @@ const extra = `
 
   ${kleur.bold('Notes')}
     DEBUG env var filtering for 'debug' package logging will work as expected.
-    ${kleur.dim('$ DEBUG:app playwright-test test.js')}
+    ${kleur.dim('$ DEBUG=app playwright-test test.js')}
 
     Do not let your shell expand globs, always wrap them.
     ${kleur.dim('$ playwright-test "test/**"')} GOOD
