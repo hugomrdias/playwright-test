@@ -30,6 +30,12 @@ export interface Assert {
   ifError: typeof _assert.strict.ifError
   match: typeof _assert.strict.match
   doesNotMatch: typeof _assert.strict.doesNotMatch
+  strictEqual: typeof _assert.strict.strictEqual
+  notStrictEqual: typeof _assert.strict.notStrictEqual
+  deepStrictEqual: typeof _assert.strict.deepStrictEqual
+  notDeepStrictEqual: typeof _assert.strict.notDeepStrictEqual
+  partialDeepStrictEqual: typeof _assert.strict.partialDeepStrictEqual
+  AssertionError: typeof _assert.strict.AssertionError
   subset: typeof subset
   type: typeof type
   instance: typeof instance
