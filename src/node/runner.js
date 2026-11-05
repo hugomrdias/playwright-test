@@ -50,6 +50,18 @@ const defaultOptions = {
   },
 }
 
+/** c8's defaults leave out .mts and .cts, passing any replaces all of them. */
+const COVERAGE_EXTENSIONS = [
+  '.js',
+  '.cjs',
+  '.mjs',
+  '.ts',
+  '.tsx',
+  '.jsx',
+  '.mts',
+  '.cts',
+]
+
 /**
  * Runs tests directly in Node.js without bundling.
  *
@@ -134,6 +146,7 @@ export class NodeRunner {
             '--reporter=json',
             '--report-dir',
             this.options.reportDir,
+            ...COVERAGE_EXTENSIONS.map((ext) => `--extension=${ext}`),
             'node',
             ...nodeArgs,
           ],

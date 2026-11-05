@@ -382,7 +382,7 @@ describe('node mode transform', () => {
     ])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('12 passing'), proc.stdout)
+    ok(proc.stdout.includes('13 passing'), proc.stdout)
   })
 
   it('buildConfig', async () => {
@@ -423,6 +423,8 @@ describe('node mode transform', () => {
     )
     ok(path.resolve('mocks/transform/lib/rewritten.ts') in cov, 'ts coverage')
     ok(path.resolve('mocks/transform/lib/view.tsx') in cov, 'tsx coverage')
+    ok(path.resolve('mocks/transform/lib/module.mts') in cov, 'mts coverage')
+    ok(path.resolve('mocks/transform/lib/common.cts') in cov, 'cts coverage')
   })
 
   it('import.meta.env', async () => {

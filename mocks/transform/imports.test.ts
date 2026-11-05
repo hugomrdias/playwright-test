@@ -6,6 +6,7 @@ import { indexed } from './lib/dir'
 import { env as mjsEnv } from './lib/env.mjs'
 import { extensionless } from './lib/extensionless'
 import { jsxView } from './lib/jsx-view.jsx'
+import { fromMts } from './lib/module.mjs'
 import { rewritten } from './lib/rewritten.js'
 import { rewrittenTsx } from './lib/rewritten-tsx.js'
 import { view } from './lib/view.tsx'
@@ -44,6 +45,10 @@ describe('imports', () => {
   it('named exports from .cts', () => {
     is(fromCts, 'fromCts')
     is(shout('a'), 'A!')
+  })
+
+  it('.mjs to .mts', () => {
+    is(fromMts, 4)
   })
 
   it('require of .cts and .ts', () => {
