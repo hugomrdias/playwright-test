@@ -86,7 +86,8 @@ const define = {
   'import.meta.env': 'globalThis.process.env',
   ...buildConfig.define,
 }
-const defineKeys = Object.keys(define)
+// Split up since esbuild also matches `a['b']`, `a .b` and comments in between
+const defineKeys = Object.keys(define).map((key) => key.split('.'))
 
 /** @type {TransformOptions} */
 const transformOptions = {
@@ -256,8 +257,9 @@ registerHooks({
     }
     // Node leaves the source of CommonJS modules for its own loader to read
     const source = String(result.source ?? readFileSync(file))
-    return defineKeys.some((key) => source.includes(key))
-      ? transform(url, source, 'js', result.format)
-      : result
+    const usesDefine = defineKeys.some((parts) =>
+      parts.every((part) => source.includes(part))
+    )
+    return usesDefine ? transform(url, source, 'js', result.format) : result
   },
 })

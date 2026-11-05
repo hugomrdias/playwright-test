@@ -99,7 +99,7 @@ Plain Node only understands [erasable TypeScript](https://nodejs.org/api/typescr
 
 Each file is transformed on its own, so only these `buildConfig` keys apply. Everything else, including `plugins`, `inject`, `external` and `bundle`, is ignored, and so is the test runner `buildConfig`.
 
-- `define`, which also applies to `.js` files that contain one of its keys.
+- `define`, which also applies to plain `.js` files that use one of its keys.
 - `loader`, for loaders that output JavaScript (`js`, `jsx`, `ts`, `tsx`, `json`, `text`, `base64`, `dataurl` and `binary`). For example `{ '.txt': 'text' }`.
 - `jsx`, `jsxDev`, `jsxFactory`, `jsxFragment`, `jsxImportSource` and `jsxSideEffects`.
 - `tsconfigRaw`.

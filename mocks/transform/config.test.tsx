@@ -1,4 +1,5 @@
 import { is } from 'uvu/assert'
+import { bracket, spaced } from './lib/define-spelling.js'
 import note from './lib/note.txt'
 import { fromDefine } from './lib/uses-define.js'
 import commonjsDefine from './no-type/define.js'
@@ -26,6 +27,11 @@ describe('buildConfig', () => {
   it('define in plain .js files', () => {
     is(fromDefine, 'defined')
     is(commonjsDefine, 'defined')
+  })
+
+  it('define spelled differently from the key in plain .js files', () => {
+    is(bracket, 'defined')
+    is(spaced, 'defined')
   })
 
   it('loader', () => {

@@ -394,7 +394,7 @@ describe('node mode transform', () => {
     ])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('5 passing'), proc.stdout)
+    ok(proc.stdout.includes('6 passing'), proc.stdout)
   })
 
   it('stack traces point at the typescript source', async () => {

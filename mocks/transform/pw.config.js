@@ -1,6 +1,9 @@
 export default {
   buildConfig: {
-    define: { __DEFINED__: '"defined"' },
+    define: {
+      __DEFINED__: '"defined"',
+      'process.env.PW_DEFINED': '"defined"',
+    },
     loader: { '.txt': 'text' },
     jsx: 'transform',
     jsxFactory: 'createElement',
