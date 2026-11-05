@@ -11,7 +11,6 @@ describe('runner auto detection', () => {
   let count = 0
 
   before(() => {
-    // The cli takes globs, which can't be absolute paths with backslashes on Windows
     dir = fs.mkdtempSync('mocks/tmp-detect-')
   })
   after(() => {
@@ -178,6 +177,7 @@ describe('runner auto detection', () => {
         reject: false,
       })
 
+      is(proc.exitCode, 1, 'exit code')
       ok(proc.stderr.includes('No test files were found'), proc.stderr)
       ok(!proc.stderr.includes('Using "none"'), proc.stderr)
       ok(!proc.stderr.includes('ERR_INVALID_ARG_TYPE'), proc.stderr)

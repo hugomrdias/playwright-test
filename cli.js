@@ -84,6 +84,11 @@ const extra = `
     Do not let your shell expand globs, always wrap them.
     ${kleur.dim('$ playwright-test "test/**"')} GOOD
     ${kleur.dim('$ playwright-test test/**')} BAD
+
+    A path that exists is used as is, even with glob characters in it.
+    ${kleur.dim('$ playwright-test "app/[id].test.js"')}
+
+    It exits with 1 when no test files are found.
 `
 
 const sade2 = new Proxy(sade('playwright-test [files]', true), {
