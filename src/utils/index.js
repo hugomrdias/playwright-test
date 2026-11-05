@@ -278,10 +278,15 @@ export async function redirectConsole(msg) {
       msg.args().map((arg) => extractErrorMessage(arg) || arg.jsonValue())
     )
   } catch {
-    // ignore error runner was probably force stopped
+    // Runner was probably force stopped, the page can't give us the values
+    // anymore so print the text on the stream this message belongs to.
+    // console.assert would print nothing, it only checks its first argument.
+    const printText = type === 'assert' ? console.error : consoleFn
+    printText.call(console, text)
+    return
   }
 
-  if (msgArgs && msgArgs.length > 0) {
+  if (msgArgs.length > 0) {
     consoleFn.apply(console, msgArgs)
   } else if (text) {
     console.error(kleur.dim(`🌐${text}`))
