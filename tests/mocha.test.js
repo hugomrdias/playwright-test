@@ -92,14 +92,14 @@ describe('mocha', () => {
       'mocks/test.mocha.js',
       '--cov',
       '--report-dir',
-      '.coverage',
+      '.coverage/mocha',
     ])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('passing'), 'process stdout')
 
     const cov = JSON.parse(
-      fs.readFileSync('.coverage/coverage-pw.json', 'utf8')
+      fs.readFileSync('.coverage/mocha/coverage-pw.json', 'utf8')
     )
     ok(path.resolve('mocks/test.mocha.js') in cov, 'test coverage')
   })

@@ -50,7 +50,7 @@ describe('run timeout', () => {
       'node',
       '--cov',
       '--report-dir',
-      '.coverage',
+      '.coverage/run-timeout',
       '--run-timeout',
       '1000',
     ])

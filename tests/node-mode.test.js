@@ -176,7 +176,7 @@ describe('node mode transform', () => {
     const proc = await execa('./cli.js', [
       'mocks/transform/imports.test.ts',
       '--report-dir',
-      '.coverage',
+      '.coverage/node-mode',
       '--cov',
       ...mocha,
     ])
@@ -186,7 +186,7 @@ describe('node mode transform', () => {
     ok(proc.stdout.includes('view.tsx'), proc.stdout)
 
     const cov = JSON.parse(
-      fs.readFileSync('.coverage/coverage-final.json', 'utf8')
+      fs.readFileSync('.coverage/node-mode/coverage-final.json', 'utf8')
     )
     ok(path.resolve('mocks/transform/lib/rewritten.ts') in cov, 'ts coverage')
     ok(path.resolve('mocks/transform/lib/view.tsx') in cov, 'tsx coverage')
