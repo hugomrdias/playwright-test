@@ -16,7 +16,7 @@ const INLINE_MAP = 'sourceMappingURL=data:application/json;base64,'
 
 // The filters of the test runners run in the page, where they only see bundles
 const MOCHA = /[/\\]node_modules[/\\]mocha[/\\]/
-const SRC = fileURLToPath(new URL('../', import.meta.url))
+const SRC = toSlashes(fileURLToPath(new URL('../', import.meta.url)))
 
 /**
  * @param {string} file
@@ -27,14 +27,27 @@ function isInternal(file) {
 }
 
 /**
+ * The page can print a stack trace inside anything, like a JSON string, where
+ * the backslashes of Windows paths would be escapes. It's a valid path without
+ * them, and it's what reporters print in node mode.
+ *
+ * @param {string} file
+ */
+function toSlashes(file) {
+  return file.split(path.sep).join('/')
+}
+
+/**
  * @param {string} dir
  * @param {string} source
  */
 function resolveSource(dir, source) {
   if (source.startsWith('file:')) {
-    return fileURLToPath(source)
+    return toSlashes(fileURLToPath(source))
   }
-  return /^[a-z][\w+.-]*:/i.test(source) ? source : path.resolve(dir, source)
+  return /^[a-z][\w+.-]*:/i.test(source)
+    ? source
+    : toSlashes(path.resolve(dir, source))
 }
 
 /**

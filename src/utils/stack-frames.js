@@ -1,6 +1,6 @@
 // `at fn (url:1:2)` or `fn@url:1:2`, with names like `module code` and
 // `promise callback*fn` in webkit and firefox
-const FRAME = /^\s*(?:at\s|[^@]*@\S*\s*$)/
+const FRAME = /^\s*(?:at\s|[^@]*@[^@\s]*:\d+:\d+\s*$)/
 // `at Array.map (<anonymous>)`, `at async Promise.all (index 0)`, `map@[native code]`
 const NATIVE =
   /^\s*at\s.*\((?:<anonymous>|index \d+)\)\s*$|^\s*[^@]*@(?:\[native code\])?\s*$/

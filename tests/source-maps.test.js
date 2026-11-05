@@ -33,6 +33,9 @@ describe('stack mapper', () => {
   /** @type {string} */
   let dir
 
+  // Always with forward slashes, also on Windows
+  const sourceFile = () => path.join(dir, 'source.js').replaceAll('\\', '/')
+
   /**
    * Line and column of a text in a bundle, the way browsers report them
    *
@@ -68,7 +71,7 @@ describe('stack mapper', () => {
       'export const fromMocha = () => new Error("fromMocha")\n'
     )
     writeFileSync(
-      path.join(dir, 'source.js'),
+      sourceFile(),
       '\n\nexport const fromSource = () => new Error("fromSource")\n'
     )
     writeFileSync(
@@ -86,7 +89,7 @@ globalThis.out = [fromMocha, fromSource]
   it('maps every stack format', () => {
     const { map } = createStackMapper(dir)
     const at = positionIn('bundle-out.js', 'new Error("fromSource")')
-    const source = path.join(dir, 'source.js')
+    const source = sourceFile()
 
     is(
       map(`    at fn (http://127.0.0.1:1234/bundle-out.js:${at})`),
@@ -127,19 +130,22 @@ globalThis.out = [fromMocha, fromSource]
 
     is(
       map(`Error: x\n    at a (${url}:${mocha})\n    at b (${url}:${source})`),
-      `Error: x\n    at b (${path.join(dir, 'source.js')}:3:33)`
+      `Error: x\n    at b (${sourceFile()}:3:33)`
     )
-    is(
-      map(`a@${url}:${mocha}\nb@${url}:${source}`),
-      `b@${path.join(dir, 'source.js')}:3:33`
-    )
+    is(map(`a@${url}:${mocha}\nb@${url}:${source}`), `b@${sourceFile()}:3:33`)
     // Names with spaces in webkit and firefox
     is(map(`module code@${url}:${mocha}`), '')
     is(map(`promise callback*a@${url}:${mocha}`), '')
     is(
       map(`promise callback*b@${url}:${source}`),
-      `promise callback*b@${path.join(dir, 'source.js')}:3:33`
+      `promise callback*b@${sourceFile()}:3:33`
     )
+    // A stack in a JSON string is on one line, it's not a frame
+    const json = JSON.stringify({
+      stack: `a@${url}:${source}\nb@${url}:${mocha}`,
+    })
+    const fromJson = JSON.parse(map(json))
+    ok(fromJson.stack.includes(`a@${sourceFile()}:3:33`), fromJson.stack)
     // Not a frame, the position is still useful
     ok(map(`see ${url}:${mocha}`).startsWith('see '))
   })
@@ -149,7 +155,7 @@ globalThis.out = [fromMocha, fromSource]
     const url = 'http://127.0.0.1:1234/bundle-out.js'
     const mocha = positionIn('bundle-out.js', 'new Error("fromMocha")')
     const at = positionIn('bundle-out.js', 'new Error("fromSource")')
-    const source = `${path.join(dir, 'source.js')}:3:33`
+    const source = `${sourceFile()}:3:33`
 
     is(map(`    at __init (${url}:99999:1)`), '')
     is(
@@ -188,7 +194,7 @@ globalThis.out = [fromMocha, fromSource]
       new TextDecoder().decode(
         map(encode(`at fn (http://127.0.0.1:1234/bundle-out.js:${at})`))
       ),
-      `at fn (${path.join(dir, 'source.js')}:3:33)`
+      `at fn (${sourceFile()}:3:33)`
     )
     // A Buffer is also a Uint8Array
     ok(
@@ -214,7 +220,7 @@ globalThis.out = [fromMocha, fromSource]
     const { map } = createStackMapper(dir)
     const at = positionIn('bundle-out.js', 'new Error("fromSource")')
     const frame = `    at fn (http://127.0.0.1:1234/bundle-out.js:${at})`
-    const mapped = `    at fn (${path.join(dir, 'source.js')}:3:33)`
+    const mapped = `    at fn (${sourceFile()}:3:33)`
 
     const error = new Error('x')
     error.stack = frame
@@ -241,10 +247,7 @@ globalThis.out = [fromMocha, fromSource]
     const { map } = createStackMapper(dir)
     const at = positionIn('before-out.js', 'new Error("fromSource")')
 
-    is(
-      map(`at fn (before-out.js:${at})`),
-      `at fn (${path.join(dir, 'source.js')}:3:33)`
-    )
+    is(map(`at fn (before-out.js:${at})`), `at fn (${sourceFile()}:3:33)`)
   })
 
   it('reset reads the bundles again', async () => {
@@ -422,6 +425,20 @@ for (const browser of ['chromium', 'firefox', 'webkit']) {
         assertNoInternals(`${proc.stdout}${proc.stderr}`)
       })
     }
+
+    it('stack traces in JSON stay valid', async () => {
+      const proc = await runCli([
+        'mocks/source-maps/json.js',
+        '--runner',
+        'none',
+        ...flags,
+      ])
+
+      is(proc.exitCode, 0, 'exit code')
+      const line = proc.stdout.split('\n').find((l) => l.startsWith('{"stack"'))
+      ok(line, proc.stdout)
+      ok(JSON.parse(line).stack.includes('json.js:2:'), line)
+    })
 
     it('uncaught exceptions', async () => {
       const proc = await runCli([
