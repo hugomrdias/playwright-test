@@ -6,21 +6,28 @@ const startTimer = globalThis.setTimeout
 
 /** @type {Array<() => void>} */
 const ticks = []
+let nextTickIndex = 0
 let ticksScheduled = false
 
 /**
  * Runs ticks added along the way too, and leaves the rest for another timer
- * when one throws.
+ * when one throws. It walks the queue with an index because `shift()` makes long
+ * queues quadratic.
  */
 function drainTicks() {
   try {
-    while (ticks.length > 0) {
-      ticks.shift()()
+    while (nextTickIndex < ticks.length) {
+      const tick = ticks[nextTickIndex]
+      nextTickIndex += 1
+      tick()
     }
   } finally {
-    ticksScheduled = ticks.length > 0
+    ticksScheduled = nextTickIndex < ticks.length
     if (ticksScheduled) {
       startTimer(drainTicks, 0)
+    } else {
+      ticks.length = 0
+      nextTickIndex = 0
     }
   }
 }
