@@ -81,7 +81,6 @@
   },
   "dependencies": {
     "acorn-loose": "^8.5.2",
-    "assert": "^2.1.0",
     "buffer": "^6.0.3",
     "c8": "^12.0.0",
     "camelcase": "^10.0.0",
@@ -109,7 +108,6 @@
     "tempy": "^3.2.0",
     "test-exclude": "^8.0.0",
     "tinyglobby": "^0.2.17",
-    "util": "^0.12.5",
     "v8-to-istanbul": "^9.3.0"
   },
   "devDependencies": {

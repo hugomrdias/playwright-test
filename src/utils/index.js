@@ -18,6 +18,7 @@ import { fileURLToPath, pathToFileURL } from 'url'
 import { promisify } from 'util'
 import V8ToIstanbul from 'v8-to-istanbul'
 import * as DefaultRunners from '../test-runners.js'
+import { polyfillAliases } from './polyfill-aliases.js'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -512,6 +513,7 @@ await import('${require
     plugins: [nodePlugin, watchPlugin, wasmLoader()],
     outfile: outPath,
     inject: [path.join(__dirname, 'inject-process.js')],
+    alias: polyfillAliases,
     external: ['node:async_hooks', 'node:fs', 'msw/node'],
     define: {
       global: 'globalThis',
