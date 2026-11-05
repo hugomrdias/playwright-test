@@ -2,7 +2,11 @@
   "$schema": "https://biomejs.dev/schemas/2.6.4/schema.json",
   "extends": ["@hugomrdias/configs/biome"],
   "files": {
-    "includes": ["!src/vendor/*.js", "!.github/ISSUE_TEMPLATE/*.md"]
+    "includes": [
+      "!src/vendor/*.js",
+      "!.github/ISSUE_TEMPLATE/*.md",
+      "!mocks/commonjs/*.js"
+    ]
   },
   "overrides": [
     {

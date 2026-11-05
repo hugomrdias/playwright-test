@@ -250,6 +250,20 @@ const configLoaders = {
   '.mjs': loadEsm,
 }
 
+/**
+ * Not set as the defaults of the cli options, those can't be told apart from a
+ * flag and would always win over the config file.
+ */
+const cliDefaults = {
+  browser: defaultOptions.browser,
+  cwd: defaultOptions.cwd,
+  debug: defaultOptions.debug,
+  extension: defaultOptions.extension,
+  extensions: defaultOptions.extensions,
+  incognito: defaultOptions.incognito,
+  mode: defaultOptions.mode,
+}
+
 sade2
   .version(version)
   .describe(
@@ -261,29 +275,24 @@ sade2
   )
   .option(
     '-b, --browser',
-    'Browser to run tests. Options: chromium, firefox, webkit.',
-    defaultOptions.browser
+    `Browser to run tests. Options: chromium, firefox, webkit.  (default ${cliDefaults.browser})`
   )
   .option(
     '-m, --mode',
-    'Run mode. Options: main, worker and node.',
-    defaultOptions.mode
+    `Run mode. Options: main, worker and node.  (default ${cliDefaults.mode})`
   )
   .option(
     '-d, --debug',
-    'Debug mode, keeps browser window open.',
-    defaultOptions.debug
+    `Debug mode, keeps browser window open.  (default ${cliDefaults.debug})`
   )
   .option('-w, --watch', 'Watch files for changes and re-run tests.')
   .option(
     '-i, --incognito',
-    'Use incognito window to run tests.',
-    defaultOptions.incognito
+    `Use incognito window to run tests.  (default ${cliDefaults.incognito})`
   )
   .option(
     '-e, --extension',
-    'Use extension background_page to run tests.',
-    defaultOptions.extension
+    `Use extension background_page to run tests.  (default ${cliDefaults.extension})`
   )
   .option(
     '--before',
@@ -294,11 +303,10 @@ sade2
     '--assets',
     'Folder with assets to be served by the http server.  (default process.cwd())'
   )
-  .option('--cwd', 'Current directory.', defaultOptions.cwd)
+  .option('--cwd', `Current directory.  (default ${cliDefaults.cwd})`)
   .option(
     '--extensions',
-    'File extensions allowed in the bundle.',
-    defaultOptions.extensions
+    `File extensions allowed in the bundle.  (default ${cliDefaults.extensions})`
   )
   .option(
     '--no-transform',
@@ -339,7 +347,7 @@ sade2
 
       // if the supplied config module was a function, invoke it
       if (config && typeof config.config === 'function') {
-        config.config = await config.config(opts)
+        config.config = await config.config(merge(cliDefaults, opts))
       }
 
       /**
@@ -347,7 +355,7 @@ sade2
        *
        * @type {import('./src/types.js').RunnerOptions}
        */
-      const options = merge(config ? config.config : {}, {
+      const options = merge(cliDefaults, config ? config.config : {}, {
         input: input ? [input, ...opts._] : undefined,
         testFiles: [],
         cwd: opts.cwd,
@@ -383,7 +391,7 @@ sade2
       if (opts.runner) {
         testRunner = Object.hasOwn(builtInRunners, opts.runner)
           ? builtInRunners[opts.runner]
-          : await resolveTestRunner(opts.runner, opts.cwd)
+          : await resolveTestRunner(opts.runner, options.cwd)
       } else if (configured?.compileRuntime) {
         testRunner = /** @type {import('./src/types.js').TestRunner} */ (
           configured
@@ -395,7 +403,7 @@ sade2
       warnUnsupportedTestOptions(options)
 
       let runner
-      if (opts.mode === 'node') {
+      if (options.mode === 'node') {
         runner = new NodeRunner(options, testFiles)
       } else {
         runner = new Runner(options, testFiles)
@@ -411,4 +419,8 @@ sade2
       gracefulExit(1)
     }
   })
-  .parse(process.argv)
+  .parse(process.argv, {
+    // Without defaults to tell their types, `--debug test.js` would take the file
+    boolean: ['debug', 'extension', 'incognito', 'watch'],
+    string: ['browser', 'cwd', 'extensions', 'mode'],
+  })
