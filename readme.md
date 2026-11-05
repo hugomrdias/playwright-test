@@ -458,7 +458,7 @@ export interface TestRunner {
 
 > The config file needs to be commonjs for now, so if your package is pure ESM you need to use `.cjs` extension.
 
-Configuration can be done with cli flags or config files.
+Configuration can be done with cli flags or config files, flags win over the config file.
 
 ```text
 package.json, // using property `pw-test` or `playwright-test`

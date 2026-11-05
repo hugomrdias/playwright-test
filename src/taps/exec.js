@@ -84,7 +84,8 @@ if (IS_ENV_WITH_DOM) {
 }
 
 if (IS_NODE && process.argv0 === 'node') {
-  const { createHook } = await import('node:async_hooks')
+  // Not a top-level await, esbuild can't bundle one for a file it sees as CommonJS
+  const { createHook } = process.getBuiltinModule('node:async_hooks')
   createHook({
     init() {
       // noop
