@@ -12,7 +12,6 @@ import { nanoid } from 'nanoid'
 import path from 'path'
 // @ts-expect-error
 import { premove } from 'premove/sync'
-import { temporaryDirectory } from 'tempy'
 import { compileSw } from './utils/build-sw.js'
 import {
   addWorker,
@@ -33,6 +32,9 @@ const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
 // Tests of stuck pages lower it, they always wait for all of it
 const CONSOLE_FLUSH_TIMEOUT =
   Number(process.env.PW_TEST_CONSOLE_FLUSH_TIMEOUT) || 5000
+// Firefox on GitHub's Windows runners can take close to 3s to close, and the
+// browser profile can't be deleted until it does
+const EXIT_WAIT = 5000
 
 /**
  * @typedef {import('playwright-core').Page} Page
@@ -64,7 +66,6 @@ export class Runner {
       recursive: true,
     })
     this.stackMapper = createStackMapper(this.dir)
-    this.browserDir = temporaryDirectory()
     this.url = ''
     this.stopped = false
     this.watching = false
@@ -143,7 +144,9 @@ export class Runner {
         this.options.browserContextOptions
       )
     } else {
-      this.context = await pw.launchPersistentContext(this.browserDir, {
+      // With an empty path Playwright creates the profile in the temp folder and
+      // deletes it, also when the exit hook doesn't wait for the browser to close
+      this.context = await pw.launchPersistentContext('', {
         ...pwOptions,
         ...this.options.browserContextOptions,
       })
@@ -312,7 +315,7 @@ export class Runner {
 
   async run() {
     asyncExitHook(this.#clean.bind(this), {
-      wait: 1000,
+      wait: EXIT_WAIT,
     })
 
     try {
@@ -394,7 +397,7 @@ export class Runner {
 
   async watch() {
     asyncExitHook(this.#clean.bind(this), {
-      wait: 1000,
+      wait: EXIT_WAIT,
     })
 
     // Setup the context
@@ -505,6 +508,11 @@ export class Runner {
 
     premove(this.dir)
 
+    // Before the server, its open connections could use up the wait for the exit
+    if (this.context) {
+      await this.context.close()
+    }
+
     const serverClose = new Promise((resolve, reject) => {
       if (this.server) {
         this.server.close((err) => {
@@ -519,10 +527,6 @@ export class Runner {
     })
 
     await serverClose
-
-    if (this.context) {
-      await this.context.close()
-    }
   }
 
   /**

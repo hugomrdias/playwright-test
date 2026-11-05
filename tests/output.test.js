@@ -116,7 +116,7 @@ for (const browser of ['chromium', 'firefox']) {
      * @param {string} mode
      * @param {Record<string, string>} [env]
      */
-    function run(fixture, mode, env) {
+    function run(fixture, mode, env = {}) {
       return runCli(
         [
           `mocks/none/${fixture}.test.js`,
@@ -127,6 +127,7 @@ for (const browser of ['chromium', 'firefox']) {
           '--browser',
           browser,
         ],
+        // Not undefined, it would replace the env from the helpers.
         // The test timeout fails the test but leaves a stuck child running
         { env, timeout: 100_000 }
       )
