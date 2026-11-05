@@ -1,6 +1,29 @@
 // @ts-nocheck
-// eslint-disable-next-line unicorn/prefer-module
-const _process = require('process/browser')
+const noop = () => undefined
+
+// Kept from before tests can stub it with fake timers
+const startTimer = globalThis.setTimeout
+
+/** @type {Array<() => void>} */
+const ticks = []
+let ticksScheduled = false
+
+/**
+ * Runs ticks added along the way too, and leaves the rest for another timer
+ * when one throws.
+ */
+function drainTicks() {
+  try {
+    while (ticks.length > 0) {
+      ticks.shift()()
+    }
+  } finally {
+    ticksScheduled = ticks.length > 0
+    if (ticksScheduled) {
+      startTimer(drainTicks, 0)
+    }
+  }
+}
 
 const performance = globalThis.performance || {}
 const performanceNow = performance.now || (() => Date.now())
@@ -27,7 +50,39 @@ function hrtime(previousTimestamp) {
 }
 
 const p = {
-  ..._process,
+  title: 'browser',
+  browser: true,
+  env: {},
+  argv: [],
+  version: '', // empty string to avoid regexp issues
+  versions: {},
+  on: noop,
+  addListener: noop,
+  once: noop,
+  off: noop,
+  removeListener: noop,
+  removeAllListeners: noop,
+  emit: noop,
+  prependListener: noop,
+  prependOnceListener: noop,
+  listeners: () => [],
+  binding: () => {
+    throw new Error('process.binding is not supported')
+  },
+  cwd: () => '/',
+  chdir: () => {
+    throw new Error('process.chdir is not supported')
+  },
+  umask: () => 0,
+  // A timer and not a microtask: code that defers its start with this expects
+  // imports still in flight, like the runner's test files, to finish first.
+  nextTick: (callback, ...args) => {
+    ticks.push(() => callback(...args))
+    if (!ticksScheduled) {
+      ticksScheduled = true
+      startTimer(drainTicks, 0)
+    }
+  },
   exit: (code = 0) => {
     const options = JSON.parse(process.env.PW_OPTIONS)
     if (code === 0) {

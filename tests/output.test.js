@@ -46,6 +46,23 @@ describe('stdout / stderr', () => {
   })
 })
 
+describe('process in the browser', () => {
+  for (const mode of ['main', 'worker']) {
+    it(`has what bundles expect with mode:${mode}`, async () => {
+      const proc = await runCli([
+        'mocks/none/process.test.js',
+        '--runner',
+        'none',
+        '--mode',
+        mode,
+      ])
+
+      is(proc.exitCode, 0, proc.stderr)
+      ok(proc.stdout.includes('process is fine'), 'stdout')
+    })
+  }
+})
+
 for (const browser of ['chromium', 'firefox']) {
   // Firefox is where the messages arrive late
   describe(`console output when the run ends in ${browser}`, () => {
