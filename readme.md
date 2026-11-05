@@ -119,6 +119,33 @@ NODE_OPTIONS="--import tsx" playwright-test "test/**/*.spec.ts" --mode node --no
 NODE_OPTIONS="--import @nubjs/runner" playwright-test "test/**/*.spec.ts" --mode node --no-transform
 ```
 
+## `node:assert` API
+
+`playwright-test/node-assert` is `node:assert/strict` for tests that also run in browsers. In Node it's the built-in, in browsers it's an implementation ported from Node. `t.assert` of `playwright-test/node-test` uses it too, with the loose `equal` and `deepEqual` that `t.assert` has in `node:test`.
+
+```js
+import assert, { deepEqual, throws } from 'playwright-test/node-assert'
+import test from 'playwright-test/node-test'
+
+test('compares', () => {
+  deepEqual({ a: 1 }, { a: 1 })
+  throws(() => assert.fail('nope'), { code: 'ERR_ASSERTION' })
+})
+```
+
+`playwright-test/taps` exports this same module, and adds `subset`, `type` and `instance` to it.
+
+It's a separate entrypoint because `node:test` has its own `assert` export, with `assert.register()`. The exports are the ones from `node:assert/strict`: `ok`, `equal`, `notEqual`, `deepEqual`, `notDeepEqual`, `strictEqual`, `notStrictEqual`, `deepStrictEqual`, `notDeepStrictEqual`, `partialDeepStrictEqual`, `throws`, `doesNotThrow`, `rejects`, `doesNotReject`, `match`, `doesNotMatch`, `ifError`, `fail`, `AssertionError`, `Assert`, `CallTracker` and `strict`. The default export is `strict`, and `legacy` is the same thing with the shape of `node:assert`.
+
+`tests/node-test.test.js` runs the same cases in chromium and with the real `node:assert`, comparing the result, message, `name`, `code`, `operator`, `generatedMessage`, `diff` and own keys of each one. The only messages it allows to differ are the ones listed below and those with a stack trace, whose paths depend on the engine. CI also runs them in firefox and webkit.
+
+In browsers:
+
+- `CallTracker` throws an error that says it isn't supported. It's deprecated in Node.
+- Two different `CryptoKey`s are never deep equal, the key material isn't readable.
+- The `ok()` message can't show your source code, it always reads `assert.ok(value)`.
+- A promise shows as `Promise { <unknown> }`, its state can't be read. The entries of map and set iterators can't be read either, and proxies look like the object they wrap.
+
 ## `assert` and `util` in browsers
 
 Bundles resolve `assert`, `assert/strict`, `util` and `util/types`, also with the `node:` prefix, to `src/polyfills`, there's no npm polyfill and anything installed with those names is ignored. `inspect`, `format`, `AssertionError` and its diff are the code from Node.js, in `src/vendor`.

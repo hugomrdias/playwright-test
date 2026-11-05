@@ -1,29 +1,4 @@
-import { AssertionError } from 'assert'
 import { inspect } from 'util'
-
-/**
- * @param {unknown} arg
- * @returns {boolean}
- */
-function isObject(arg) {
-  return typeof arg === 'object' && arg !== null
-}
-
-/**
- * @param {unknown} o
- * @returns {string}
- */
-function objectToString(o) {
-  return Object.prototype.toString.call(o)
-}
-
-/**
- * @param {unknown} re
- * @returns {re is RegExp}
- */
-function isRegExp(re) {
-  return isObject(re) && objectToString(re) === '[object RegExp]'
-}
 
 export const IS_ENV_WITH_DOM =
   typeof window === 'object' &&
@@ -158,45 +133,4 @@ export function formatObj(v) {
     sorted: true,
     numericSeparator: true,
   })
-}
-
-/**
- * @param {any} string
- * @param {any} regexp
- * @param {string |Error} [message]
- * @param {Function} [fn]
- * @param {string} [fnName]
- */
-export function internalMatch(string, regexp, message, fn, fnName) {
-  if (!isRegExp(regexp)) {
-    throw new TypeError('Argument #2 must be a RegExp')
-  }
-  const match = fnName === 'match'
-  if (typeof string !== 'string' || regexp.test(string) !== match) {
-    if (message instanceof Error) {
-      throw message
-    }
-
-    const generatedMessage = !message
-
-    // 'The input was expected to not match the regular expression ' +
-    message =
-      message ||
-      (typeof string === 'string'
-        ? `${
-            match
-              ? 'The input did not match the regular expression '
-              : 'The input was expected to not match the regular expression '
-          }${inspect(regexp)}. Input:\n\n${inspect(string)}\n`
-        : `The "string" argument must be of type string. Received type ${typeof string} (${inspect(string)})`)
-    const err = new AssertionError({
-      actual: string,
-      expected: regexp,
-      message,
-      operator: fnName,
-      stackStartFn: fn,
-    })
-    err.generatedMessage = generatedMessage
-    throw err
-  }
 }

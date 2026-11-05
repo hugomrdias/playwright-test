@@ -26,6 +26,8 @@ jobs:
         env:
           PW_TEST_BROWSER: firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
+      - run: node mocks/node-test/assert-compare.js --browser firefox
+      - run: node mocks/node-test/assert-compare.js --browser webkit
 
   macos:
     name: Mac
@@ -44,6 +46,8 @@ jobs:
         env:
           PW_TEST_BROWSER: firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
+      - run: node mocks/node-test/assert-compare.js --browser firefox
+      - run: node mocks/node-test/assert-compare.js --browser webkit
 
   win:
     name: Win
@@ -61,6 +65,8 @@ jobs:
         env:
           PW_TEST_BROWSER: firefox
       - run: node cli.js mocks/test.mocha.js --browser webkit
+      - run: node mocks/node-test/assert-compare.js --browser firefox
+      - run: node mocks/node-test/assert-compare.js --browser webkit
   release:
     runs-on: ubuntu-latest
     needs:
