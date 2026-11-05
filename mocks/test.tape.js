@@ -21,7 +21,8 @@ test('timing test 2', (t) => {
   const start = Date.now()
 
   setTimeout(() => {
-    t.ok(Date.now() - start >= 100)
+    // timers use a monotonic clock, Date.now() can lag it by up to 1ms
+    t.ok(Date.now() - start >= 99)
   }, 100)
 })
 
