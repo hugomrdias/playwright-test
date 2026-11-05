@@ -2,6 +2,8 @@ allowBuilds:
   "@biomejs/biome": true
   esbuild: true
   simple-git-hooks: true
+minimumReleaseAgeExclude:
+  - playwright-core@1.65.0
 onlyBuiltDependencies:
   - "@biomejs/biome"
   - esbuild
