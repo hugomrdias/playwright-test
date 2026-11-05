@@ -118,7 +118,7 @@ NODE_OPTIONS="--import @nubjs/runner" playwright-test "test/**/*.spec.ts" --mode
 
 ## `node:test` API
 
-`playwright-test/node-test` is an implementation of the [`node:test`](https://nodejs.org/api/test.html) API built on the `taps` harness, so the same test file runs in real browsers (main thread and worker modes) and in Node. It has no dependency on mocha, and `playwright-test/taps` keeps working as it did.
+`playwright-test/node-test` is an implementation of the [`node:test`](https://nodejs.org/api/test.html) API built on the `taps` harness, so the same test file runs in real browsers (main thread and worker modes) and in Node.
 
 ```js
 import { strict as assert } from 'assert'
@@ -236,6 +236,16 @@ In browsers:
 - Two different `CryptoKey`s are never deep equal, the key material isn't readable.
 - The `ok()` message can't show your source code, it always reads `assert.ok(value)`.
 - A promise shows as `Promise { <unknown> }`, its state can't be read. The entries of map and set iterators can't be read either, and proxies look like the object they wrap.
+
+## `node:util` API
+
+`playwright-test/node-util` is `node:util` for code that also runs in browsers. In Node it's the built-in, in browsers it's [our own](#assert-and-util-in-browsers).
+
+```js
+import { inspect, promisify } from 'playwright-test/node-util'
+```
+
+The named exports are the ones both have and that aren't deprecated: `callbackify`, `debug`, `debuglog`, `deprecate`, `format`, `formatWithOptions`, `inherits`, `inspect`, `isDeepStrictEqual`, `promisify`, `stripVTControlCharacters`, `TextDecoder`, `TextEncoder`, `toUSVString` and `types`. The default export is the whole module, which has more in Node.
 
 ## `assert` and `util` in browsers
 

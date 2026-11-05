@@ -60,6 +60,13 @@ describe('node:test runner', () => {
         }
       })
 
+      it('playwright-test/node-util is node:util', async () => {
+        const proc = await run('util-entrypoint', mode)
+
+        is(proc.exitCode, 0, output(proc))
+        ok(proc.stdout.includes('same module'), output(proc))
+      })
+
       it('fails when a test on the entrypoint fails', async () => {
         const proc = await run('entrypoint-fail', mode, [])
 

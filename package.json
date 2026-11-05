@@ -39,6 +39,10 @@
       "types": "./dist/src/node/assert.d.ts",
       "default": "./src/node/assert.js"
     },
+    "./node-util": {
+      "types": "./dist/src/node/util.d.ts",
+      "default": "./src/node/util.js"
+    },
     "./client": {
       "types": "./dist/src/client/index.d.ts",
       "default": "./src/client/index.js"
@@ -56,6 +60,9 @@
       ],
       "node-assert": [
         "dist/src/node/assert.d.ts"
+      ],
+      "node-util": [
+        "dist/src/node/util.d.ts"
       ],
       "client": [
         "dist/src/client/index.d.ts"
