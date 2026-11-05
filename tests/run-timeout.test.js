@@ -1,4 +1,5 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
+import { once } from 'node:events'
 import { describe, it } from 'node:test'
 import { runCli } from './helpers.js'
 
@@ -10,8 +11,13 @@ describe('run timeout', () => {
   function run(fixture, args) {
     return runCli(
       [`mocks/none/${fixture}.test.js`, '--runner', 'none', ...args],
-      // Fail here when the run timeout doesn't work, instead of hanging
-      { reject: false, timeout: 40_000 }
+      {
+        // A page that never ends always uses up the whole wait for its console
+        env: { PW_TEST_CONSOLE_FLUSH_TIMEOUT: '500' },
+        // Fail here when the run timeout doesn't work, instead of hanging
+        reject: false,
+        timeout: 40_000,
+      }
     )
   }
 
@@ -35,7 +41,8 @@ describe('run timeout', () => {
     skip: process.platform === 'win32',
   }, async () => {
     const running = run('never-ends', ['--mode', 'node'])
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    // The fixture prints this right before it gets stuck
+    await once(running.stdout, 'data')
     running.kill()
 
     // Tests still running keep stdout open, and this waits for it

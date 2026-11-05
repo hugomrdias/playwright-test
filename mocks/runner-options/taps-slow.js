@@ -1,6 +1,6 @@
 import { test } from 'playwright-test/taps'
 
-test('is too slow', () => new Promise((resolve) => setTimeout(resolve, 500)))
+test('is too slow', () => new Promise((resolve) => setTimeout(resolve, 200)))
 
 test(
   'has its own timeout',

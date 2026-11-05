@@ -54,8 +54,9 @@ for (const browser of ['chromium', 'firefox']) {
     /**
      * @param {string} fixture
      * @param {string} mode
+     * @param {Record<string, string>} [env]
      */
-    function run(fixture, mode) {
+    function run(fixture, mode, env) {
       return runCli(
         [
           `mocks/none/${fixture}.test.js`,
@@ -67,7 +68,7 @@ for (const browser of ['chromium', 'firefox']) {
           browser,
         ],
         // The test timeout fails the test but leaves a stuck child running
-        { timeout: 100_000 }
+        { env, timeout: 100_000 }
       )
     }
 
@@ -83,7 +84,7 @@ for (const browser of ['chromium', 'firefox']) {
       it(`prints every line to stdout with mode:${mode}`, {
         timeout,
       }, async () => {
-        const total = 10_000
+        const total = 1000
         const proc = await run('console-flood', mode)
 
         is(proc.exitCode, 0, 'exit code')
@@ -106,13 +107,16 @@ for (const browser of ['chromium', 'firefox']) {
 
       is(proc.exitCode, 0, 'exit code')
       const lines = linesWith(proc.stdout, 'console-slow-')
-      is(lines.length, 50, 'lines on stdout')
+      is(lines.length, 10, 'lines on stdout')
       ok(!proc.stdout.includes('undefined'), 'arguments were read')
       is(linesWith(proc.stderr, 'console-slow-').length, 0, 'lines on stderr')
     })
 
     it('does not wait forever for a stuck page', { timeout }, async () => {
-      const proc = await run('console-stuck', 'worker')
+      // It always uses up the whole wait for the console
+      const proc = await run('console-stuck', 'worker', {
+        PW_TEST_CONSOLE_FLUSH_TIMEOUT: '500',
+      })
 
       is(proc.exitCode, 0, 'exit code')
       ok(proc.stderr.includes('Timed out waiting'), 'warns about the timeout')

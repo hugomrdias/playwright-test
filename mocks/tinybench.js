@@ -1,7 +1,7 @@
 /** biome-ignore-all lint/suspicious/noConsole: its ok */
 import { Bench } from 'tinybench'
 
-const bench = new Bench({ time: 100 })
+const bench = new Bench({ time: 10, warmup: false })
 
 bench
   .add('switch 1', () => {

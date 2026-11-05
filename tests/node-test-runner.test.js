@@ -146,7 +146,7 @@ describe('node:test runner', () => {
   }
 
   describe('--test-timeout on hooks, the same on the real node:test', () => {
-    const slow = '() => new Promise((resolve) => setTimeout(resolve, 300))'
+    const slow = '() => new Promise((resolve) => setTimeout(resolve, 150))'
     const fast = '() => {}'
     const imports =
       "import { after, afterEach, before, beforeEach, describe, it, test } from 'node:test'"
