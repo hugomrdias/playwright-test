@@ -193,9 +193,6 @@ importers:
       events:
         specifier: ^3.3.0
         version: 3.3.0
-      execa:
-        specifier: ^10.2.1
-        version: 10.2.1
       exit-hook:
         specifier: ^5.1.0
         version: 5.1.0
@@ -281,6 +278,9 @@ importers:
       delay:
         specifier: ^7.0.0
         version: 7.0.0
+      execa:
+        specifier: ^10.2.1
+        version: 10.2.1
       mocha:
         specifier: ^12.0.3
         version: 12.0.3

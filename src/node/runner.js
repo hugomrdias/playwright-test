@@ -1,8 +1,8 @@
+import { spawn } from 'node:child_process'
 import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { watch } from 'chokidar'
-import { execa } from 'execa'
 import { asyncExitHook, gracefulExit } from 'exit-hook'
 // @ts-expect-error
 import mergeOptions from 'merge-options'
@@ -11,6 +11,7 @@ import { nanoid } from 'nanoid'
 import { premove } from 'premove'
 import * as DefaultRunners from '../test-runners.js'
 import { createPolka, findTests, log } from '../utils/index.js'
+import { killTree, withLocalBins } from '../utils/process.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const merge = mergeOptions.bind({ ignoreUndefined: true })
@@ -63,18 +64,6 @@ const COVERAGE_EXTENSIONS = [
 ]
 
 /**
- * Explain why the tests never started. Failing tests have an exit code and
- * report themselves, and a killed subprocess has a signal.
- *
- * @param {any} error
- */
-function reportStartFailure(error) {
-  if (error.exitCode === undefined && error.signal === undefined) {
-    log.error(`Could not start tests: ${error.shortMessage ?? error.message}`)
-  }
-}
-
-/**
  * Runs tests directly in Node.js without bundling.
  *
  * The test runner entry is piped to `node --input-type=module` through stdin so
@@ -93,6 +82,8 @@ export class NodeRunner {
     this.options = merge(defaultOptions, options)
     /** @type {import('polka').Polka["server"] | undefined} */
     this.server = undefined
+    /** @type {import('node:child_process').ChildProcess | undefined} */
+    this.child = undefined
     this.dir = path.join(__dirname, '../.tmp', nanoid())
     mkdirSync(this.dir, {
       recursive: true,
@@ -143,38 +134,52 @@ export class NodeRunner {
   }
 
   /**
-   * Run the tests in a node subprocess
+   * Run the tests in a node subprocess, with the same node running this one.
+   *
+   * @returns {{
+   *   child: import('node:child_process').ChildProcess,
+   *   finished: Promise<boolean>
+   * }} `finished` tells if the tests passed, it never rejects
    */
   runTests() {
     const nodeArgs = ['--enable-source-maps', '--input-type=module']
     if (this.options.transform) {
       nodeArgs.push('--import', new URL('hooks.js', import.meta.url).href)
     }
-    const [file, args] = this.options.cov
+    const args = this.options.cov
       ? [
           // c8 is our dependency, the project may not be able to reach its bin
+          fileURLToPath(import.meta.resolve('c8/bin/c8.js')),
+          '--reporter=text',
+          '--reporter=json',
+          '--report-dir',
+          this.options.reportDir,
+          ...COVERAGE_EXTENSIONS.map((ext) => `--extension=${ext}`),
           process.execPath,
-          [
-            fileURLToPath(import.meta.resolve('c8/bin/c8.js')),
-            '--reporter=text',
-            '--reporter=json',
-            '--report-dir',
-            this.options.reportDir,
-            ...COVERAGE_EXTENSIONS.map((ext) => `--extension=${ext}`),
-            'node',
-            ...nodeArgs,
-          ],
+          ...nodeArgs,
         ]
-      : ['node', nodeArgs]
+      : nodeArgs
 
-    return execa(file, args, {
+    const child = spawn(process.execPath, args, {
       cwd: this.options.cwd,
-      env: this.env,
-      input: this.#entry(),
-      preferLocal: true,
-      stdout: 'inherit',
-      stderr: 'inherit',
+      env: withLocalBins(this.env, this.options.cwd),
+      stdio: ['pipe', 'inherit', 'inherit'],
     })
+    this.child = child
+    // It's gone when it ends or fails to start before reading all of the entry
+    child.stdin.on('error', () => {
+      // noop
+    })
+    child.stdin.end(this.#entry())
+
+    const finished = new Promise((resolve) => {
+      child.once('error', (error) => {
+        log.error(`Could not start tests: ${error.message}`)
+        resolve(false)
+      })
+      child.once('close', (code) => resolve(code === 0))
+    })
+    return { child, finished }
   }
 
   async run() {
@@ -185,10 +190,8 @@ export class NodeRunner {
     await this.#setupServer()
     await this.options.beforeTests(this.env)
 
-    try {
-      await this.runTests()
-    } catch (error) {
-      reportStartFailure(error)
+    const passed = await this.runTests().finished
+    if (!passed) {
       await this.stop(true, 'Tests failed.')
     }
     this.stop(false, 'Tests passed.')
@@ -204,11 +207,7 @@ export class NodeRunner {
 
     const cwd = this.options.cwd
     const extensions = this.options.extensions.split(',')
-    const noop = () => {
-      // noop
-    }
-    let subprocess = this.runTests()
-    subprocess.catch(reportStartFailure)
+    let tests = this.runTests()
     let restarting = false
     let pending = false
 
@@ -223,11 +222,9 @@ export class NodeRunner {
       do {
         pending = false
         log.info('Reloading tests...')
-        // execa sends SIGKILL if the process is still alive after 5s
-        subprocess.kill()
-        await subprocess.catch(noop)
-        subprocess = this.runTests()
-        subprocess.catch(reportStartFailure)
+        killTree(tests.child)
+        await tests.finished
+        tests = this.runTests()
       } while (pending)
       restarting = false
     }
@@ -253,6 +250,10 @@ export class NodeRunner {
   }
 
   async #clean() {
+    // Don't leave the tests running when this process gets stopped
+    if (this.child) {
+      killTree(this.child)
+    }
     // Run after tests hook
     await this.options.afterTests(this.env)
     await premove(this.dir)
