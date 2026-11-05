@@ -1,9 +1,9 @@
 import { after, before, describe, it } from 'node:test'
-import { execa } from 'execa'
 import fs from 'fs'
 import { equal, is, ok } from 'uvu/assert'
 import * as runners from '../src/test-runners.js'
 import { detectTestRunners } from '../src/utils/auto-detect.js'
+import { execa } from './helpers.js'
 
 describe('runner auto detection', () => {
   /** @type {string} */

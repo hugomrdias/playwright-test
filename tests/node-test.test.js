@@ -1,7 +1,7 @@
 import { before, describe, it } from 'node:test'
-import { execa } from 'execa'
 import { pathToFileURL } from 'url'
 import { equal, is, ok } from 'uvu/assert'
+import { execa } from './helpers.js'
 
 describe('taps node:test api', () => {
   const runner = ['--runner', './mocks/node-test/runner.js']
@@ -318,7 +318,7 @@ describe('taps node:test api', () => {
   })
 
   describe('node:assert', () => {
-    // Fails on any difference with the real node:assert, CI also runs it in firefox and webkit.
+    // Fails on any difference with the real node:assert, browsers.test.js runs it in the others.
     it('same results as the real one', async () => {
       const { exitCode, stdout, stderr } = await execa(
         process.execPath,

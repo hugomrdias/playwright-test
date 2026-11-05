@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test'
-import { execa, execaSync } from 'execa'
 import fs from 'fs'
 import path from 'path'
 import { is, ok } from 'uvu/assert'
+import { execa, execaSync } from './helpers.js'
 
 describe('mocha', () => {
   it('basic', async () => {

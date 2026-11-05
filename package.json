@@ -97,7 +97,7 @@
     "clean": "rm -rf pnpm-lock.yaml .coverage .nyc_output dist node_modules .tmp",
     "fix": "biome check --fix .",
     "lint": "tsc && biome check .",
-    "test": "node --test --test-isolation=none --test-force-exit --test-timeout=50000 \"tests/*.test.js\""
+    "test": "node --test --test-force-exit --test-timeout=50000 --test-concurrency=4 \"tests/*.test.js\""
   },
   "dependencies": {
     "acorn-loose": "^8.5.2",

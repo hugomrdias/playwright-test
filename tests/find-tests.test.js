@@ -1,10 +1,10 @@
 import { after, before, describe, it } from 'node:test'
-import { execa } from 'execa'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import { equal, is, ok } from 'uvu/assert'
 import { findTests } from '../src/utils/index.js'
+import { execa } from './helpers.js'
 
 const extensions = ['js', 'ts']
 

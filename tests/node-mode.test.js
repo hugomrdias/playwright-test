@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, it } from 'node:test'
-import { execa } from 'execa'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import { is, ok } from 'uvu/assert'
+import { execa } from './helpers.js'
 
 describe('node mode outside the package', () => {
   const cli = path.resolve('cli.js')

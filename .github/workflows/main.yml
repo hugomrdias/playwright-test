@@ -1,90 +1,52 @@
 name: tests
-env:
-  CI: true
 on:
   push:
     branches: [master]
   pull_request:
     branches: [master]
 
+# Pull requests only, master runs include the release
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
 jobs:
-  linux:
-    name: Linux
+  lint:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          cache: true
+      - run: pnpm run lint
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/setup@v3
         with:
           cache: true
       - run: pnpm exec playwright-core install-deps webkit
-      - run: pnpm run lint
+        if: runner.os == 'Linux'
+      # Tests would download them on first use, which counts against their timeouts
+      - run: pnpm exec playwright-core install chromium firefox webkit
       - run: pnpm run test
-      - run: ./cli.js mocks/test.mocha.js --browser chromium
-      - run: ./cli.js mocks/test.mocha.js --browser firefox
-      - run: node --test --test-isolation=none --test-force-exit --test-timeout=120000 --test-name-pattern="console output" tests/output.test.js
-        env:
-          PW_TEST_BROWSER: firefox
-      - run: ./cli.js mocks/test.mocha.js --browser webkit
-      - run: ./cli.js mocks/node-test/context.test.js --runner ./mocks/node-test/runner.js --browser firefox
-      - run: ./cli.js mocks/node-test-runner/pass.test.js --runner node-test --browser firefox
-      - run: ./cli.js mocks/node-test/context.test.js --runner ./mocks/node-test/runner.js --browser webkit
-      - run: ./cli.js mocks/node-test-runner/pass.test.js --runner node-test --browser webkit
-      - run: node mocks/node-test/assert-compare.js --browser firefox
-      - run: node mocks/node-test/assert-compare.js --browser webkit
 
-  macos:
-    name: Mac
-    runs-on: macos-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/setup@v3
-        with:
-          cache: true
-      - run: pnpm run lint
-      - run: pnpm run test
-      - run: ./cli.js mocks/test.mocha.js --browser chromium
-      - run: ./cli.js mocks/test.mocha.js --browser firefox
-      - run: node --test --test-isolation=none --test-force-exit --test-timeout=120000 --test-name-pattern="console output" tests/output.test.js
-        env:
-          PW_TEST_BROWSER: firefox
-      - run: ./cli.js mocks/test.mocha.js --browser webkit
-      - run: ./cli.js mocks/node-test/context.test.js --runner ./mocks/node-test/runner.js --browser firefox
-      - run: ./cli.js mocks/node-test-runner/pass.test.js --runner node-test --browser firefox
-      - run: ./cli.js mocks/node-test/context.test.js --runner ./mocks/node-test/runner.js --browser webkit
-      - run: ./cli.js mocks/node-test-runner/pass.test.js --runner node-test --browser webkit
-      - run: node mocks/node-test/assert-compare.js --browser firefox
-      - run: node mocks/node-test/assert-compare.js --browser webkit
-
-  win:
-    name: Win
-    runs-on: windows-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/setup@v3
-        with:
-          cache: true
-      - run: pnpm run test
-      - run: node cli.js mocks/test.mocha.js --browser chromium
-      - run: node cli.js mocks/test.mocha.js --browser firefox
-      - run: node --test --test-isolation=none --test-force-exit --test-timeout=120000 --test-name-pattern="console output" tests/output.test.js
-        env:
-          PW_TEST_BROWSER: firefox
-      - run: node cli.js mocks/test.mocha.js --browser webkit
-      - run: node cli.js mocks/node-test/context.test.js --runner ./mocks/node-test/runner.js --browser firefox
-      - run: node cli.js mocks/node-test-runner/pass.test.js --runner node-test --browser firefox
-      - run: node cli.js mocks/node-test/context.test.js --runner ./mocks/node-test/runner.js --browser webkit
-      - run: node cli.js mocks/node-test-runner/pass.test.js --runner node-test --browser webkit
-      - run: node mocks/node-test/assert-compare.js --browser firefox
-      - run: node mocks/node-test/assert-compare.js --browser webkit
   release:
     runs-on: ubuntu-latest
     needs:
-      - linux
-      - macos
-      - win
+      - lint
+      - test
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     permissions:
       contents: write
@@ -94,7 +56,6 @@ jobs:
       - uses: googleapis/release-please-action@v5
         id: release
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           release-type: node
       - uses: actions/checkout@v7
         if: ${{ steps.release.outputs.release_created }}

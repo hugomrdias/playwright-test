@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
-import { execa } from 'execa'
 import { is, ok } from 'uvu/assert'
+import { execa } from './helpers.js'
 
 describe('runner options', () => {
   const fixture = (/** @type {string} */ name) =>

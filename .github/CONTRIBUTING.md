@@ -42,7 +42,7 @@ If you have been assigned to fix an issue or develop a new feature, please follo
   - We use [pnpm](https://pnpm.io/) for package management.
   - Make sure you have Node LTS installed in your system.
 - Optionally run `npx simple-git-hooks` to install git hooks for linting and formatting.
-- Implement your changes to files in the `src/` directory and corresponding test files in the `/test` directory.
+- Implement your changes to files in the `src/` directory and corresponding test files in the `tests/` directory.
 - Git stage your required changes and commit (see below commit [guidelines](#how-should-i-write-my-commits)).
 - Submit PR for review
 
@@ -70,12 +70,12 @@ If your change alters existing code, please run the test suites:
 pnpm run lint
 pnpm run test
 
-# node tests can use native watch mode
-pnpm test:node -n watch
-
-# browser tests can enable watch
-pnpm test:browser --watch
+# run one file, or only the tests that match a name
+node --test tests/mocha.test.js
+node --test --test-name-pattern="coverage" tests/mocha.test.js
 ```
+
+The tests also run in Firefox and WebKit. On Linux, WebKit needs its system dependencies: `pnpm exec playwright-core install-deps webkit`.
 
 If you are adding a new feature, please add tests that prove the code works correctly and reference them when you submit the pull request.
 
