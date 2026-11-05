@@ -558,6 +558,7 @@ describe('taps node:test api', () => {
     { name: 'context', exitCode: 0 },
     { name: 'mock', exitCode: 0 },
     { name: 'async-suite', exitCode: 0 },
+    { name: 'async-nested', exitCode: 0 },
     { name: 'top-level-await', exitCode: 1 },
     { name: 'fail-tests', exitCode: 1 },
     { name: 'fail-hooks', exitCode: 1 },

@@ -6,4 +6,6 @@ import { run } from './assert-cases.js'
 
 console.log(`IMPL ${legacy === assert ? 'browser' : 'builtin'}`)
 await run(legacy)
+// Console messages are read asynchronously, give the last one time to arrive.
+await new Promise((resolve) => setTimeout(resolve, 100))
 process.exit(0)

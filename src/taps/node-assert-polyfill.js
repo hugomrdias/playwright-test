@@ -205,6 +205,22 @@ function bytesEqual(a, b) {
   return true
 }
 
+function areSimilarTypedArrays(a, b) {
+  if (a.byteLength !== b.byteLength) {
+    return false
+  }
+  // The tag is `undefined` for a DataView and for anything that isn't a view, so
+  // `b` can get here. Node.js throws from comparing its bytes, whatever the method.
+  if (!ArrayBuffer.isView(b)) {
+    throw codedError(
+      TypeError,
+      'ERR_INVALID_ARG_TYPE',
+      `The "buf2" argument must be an instance of Buffer or Uint8Array. Received ${inspect(b)}`
+    )
+  }
+  return bytesEqual(toBytes(a), toBytes(b))
+}
+
 function isPartialUint8Array(a, b) {
   const lenA = a.length
   const lenB = b.length
@@ -421,7 +437,7 @@ function objectComparisonStart(val1, val2, mode, memos) {
       if (!areSimilarFloatArrays(val1, val2)) {
         return false
       }
-    } else if (!bytesEqual(toBytes(val1), toBytes(val2))) {
+    } else if (!areSimilarTypedArrays(val1, val2)) {
       return false
     }
     // Same bytes, what is left to compare are the non index properties.

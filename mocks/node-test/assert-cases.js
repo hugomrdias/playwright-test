@@ -337,6 +337,53 @@ const WRAPPERS = [
   ['in Set ', (v) => new Set([v])],
 ]
 
+/**
+ * One empty value of each type, to compare every type with every other type.
+ *
+ * @type {Array<[string, () => unknown]>}
+ */
+const TYPES = [
+  ['object', () => ({})],
+  ['null proto', () => Object.create(null)],
+  ['class', () => new Foo()],
+  ['array', () => []],
+  [
+    'arguments',
+    function () {
+      return arguments
+    },
+  ],
+  ['Map', () => new Map()],
+  ['Set', () => new Set()],
+  ['WeakMap', () => new WeakMap()],
+  ['WeakSet', () => new WeakSet()],
+  ['Date', () => new Date(0)],
+  ['RegExp', () => /a/],
+  ['ArrayBuffer', () => new ArrayBuffer(0)],
+  ['DataView', () => new DataView(new ArrayBuffer(0))],
+  ['Uint8Array', () => new Uint8Array(0)],
+  ['Int8Array', () => new Int8Array(0)],
+  ['Float32Array', () => new Float32Array(0)],
+  ['Error', () => new Error('')],
+  ['TypeError', () => new TypeError('')],
+  ['Number object', () => new Number(0)],
+  ['String object', () => new String('')],
+  ['Boolean object', () => new Boolean(false)],
+  ['BigInt object', () => Object(0n)],
+  ['Symbol object', () => Object(Symbol.for('a'))],
+  ['URL', () => url('http://a.com')],
+  ['URLSearchParams', () => new URLSearchParams()],
+  ['Promise', () => Promise.resolve()],
+  ['function', () => Foo],
+  ['byteLength object', () => ({ byteLength: 0 })],
+  ['length object', () => ({ length: 0 })],
+  ['size object', () => ({ size: 0 })],
+  ['zero', () => 0],
+  ['empty string', () => ''],
+  ['null', () => null],
+  ['undefined', () => undefined],
+]
+
 const DEEP = [
   'deepEqual',
   'notDeepEqual',
@@ -586,11 +633,34 @@ for (const [label, left, right] of PAIRS) {
   }
 }
 
+for (const [left, makeLeft] of TYPES) {
+  for (const [right, makeRight] of TYPES) {
+    for (const method of DEEP) {
+      CASES.push([
+        `${method} type ${left} vs ${right}`,
+        (a) => a[method](makeLeft(), makeRight()),
+      ])
+    }
+  }
+}
+
+/**
+ * Printed in batches, too many messages and the browser run ends before all of
+ * them are read.
+ *
+ * @param {string[]} lines
+ */
+function flush(lines) {
+  console.log(lines.join('\n'))
+  lines.length = 0
+}
+
 /**
  * @param {any} assert
  * @param {string} face
  */
 async function runFace(assert, face) {
+  const lines = []
   for (const [label, fn] of CASES) {
     const result = {}
     try {
@@ -603,8 +673,12 @@ async function runFace(assert, face) {
       result.operator = err.operator
       result.generatedMessage = err.generatedMessage
     }
-    console.log(`CASE ${face} ${label} ${JSON.stringify(result)}`)
+    lines.push(`CASE ${face} ${label} ${JSON.stringify(result)}`)
+    if (lines.length === 200) {
+      flush(lines)
+    }
   }
+  flush(lines)
 }
 
 /**

@@ -11,17 +11,17 @@
 import { fileURLToPath } from 'node:url'
 import { execa } from 'execa'
 
-const fixture = (name) =>
-  fileURLToPath(new URL(`assert-${name}.test.js`, import.meta.url))
-const cli = fileURLToPath(new URL('../../cli.js', import.meta.url))
+// The CLI takes globs, which can't be absolute paths with backslashes on Windows.
+const cwd = fileURLToPath(new URL('../..', import.meta.url))
+const fixture = (name) => `mocks/node-test/assert-${name}.test.js`
 
 /**
  * @param {string} file
  * @param {string[]} [flags]
  */
 async function collect(file, flags = []) {
-  const args = flags.length > 0 ? [cli, file, ...flags] : [file]
-  const proc = await execa(process.execPath, args, { reject: false })
+  const args = flags.length > 0 ? ['cli.js', file, ...flags] : [file]
+  const proc = await execa(process.execPath, args, { cwd, reject: false })
   const cases = new Map()
   let impl
   let done = false

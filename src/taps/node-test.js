@@ -1355,7 +1355,14 @@ function scheduleBuild(suite) {
         .then(() => {
           building = null
           if (current === suite) {
+            // A suite around this one with a sync body has been built by now.
             current = previous
+            while (
+              current.parent &&
+              (current.buildFinished || current.finished)
+            ) {
+              current = current.parent
+            }
           }
           finish()
           while (building === null && buildQueue.length > 0) {
