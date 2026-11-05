@@ -37,7 +37,8 @@ const defaultOptions = {
   sw: undefined,
   cov: false,
   reportDir: '.nyc_output',
-  extensions: 'js,cjs,mjs,ts,tsx',
+  extensions: 'js,cjs,mjs,ts,tsx,jsx',
+  transform: true,
   buildConfig: {},
   buildSWConfig: {},
   browserContextOptions: {},
@@ -49,11 +50,25 @@ const defaultOptions = {
   },
 }
 
+/** c8's defaults leave out .mts and .cts, passing any replaces all of them. */
+const COVERAGE_EXTENSIONS = [
+  '.js',
+  '.cjs',
+  '.mjs',
+  '.ts',
+  '.tsx',
+  '.jsx',
+  '.mts',
+  '.cts',
+]
+
 /**
  * Runs tests directly in Node.js without bundling.
  *
  * The test runner entry is piped to `node --input-type=module` through stdin so
  * imports resolve from `options.cwd`, just like a module living in the project.
+ * Unless `options.transform` is off, `hooks.js` is preloaded to transform project
+ * files one by one.
  */
 export class NodeRunner {
   /**
@@ -120,6 +135,9 @@ export class NodeRunner {
    */
   runTests() {
     const nodeArgs = ['--enable-source-maps', '--input-type=module']
+    if (this.options.transform) {
+      nodeArgs.push('--import', new URL('hooks.js', import.meta.url).href)
+    }
     const [file, args] = this.options.cov
       ? [
           'c8',
@@ -128,6 +146,7 @@ export class NodeRunner {
             '--reporter=json',
             '--report-dir',
             this.options.reportDir,
+            ...COVERAGE_EXTENSIONS.map((ext) => `--extension=${ext}`),
             'node',
             ...nodeArgs,
           ],

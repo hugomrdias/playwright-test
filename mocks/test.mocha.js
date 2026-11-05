@@ -33,10 +33,7 @@ describe('Array', () => {
     })
 
     it('should has import.meta.env', () => {
-      // import.meta.env is only injected by the bundler (browser modes)
-      if (Client.mode !== 'node') {
-        equal(import.meta.env, process.env)
-      }
+      equal(import.meta.env, process.env)
     })
 
     it('should has server', () => {

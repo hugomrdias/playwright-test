@@ -21,6 +21,18 @@ export interface RunnerOptions {
   sw?: string
   cov: boolean
   reportDir: string
+  /**
+   * Transform project files with esbuild in node mode (full TypeScript, JSX,
+   * extensionless imports and `import.meta.env`). Turn it off to get plain Node
+   * behaviour, for example when preloading another loader through `NODE_OPTIONS`.
+   *
+   * @default true
+   */
+  transform: boolean
+  /**
+   * Esbuild config. In node mode only `define`, `loader`, the `jsx*` options and
+   * `tsconfigRaw` apply.
+   */
   buildConfig: BuildOptions
   buildSWConfig: BuildOptions
   browserContextOptions?: BrowserContextOptions
@@ -59,6 +71,7 @@ export interface CliOptions {
   assets: string
   cwd: string
   extensions: string
+  transform?: boolean
   config?: string
 }
 
