@@ -82,6 +82,14 @@ describe('--before', () => {
     })
   }
 
+  it('only logs an error from after the script called beforeEnd', async () => {
+    const proc = await run('mocks/before/ends-then-throws.js')
+
+    is(proc.exitCode, 0, proc.stderr)
+    ok(proc.stderr.includes('before script threw after ending'), proc.stderr)
+    ok(proc.stdout.includes('hello world!'), 'the tests ran')
+  })
+
   it('prints the output from before a script threw', async () => {
     const proc = await run('mocks/before/throws.js')
 

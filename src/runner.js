@@ -379,13 +379,16 @@ export class Runner {
     const page = await context.newPage()
     await page.goto(`${this.url}before.html`)
 
-    let ended = false
-
     page.on('console', this.#onConsole)
-    page.on('pageerror', (err) => {
+    page.on('pageerror', async (err) => {
       const message = `Uncaught exception happened within the before page. Run with --debug. \n${kleur.dim(
         this.stackMapper.map(err.stack?.toString() || err.toString())
       )}`
+      // Ask the page, the wait below only notices `beforeEnd` when it next polls.
+      // Without a page the wait fails the run by itself.
+      const ended = await page
+        .evaluate('self.PW_TEST?.beforeEnded')
+        .catch(() => true)
 
       // A script that threw may never call `beforeEnd`, don't wait for it. The
       // page stays open under --debug and `stop` does nothing there.
@@ -403,7 +406,6 @@ export class Runner {
       timeout: 0,
       polling: 100, // raf doesn't run in a tab that's in the background
     })
-    ended = true
   }
 
   async watch() {
