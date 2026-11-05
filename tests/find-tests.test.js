@@ -1,10 +1,14 @@
+import {
+  deepStrictEqual as equal,
+  strictEqual as is,
+  ok,
+} from 'node:assert/strict'
 import { after, before, describe, it } from 'node:test'
-import { execa } from 'execa'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import { equal, is, ok } from 'uvu/assert'
 import { findTests } from '../src/utils/index.js'
+import { execa, runCli } from './helpers.js'
 
 const extensions = ['js', 'ts']
 
@@ -210,7 +214,7 @@ describe('cli', () => {
   })
 
   /** @param {string[]} args */
-  const cli = (args) => execa('./cli.js', args, { reject: false })
+  const cli = (args) => runCli(args, { reject: false })
 
   /**
    * @param {import('execa').Result} proc
