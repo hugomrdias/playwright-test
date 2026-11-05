@@ -72,7 +72,7 @@ pnpm run test
 
 # run one file, or only the tests that match a name
 node --test tests/mocha.test.js
-node --test --test-name-pattern="coverage" tests/mocha.test.js
+node --test --test-name-pattern="cwd" tests/mocha.test.js
 ```
 
 The tests also run in Firefox and WebKit. On Linux, WebKit needs its system dependencies: `pnpm exec playwright-core install-deps webkit`.

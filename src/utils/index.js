@@ -8,14 +8,11 @@ import kleur from 'kleur'
 // @ts-expect-error
 import mergeOptions from 'merge-options'
 import { createRequire } from 'module'
-import ora from 'ora'
 import path from 'path'
 import polka from 'polka'
 import sirv from 'sirv'
 import { convertPathToPattern, globSync } from 'tinyglobby'
 import { fileURLToPath, pathToFileURL } from 'url'
-import { promisify } from 'util'
-import V8ToIstanbul from 'v8-to-istanbul'
 import * as DefaultRunners from '../test-runners.js'
 import { polyfillAliases } from './polyfill-aliases.js'
 
@@ -70,8 +67,6 @@ export const defaultOptions = {
   testRunner: DefaultRunners.none,
   before: undefined,
   sw: undefined,
-  cov: false,
-  reportDir: '.nyc_output',
   extensions: 'js,cjs,mjs,ts,tsx,jsx',
   transform: true,
   runTimeout: DEFAULT_RUN_TIMEOUT,
@@ -130,9 +125,6 @@ export const log = {
  * @typedef {import('esbuild').Plugin} ESBuildPlugin
  * @typedef {import('esbuild').BuildOptions} ESBuildOptions
  */
-
-const writeFile = promisify(fs.writeFile)
-const mkdir = promisify(fs.mkdir)
 
 const defaultIgnorePatterns = [
   '.git', // Git repository files, see <https://git-scm.com/>
@@ -304,23 +296,19 @@ const messageTypeToConsoleFn = {
 
 /**
  * @param {import('playwright-core').ConsoleMessage} msg
+ * @param {<T>(value: T) => T} mapStack - map stack traces back to the source files
  */
-export async function redirectConsole(msg) {
+export async function redirectConsole(msg, mapStack) {
   const type = msg.type()
   const consoleFn = messageTypeToConsoleFn[type]
 
   if (!consoleFn) {
     return
   }
-  const text = msg.text()
+  const text = mapStack(msg.text())
 
   // skip browser informational warnings
-  if (
-    text?.includes(
-      'Synchronous XMLHttpRequest on the main thread is deprecated'
-    ) ||
-    text?.includes('Clear-Site-Data')
-  ) {
+  if (text?.includes('Clear-Site-Data')) {
     return
   }
 
@@ -329,7 +317,11 @@ export async function redirectConsole(msg) {
 
   try {
     msgArgs = await Promise.all(
-      msg.args().map((arg) => extractErrorMessage(arg) || arg.jsonValue())
+      msg
+        .args()
+        .map(async (arg) =>
+          mapStack(extractErrorMessage(arg) || (await arg.jsonValue()))
+        )
     )
   } catch {
     // Runner was probably force stopped, the page can't give us the values
@@ -429,15 +421,9 @@ export async function build(runner, config = {}, tmpl = '', mode = 'bundle') {
   const outName = `${mode}-out.js`
   const outPath = path.join(runner.dir, outName)
   const files = new Set()
-  const sourceMapSupport = path.join(
-    __dirname,
-    '../vendor/source-map-support.js'
-  )
 
   // main script template
   let infileContent = `
-import { install } from '${sourceMapSupport.replaceAll('\\', '/')}'
-install()
 Object.assign(process.env, ${JSON.stringify(runner.env)})
 import.meta.env = ${JSON.stringify(runner.env)}
 
@@ -446,8 +432,6 @@ ${tmpl}
   // before script template
   if (mode === 'before' && runner.options.before) {
     infileContent = `
-import { install } from '${sourceMapSupport.replaceAll('\\', '/')}'
-install()
 Object.assign(process.env, ${JSON.stringify(runner.env)})
 import.meta.env = ${JSON.stringify(runner.env)}
 
@@ -487,69 +471,11 @@ await import('${require
     external: ['node:async_hooks', 'node:fs', 'msw/node'],
     define: {
       global: 'globalThis',
-      PW_TEST_SOURCEMAP: runner.options.debug ? 'false' : 'true',
-      PW_TEST_SOURCEMAP_PATH: JSON.stringify(runner.dir),
     },
   }
   await esbuild.build(merge(defaultOptions, config, runner.options.buildConfig))
 
   return { outName, files }
-}
-
-/**
- * Create coverage report in istanbul JSON format
- *
- * @param {import("../runner").Runner} runner
- * @param {any} coverage
- * @param {string} file
- * @param {string} outputDir
- */
-export async function createCov(runner, coverage, file, outputDir) {
-  const spinner = ora('Generating code coverage.').start()
-  const entries = {}
-  const { cwd } = runner.options
-  // @ts-expect-error
-  const TestExclude = require('test-exclude')
-  const exclude = new TestExclude({ cwd })
-  // @ts-expect-error
-  const f = new Set(exclude.globSync().map((f) => path.join(cwd, f)))
-  for (const entry of coverage) {
-    const filePath = path.resolve(runner.dir, entry.url.replace(runner.url, ''))
-
-    if (filePath.includes(file)) {
-      // @ts-expect-error
-      const converter = new V8ToIstanbul(
-        filePath,
-        0,
-        {
-          source: entry.source,
-        }
-        // (path) => {
-        //   return !f.has(path)
-        // }
-      )
-
-      await converter.load()
-      converter.applyCoverage(entry.functions)
-      const instanbul = converter.toIstanbul()
-
-      for (const key in instanbul) {
-        if (f.has(key)) {
-          // @ts-expect-error
-          entries[key] = instanbul[key]
-        }
-      }
-    }
-  }
-  const covPath = path.join(cwd, outputDir)
-
-  await mkdir(covPath, { recursive: true })
-
-  await writeFile(
-    path.join(covPath, 'coverage-pw.json'),
-    JSON.stringify(entries)
-  )
-  spinner.succeed('Code coverage generated, run "npx nyc report".')
 }
 
 /**

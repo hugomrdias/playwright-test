@@ -20,41 +20,6 @@ describe('node mode outside the package', () => {
     fs.rmSync(project, { recursive: true, force: true })
   })
 
-  /**
-   * PATH without the folders where c8 can be found, `pnpm run` adds our own
-   */
-  function envWithoutC8() {
-    const key =
-      Object.keys(process.env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH'
-    const dirs = (process.env[key] ?? '')
-      .split(path.delimiter)
-      .filter(
-        (dir) =>
-          !['c8', 'c8.cmd'].some((bin) => fs.existsSync(path.join(dir, bin)))
-      )
-    return { [key]: dirs.join(path.delimiter) }
-  }
-
-  it('coverage without c8 in the project', async () => {
-    // c8 leaves test files out of the report
-    fs.writeFileSync(path.join(project, 'lib.js'), 'export const a = 1\n')
-    fs.writeFileSync(
-      path.join(project, 'entry.test.js'),
-      "import { a } from './lib.js'\nconsole.log('hello from entry', a)\n"
-    )
-
-    const proc = await execa(
-      process.execPath,
-      [cli, 'entry.test.js', '--cov', ...none],
-      { cwd: project, env: envWithoutC8(), reject: false }
-    )
-
-    is(proc.exitCode, 0, proc.stderr)
-    ok(proc.stdout.includes('hello from entry'), proc.stdout)
-    ok(proc.stdout.includes('lib.js'), proc.stdout)
-    ok(fs.existsSync(path.join(project, '.nyc_output/coverage-final.json')))
-  })
-
   it('reports why tests could not start', async () => {
     fs.mkdirSync(path.join(project, 'sub'))
     fs.writeFileSync(path.join(project, 'sub/entry.test.js'), '')
@@ -164,28 +129,6 @@ describe('node mode transform', () => {
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('stack.ts:11:11'), proc.stdout)
     ok(proc.stdout.includes('stack.ts:16:26'), proc.stdout)
-  })
-
-  it('coverage maps to the source files', async () => {
-    const proc = await runCli([
-      'mocks/transform/imports.test.ts',
-      '--report-dir',
-      '.coverage/node-mode',
-      '--cov',
-      ...mocha,
-    ])
-
-    is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('extensionless.ts'), proc.stdout)
-    ok(proc.stdout.includes('view.tsx'), proc.stdout)
-
-    const cov = JSON.parse(
-      fs.readFileSync('.coverage/node-mode/coverage-final.json', 'utf8')
-    )
-    ok(path.resolve('mocks/transform/lib/rewritten.ts') in cov, 'ts coverage')
-    ok(path.resolve('mocks/transform/lib/view.tsx') in cov, 'tsx coverage')
-    ok(path.resolve('mocks/transform/lib/module.mts') in cov, 'mts coverage')
-    ok(path.resolve('mocks/transform/lib/common.cts') in cov, 'cts coverage')
   })
 
   it('import.meta.env', async () => {

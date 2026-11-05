@@ -32,7 +32,7 @@ export function withLocalBins(env, cwd) {
 
 /**
  * End a subprocess that won't end by itself. On Windows killing it doesn't reach
- * its children, and with coverage the one running the tests is a child of c8.
+ * its children.
  *
  * @param {import('node:child_process').ChildProcess} child
  */

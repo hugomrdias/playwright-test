@@ -203,14 +203,7 @@ describe('runner options', () => {
     }
 
     it('the flags the cli does know still parse', async () => {
-      const proc = await run('mocha', [
-        '--mode',
-        'node',
-        '--no-transform',
-        '--cov',
-        '--report-dir',
-        '.coverage/runner-options',
-      ])
+      const proc = await run('mocha', ['--mode', 'node', '--no-transform'])
 
       is(proc.exitCode, 0, output(proc))
     })

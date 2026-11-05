@@ -199,7 +199,7 @@ function transform(url, source, loader, format) {
   const { code } = transformSync(source, {
     ...transformOptions,
     loader,
-    // A file URL is what both node and c8 resolve back to the original on Windows
+    // A file URL is what node resolves back to the original on Windows
     sourcefile: url,
     format: format && (format === 'commonjs' ? 'cjs' : 'esm'),
   })

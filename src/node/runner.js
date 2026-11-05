@@ -43,8 +43,6 @@ const defaultOptions = {
   testRunner: DefaultRunners.none,
   before: undefined,
   sw: undefined,
-  cov: false,
-  reportDir: '.nyc_output',
   extensions: 'js,cjs,mjs,ts,tsx,jsx',
   transform: true,
   runTimeout: DEFAULT_RUN_TIMEOUT,
@@ -58,18 +56,6 @@ const defaultOptions = {
     // noop
   },
 }
-
-/** c8's defaults leave out .mts and .cts, passing any replaces all of them. */
-const COVERAGE_EXTENSIONS = [
-  '.js',
-  '.cjs',
-  '.mjs',
-  '.ts',
-  '.tsx',
-  '.jsx',
-  '.mts',
-  '.cts',
-]
 
 /**
  * Runs tests directly in Node.js without bundling.
@@ -105,6 +91,8 @@ export class NodeRunner {
     this.env = merge(JSON.parse(JSON.stringify(process.env)), {
       PW_OPTIONS: JSON.stringify(this.options),
       NODE_ENV: 'test',
+      // For reporters to remove our frames from stack traces
+      PW_TEST_SRC: new URL('../', import.meta.url).href.replace('file://', ''),
     })
     this.tests =
       testFiles ??
@@ -162,21 +150,8 @@ export class NodeRunner {
     if (this.options.transform) {
       nodeArgs.push('--import', new URL('hooks.js', import.meta.url).href)
     }
-    const args = this.options.cov
-      ? [
-          // c8 is our dependency, the project may not be able to reach its bin
-          fileURLToPath(import.meta.resolve('c8/bin/c8.js')),
-          '--reporter=text',
-          '--reporter=json',
-          '--report-dir',
-          this.options.reportDir,
-          ...COVERAGE_EXTENSIONS.map((ext) => `--extension=${ext}`),
-          process.execPath,
-          ...nodeArgs,
-        ]
-      : nodeArgs
 
-    const child = spawn(process.execPath, args, {
+    const child = spawn(process.execPath, nodeArgs, {
       cwd: this.options.cwd,
       env: withLocalBins(this.env, this.options.cwd),
       stdio: ['pipe', 'inherit', 'inherit'],
