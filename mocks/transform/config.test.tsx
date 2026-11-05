@@ -1,4 +1,4 @@
-import { is } from 'uvu/assert'
+import { strictEqual as is } from 'node:assert/strict'
 import { bracket, spaced } from './lib/define-spelling.js'
 import note from './lib/note.txt'
 import { fromDefine } from './lib/uses-define.js'

@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */
 // eslint-disable-next-line strict
-import { is } from 'uvu/assert'
+import { strictEqual as is } from 'node:assert/strict'
 
 import { KV } from './sw-globals'
 

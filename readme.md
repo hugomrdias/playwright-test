@@ -1,6 +1,6 @@
 # playwright-test [![NPM Version](https://img.shields.io/npm/v/playwright-test.svg)](https://www.npmjs.com/package/playwright-test) [![NPM Downloads](https://img.shields.io/npm/dt/playwright-test.svg)](https://www.npmjs.com/package/playwright-test) [![NPM License](https://img.shields.io/npm/l/playwright-test.svg)](https://www.npmjs.com/package/playwright-test) ![tests](https://github.com/hugomrdias/playwright-test/workflows/tests/badge.svg)
 
-> Run mocha, uvu and tape scripts inside real browsers with `playwright`.
+> Run mocha, `node:test` and taps scripts inside real browsers with `playwright`.
 
 ## Install
 
@@ -21,13 +21,13 @@ pw-test [files] [options]
 
 ```shell
 Description
-    Run mocha, uvu and tape scripts inside real browsers with `playwright` and in Node.
+    Run mocha, node:test and taps scripts inside real browsers with `playwright` and in Node.
 
   Usage
     $ playwright-test [files] [options]
 
   Options
-    -r, --runner       Test runner. Options: mocha, tape, uvu, none, taps and node-test. Internal runners are autodetected by default, see [auto detection](#runner-auto-detection). It also accepts a path to a module or a module ID that exports a `playwrightTestRunner` object.
+    -r, --runner       Test runner. Options: mocha, none, taps and node-test. Internal runners are autodetected by default, see [auto detection](#runner-auto-detection). It also accepts a path to a module or a module ID that exports a `playwrightTestRunner` object.
     -b, --browser      Browser to run tests. Options: chromium, firefox, webkit.  (default chromium)
     -m, --mode         Run mode. Options: main, worker and node.  (default main)
     -d, --debug        Debug mode, keeps browser window open.  (default false)
@@ -49,7 +49,7 @@ Description
 
 
   Examples
-    $ playwright-test test.js --runner tape
+    $ playwright-test test.js --runner mocha
     $ playwright-test test --debug
     $ playwright-test "test/**/*.spec.js" --browser webkit --mode worker --incognito --debug
 
@@ -308,7 +308,7 @@ playwright-test test.js --test-timeout 10000
 | `node-test` with the real one | `--test-name-pattern` of `node:test` | `--test-timeout` of `node:test`    |
 | `node-test` with our API      | Filters the tests                    | Timeout of tests without their own |
 | `taps`                        | Filters the tests                    | Timeout of tests without their own |
-| `tape`, `uvu`, `none`         | Warns and is ignored                 | Warns and is ignored               |
+| `none`                        | Warns and is ignored                 | Warns and is ignored               |
 
 - `--test-name-pattern` is a regular expression, or `/expression/flags`. A test matches with its own name, the name of a suite it's in, or any of those joined by a space with the names above them. With `mocha` only the last one counts, so `^adds$` won't match a test inside a suite.
 - `--test-timeout` is in milliseconds, `0` means no timeout. It's different from `--run-timeout`, which is for the whole run.
@@ -334,7 +334,7 @@ export default {
 
 Without `--runner` or a `testRunner` in the config file, every test file is read to find the runner:
 
-- A file importing the module of a runner asks for it, through `import`, `require()` or `import()`. Only the exact module counts, `uvu/assert` isn't `uvu`, and neither do type only imports.
+- A file importing the module of a runner asks for it, through `import`, `require()` or `import()`. Only the exact module counts, `mocha/mocha.js` isn't `mocha`, and neither do type only imports.
 - A top level call to `describe` or `it`, also `.only` and `.skip`, asks for `mocha`, unless the file declares or imports that name itself.
 - When nothing asks for a runner it's `none`, with a warning.
 - When files ask for different runners it's an error that names them. `node-test` and `taps` can be used together, the `node-test` runner runs both.

@@ -1,4 +1,4 @@
-import { equal, is } from 'uvu/assert'
+import { deepStrictEqual as equal, strictEqual as is } from 'node:assert/strict'
 
 enum Color {
   Red = 1,
