@@ -22,6 +22,9 @@ jobs:
       - run: pnpm run test
       - run: ./cli.js mocks/test.mocha.js --browser chromium
       - run: ./cli.js mocks/test.mocha.js --browser firefox
+      - run: pnpm exec mocha test.js --grep "console output" --timeout 120000
+        env:
+          PW_TEST_BROWSER: firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
 
   macos:
@@ -36,6 +39,9 @@ jobs:
       - run: pnpm run test
       - run: ./cli.js mocks/test.mocha.js --browser chromium
       - run: ./cli.js mocks/test.mocha.js --browser firefox
+      - run: pnpm exec mocha test.js --grep "console output" --timeout 120000
+        env:
+          PW_TEST_BROWSER: firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
 
   win:
@@ -49,6 +55,9 @@ jobs:
       - run: pnpm run test
       - run: ./cli.js mocks/test.mocha.js --browser chromium
       - run: ./cli.js mocks/test.mocha.js --browser firefox
+      - run: pnpm exec mocha test.js --grep "console output" --timeout 120000
+        env:
+          PW_TEST_BROWSER: firefox
       - run: ./cli.js mocks/test.mocha.js --browser webkit
   release:
     runs-on: ubuntu-latest
