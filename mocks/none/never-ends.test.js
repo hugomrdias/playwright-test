@@ -1,0 +1,3 @@
+while (true) {
+  // never ends
+}

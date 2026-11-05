@@ -42,6 +42,7 @@ Description
     --cwd              Current directory.  (default /Users/hd/code/playwright-test)
     --extensions       File extensions allowed in the bundle.  (default js,cjs,mjs,ts,tsx)
     --no-transform     Node mode only. Run files as plain Node would, without the built-in esbuild transform.
+    --run-timeout      Fail the run after this many milliseconds, 0 turns it off. Not used with --debug or --watch.  (default 1800000)
     --config           Path to the config file
     -v, --version      Displays current version
     -h, --help         Displays this message

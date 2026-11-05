@@ -30,6 +30,15 @@ export interface RunnerOptions {
    */
   transform: boolean
   /**
+   * Fail the run after this many milliseconds, a test can hang a run forever
+   * otherwise. `0` turns it off. Ignored with `debug` and in watch mode.
+   *
+   * It's for the whole run, runners have their own per test options.
+   *
+   * @default 1800000
+   */
+  runTimeout: number
+  /**
    * Esbuild config. In node mode only `define`, `loader`, the `jsx*` options and
    * `tsconfigRaw` apply.
    */

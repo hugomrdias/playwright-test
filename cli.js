@@ -192,6 +192,10 @@ sade2
     '--no-transform',
     'Node mode only. Run files as plain Node would, without the built-in esbuild transform.'
   )
+  .option(
+    '--run-timeout',
+    'Fail the run after this many milliseconds, 0 turns it off. Not used with --debug or --watch.  (default 1800000)'
+  )
   .option('--config', 'Path to the config file')
   .action(async (input, opts) => {
     let config
@@ -237,6 +241,7 @@ sade2
         reportDir: opts['report-dir'],
         extensions: opts.extensions,
         transform: opts.transform,
+        runTimeout: opts['run-timeout'],
         beforeTests: opts.beforeTests,
         afterTests: opts.afterTests,
       })
