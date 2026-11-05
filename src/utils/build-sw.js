@@ -30,7 +30,7 @@ export async function compileSw(runner, { entry }) {
   const outName = 'sw-out.js'
   const outPath = path.join(runner.dir, outName)
   const content = `
-process.env = ${JSON.stringify(runner.env)}
+Object.assign(process.env, ${JSON.stringify(runner.env)})
 self.addEventListener('install', function(event) {
   self.skipWaiting();
 })
