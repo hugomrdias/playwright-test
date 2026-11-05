@@ -266,6 +266,12 @@ Bundles resolve `assert`, `assert/strict`, `util` and `util/types`, also with th
 
 The default export is the whole object and these are also named exports, importing anything else by name fails when bundling. Other properties, like `process.platform`, are `undefined`.
 
+## `path` in browsers
+
+Bundles resolve `path` and `path/posix`, also with the `node:` prefix, to [`path-browserify`](https://github.com/browserify/path-browserify), including in service workers. Anything installed with those names is ignored.
+
+It only has POSIX paths: `path.win32` is `null`, and `path/win32` and other subpaths fail when bundling. `path.matchesGlob` doesn't exist, and relative paths resolve from `/`, which is what `process.cwd()` returns in browsers.
+
 ## Client
 
 This client package exposes the `playwright-test` options and some Playwright browser context methods to be used in tests.
