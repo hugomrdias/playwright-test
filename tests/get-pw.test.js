@@ -2,8 +2,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
-import { execa } from 'execa'
 import { equal } from 'uvu/assert'
+import { execa } from './helpers.js'
 
 /**
  * @param {string} state
