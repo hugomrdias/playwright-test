@@ -91,6 +91,20 @@ Description
 playwright-test "test/**/*.spec.js" --mode node
 ```
 
+### TypeScript beyond type stripping
+
+`NODE_OPTIONS` is passed to the Node process that runs the tests, so you can preload a loader such as [tsx](https://tsx.is) or [`@nubjs/runner`](https://nubjs.com/docs/standalone) to get `enum`, `namespace`, decorators, `.tsx`, extensionless imports and `tsconfig.json` `paths`. Install the loader in your project first, then:
+
+```shell
+NODE_OPTIONS="--import tsx" playwright-test "test/**/*.spec.ts" --mode node
+```
+
+```shell
+NODE_OPTIONS="--import @nubjs/runner" playwright-test "test/**/*.spec.ts" --mode node
+```
+
+The loader is also loaded by the `playwright-test` CLI process itself, which is harmless. It does not bring back `import.meta.env` or `buildConfig`.
+
 ## Client
 
 This client package exposes the `playwright-test` options and some Playwright browser context methods to be used in tests.
