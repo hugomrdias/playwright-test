@@ -62,7 +62,9 @@ export interface Test {
 
 export type RunnerPartial = (
   testCount: number
-) => Promise<[errors: string[], ran: number, skipped: number, total: number]>
+) => Promise<
+  [errors: string[], ran: number, skipped: number, total: number, todo?: number]
+>
 
 export type Runner = (
   ctx: SuiteContext,

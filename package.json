@@ -31,6 +31,10 @@
       "types": "./dist/src/taps/index.d.ts",
       "default": "./src/taps/index.js"
     },
+    "./node-test": {
+      "types": "./dist/src/node/test.d.ts",
+      "default": "./src/node/test.js"
+    },
     "./node-assert": {
       "types": "./dist/src/node/assert.d.ts",
       "default": "./src/node/assert.js"
@@ -46,6 +50,9 @@
     "*": {
       "taps": [
         "dist/src/taps/index.d.ts"
+      ],
+      "node-test": [
+        "dist/src/node/test.d.ts"
       ],
       "node-assert": [
         "dist/src/node/assert.d.ts"
