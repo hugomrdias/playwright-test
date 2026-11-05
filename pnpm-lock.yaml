@@ -175,9 +175,6 @@ importers:
       c8:
         specifier: ^12.0.0
         version: 12.0.0
-      camelcase:
-        specifier: ^10.0.0
-        version: 10.0.0
       chokidar:
         specifier: ^6.0.0
         version: 6.0.0
@@ -833,10 +830,6 @@ packages:
   call-bound@1.0.4:
     resolution: {integrity: sha512-+ys997U96po4Kx/ABpBCqhA9EuxJaQWDQg7295H4hBphv3IZg0boBKuwYpt4YXp6MZ5AmZQnU/tyMTlRpaSejg==}
     engines: {node: '>= 0.4'}
-
-  camelcase@10.0.0:
-    resolution: {integrity: sha512-p1wew5BGDCONz/5R+xHF6ByqXQM2V+5r4e+FdlFUeROawuMPimdDOFLw5k2QSqp1rm5h2QAglToqJyvnsl3ArQ==}
-    engines: {node: '>=22'}
 
   chalk@6.0.1:
     resolution: {integrity: sha512-/Ce6KNm3vIbWdMlNna6RVIZ/ICQxnJxCicet5LBKK9ZffBkqzDw0xh9EiKSljdRtiIQ1S1z4YgcscUUGzNCWrA==}
@@ -2357,8 +2350,6 @@ snapshots:
     dependencies:
       call-bind-apply-helpers: 1.0.2
       get-intrinsic: 1.3.0
-
-  camelcase@10.0.0: {}
 
   chalk@6.0.1: {}
 

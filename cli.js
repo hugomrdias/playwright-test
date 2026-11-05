@@ -14,15 +14,14 @@ import { fileURLToPath, pathToFileURL } from 'url'
 import { NodeRunner } from './src/node/runner.js'
 import { Runner } from './src/runner.js'
 import * as DefaultRunners from './src/test-runners.js'
-import { benchmark, mocha, none, tape, uvu } from './src/test-runners.js'
-import { detectTestRunner } from './src/utils/auto-detect.js'
+import { detectTestRunners } from './src/utils/auto-detect.js'
 import {
   defaultOptions,
   findTests,
   log,
   resolveTestRunner,
-  runnerOptions,
 } from './src/utils/index.js'
+import { toRegExp } from './src/utils/name-pattern.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -75,13 +74,8 @@ const extra = `
     )}
 
   ${kleur.bold('Runner Options')}
-    All arguments passed to the cli not listed above will be fowarded to the runner.
-    ${kleur.dim(
-      "$ playwright-test test.js --runner mocha --bail --grep 'should fail'"
-    )}
-
-    To send a \`false\` flag use --no-bail.
-    Check https://mochajs.org/api/mocha for \`mocha\` options or \`npx mocha --help\`.
+    Everything else a runner takes goes in the config file, under \`testRunner.options\`.
+    Check https://github.com/hugomrdias/playwright-test#runner-options
 
   ${kleur.bold('Notes')}
     DEBUG env var filtering for 'debug' package logging will work as expected.
@@ -123,6 +117,146 @@ const loadEsm = async (/** @type {string} */ filepath) => {
   return res
 }
 
+/** An error that only needs its message shown. */
+class UsageError extends Error {}
+
+/** @type {Record<string, import('./src/types.js').TestRunner>} */
+const builtInRunners = {
+  benchmark: DefaultRunners.benchmark,
+  mocha: DefaultRunners.mocha,
+  'node-test': DefaultRunners.nodeTest,
+  none: DefaultRunners.none,
+  taps: DefaultRunners.taps,
+  tape: DefaultRunners.tape,
+  uvu: DefaultRunners.uvu,
+}
+
+/**
+ * Pick the test runner from what the test files use, or `none`.
+ *
+ * @param {string[]} testFiles
+ */
+function autoDetectTestRunner(testFiles) {
+  const found = detectTestRunners(testFiles, DefaultRunners)
+
+  if (found.size > 1) {
+    const list = [...found].map(
+      ([runner, file]) => `"${runner.moduleId}" (${file})`
+    )
+    throw new UsageError(
+      `Found more than one test runner: ${list.join(', ')}. Choose one with --runner.`
+    )
+  }
+
+  const [runner] = found.keys()
+  if (runner) {
+    log.info(`Autodetected "${runner.moduleId}" as the runner.`)
+    return runner
+  }
+  if (testFiles.length > 0) {
+    log.warn('Could not find a test runner. Using "none".')
+  }
+  return DefaultRunners.none
+}
+
+const KNOWN_FLAGS = new Set([
+  '_',
+  'assets',
+  'b',
+  'before',
+  'browser',
+  'config',
+  'cov',
+  'cwd',
+  'd',
+  'debug',
+  'e',
+  'extension',
+  'extensions',
+  'i',
+  'incognito',
+  'm',
+  'mode',
+  'no-transform',
+  'r',
+  'report-dir',
+  'run-timeout',
+  'runner',
+  'sw',
+  'test-name-pattern',
+  'test-timeout',
+  'transform',
+  'w',
+  'watch',
+])
+
+/**
+ * Nothing is forwarded to the runners, ignoring a flag would run the wrong tests.
+ * Not the `unknown` option of sade since it also rejects `--no-transform`.
+ *
+ * @param {Record<string, unknown>} opts
+ */
+function checkUnknownFlags(opts) {
+  const unknown = Object.keys(opts).filter((flag) => !KNOWN_FLAGS.has(flag))
+  if (unknown.length > 0) {
+    const flags = unknown.map((flag) =>
+      flag.length === 1 ? `-${flag}` : `--${flag}`
+    )
+    throw new UsageError(
+      `Unknown option ${flags.join(', ')}. Runner options go in the config file, under testRunner.options. See also --test-name-pattern and --test-timeout.`
+    )
+  }
+}
+
+/**
+ * @param {import('./src/types.js').RunnerOptions} options
+ */
+function validateTestOptions({ testNamePattern, testTimeout }) {
+  if (Array.isArray(testNamePattern)) {
+    throw new UsageError(
+      '--test-name-pattern can only be set once, use a regular expression like "a|b".'
+    )
+  }
+  if (testNamePattern != null) {
+    try {
+      toRegExp(String(testNamePattern))
+    } catch (error) {
+      throw new UsageError(
+        `Invalid --test-name-pattern: ${/** @type {Error} */ (error).message}`
+      )
+    }
+  }
+  if (
+    testTimeout != null &&
+    !(typeof testTimeout === 'number' && testTimeout >= 0)
+  ) {
+    throw new UsageError(
+      '--test-timeout must be a number of milliseconds, 0 for none.'
+    )
+  }
+}
+
+/**
+ * @param {import('./src/types.js').RunnerOptions} options
+ */
+function warnUnsupportedTestOptions({
+  testNamePattern,
+  testRunner,
+  testTimeout,
+}) {
+  const supports = testRunner.supports ?? []
+  if (testNamePattern != null && !supports.includes('testNamePattern')) {
+    log.warn(
+      `The "${testRunner.moduleId}" runner can't filter by name, ignoring --test-name-pattern.`
+    )
+  }
+  if (testTimeout != null && !supports.includes('testTimeout')) {
+    log.warn(
+      `The "${testRunner.moduleId}" runner can't set a default timeout, ignoring --test-timeout.`
+    )
+  }
+}
+
 const configLoaders = {
   '.js': loadEsm,
   '.mjs': loadEsm,
@@ -135,7 +269,7 @@ sade2
   )
   .option(
     '-r, --runner',
-    'Test runner. Options: mocha, tape, uvu, none, taps and benchmark. It also accepts a path to a module or a module name that exports a `playwrightTestRunner` object.'
+    'Test runner. Options: mocha, tape, uvu, none, taps, node-test and benchmark. It also accepts a path to a module or a module name that exports a `playwrightTestRunner` object.'
   )
   .option(
     '-b, --browser',
@@ -196,10 +330,20 @@ sade2
     '--run-timeout',
     'Fail the run after this many milliseconds, 0 turns it off. Not used with --debug or --watch.  (default 1800000)'
   )
+  .option(
+    '--test-name-pattern',
+    'Only run tests whose name matches this regular expression or /expression/flags.'
+  )
+  .option(
+    '--test-timeout',
+    'Timeout in milliseconds for tests without their own, 0 for none.'
+  )
   .option('--config', 'Path to the config file')
   .action(async (input, opts) => {
     let config
     try {
+      checkUnknownFlags(opts)
+
       if (opts.config) {
         config = await lilconfig('playwright-test', {
           loaders: configLoaders,
@@ -242,6 +386,8 @@ sade2
         extensions: opts.extensions,
         transform: opts.transform,
         runTimeout: opts['run-timeout'],
+        testNamePattern: opts['test-name-pattern'],
+        testTimeout: opts['test-timeout'],
         beforeTests: opts.beforeTests,
         afterTests: opts.afterTests,
       })
@@ -252,68 +398,31 @@ sade2
         filePatterns: options.input ?? [],
       })
 
-      switch (opts.runner) {
-        case 'uvu': {
-          options.testRunner = uvu
-          break
-        }
-        case 'mocha': {
-          options.testRunner = mocha
-          break
-        }
-        case 'tape': {
-          options.testRunner = tape
-          break
-        }
-        case 'benchmark': {
-          options.testRunner = benchmark
-          break
-        }
-        case 'none': {
-          options.testRunner = none
-          break
-        }
+      validateTestOptions(options)
 
-        default: {
-          if (opts.runner) {
-            options.testRunner = await resolveTestRunner(opts.runner, opts.cwd)
-          } else {
-            const testRunner =
-              options.testRunner ??
-              (detectTestRunner(testFiles[0], DefaultRunners) ||
-                DefaultRunners.none)
-            options.testRunner = testRunner
-
-            if (testRunner.moduleId === 'none') {
-              log.warn('Could not find a test runner. Using "none".')
-            } else {
-              log.info(`Autodetected "${testRunner.moduleId}" as the runner.`)
-            }
-          }
-        }
+      /** @type {Partial<import('./src/types.js').TestRunner> | undefined} */
+      const configured = options.testRunner
+      /** @type {import('./src/types.js').TestRunner} */
+      let testRunner
+      if (opts.runner) {
+        testRunner = Object.hasOwn(builtInRunners, opts.runner)
+          ? builtInRunners[opts.runner]
+          : await resolveTestRunner(opts.runner, opts.cwd)
+      } else if (configured?.compileRuntime) {
+        testRunner = /** @type {import('./src/types.js').TestRunner} */ (
+          configured
+        )
+      } else {
+        testRunner = autoDetectTestRunner(testFiles)
       }
+      options.testRunner = merge(testRunner, { options: configured?.options })
+      warnUnsupportedTestOptions(options)
 
       let runner
       if (opts.mode === 'node') {
-        runner = new NodeRunner(
-          merge(options, {
-            testRunner: {
-              // merge cli redirected options
-              options: runnerOptions(opts),
-            },
-          }),
-          testFiles
-        )
+        runner = new NodeRunner(options, testFiles)
       } else {
-        runner = new Runner(
-          merge(options, {
-            testRunner: {
-              // merge cli redirected options
-              options: runnerOptions(opts),
-            },
-          }),
-          testFiles
-        )
+        runner = new Runner(options, testFiles)
       }
 
       if (opts.watch) {
@@ -322,7 +431,7 @@ sade2
         runner.run()
       }
     } catch (error) {
-      console.error(error)
+      console.error(error instanceof UsageError ? error.message : error)
       gracefulExit(1)
     }
   })

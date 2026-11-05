@@ -151,7 +151,11 @@ export class NodeRunner {
    * }} `finished` tells if the tests passed, it never rejects
    */
   runTests() {
-    const nodeArgs = ['--enable-source-maps', '--input-type=module']
+    const nodeArgs = [
+      '--enable-source-maps',
+      '--input-type=module',
+      ...(this.options.testRunner.nodeArgs?.(this.options) ?? []),
+    ]
     if (this.options.transform) {
       nodeArgs.push('--import', new URL('hooks.js', import.meta.url).href)
     }

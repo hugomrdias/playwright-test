@@ -1,7 +1,6 @@
 import { describe, it } from 'node:test'
 import { execa } from 'execa'
-import { equal, is, ok } from 'uvu/assert'
-import { runnerOptions } from '../src/utils/index.js'
+import { is, ok } from 'uvu/assert'
 
 describe('run timeout', () => {
   /**
@@ -90,10 +89,4 @@ describe('run timeout', () => {
       ok(proc.stderr.includes('Invalid run timeout'), proc.stderr)
     })
   }
-
-  it('is not forwarded to the runner, unlike their own --timeout', () => {
-    equal(runnerOptions({ 'run-timeout': 1000, timeout: 5000 }), {
-      timeout: 5000,
-    })
-  })
 })

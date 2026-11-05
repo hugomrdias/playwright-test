@@ -1,6 +1,7 @@
 /** biome-ignore-all lint/suspicious/noConsole: its ok */
 import kleur from 'kleur'
 import pTimeout from 'p-timeout'
+import { toRegExp } from '../utils/name-pattern.js'
 import { hrtime, stack } from './utils.js'
 
 /**
@@ -8,6 +9,43 @@ import { hrtime, stack } from './utils.js'
  */
 export const TAPS_QUEUE = []
 globalThis.TAPS_ONLY = false
+
+/**
+ * What the run was configured with, see {@link configure}.
+ *
+ * @type {{ namePattern: RegExp | null, timeout: number | undefined }}
+ */
+export const config = { namePattern: null, timeout: undefined }
+
+/**
+ * Set the options of the run that aren't declared by the tests. The test runner
+ * calls this with the `--test-name-pattern` and `--test-timeout` options.
+ *
+ * @param {object} [options]
+ * @param {string} [options.testNamePattern] - Only run tests matching this regular expression or `/expression/flags`
+ * @param {number} [options.testTimeout] - Timeout of tests without their own, `0` for none
+ */
+export function configure({ testNamePattern, testTimeout } = {}) {
+  config.namePattern =
+    testNamePattern == null ? null : toRegExp(String(testNamePattern))
+  config.timeout = testTimeout
+}
+
+/**
+ * Whether a test matches `--test-name-pattern`, with its own name, the name of
+ * any of its ancestors or all of those names joined by a space.
+ *
+ * @param {string[]} names - The name of the test and then of its ancestors
+ */
+export function matchesNamePattern(names) {
+  const { namePattern } = config
+  return (
+    namePattern === null ||
+    [...names, names.toReversed().join(' ')].some(
+      (name) => name.search(namePattern) !== -1
+    )
+  )
+}
 
 /**
  *
@@ -77,7 +115,9 @@ export function log(ctx, fail, time) {
  */
 async function runner(ctx, testCount) {
   const { only, tests, name, before, after, beforeEach, afterEach } = ctx
-  const testsToRun = only.length > 0 || globalThis.TAPS_ONLY ? only : tests
+  const testsToRun = (
+    only.length > 0 || globalThis.TAPS_ONLY ? only : tests
+  ).filter((test) => matchesNamePattern(name ? [test.name, name] : [test.name]))
   let num = testCount
   let passed = 0
   let skips = 0
@@ -125,7 +165,11 @@ async function runner(ctx, testCount) {
             }
           }
           await pTimeout(Promise.resolve(test.fn()), {
-            milliseconds: test.options.timeout ?? 5000,
+            milliseconds:
+              test.options.timeout ??
+              (config.timeout === 0
+                ? Number.POSITIVE_INFINITY
+                : (config.timeout ?? 5000)),
           })
           passed++
 
@@ -195,7 +239,6 @@ export function suite(name = '') {
   const defaultOptions = {
     skip: false,
     only: false,
-    timeout: 5000,
   }
 
   /**
