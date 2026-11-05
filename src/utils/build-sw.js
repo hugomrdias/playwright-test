@@ -4,6 +4,7 @@ import mergeOptions from 'merge-options'
 import path from 'path'
 import { temporaryWriteSync } from 'tempy'
 import { fileURLToPath } from 'url'
+import { polyfillAliases } from './polyfill-aliases.js'
 
 const merge = mergeOptions.bind({
   ignoreUndefined: true,
@@ -59,6 +60,7 @@ import "${path.join(runner.options.cwd, entry).replaceAll('\\', '/')}"
     format: 'esm',
     sourcemap: 'inline',
     plugins: [watchPlugin],
+    alias: polyfillAliases,
     inject: [
       path.join(
         path.dirname(fileURLToPath(import.meta.url)),
