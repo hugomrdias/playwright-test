@@ -320,7 +320,12 @@ export async function getPw(browserName, debug, extension) {
   try {
     console.log = console.error
     console.info = console.error
-    await registry.install([browser])
+    // Validating the browser on Windows needs winldd, same as Playwright's own install.
+    await registry.install(
+      process.platform === 'win32'
+        ? [registry.findExecutable('winldd'), browser]
+        : [browser]
+    )
   } finally {
     console.log = log
     console.info = info
