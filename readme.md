@@ -103,8 +103,6 @@ NODE_OPTIONS="--import tsx" playwright-test "test/**/*.spec.ts" --mode node
 NODE_OPTIONS="--import @nubjs/runner" playwright-test "test/**/*.spec.ts" --mode node
 ```
 
-The loader is also loaded by the `playwright-test` CLI process itself, which is harmless. It does not bring back `import.meta.env` or `buildConfig`.
-
 ## Client
 
 This client package exposes the `playwright-test` options and some Playwright browser context methods to be used in tests.
