@@ -360,6 +360,113 @@ describe('taps', () => {
   })
 })
 
+describe('node mode transform', () => {
+  const node = ['--mode', 'node']
+  const mocha = ['--runner', 'mocha', ...node]
+  const none = ['--runner', 'none', ...node]
+
+  it('full typescript', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/transform/syntax.test.ts',
+      ...mocha,
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('4 passing'), proc.stdout)
+  })
+
+  it('jsx, resolution, module formats and import.meta.env', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/transform/imports.test.ts',
+      ...mocha,
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('12 passing'), proc.stdout)
+  })
+
+  it('buildConfig', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/transform/config.test.tsx',
+      '--config',
+      'mocks/transform/pw.config.js',
+      ...mocha,
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('5 passing'), proc.stdout)
+  })
+
+  it('stack traces point at the typescript source', async () => {
+    const proc = await execa('./cli.js', ['mocks/transform/stack.ts', ...none])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('stack.ts:11:11'), proc.stdout)
+    ok(proc.stdout.includes('stack.ts:16:26'), proc.stdout)
+  })
+
+  it('coverage maps to the source files', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/transform/imports.test.ts',
+      '--report-dir',
+      '.coverage',
+      '--cov',
+      ...mocha,
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('extensionless.ts'), proc.stdout)
+    ok(proc.stdout.includes('view.tsx'), proc.stdout)
+
+    const cov = JSON.parse(
+      fs.readFileSync('.coverage/coverage-final.json', 'utf8')
+    )
+    ok(path.resolve('mocks/transform/lib/rewritten.ts') in cov, 'ts coverage')
+    ok(path.resolve('mocks/transform/lib/view.tsx') in cov, 'tsx coverage')
+  })
+
+  it('import.meta.env', async () => {
+    const proc = await execa('./cli.js', ['mocks/transform/plain.ts', ...none])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('import.meta.env: object'), proc.stdout)
+  })
+
+  it('--no-transform runs erasable typescript as plain node', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/transform/plain.ts',
+      '--no-transform',
+      ...none,
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('import.meta.env: undefined'), proc.stdout)
+  })
+
+  it('--no-transform rejects non-erasable typescript', async () => {
+    const proc = await execa(
+      './cli.js',
+      ['mocks/transform/syntax.test.ts', '--no-transform', ...mocha],
+      { reject: false }
+    )
+
+    is(proc.exitCode, 1, 'exit code')
+    ok(proc.stderr.includes('ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'), proc.stderr)
+  })
+
+  it('transform: false in the config file', async () => {
+    const proc = await execa('./cli.js', [
+      'mocks/transform/plain.ts',
+      '--config',
+      'mocks/transform/no-transform.config.js',
+      ...none,
+    ])
+
+    is(proc.exitCode, 0, 'exit code')
+    ok(proc.stdout.includes('import.meta.env: undefined'), proc.stdout)
+  })
+})
+
 describe('stdout / stderr', () => {
   it('does not add line breaks', async () => {
     const proc = await execa('./cli.js', [

@@ -188,6 +188,10 @@ sade2
     'File extensions allowed in the bundle.',
     defaultOptions.extensions
   )
+  .option(
+    '--no-transform',
+    'Node mode only. Run files as plain Node would, without the built-in esbuild transform.'
+  )
   .option('--config', 'Path to the config file')
   .action(async (input, opts) => {
     let config
@@ -232,6 +236,7 @@ sade2
         cov: opts.cov,
         reportDir: opts['report-dir'],
         extensions: opts.extensions,
+        transform: opts.transform,
         beforeTests: opts.beforeTests,
         afterTests: opts.afterTests,
       })
