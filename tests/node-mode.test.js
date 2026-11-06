@@ -5,6 +5,36 @@ import os from 'os'
 import path from 'path'
 import { execa, runCli } from './helpers.js'
 
+describe('node mode localStorage with mocha', () => {
+  const fixture = 'mocks/runner-options/mocha.js'
+  const args = ['--runner', 'mocha', '--mode', 'node']
+
+  it('does not warn about it', async () => {
+    const proc = await runCli([fixture, ...args], { reject: false })
+
+    is(proc.exitCode, 0, proc.stderr)
+    ok(!proc.stderr.includes('localStorage'), proc.stderr)
+  })
+
+  it('leaves it for tests with a file for it', {
+    skip: Number.parseInt(process.versions.node, 10) < 25,
+  }, async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-test-'))
+    try {
+      const proc = await runCli(['mocks/web-storage/mocha.test.js', ...args], {
+        env: {
+          NODE_OPTIONS: `--localstorage-file=${path.join(dir, 'storage')}`,
+        },
+        reject: false,
+      })
+
+      is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
 describe('node mode outside the package', () => {
   const cli = path.resolve('cli.js')
   const none = ['--runner', 'none', '--mode', 'node']

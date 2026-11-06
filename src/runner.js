@@ -258,7 +258,8 @@ export class Runner {
     this.page.on('pageerror', (err) => {
       log.error(
         `Uncaught exception happened within the page. Run with --debug. \n${kleur.dim(
-          this.stackMapper.map(err.stack?.toString() ?? err.toString())
+          // The stack of a syntax error can be empty
+          this.stackMapper.map(err.stack || err.toString())
         )}`
       )
     })
@@ -296,13 +297,14 @@ export class Runner {
     }
 
     // Choose the mode
+    const loader = `load.js?entry=${outName}`
     switch (this.options.mode) {
       case 'main': {
-        await page.addScriptTag({ url: outName, type: 'module' })
+        await page.addScriptTag({ url: loader, type: 'module' })
         break
       }
       case 'worker': {
-        page.evaluate(addWorker(outName))
+        page.evaluate(addWorker(loader))
         break
       }
       default: {
@@ -382,7 +384,7 @@ export class Runner {
     page.on('console', this.#onConsole)
     page.on('pageerror', async (err) => {
       const message = `Uncaught exception happened within the before page. Run with --debug. \n${kleur.dim(
-        this.stackMapper.map(err.stack?.toString() || err.toString())
+        this.stackMapper.map(err.stack || err.toString())
       )}`
       // Ask the page, the wait below only notices `beforeEnd` when it next polls.
       // Without a page the wait fails the run by itself.

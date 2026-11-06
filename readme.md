@@ -61,7 +61,7 @@ Description
 
   Notes
     DEBUG env var filtering for 'debug' package logging will work as expected.
-    $ DEBUG:app playwright-test test.js
+    $ DEBUG=app playwright-test test.js
 
     Do not let your shell expand globs, always wrap them.
     $ playwright-test "test/**" GOOD
@@ -75,7 +75,7 @@ Description
 
 ## Node mode
 
-`--mode node` runs your tests directly in Node.js without bundling. Test files are imported from their real paths in the project `cwd`, so stack traces and `--cov` point at your source files.
+`--mode node` runs your tests directly in Node.js without bundling. Test files are imported from their real paths in the project `cwd`, so stack traces point at your source files.
 
 ```shell
 playwright-test "test/**/*.spec.ts" --mode node
@@ -246,7 +246,7 @@ The named exports are the ones both have and that aren't deprecated: `callbackif
 
 ## `assert` and `util` in browsers
 
-Bundles resolve `assert`, `assert/strict`, `util` and `util/types`, also with the `node:` prefix, to `src/polyfills`, there's no npm polyfill and anything installed with those names is ignored. `inspect`, `format`, `AssertionError` and its diff are the code from Node.js, in `src/vendor`.
+Bundles resolve `assert`, `assert/strict`, `util` and `util/types`, also with the `node:` prefix, to `src/polyfills`, there's no npm polyfill and anything installed with those names is ignored. `inspect`, `format`, `AssertionError` and its diff are the code from Node.js 24, in `src/vendor`. Since Node.js 26 `inspect` gives every part of a RegExp its own color, here it's all red.
 
 `util` has `format`, `formatWithOptions`, `inspect`, `isDeepStrictEqual`, `promisify`, `callbackify`, `inherits`, `deprecate`, `debuglog`, `debug`, `log`, `stripVTControlCharacters`, `toUSVString`, `_extend`, `types`, `TextEncoder`, `TextDecoder` and the `isArray` style checks. Importing anything else by name fails when bundling. `isExternal`, `isKeyObject` and `isProxy` from `types` are always `false`, a browser can't tell.
 
@@ -456,29 +456,35 @@ export interface TestRunner {
 
 ## Config
 
-> The config file needs to be commonjs for now, so if your package is pure ESM you need to use `.cjs` extension.
-
-Configuration can be done with cli flags or config files.
+Configuration can be done with cli flags or config files, flags win over the config file.
 
 ```text
 package.json, // using property `pw-test` or `playwright-test`
 .playwright-testrc.json,
 .playwright-testrc.js,
 .playwright-testrc.cjs,
+.playwright-testrc.mjs,
 playwright-test.config.js,
 playwright-test.config.cjs,
+playwright-test.config.mjs,
 .pw-testrc.json,
 .pw-testrc.js,
 .pw-testrc.cjs,
+.pw-testrc.mjs,
 pw-test.config.js,
 pw-test.config.cjs,
+pw-test.config.mjs,
 .config/playwright-testrc.json
 .config/playwright-testrc.js
 .config/playwright-testrc.cjs
+.config/playwright-testrc.mjs
 .config/pw-testrc.json
 .config/pw-testrc.js
 .config/pw-testrc.cjs
+.config/pw-testrc.mjs
 ```
+
+Config files follow the module rules of Node.js: `.mjs` uses `export default`, `.cjs` uses `module.exports`, and `.js` depends on the `type` in your `package.json`.
 
 The config type can be imported from the entrypoint.
 
