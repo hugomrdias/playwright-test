@@ -111,6 +111,31 @@ describe('--sw', () => {
     }
   })
 
+  for (const browser of ['chromium', 'firefox', 'webkit']) {
+    it(`starts the tests with the page controlled in ${browser}`, async () => {
+      const proc = await runFlow(
+        'sw-slow-claim.test.js',
+        ['--sw', `${FLOW}/sw-slow-claim.js`, '--browser', browser],
+        { env: { FLOW_SW_BLOCK: '1000' } }
+      )
+
+      is(proc.exitCode, 0, proc.stderr)
+      ok(proc.stdout.includes('controlled:true'), proc.stdout)
+    })
+  }
+
+  it('starts the tests when the page never gets controlled', async () => {
+    const proc = await runFlow(
+      'sw-slow-claim.test.js',
+      ['--sw', `${FLOW}/sw-slow-claim.js`],
+      { env: { FLOW_SW_BLOCK: '20000', PW_TEST_SW_CLAIM_TIMEOUT: '500' } }
+    )
+
+    is(proc.timedOut, false, 'ended by itself')
+    is(proc.exitCode, 0, proc.stderr)
+    ok(proc.stdout.includes('controlled:false'), proc.stdout)
+  })
+
   it('has the env, the console and stdout in the service worker', async () => {
     const proc = await runFlow(
       'sw-reports.test.js',

@@ -30,6 +30,8 @@ const CONSOLE_FLUSH_TIMEOUT =
 const EXIT_WAIT = 5000
 // Saving many files at once changes them within the poll of the watcher
 const WATCH_DEBOUNCE = 200
+// Tests of workers that never claim the page lower it
+const SW_CLAIM_TIMEOUT = Number(process.env.PW_TEST_SW_CLAIM_TIMEOUT) || 5000
 
 /**
  * @typedef {import('playwright-core').Page} Page
@@ -273,11 +275,22 @@ export class Runner extends BaseRunner {
         entry: this.options.sw,
       })
       files.push(...swFiles)
-      // `ready` never resolves when the registration fails
-      await page.evaluate(async () => {
-        await navigator.serviceWorker.register('/sw-out.js')
-        await navigator.serviceWorker.ready
-      })
+      // `ready` never resolves when the registration fails, and it comes before
+      // the worker claims the page, until then requests skip the worker. It may
+      // never come, a hard reload under --debug has nothing left to claim the page.
+      await page.evaluate(async (timeout) => {
+        const { serviceWorker } = navigator
+        await serviceWorker.register('/sw-out.js')
+        await serviceWorker.ready
+        if (!serviceWorker.controller) {
+          await new Promise((resolve) => {
+            serviceWorker.addEventListener('controllerchange', resolve, {
+              once: true,
+            })
+            setTimeout(resolve, timeout)
+          })
+        }
+      }, SW_CLAIM_TIMEOUT)
     }
 
     // Choose the mode
