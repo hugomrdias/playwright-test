@@ -27,7 +27,7 @@ Description
     $ playwright-test [files] [options]
 
   Options
-    -r, --runner       Test runner. Options: mocha, none and node-test. Internal runners are autodetected by default, see [auto detection](#runner-auto-detection). It also accepts a path to a module or a module ID that exports a `playwrightTestRunner` object.
+    -r, --runner       Test runner. Options: mocha, node-test and none, which only loads the files and is for scripts like benchmarks. Autodetected by default, see [auto detection](#runner-auto-detection).
     -b, --browser      Browser to run tests. Options: chromium, firefox, webkit.  (default chromium)
     -m, --mode         Run mode. Options: main, worker and node.  (default main)
     -d, --debug        Debug mode, keeps browser window open.  (default false)
@@ -88,7 +88,7 @@ Plain Node only understands [erasable TypeScript](https://nodejs.org/api/typescr
 - Extensionless relative imports (`./lib`), directory imports (`./lib` for `./lib/index.ts`) and `./lib.js` when the file is really `./lib.ts`.
 - `import.meta.env`, which is the same object as `process.env`.
 
-`--watch` re-runs the tests when any file matching `--extensions` changes in `cwd` (ignoring `node_modules` and dot folders).
+In node mode `--watch` re-runs the tests when any file matching `--extensions` changes in `cwd` (ignoring `node_modules` and dot folders). In browsers it watches the files that end up in the bundle, also the ones outside of `cwd` like in a monorepo, ignoring dot folders.
 
 ### `buildConfig` in node mode
 
@@ -345,9 +345,9 @@ playwright-test test.js --test-timeout 10000
 - `--test-name-pattern` is a regular expression, or `/expression/flags`. A test matches with its own name, the name of a suite it's in, or any of those joined by a space with the names above them. With `mocha` only the last one counts, so `^adds$` won't match a test inside a suite.
 - `--test-timeout` is in milliseconds, `0` means no timeout. It's different from `--run-timeout`, which is for the whole run.
 
-Both can also be set as `testNamePattern` and `testTimeout` in the config file. A custom runner reads them from the options it gets, and lists them in `supports` so the cli doesn't warn.
+Both can also be set as `testNamePattern` and `testTimeout` in the config file.
 
-Nothing else is forwarded, an unknown flag is an error. Whatever else a runner takes goes in the config file, under `testRunner.options`. It applies to the runner in use, from `--runner` or auto detection:
+Nothing else is forwarded, an unknown flag is an error. Whatever else a runner takes goes in the config file, under `testRunner.options`. It applies to the runner in use, from `--runner`, `runner` in the config file or auto detection:
 
 ```js
 // playwright-test.config.js
@@ -364,7 +364,16 @@ export default {
 
 ## Runner auto detection
 
-Without `--runner` or a `testRunner` in the config file, every test file is read to find the runner:
+The runner comes from `--runner`, or `runner` in the config file:
+
+```js
+// playwright-test.config.js
+export default {
+  runner: 'mocha', // or 'node-test' or 'none'
+}
+```
+
+Without either, every test file is read to find the runner:
 
 - A file importing the module of a runner asks for it, through `import`, `require()` or `import()`. Only the exact module counts, `mocha/mocha.js` isn't `mocha`, and neither do type only imports.
 - A top level call to `describe` or `it`, also `.only` and `.skip`, asks for `mocha`, unless the file declares or imports that name itself.
@@ -382,91 +391,9 @@ process.exit(0) // stops the run and exits with success
 process.exit(1) // stops the run and exits with failure
 ```
 
-## Custom test runner
+In browsers an uncaught error or unhandled rejection in the page fails the run, even when the test runner reports all of its tests as passing. With the `none` runner they only get printed, it's up to your files to decide what fails the run.
 
-You can define a custom test runner by passing a path to a file or a node module id that exports an object called `playwrightTestRunner` that implements the `TestRunner` interface.
-
-```shell
-
-$ playwright-test test.js --runner ./my-runner.js
-# or
-$ playwright-test test.js --runner my-runner
-
-```
-
-You can also just define you test runner in the config file.
-
-```js
-// playwright-test.config.js
-/** @type {import('../src/runner.js').RunnerOptions} */
-const config = {
-  testRunner: {
-    compileRuntime: (options, paths) => {
-      return `
-import 'mocha/mocha.js'
-
-const mocha = globalThis.mocha
-mocha.setup({
-    reporter: 'spec',
-    timeout: 5000,
-    ui: 'bdd',
-})
-
-${paths.map((url) => `await import('${url}')`).join('\n')}
-
-  mocha
-    .run((f) =>{
-      process.exit(f)
-    })
-        `
-    },
-  },
-}
-
-export default config
-```
-
-````ts
-export interface TestRunner {
-  /**
-   * Module ID name used to import the test runner runtime.
-   * Used in auto detection of the test runner.
-   */
-  moduleId: string
-  /**
-   * Other module IDs that also tell a test file uses this runner.
-   */
-  aliases?: string[]
-  /**
-   * The runner options it applies. The cli warns when any other is set.
-   */
-  supports?: Array<'testNamePattern' | 'testTimeout'>
-  /**
-   * Options made available to the compiled runtime.
-   * This is useful to pass options to the test runner.
-   *
-   * @example
-   * ```js
-   * const options = JSON.parse(process.env.PW_OPTIONS)
-   * const testRunnerOptions = options.testRunner.options
-   * ```
-   */
-  options?: unknown
-  /**
-   * Esbuild config for the test runner (ignored in node mode)
-   */
-  buildConfig?: BuildOptions
-  /**
-   * Compile runtime entry point. In browser modes it is bundled with esbuild,
-   * in node mode it is run as an ES module and `testPaths` are file URLs.
-   *
-   * @param options - Runner options
-   * @param testPaths - Test paths
-   * @returns
-   */
-  compileRuntime: (options: RunnerOptions, testPaths: string[]) => string
-}
-````
+A test can't navigate its page, that fails the run.
 
 ## Config
 
@@ -531,7 +458,8 @@ export default buildConfig
 ```ts
 export interface RunnerOptions {
   input?: string[]
-  testRunner: TestRunner
+  runner?: 'mocha' | 'node-test' | 'none'
+  testRunner?: { options?: unknown }
   cwd: string
   extensions: string
   browser: 'chromium' | 'firefox' | 'webkit'
@@ -546,11 +474,9 @@ export interface RunnerOptions {
   buildConfig: BuildOptions
   buildSWConfig: BuildOptions
   browserContextOptions?: BrowserContextOptions
-  beforeTests: (opts: RunnerOptions) => Promise<unknown>
-  afterTests: (
-    opts: RunnerOptions,
-    beforeTestsOutput: unknown
-  ) => Promise<unknown>
+  beforeTests: (env: RunnerEnv) => Promise<unknown>
+  // Only runs when beforeTests finished
+  afterTests: (env: RunnerEnv, beforeTestsOutput: unknown) => Promise<unknown>
 }
 ```
 

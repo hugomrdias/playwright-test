@@ -2,6 +2,7 @@ import { parse } from 'acorn-loose'
 import { transformSync } from 'esbuild'
 import fs from 'fs'
 import path from 'path'
+import { mocha, nodeTest } from '../test-runners.js'
 
 /**
  * @typedef {import('../types.js').TestRunner} TestRunner
@@ -14,6 +15,13 @@ const TS_LOADERS = {
   '.cts': 'ts',
   '.tsx': 'tsx',
 }
+
+/** What a file imports to ask for a runner. */
+const RUNNER_MODULES = new Map(
+  [mocha, nodeTest].flatMap((runner) =>
+    [runner.moduleId, ...(runner.aliases ?? [])].map((id) => [id, runner])
+  )
+)
 
 /** The mocha BDD globals, the only runner that's used without importing it. */
 const MOCHA_GLOBALS = new Set(['describe', 'it'])
@@ -210,25 +218,14 @@ function evidence(file) {
  * All the files are read since the first one can be a helper.
  *
  * @param {string[]} files
- * @param {Record<string, TestRunner>} runners
  * @returns {Map<TestRunner, string>} each runner found and the first file asking for it
  */
-export function detectTestRunners(files, runners) {
-  /** @type {Map<string, TestRunner>} */
-  const byId = new Map()
-  for (const runner of Object.values(runners)) {
-    if (runner !== runners.none) {
-      for (const id of [runner.moduleId, ...(runner.aliases ?? [])]) {
-        byId.set(id, runner)
-      }
-    }
-  }
-
+export function detectTestRunners(files) {
   /** @type {Map<TestRunner, string>} */
   const found = new Map()
   for (const file of files) {
     for (const id of evidence(file)) {
-      const runner = byId.get(id)
+      const runner = RUNNER_MODULES.get(id)
       if (runner && !found.has(runner)) {
         found.set(runner, file)
       }

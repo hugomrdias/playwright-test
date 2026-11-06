@@ -13,13 +13,12 @@ import sade from 'sade'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { NodeRunner } from './src/node/runner.js'
 import { Runner } from './src/runner.js'
-import * as DefaultRunners from './src/test-runners.js'
 import { detectTestRunners } from './src/utils/auto-detect.js'
 import {
   defaultOptions,
   findTests,
   log,
-  resolveTestRunner,
+  UsageError,
 } from './src/utils/index.js'
 import { toRegExp } from './src/utils/name-pattern.js'
 
@@ -110,42 +109,33 @@ const loadEsm = async (/** @type {string} */ filepath) => {
   return res
 }
 
-/** An error that only needs its message shown. */
-class UsageError extends Error {}
-
-/** @type {Record<string, import('./src/types.js').TestRunner>} */
-const builtInRunners = {
-  mocha: DefaultRunners.mocha,
-  'node-test': DefaultRunners.nodeTest,
-  none: DefaultRunners.none,
-}
-
 /**
  * Pick the test runner from what the test files use, or `none`.
  *
  * @param {string[]} testFiles
+ * @returns {import('./src/types.js').RunnerOptions['runner']}
  */
 function autoDetectTestRunner(testFiles) {
-  const found = detectTestRunners(testFiles, DefaultRunners)
+  const found = detectTestRunners(testFiles)
 
   if (found.size > 1) {
     const list = [...found].map(
       ([runner, file]) => `"${runner.moduleId}" (${file})`
     )
     throw new UsageError(
-      `Found more than one test runner: ${list.join(', ')}. Choose one with --runner.`
+      `Found more than one test runner: ${list.join(', ')}. Choose one with --runner or runner in the config file.`
     )
   }
 
   const [runner] = found.keys()
   if (runner) {
     log.info(`Autodetected "${runner.moduleId}" as the runner.`)
-    return runner
+    return runner.name
   }
   if (testFiles.length > 0) {
     log.warn('Could not find a test runner. Using "none".')
   }
-  return DefaultRunners.none
+  return 'none'
 }
 
 const KNOWN_FLAGS = new Set([
@@ -198,7 +188,12 @@ function checkUnknownFlags(opts) {
 /**
  * @param {import('./src/types.js').RunnerOptions} options
  */
-function validateTestOptions({ testNamePattern, testTimeout }) {
+function validateOptions({ mode, testNamePattern, testTimeout }) {
+  if (!['main', 'worker', 'node'].includes(mode)) {
+    throw new UsageError(
+      `Invalid mode "${mode}", expected "main", "worker" or "node".`
+    )
+  }
   if (Array.isArray(testNamePattern)) {
     throw new UsageError(
       '--test-name-pattern can only be set once, use a regular expression like "a|b".'
@@ -226,20 +221,18 @@ function validateTestOptions({ testNamePattern, testTimeout }) {
 /**
  * @param {import('./src/types.js').RunnerOptions} options
  */
-function warnUnsupportedTestOptions({
-  testNamePattern,
-  testRunner,
-  testTimeout,
-}) {
-  const supports = testRunner.supports ?? []
-  if (testNamePattern != null && !supports.includes('testNamePattern')) {
+function warnUnsupportedTestOptions({ runner, testNamePattern, testTimeout }) {
+  if (runner !== 'none') {
+    return
+  }
+  if (testNamePattern != null) {
     log.warn(
-      `The "${testRunner.moduleId}" runner can't filter by name, ignoring --test-name-pattern.`
+      `The "none" runner can't filter by name, ignoring --test-name-pattern.`
     )
   }
-  if (testTimeout != null && !supports.includes('testTimeout')) {
+  if (testTimeout != null) {
     log.warn(
-      `The "${testRunner.moduleId}" runner can't set a default timeout, ignoring --test-timeout.`
+      `The "none" runner can't set a default timeout, ignoring --test-timeout.`
     )
   }
 }
@@ -270,7 +263,7 @@ sade2
   )
   .option(
     '-r, --runner',
-    'Test runner. Options: mocha, none and node-test. It also accepts a path to a module or a module name that exports a `playwrightTestRunner` object.'
+    'Test runner. Options: mocha, node-test and none, which only loads the files and is for scripts like benchmarks. Autodetected by default.'
   )
   .option(
     '-b, --browser',
@@ -357,6 +350,7 @@ sade2
       const options = merge(cliDefaults, config ? config.config : {}, {
         input: input ? [input, ...opts._] : undefined,
         testFiles: [],
+        runner: opts.runner,
         cwd: opts.cwd,
         assets: opts.assets,
         browser: opts.browser,
@@ -374,6 +368,7 @@ sade2
         beforeTests: opts.beforeTests,
         afterTests: opts.afterTests,
       })
+      options.cwd = path.resolve(options.cwd)
 
       const testFiles = findTests({
         cwd: options.cwd,
@@ -381,24 +376,9 @@ sade2
         filePatterns: options.input ?? [],
       })
 
-      validateTestOptions(options)
+      validateOptions(options)
 
-      /** @type {Partial<import('./src/types.js').TestRunner> | undefined} */
-      const configured = options.testRunner
-      /** @type {import('./src/types.js').TestRunner} */
-      let testRunner
-      if (opts.runner) {
-        testRunner = Object.hasOwn(builtInRunners, opts.runner)
-          ? builtInRunners[opts.runner]
-          : await resolveTestRunner(opts.runner, options.cwd)
-      } else if (configured?.compileRuntime) {
-        testRunner = /** @type {import('./src/types.js').TestRunner} */ (
-          configured
-        )
-      } else {
-        testRunner = autoDetectTestRunner(testFiles)
-      }
-      options.testRunner = merge(testRunner, { options: configured?.options })
+      options.runner ??= autoDetectTestRunner(testFiles)
       warnUnsupportedTestOptions(options)
 
       let runner

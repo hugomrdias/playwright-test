@@ -8,6 +8,11 @@ import type {
 
 export interface RunnerOptions {
   input?: string[]
+  /**
+   * The test runner, `--runner` wins over it. Autodetected from the test files
+   * when neither is set.
+   */
+  runner?: 'mocha' | 'node-test' | 'none'
   testRunner: TestRunner
   cwd: string
   extensions: string
@@ -60,11 +65,14 @@ export interface RunnerOptions {
    */
   beforeTests: (env: RunnerEnv) => Promise<unknown>
   /**
-   * After tests hook
+   * After tests hook, it only runs when `beforeTests` finished.
+   *
+   * It failing fails the run, and so does it not finishing in 60 seconds.
    *
    * @param env - Runner environment. Use `JSON.parse(env.PW_OPTIONS)` to access runner options.
+   * @param beforeTestsOutput - What `beforeTests` returned.
    */
-  afterTests: (env: RunnerEnv) => Promise<unknown>
+  afterTests: (env: RunnerEnv, beforeTestsOutput: unknown) => Promise<unknown>
 }
 
 export interface RunnerEnv extends NodeJS.ProcessEnv {
@@ -93,10 +101,10 @@ export interface CliOptions {
 }
 
 /**
- * A `testRunner` with only `options` configures whichever runner gets used.
+ * `testRunner.options` configures whichever runner gets used.
  */
 export type Config = Partial<Omit<RunnerOptions, 'testRunner'>> & {
-  testRunner?: Partial<TestRunner>
+  testRunner?: Pick<TestRunner, 'options'>
 }
 
 export type ConfigFn = (options: CliOptions) => Config
@@ -114,33 +122,26 @@ export interface CompilerOutput {
   files: Set<string>
 }
 
+/**
+ * One of the built-in runners: mocha, node-test or none.
+ */
 export interface TestRunner {
+  name: NonNullable<RunnerOptions['runner']>
   /**
-   * Module ID name used to import the test runner runtime.
-   * Used in auto detection of the test runner.
+   * Module ID of the runner, also what auto detection looks for. `none` has no
+   * module to look for.
    */
-  moduleId: string
+  moduleId?: string
   /**
    * Other module IDs that also tell a test file uses this runner.
    */
   aliases?: string[]
   /**
-   * The runner options it applies. The cli warns when any other is set.
-   */
-  supports?: Array<'testNamePattern' | 'testTimeout'>
-  /**
-   * Options made available to the compiled runtime.
-   * This is useful to pass options to the test runner.
-   *
-   * @example
-   * ```js
-   * const options = JSON.parse(process.env.PW_OPTIONS)
-   * const testRunnerOptions = options.testRunner.options
-   * ```
+   * Options for the runner, from `testRunner.options` in the config file.
    */
   options?: unknown
   /**
-   * Esbuild config for the test runner (ignored in node mode)
+   * Esbuild config for the runner (ignored in node mode)
    */
   buildConfig?: (options: RunnerOptions) => BuildOptions
   /**
@@ -150,10 +151,6 @@ export interface TestRunner {
   /**
    * Compile runtime entry point. In browser modes it is bundled with esbuild,
    * in node mode it is run as an ES module and `testPaths` are file URLs.
-   *
-   * @param options - Runner options
-   * @param testPaths - Test paths
-   * @returns
    */
   compileRuntime: (options: RunnerOptions, testPaths: string[]) => string
 }

@@ -5,6 +5,12 @@ import { toRegExp } from './utils/name-pattern.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 /**
+ * @param {string[]} paths
+ */
+const importAll = (paths) =>
+  paths.map((url) => `await import(${JSON.stringify(url)})`).join('\n')
+
+/**
  * `debug` inside `mocha.js` reads `localStorage` while it loads, which warns since
  * Node.js 25 unless there's a file for it. Tests still get what was there.
  */
@@ -22,8 +28,8 @@ globalThis.location={}
 
 /** @type {import('./types.js').TestRunner} */
 export const mocha = {
+  name: 'mocha',
   moduleId: 'mocha',
-  supports: ['testNamePattern', 'testTimeout'],
   options: {
     allowUncaught: false,
     bail: true,
@@ -51,7 +57,7 @@ mocha.setup({
   grep: ${options.testNamePattern == null ? 'grep' : toRegExp(String(options.testNamePattern))},
 })
 
-${paths.map((url) => `await import('${url}')`).join('\n')}
+${importAll(paths)}
 
   mocha
     .run((f) =>{
@@ -61,13 +67,18 @@ ${paths.map((url) => `await import('${url}')`).join('\n')}
   },
 }
 
-/** @type {import('./types.js').TestRunner} */
+/**
+ * Only loads the files, for scripts like benchmarks. They end the run with
+ * `process.exit` and decide what fails it.
+ *
+ * @type {import('./types.js').TestRunner}
+ */
 export const none = {
-  moduleId: 'none',
+  name: 'none',
   options: {},
   compileRuntime(_options, paths) {
     return `
-${paths.map((url) => `await import('${url}')`).join('\n')}
+${importAll(paths)}
 `
   },
 }
@@ -83,9 +94,9 @@ const nodeTestHarnessFile = path.resolve(__dirname, 'node/test-harness.js')
  * @type {import('./types.js').TestRunner}
  */
 export const nodeTest = {
+  name: 'node-test',
   moduleId: 'node:test',
   aliases: ['playwright-test/node-test'],
-  supports: ['testNamePattern', 'testTimeout'],
   options: {},
   buildConfig: (options) => {
     if (options.mode === 'node') {
@@ -111,10 +122,10 @@ export const nodeTest = {
       ? pathToFileURL(nodeTestHarnessFile).href
       : nodeTestHarnessFile.replaceAll('\\', '/')
     return `
-const { configure, exec, hold } = await import('${file}')
+const { configure, exec, hold } = await import(${JSON.stringify(file)})
 configure(JSON.parse(process.env.PW_OPTIONS))
 hold()
-${paths.map((url) => `await import('${url}')`).join('\n')}
+${importAll(paths)}
 
 // In node mode the real node:test may still have to run its tests and report
 ${isNode ? 'await exec()' : 'exec().then(() => {\n  process.exit(process.exitCode)\n})'}

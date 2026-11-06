@@ -61,6 +61,46 @@ function hrtime(previousTimestamp) {
   return [seconds, nanoseconds]
 }
 
+/**
+ * A stream that writes to the runner. Pages have a binding for it and workers can
+ * only post to the page, which is more than service workers can do.
+ *
+ * @param {string} binding
+ * @param {string} key
+ * @param {'log' | 'error'} method
+ */
+function createStream(binding, key, method) {
+  return {
+    write(message, encoding, callback) {
+      const done = typeof encoding === 'function' ? encoding : callback
+      if (globalThis[binding]) {
+        globalThis[binding](message).then(
+          () => done?.(),
+          (error) => done?.(error)
+        )
+      } else if (typeof postMessage === 'function') {
+        postMessage({ [key]: message })
+        if (done) {
+          startTimer(done, 0)
+        }
+      } else {
+        const text =
+          typeof message === 'string'
+            ? message
+            : new TextDecoder().decode(message)
+        // biome-ignore lint/suspicious/noConsole: the only way out of a service worker
+        console[method](text.replace(/\n$/, ''))
+        if (done) {
+          startTimer(done, 0)
+        }
+      }
+      return true
+    },
+    getColorDepth: () => 256,
+    isTTY: true,
+  }
+}
+
 const p = {
   title: 'browser',
   browser: true,
@@ -115,28 +155,8 @@ const p = {
       globalThis.PW_TEST.end(true)
     }
   },
-  stdout: {
-    write: (message) => {
-      if (globalThis.PW_TEST_STDOUT_WRITE) {
-        globalThis.PW_TEST_STDOUT_WRITE(message)
-      } else {
-        postMessage({ pwStdout: message })
-      }
-    },
-    getColorDepth: () => 256,
-    isTTY: true,
-  },
-  stderr: {
-    write: (message) => {
-      if (globalThis.PW_TEST_STDERR_WRITE) {
-        globalThis.PW_TEST_STDERR_WRITE(message)
-      } else {
-        postMessage({ pwStderr: message })
-      }
-    },
-    getColorDepth: () => 256,
-    isTTY: true,
-  },
+  stdout: createStream('PW_TEST_STDOUT_WRITE', 'pwStdout', 'log'),
+  stderr: createStream('PW_TEST_STDERR_WRITE', 'pwStderr', 'error'),
   hrtime,
 }
 

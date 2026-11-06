@@ -61,6 +61,8 @@
   "files": [
     "dist/src/runner.d.ts",
     "dist/src/runner.d.ts.map",
+    "dist/src/base-runner.d.ts",
+    "dist/src/base-runner.d.ts.map",
     "dist/src/node",
     "dist/src/types.d.ts",
     "dist/src/client",
@@ -103,7 +105,6 @@
     "premove": "^4.0.0",
     "sade": "^1.8.1",
     "sirv": "^3.0.2",
-    "tempy": "^3.2.0",
     "tinyglobby": "^0.2.17"
   },
   "devDependencies": {
