@@ -347,6 +347,12 @@ playwright-test test.js --test-timeout 10000
 
 Both can also be set as `testNamePattern` and `testTimeout` in the config file.
 
+### AI agents
+
+When an AI agent drives the run, detected with [`std-env`](https://github.com/unjs/std-env), the `node:test` API (`node-test` with our API, not the real `node:test`) only prints what failed and its parent suites, plus the summary and the list of failures, to save the agent's context. Passing, skipped and todo tests aren't listed, but still count in the summary. What tests print themselves isn't filtered.
+
+Our own output also has no colors in an agent unless `FORCE_COLOR` is set. Colors printed by tests aren't changed.
+
 Nothing else is forwarded, an unknown flag is an error. Whatever else a runner takes goes in the config file, under `testRunner.options`. It applies to the runner in use, from `--runner`, `runner` in the config file or auto detection:
 
 ```js

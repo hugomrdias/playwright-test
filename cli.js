@@ -10,10 +10,12 @@ import { lilconfig } from 'lilconfig'
 import mergeOptions from 'merge-options'
 import path from 'path'
 import sade from 'sade'
+import { isAgent } from 'std-env'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { NodeRunner } from './src/node/runner.js'
 import { Runner } from './src/runner.js'
 import { detectTestRunners } from './src/utils/auto-detect.js'
+import { isColorForced } from './src/utils/force-color.js'
 import {
   defaultOptions,
   findTests,
@@ -21,6 +23,10 @@ import {
   UsageError,
 } from './src/utils/index.js'
 import { toRegExp } from './src/utils/name-pattern.js'
+
+if (isAgent && !isColorForced()) {
+  kleur.enabled = false
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -368,6 +374,7 @@ sade2
         beforeTests: opts.beforeTests,
         afterTests: opts.afterTests,
       })
+      options.minimal = isAgent
       options.cwd = path.resolve(options.cwd)
 
       const testFiles = findTests({

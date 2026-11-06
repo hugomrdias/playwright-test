@@ -5,6 +5,7 @@
  */
 import kleur from 'kleur'
 import { inspect } from 'util'
+import { isColorForced } from '../utils/force-color.js'
 import { toRegExp } from '../utils/name-pattern.js'
 import { isFrame, removeInternalFrames } from '../utils/stack-frames.js'
 
@@ -79,19 +80,48 @@ export function cleanStack(text) {
 /**
  * What the run was configured with, see {@link configure}.
  *
- * @type {{ namePattern: RegExp | null, timeout: number | undefined }}
+ * @type {{
+ *   colors: boolean,
+ *   minimal: boolean,
+ *   namePattern: RegExp | null,
+ *   timeout: number | undefined
+ * }}
  */
-export const config = { namePattern: null, timeout: undefined }
+export const config = {
+  colors: true,
+  minimal: false,
+  namePattern: null,
+  timeout: undefined,
+}
+
+/**
+ * Color our own output. `kleur.enabled` is shared with any test using `kleur`,
+ * and what tests print isn't ours to change.
+ *
+ * @param {'blue' | 'gray' | 'green' | 'red' | 'yellow'} color
+ * @param {string} text
+ */
+function paint(color, text) {
+  return config.colors ? kleur[color](text) : text
+}
 
 /**
  * Set the options of the run that aren't declared by the tests. The test runner
- * calls this with the `--test-name-pattern` and `--test-timeout` options.
+ * calls this with the `--test-name-pattern` and `--test-timeout` options, and
+ * `minimal` when an AI agent drives the run.
  *
  * @param {object} [options]
  * @param {string} [options.testNamePattern] - Only run tests matching this regular expression or `/expression/flags`
  * @param {number} [options.testTimeout] - Timeout of tests without their own, `0` for none
+ * @param {boolean} [options.minimal] - Only print failures and the summary, without colors unless `FORCE_COLOR` is set
  */
-export function configure({ testNamePattern, testTimeout } = {}) {
+export function configure({
+  minimal = false,
+  testNamePattern,
+  testTimeout,
+} = {}) {
+  config.minimal = minimal
+  config.colors = !minimal || isColorForced()
   config.namePattern =
     testNamePattern == null ? null : toRegExp(String(testNamePattern))
   config.timeout = testTimeout
@@ -129,23 +159,26 @@ export function indent(nesting) {
  */
 export function formatTest(test, nesting = 0) {
   const { message, name, passed, skip, time, todo } = test
-  let color = passed ? kleur.green : kleur.red
+  /** @type {'gray' | 'green' | 'red' | 'yellow'} */
+  let color = passed ? 'green' : 'red'
   let symbol = passed ? '✔' : '✖'
   let directive = ''
   if (skip) {
-    color = kleur.gray
+    color = 'gray'
     symbol = '﹣'
     directive = ` # ${message || 'SKIP'}`
   } else if (todo) {
     directive = ` # ${message || 'TODO'}`
     if (!passed) {
-      color = kleur.yellow
+      color = 'yellow'
       symbol = '⚠'
     }
   }
   const duration =
-    time === undefined ? '' : ` ${kleur.gray(`(${Number(time.toFixed(6))}ms)`)}`
-  return `${indent(nesting)}${color(`${symbol} ${name}`)}${duration}${directive && color(directive)}`
+    time === undefined
+      ? ''
+      : ` ${paint('gray', `(${Number(time.toFixed(6))}ms)`)}`
+  return `${indent(nesting)}${paint(color, `${symbol} ${name}`)}${duration}${directive && paint(color, directive)}`
 }
 
 /** `fn@url:1:2`, `@url:1:2`, `fn@[native code]` or `fn@`. */
@@ -200,7 +233,7 @@ function useV8Stack(error) {
 function inspectThrown(thrown) {
   const options = {
     breakLength: Number.POSITIVE_INFINITY,
-    colors: !(thrown instanceof Error) && kleur.enabled,
+    colors: !(thrown instanceof Error) && kleur.enabled && config.colors,
   }
   try {
     useV8Stack(thrown)
@@ -243,7 +276,7 @@ export function formatFailure(test, error) {
  * @param {string} message
  */
 export function formatDiagnostic(nesting, message) {
-  return kleur.blue(`${indent(nesting)}ℹ ${message}`)
+  return paint('blue', `${indent(nesting)}ℹ ${message}`)
 }
 
 /**
@@ -286,7 +319,7 @@ export async function exec() {
   }
 
   if (errors.length > 0) {
-    console.log(`\n${kleur.red('✖ failing tests:')}\n`)
+    console.log(`\n${paint('red', '✖ failing tests:')}\n`)
     console.log(errors.join('\n'))
   }
 
