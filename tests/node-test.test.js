@@ -227,6 +227,43 @@ describe('playwright-test/node-test', () => {
         is(summary(proc.stdout, 'pass'), 1, proc.stdout)
       })
 
+      it('showing an error can not stop the run', async () => {
+        const { proc, order } = await runApi('fail-odd-errors', mode)
+        const output = lines(proc.stdout).join('\n')
+
+        is(proc.exitCode, 1, output)
+        equal(order, ['ORDER runs after'])
+        ok(output.includes('ℹ tests 9'), output)
+        ok(output.includes('Error: shown without its inspector'), output)
+        ok(output.includes('Error: shown without its stack'), output)
+        ok(output.includes('ℹ Symbol(a symbol)'), output)
+        ok(output.includes('✖ <root>'), output)
+      })
+
+      it('stacks without the name and message of the error', async () => {
+        const { proc } = await runApi('fail-odd-errors', mode)
+        const output = lines(proc.stdout).join('\n')
+
+        ok(
+          output.includes(
+            'Error: in-a-frame\n      at in-a-frame (http://localhost/test.js:5:6)'
+          ),
+          output
+        )
+        ok(
+          output.includes('Error\n      at fn (http://localhost/test.js:5:6)'),
+          output
+        )
+        ok(output.includes('[Error: me@example.com]'), output)
+        ok(
+          output.includes(
+            'at fn (http://localhost/node_modules/@scope/pkg/a.js:5:6)'
+          ),
+          output
+        )
+        ok(output.includes('at http://localhost/b.js:7:8'), output)
+      })
+
       it('passing tests leave the exit code alone', async () => {
         const { proc } = await runApi('exit-code', mode)
 

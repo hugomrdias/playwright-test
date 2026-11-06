@@ -348,7 +348,7 @@ class TestContext {
    * @param {string} message
    */
   diagnostic(message) {
-    this.#test.diagnostics.push(message)
+    this.#test.diagnostics.push(String(message))
   }
 
   /**
@@ -557,7 +557,7 @@ class SuiteContext {
    * @param {string} message
    */
   diagnostic(message) {
-    this.#suite.diagnostics.push(message)
+    this.#suite.diagnostics.push(String(message))
   }
 
   /**
@@ -1155,7 +1155,12 @@ class Test {
 
     const parent = /** @type {Test} */ (this.parent)
     if (!this.filtered) {
-      this.report()
+      try {
+        this.report()
+      } catch (err) {
+        // The next tests wait for this one, and a run with no report would pass
+        rootError(err)
+      }
       parent.active = false
     }
 
@@ -1493,7 +1498,7 @@ let next = 0
 /**
  * Report an error that doesn't belong to a test
  *
- * @param {Error} err
+ * @param {unknown} err
  */
 function rootError(err) {
   counters.failures++

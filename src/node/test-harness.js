@@ -148,6 +148,24 @@ export function formatTest(test, nesting = 0) {
   return `${indent(nesting)}${color(`${symbol} ${name}`)}${duration}${directive && color(directive)}`
 }
 
+/** `fn@url:1:2`, `@url:1:2`, `fn@[native code]` or `fn@`. */
+const NON_V8_FRAME = /^(.*?)@(.*:\d+:\d+|\[native code\])?\s*$/
+
+/**
+ * @param {string} line
+ */
+function toV8Frame(line) {
+  const match = line.match(NON_V8_FRAME)
+  if (!match) {
+    return line
+  }
+  const [, fn, location] = match
+  if (location === undefined || location === '[native code]') {
+    return `    at ${fn || '<anonymous>'} (<anonymous>)`
+  }
+  return `    at ${fn ? `${fn} (${location})` : location}`
+}
+
 /**
  * `inspect` expects a stack from V8, with the message and frames starting with
  * `    at`. Firefox and WebKit have neither, so it would leave the message out.
@@ -158,23 +176,44 @@ function useV8Stack(error) {
   const seen = new Set()
   for (let e = error; e instanceof Error && !seen.has(e); e = e.cause) {
     seen.add(e)
-    if (e.stack && !e.stack.includes('\n    at ')) {
-      const frames = e.stack
+    const { stack } = e
+    if (stack && !stack.includes('\n    at ')) {
+      const header = e.message ? `${e.name}: ${e.message}` : e.name
+      const hasHeader = stack === header || stack.startsWith(`${header}\n`)
+      const lines = (hasHeader ? stack.slice(header.length) : stack)
         .split('\n')
         .filter((line) => line.length > 0)
-        .map((line) => {
-          const [, fn, location] = line.match(/^(.*?)@(.*)$/) ?? []
-          if (fn === undefined) {
-            return line
-          }
-          return /:\d+:\d+$/.test(location)
-            ? `    at ${fn ? `${fn} (${location})` : location}`
-            : `    at ${fn || '<anonymous>'} (<anonymous>)`
-        })
-      const header = e.stack.includes(e.message)
-        ? []
-        : [`${e.name}: ${e.message}`]
-      Reflect.set(e, 'stack', [...header, ...frames].join('\n'))
+      if (lines.some((line) => NON_V8_FRAME.test(line))) {
+        Reflect.set(e, 'stack', [header, ...lines.map(toV8Frame)].join('\n'))
+      }
+    }
+  }
+}
+
+/**
+ * Anything an error runs while it's shown can throw, and that can't get in the
+ * way of reporting that the test failed. Node.js retries without the custom
+ * inspector too, the rest is for what `inspect` itself reads.
+ *
+ * @param {any} thrown
+ */
+function inspectThrown(thrown) {
+  const options = {
+    breakLength: Number.POSITIVE_INFINITY,
+    colors: !(thrown instanceof Error) && kleur.enabled,
+  }
+  try {
+    useV8Stack(thrown)
+    return inspect(thrown, options)
+  } catch {
+    try {
+      return inspect(thrown, { ...options, customInspect: false })
+    } catch {
+      try {
+        return `${thrown.name}: ${thrown.message}`
+      } catch {
+        return 'The error could not be shown'
+      }
     }
   }
 }
@@ -186,12 +225,7 @@ function useV8Stack(error) {
  */
 function formatThrown(error) {
   const thrown = error?.code === 'ERR_TEST_FAILURE' ? error.cause : error
-  useV8Stack(thrown)
-  const text = inspect(thrown, {
-    breakLength: Number.POSITIVE_INFINITY,
-    colors: !(thrown instanceof Error) && kleur.enabled,
-  })
-  return cleanStack(text).replaceAll('\n', '\n  ')
+  return cleanStack(inspectThrown(thrown)).replaceAll('\n', '\n  ')
 }
 
 /**
