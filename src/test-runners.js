@@ -73,6 +73,7 @@ ${paths.map((url) => `await import('${url}')`).join('\n')}
 }
 
 const nodeTestFile = path.resolve(__dirname, 'node/test.js')
+const nodeTestHarnessFile = path.resolve(__dirname, 'node/test-harness.js')
 
 /**
  * `node:test` runner. In node mode `node:test` is the real thing, with all of
@@ -107,8 +108,8 @@ export const nodeTest = {
     const isNode = options.mode === 'node'
     // node needs a file URL for absolute paths on Windows, esbuild needs a path
     const file = isNode
-      ? pathToFileURL(nodeTestFile).href
-      : nodeTestFile.replaceAll('\\', '/')
+      ? pathToFileURL(nodeTestHarnessFile).href
+      : nodeTestHarnessFile.replaceAll('\\', '/')
     return `
 const { configure, exec, hold } = await import('${file}')
 configure(JSON.parse(process.env.PW_OPTIONS))
@@ -117,58 +118,6 @@ ${paths.map((url) => `await import('${url}')`).join('\n')}
 
 // In node mode the real node:test may still have to run its tests and report
 ${isNode ? 'await exec()' : 'exec().then(() => {\n  process.exit(process.exitCode)\n})'}
-`
-  },
-}
-
-/**
- * Playwright Test Runner
- *
- * @type {import('./types').TestRunner}
- */
-export const taps = {
-  moduleId: 'playwright-test/taps',
-  supports: ['testNamePattern', 'testTimeout'],
-  options: {},
-  compileRuntime(_options, paths) {
-    return `
-const {configure, exec, hold} = await import('playwright-test/taps')
-configure(JSON.parse(process.env.PW_OPTIONS))
-hold()
-${paths.map((url) => `await import('${url}')`).join('\n')}
-
-exec().then(() => {
-    process.exit(process.exitCode)
-})
-`
-  },
-}
-
-/**
- * Playwright Test Runner
- *
- * @type {import('./types').TestRunner}
- */
-export const tapsLocal = {
-  moduleId: '../../src/taps/index.js',
-  supports: ['testNamePattern', 'testTimeout'],
-  options: {},
-  compileRuntime(options, paths) {
-    const tapsFile = path.resolve(__dirname, 'taps/index.js')
-    // node needs a file URL for absolute paths on Windows, esbuild needs a path
-    const tapsPath =
-      options.mode === 'node'
-        ? pathToFileURL(tapsFile).href
-        : tapsFile.replaceAll('\\', '/')
-    return `
-const {configure, exec, hold} = await import('${tapsPath}')
-configure(JSON.parse(process.env.PW_OPTIONS))
-hold()
-${paths.map((url) => `await import('${url}')`).join('\n')}
-
-exec().then(() => {
-    process.exit(process.exitCode)
-})
 `
   },
 }

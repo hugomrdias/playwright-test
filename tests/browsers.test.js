@@ -15,11 +15,11 @@ for (const browser of ['firefox', 'webkit']) {
         'mocks/before/ends.js',
         ...flags,
       ],
-      'taps node:test api': [
+      'playwright-test/node-test': [
         './cli.js',
         'mocks/node-test/context.test.js',
         '--runner',
-        './mocks/node-test/runner.js',
+        'node-test',
         ...flags,
       ],
       'node-test runner': [

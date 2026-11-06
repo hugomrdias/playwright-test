@@ -32,7 +32,7 @@ describe('runner options', () => {
 
   for (const mode of ['node', 'main']) {
     describe(`--mode ${mode}`, () => {
-      for (const runner of ['mocha', 'taps']) {
+      for (const runner of ['mocha', 'node-test']) {
         // mocha only matches the full title, the others also a single name
         /** @type {[string, string[]]} */
         const ownName = ['^beta$', runner === 'mocha' ? [] : ['beta']]
@@ -76,14 +76,22 @@ describe('runner options', () => {
         is(passed.exitCode, 0, output(passed))
       })
 
-      it('taps --test-timeout, tests with their own keep it', async () => {
-        const args = ['--runner', 'taps', '--mode', mode]
-        const failed = await run('taps-slow', [...args, '--test-timeout', '50'])
-        const passed = await run('taps-slow', [...args, '--test-timeout', '0'])
+      it('node-test --test-timeout, tests with their own keep it', async () => {
+        const args = ['--runner', 'node-test', '--mode', mode]
+        const failed = await run('node-test-slow', [
+          ...args,
+          '--test-timeout',
+          '50',
+        ])
+        const passed = await run('node-test-slow', [
+          ...args,
+          '--test-timeout',
+          '0',
+        ])
 
         is(failed.exitCode, 1, output(failed))
-        ok(failed.stdout.includes('1 failing'), output(failed))
-        ok(failed.stdout.includes('1 passing'), output(failed))
+        ok(failed.stdout.includes('ℹ cancelled 1'), output(failed))
+        ok(failed.stdout.includes('ℹ pass 1'), output(failed))
         is(passed.exitCode, 0, output(passed))
       })
 

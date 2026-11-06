@@ -6,10 +6,10 @@
  */
 export default async function* reporter(source) {
   for await (const { type, data } of source) {
+    if (type === 'test:summary') {
+      yield `SUMMARY ${JSON.stringify(data.counts)}\n`
+    }
     if (type === 'test:pass' || type === 'test:fail') {
-      if (data.details?.type === 'suite') {
-        continue
-      }
       const outcome =
         data.skip === undefined
           ? data.todo === undefined

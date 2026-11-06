@@ -118,7 +118,6 @@ const builtInRunners = {
   mocha: DefaultRunners.mocha,
   'node-test': DefaultRunners.nodeTest,
   none: DefaultRunners.none,
-  taps: DefaultRunners.taps,
 }
 
 /**
@@ -267,11 +266,11 @@ const cliDefaults = {
 sade2
   .version(version)
   .describe(
-    'Run mocha, node:test and taps scripts inside real browsers with `playwright` and in Node.'
+    'Run mocha and node:test scripts inside real browsers with `playwright` and in Node.'
   )
   .option(
     '-r, --runner',
-    'Test runner. Options: mocha, none, taps and node-test. It also accepts a path to a module or a module name that exports a `playwrightTestRunner` object.'
+    'Test runner. Options: mocha, none and node-test. It also accepts a path to a module or a module name that exports a `playwrightTestRunner` object.'
   )
   .option(
     '-b, --browser',

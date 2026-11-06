@@ -62,16 +62,6 @@ describe('runner auto detection', () => {
       "import { test } from 'playwright-test/node-test'",
       ['node:test'],
     ],
-    [
-      'taps',
-      "import { test } from 'playwright-test/taps'",
-      ['playwright-test/taps'],
-    ],
-    [
-      'taps and node:test',
-      "import 'playwright-test/taps'\nimport 'node:test'",
-      ['node:test'],
-    ],
     ['mocha describe', "describe('a', () => {})", ['mocha']],
     ['mocha it', "it('a', () => {})", ['mocha']],
     ['mocha only', "describe.only('a', () => {})", ['mocha']],
@@ -142,10 +132,10 @@ describe('runner auto detection', () => {
   })
 
   it('reports every runner it finds', () => {
-    equal(
-      detect([write("import 'playwright-test/taps'"), write("describe('a')")]),
-      ['playwright-test/taps', 'mocha']
-    )
+    equal(detect([write("import 'node:test'"), write("describe('a')")]), [
+      'node:test',
+      'mocha',
+    ])
   })
 
   describe('cli', () => {
@@ -175,7 +165,7 @@ describe('runner auto detection', () => {
     it('--runner skips it', async () => {
       const proc = await runCli(
         [
-          write("import 'playwright-test/taps'\ndescribe('a', () => {})"),
+          write("import 'node:test'\ndescribe('a', () => {})"),
           '--runner',
           'none',
           '--mode',
@@ -208,14 +198,23 @@ describe('runner auto detection', () => {
       ok(!proc.stderr.includes('Autodetected'), proc.stderr)
     })
 
-    it('--runner taps', async () => {
+    it('--runner node-test', async () => {
       const proc = await runCli(
-        ['mocks/tops/test1.test.js', '--runner', 'taps', '--mode', 'node'],
+        ['mocks/node-test/multi', '--runner', 'node-test', '--mode', 'node'],
         { reject: false }
       )
 
       is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
-      ok(proc.stdout.includes('passing'), proc.stdout)
+      ok(proc.stdout.includes('ℹ pass 2'), proc.stdout)
+    })
+
+    it('--runner taps is gone', async () => {
+      const proc = await runCli(
+        ['mocks/node-test/multi', '--runner', 'taps', '--mode', 'node'],
+        { reject: false }
+      )
+
+      is(proc.exitCode, 1, `${proc.stdout}\n${proc.stderr}`)
     })
   })
 })

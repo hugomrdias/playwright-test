@@ -3,6 +3,8 @@
  *
  * Mirrors `MockTracker` from Node.js without any Node.js only dependency.
  */
+import { isDeepStrictEqual } from 'util'
+import { AssertionError } from './assert.js'
 
 /**
  * Throw for a `node:test` feature that isn't implemented, it must never silently do nothing.
@@ -547,4 +549,134 @@ function findDescriptor(instance, methodName) {
     }
     host = Object.getPrototypeOf(host)
   }
+}
+
+/**
+ * @param {any} fn
+ * @returns {MockFunctionContext}
+ */
+function getMockContext(fn) {
+  const ctx = fn?.mock
+  if (!(ctx instanceof MockFunctionContext)) {
+    const error = new TypeError('The "fn" argument must be mock function.')
+    Object.assign(error, { code: 'ERR_INVALID_ARG_TYPE' })
+    throw error
+  }
+  return ctx
+}
+
+/**
+ * @param {unknown} value
+ * @param {string} name
+ * @param {number} min
+ */
+function validateInteger(value, name, min) {
+  if (!Number.isInteger(value) || /** @type {number} */ (value) < min) {
+    throw new RangeError(`The value of "${name}" must be an integer >= ${min}.`)
+  }
+}
+
+/**
+ * @param {any} fn
+ * @param {number} n
+ * @param {unknown[]} args
+ * @param {Function} stackStartFn
+ */
+function assertCalledWithAt(fn, n, args, stackStartFn) {
+  const { calls } = getMockContext(fn)
+
+  if (n > calls.length) {
+    throw new AssertionError({
+      message: `Expected mock function to have been called at least ${n} times, but it was called ${calls.length} times`,
+      actual: calls.length,
+      expected: n,
+      operator: stackStartFn.name,
+      stackStartFn,
+    })
+  }
+
+  const actual = calls[n - 1].arguments
+  if (!isDeepStrictEqual(actual, args)) {
+    throw new AssertionError({
+      message: `Expected call ${n} of mock function to have been called with:`,
+      actual,
+      expected: args,
+      operator: 'deepStrictEqual',
+      stackStartFn,
+    })
+  }
+}
+
+/**
+ * @param {any} fn
+ * @param {string} [message]
+ */
+function called(fn, message) {
+  const count = getMockContext(fn).callCount()
+  if (count === 0) {
+    throw new AssertionError({
+      message: message ?? 'Expected mock function to have been called',
+      actual: count,
+      operator: 'called',
+      stackStartFn: called,
+    })
+  }
+}
+
+/**
+ * @param {any} fn
+ * @param {number} times
+ * @param {string} [message]
+ */
+function callCount(fn, times, message) {
+  validateInteger(times, 'times', 0)
+  const count = getMockContext(fn).callCount()
+  if (count !== times) {
+    throw new AssertionError({
+      message:
+        message ??
+        `Expected mock function to have been called ${times} times, but it was called ${count} times`,
+      actual: count,
+      expected: times,
+      operator: 'callCount',
+      stackStartFn: callCount,
+    })
+  }
+}
+
+/**
+ * @param {any} fn
+ * @param {number} n
+ * @param {unknown[]} args
+ */
+function nthCalledWith(fn, n, ...args) {
+  validateInteger(n, 'n', 1)
+  assertCalledWithAt(fn, n, args, nthCalledWith)
+}
+
+/**
+ * @param {any} fn
+ * @param {unknown[]} args
+ */
+function lastCalledWith(fn, ...args) {
+  const count = getMockContext(fn).callCount()
+  if (count === 0) {
+    throw new AssertionError({
+      message: 'Expected mock function to have been called',
+      actual: count,
+      operator: 'lastCalledWith',
+      stackStartFn: lastCalledWith,
+    })
+  }
+  assertCalledWithAt(fn, count, args, lastCalledWith)
+}
+
+/**
+ * The assertions about mocks in `t.assert`, in `node:test` since Node.js 26.
+ */
+export const mockAssertions = {
+  called,
+  callCount,
+  lastCalledWith,
+  nthCalledWith,
 }

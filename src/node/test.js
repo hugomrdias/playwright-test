@@ -1,7 +1,7 @@
 /** biome-ignore-all lint/suspicious/noConsole: its ok */
 /**
- * `node:test` compatible API that runs in browsers and in Node.js, on top of
- * the taps queue, reporting and `exec`/`hold` flow.
+ * `node:test` compatible API that runs in browsers and in Node.js. It only
+ * exports what `node:test` does, runners use `./test-harness.js` to drive it.
  *
  * The behaviour follows `lib/internal/test_runner/test.js` from Node.js, with
  * two structural differences:
@@ -12,22 +12,21 @@
  * - Top level tests wait for `exec()` instead of the end of the build phase,
  *   unless their promise is awaited, see {@link LazyTestPromise}.
  */
-import kleur from 'kleur'
-import { start } from '../taps/exec.js'
+import { legacy as nodeAssert } from './assert.js'
 import {
   config,
-  configure,
-  formatError,
-  log,
+  formatDiagnostic,
+  formatFailure,
+  formatTest,
+  hrtime,
+  IS_ENV_WITH_DOM,
+  IS_NODE,
+  indent,
   matchesNamePattern,
-  TAPS_QUEUE,
-} from '../taps/harness.js'
-// Before the queue push below, so with both entrypoints the order of the queue
-// is always the same. Whichever one is imported first.
-import { exec, hold } from '../taps/index.js'
-import { formatObj, hrtime, IS_NODE } from '../taps/utils.js'
-import { legacy as nodeAssert } from './assert.js'
-import { MockTracker, unsupported } from './test-mock.js'
+  registerRun,
+  start,
+} from './test-harness.js'
+import { MockTracker, mockAssertions, unsupported } from './test-mock.js'
 
 /**
  * @typedef {'before' | 'after' | 'beforeEach' | 'afterEach'} HookName
@@ -45,13 +44,6 @@ const kTestCodeFailure = 'testCodeFailure'
 const kTestTimeoutFailure = 'testTimeoutFailure'
 const kUncaughtException = 'uncaughtException'
 const kUnhandledRejection = 'unhandledRejection'
-
-/** Failures where the error of the user is what's worth reporting. */
-const UNWRAP = new Set([
-  kTestCodeFailure,
-  kUncaughtException,
-  kUnhandledRejection,
-])
 
 const TIMEOUT_MAX = 2 ** 31 - 1
 
@@ -356,7 +348,7 @@ class TestContext {
    * @param {string} message
    */
   diagnostic(message) {
-    this.#test.diagnostics.push(message)
+    this.#test.diagnostics.push(String(message))
   }
 
   /**
@@ -396,6 +388,9 @@ class TestContext {
 
       for (const name of ASSERT_METHODS) {
         add(name, nodeAssert[/** @type {keyof typeof nodeAssert} */ (name)])
+      }
+      for (const [name, method] of Object.entries(mockAssertions)) {
+        add(name, method)
       }
       assert.snapshot = () => unsupported('t.assert.snapshot()')
       assert.fileSnapshot = () => unsupported('t.assert.fileSnapshot()')
@@ -562,7 +557,7 @@ class SuiteContext {
    * @param {string} message
    */
   diagnostic(message) {
-    this.#suite.diagnostics.push(message)
+    this.#suite.diagnostics.push(String(message))
   }
 
   /**
@@ -670,12 +665,14 @@ class Test {
   hasOnlyTests = false
   passed = false
   runOnlySubtests = false
+  /** Whether it was shown as the parent of what's inside of it. */
+  announced = false
   /** The build of a suite, tests never have one. */
   buildFinished = false
   active = false
   /** @type {any} */
   error = null
-  /** @type {(() => string) | null} */
+  /** @type {(() => number) | null} */
   startTime = null
   /** @type {string[]} */
   diagnostics = []
@@ -725,6 +722,8 @@ class Test {
         : (fn !== noop && fn.name) || '<anonymous>'
     /** @type {Test | null} */
     this.parent = parent ?? null
+    /** Where it shows in the output, the tests at the top are `0`. */
+    this.nesting = parent ? parent.nesting + 1 : -1
     this.only = only
     this.timeout = parent?.timeout ?? (config.timeout || null)
     /** @type {string[]} */
@@ -736,7 +735,6 @@ class Test {
       parent.runOnlySubtests = true
 
       if (parent === root || parent.startTime === null) {
-        globalThis.TAPS_ONLY = true
         for (let t = parent; t !== null && !t.hasOnlyTests; t = t.parent) {
           t.hasOnlyTests = true
         }
@@ -794,8 +792,7 @@ class Test {
     if (
       parent.runOnlySubtests ||
       parent.hasOnlyTests ||
-      // `.only` can come from a `playwright-test/taps` test in another file
-      (globalThis.TAPS_ONLY && (parent === root || this.only === false))
+      (root.hasOnlyTests && this.only === false)
     ) {
       this.filtered = true
     }
@@ -1158,7 +1155,12 @@ class Test {
 
     const parent = /** @type {Test} */ (this.parent)
     if (!this.filtered) {
-      this.report()
+      try {
+        this.report()
+      } catch (err) {
+        // The next tests wait for this one, and a run with no report would pass
+        rootError(err)
+      }
       parent.active = false
     }
 
@@ -1172,62 +1174,69 @@ class Test {
     parent.processPendingSubtests()
   }
 
-  report() {
-    const time = this.startTime?.() ?? '0.00ms'
-    const suite =
-      this.parent === root ? '' : getFullName(/** @type {Test} */ (this.parent))
-    const failed = !(this.passed || this.skipped || this.isTodo)
-    const directive = this.skipped ? 'SKIP' : this.isTodo ? 'TODO' : ''
-    const name = directive
-      ? `${this.name} # ${directive}${this.message ? ` ${this.message}` : ''}`
-      : this.name
+  /**
+   * Parents are only shown once there's something inside of them to show.
+   */
+  announceParents() {
+    const parents = []
+    for (let t = this.parent; t && t !== root && !t.announced; t = t.parent) {
+      parents.unshift(t)
+    }
+    for (const parent of parents) {
+      parent.announced = true
+      console.log(`${indent(parent.nesting)}▶ ${parent.name}`)
+    }
+  }
 
+  count() {
     if (this.reportedType === 'suite') {
-      if (directive) {
-        const prefix = suite ? `${suite} > ` : ''
-        console.log(`${kleur.yellow(`- ${prefix}${name}`)}`)
-      }
-    } else {
-      if (this.skipped) {
-        counters.skips++
-      } else if (this.isTodo) {
-        counters.todos++
-      } else if (!failed) {
-        counters.passes++
-      }
-      counters.total++
-      log(
-        {
-          name,
-          suite,
-          number: counters.offset + counters.total,
-          skip: this.skipped || this.isTodo,
-        },
-        failed,
-        time
-      )
-    }
-
-    for (const message of this.diagnostics) {
-      console.log(`${kleur.blue('ℹ')} ${message}`)
-    }
-
-    if (this.error === null) {
+      counters.suites++
       return
     }
-
-    const error = displayError(this.error)
-    if (this.isTodo || this.skipped) {
-      // Expected to fail, or not meant to run, so it's only worth a mention
-      console.log(kleur.gray(`  ${error.name}: ${error.message}`))
-    } else if (
-      this.error.failureType !== kSubtestsFailed ||
-      counters.errors.length === this.errorsAtStart
-    ) {
-      counters.errors.push(
-        formatError({ ...CTX, name: this.name, suite }, error)
-      )
+    if (this.skipped) {
+      counters.skips++
+    } else if (this.isTodo) {
+      counters.todos++
+    } else if (this.cancelled) {
+      counters.cancelled++
+    } else if (this.passed) {
+      counters.passes++
+    } else {
+      counters.failures++
     }
+    counters.total++
+  }
+
+  report() {
+    const result = {
+      name: this.name,
+      passed: this.passed,
+      skip: this.skipped,
+      todo: this.isTodo,
+      message: this.message,
+      time: this.startTime?.() ?? 0,
+    }
+
+    this.announceParents()
+    this.count()
+    console.log(formatTest(result, this.nesting))
+    for (const message of this.diagnostics) {
+      console.log(formatDiagnostic(this.nesting, message))
+    }
+
+    if (
+      this.error === null ||
+      // What failed in the subtests is already there
+      (this.error.failureType === kSubtestsFailed &&
+        counters.errors.length !== this.errorsAtStart)
+    ) {
+      return
+    }
+    // A test counts by itself, this is a failure of the hooks of a suite
+    if (this.reportedType === 'suite' && !this.skipped && !this.isTodo) {
+      counters.failures++
+    }
+    counters.errors.push(formatFailure(result, this.error))
   }
 }
 
@@ -1413,24 +1422,6 @@ function scheduleBuild(suite) {
   })
 }
 
-const CTX = { number: 0, skip: false }
-
-/**
- * @param {any} error
- * @returns {Error}
- */
-function displayError(error) {
-  if (!UNWRAP.has(error.failureType)) {
-    return error
-  }
-  const { cause } = error
-  if (cause instanceof Error) {
-    return cause
-  }
-  error.message = typeof cause === 'string' ? cause : formatObj(cause)
-  return error
-}
-
 /**
  * @param {Test} test
  */
@@ -1479,9 +1470,11 @@ async function hasNameMatch(test) {
 
 function newCounters() {
   return {
-    /** Number of tests reported before these, by other suites in the queue. */
-    offset: 0,
+    cancelled: 0,
+    duration: 0,
+    failures: 0,
     passes: 0,
+    suites: 0,
     skips: 0,
     todos: 0,
     total: 0,
@@ -1505,12 +1498,11 @@ let next = 0
 /**
  * Report an error that doesn't belong to a test
  *
- * @param {Error} err
+ * @param {unknown} err
  */
 function rootError(err) {
-  counters.errors.push(
-    formatError({ ...CTX, name: '<root>', suite: '' }, displayError(err))
-  )
+  counters.failures++
+  counters.errors.push(formatFailure({ name: '<root>', passed: false }, err))
 }
 
 /**
@@ -1679,12 +1671,9 @@ function startOrQueue(test, requestedParent) {
 }
 
 /**
- * The taps queue runner
- *
- * @type {import('../taps/types.js').RunnerPartial}
+ * Run everything declared so far, and what it did.
  */
-async function runRoot(testCount) {
-  counters.offset = testCount
+async function runRoot() {
   installHandlers()
   try {
     await drain()
@@ -1706,7 +1695,7 @@ async function runRoot(testCount) {
       }
 
       for (const message of root.diagnostics) {
-        console.log(`${kleur.blue('ℹ')} ${message}`)
+        console.log(formatDiagnostic(0, message))
       }
       if (root.error !== null) {
         rootError(root.error)
@@ -1716,17 +1705,20 @@ async function runRoot(testCount) {
     uninstallHandlers()
   }
 
-  const { errors, passes, skips, total, todos } = counters
+  const result = counters
+  result.duration = /** @type {() => number} */ (root.startTime)()
   counters = newCounters()
-  return [errors, passes, skips, total, todos]
+  return result
 }
 
-TAPS_QUEUE.push(runRoot)
+registerRun(runRoot)
 
-// In a process started by its full path, like `node --test` does, the taps
-// entrypoint doesn't auto start and nothing would run with a passing exit code.
-if (IS_NODE && process.argv0 !== 'node') {
+// Without a runner, that's `node file.js`, `node --test` or the `none` runner.
+// Runners call `hold()` before they load the test files.
+if (IS_NODE) {
   setTimeout(start, 0)
+} else if (IS_ENV_WITH_DOM) {
+  window.addEventListener('load', start)
 }
 
 /**
@@ -1851,6 +1843,20 @@ test.it = test
 /** @type {typeof import('node:test').it} */
 export const it = test
 
-export { configure, exec, hold }
+/** @type {typeof import('node:test').skip} */
+export const skip = test.skip
+
+/** @type {typeof import('node:test').todo} */
+export const todo = test.todo
+
+/** @type {typeof import('node:test').only} */
+export const only = test.only
+
+/**
+ * Not implemented, always throws.
+ *
+ * @type {any}
+ */
+export const expectFailure = /** @type {any} */ (test).expectFailure
 
 export default test
