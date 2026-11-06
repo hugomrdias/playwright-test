@@ -12,7 +12,7 @@ import path from 'path'
 import polka from 'polka'
 import sirv from 'sirv'
 import { convertPathToPattern, globSync } from 'tinyglobby'
-import { fileURLToPath, pathToFileURL } from 'url'
+import { fileURLToPath } from 'url'
 import * as DefaultRunners from '../test-runners.js'
 import { polyfillAliases } from './polyfill-aliases.js'
 
@@ -24,11 +24,12 @@ const merge = mergeOptions.bind({
   concatArrays: true,
 })
 
-/**
- * @type {import('../types').RunnerOptions}
- */
 /** A hung test shouldn't hang the run forever, long enough for any real suite. */
 export const DEFAULT_RUN_TIMEOUT = 30 * 60 * 1000
+
+/** A teardown can take a while, not forever. Tests of stuck hooks lower it. */
+export const AFTER_TESTS_TIMEOUT =
+  Number(process.env.PW_TEST_AFTER_TESTS_TIMEOUT) || 60_000
 
 /**
  * Check `runTimeout` before anything starts. setTimeout fires right away for
@@ -48,6 +49,86 @@ export function assertRunTimeout(value) {
   }
 }
 
+/** An error that only needs its message shown. */
+export class UsageError extends Error {}
+
+/** @type {Record<string, import('../types').TestRunner>} */
+const runners = {
+  mocha: DefaultRunners.mocha,
+  'node-test': DefaultRunners.nodeTest,
+  none: DefaultRunners.none,
+}
+
+/**
+ * The runner for these options, with the options from the config file.
+ *
+ * @param {import('../types').Config} options
+ * @returns {import('../types').TestRunner}
+ */
+export function resolveTestRunner({ runner = 'none', testRunner }) {
+  if (/** @type {any} */ (testRunner)?.compileRuntime) {
+    throw new UsageError(
+      'Custom test runners are not supported, set runner to mocha, node-test or none.'
+    )
+  }
+  if (!Object.hasOwn(runners, runner)) {
+    throw new UsageError(
+      `Unknown runner "${runner}", use mocha, node-test or none.`
+    )
+  }
+  return merge(runners[runner], { options: testRunner?.options })
+}
+
+/**
+ * Check what can't work before starting a browser for it.
+ *
+ * @param {import('../types').RunnerOptions} options
+ */
+export function assertBrowserOptions({ browser, extension, incognito, mode }) {
+  if (mode !== 'main' && mode !== 'worker') {
+    throw new TypeError(
+      `Invalid mode "${mode}", expected "main", "worker" or "node".`
+    )
+  }
+  if (extension && browser !== 'chromium') {
+    throw new TypeError('Extension testing is only supported in chromium.')
+  }
+  if (extension && incognito) {
+    throw new TypeError('Extension testing does not work with incognito.')
+  }
+}
+
+/**
+ * Run the after tests hook, it failing fails the run instead of the cleanup.
+ *
+ * @param {import('../types').RunnerOptions['afterTests']} afterTests
+ * @param {import('../types').RunnerEnv} env
+ * @param {unknown} beforeTestsOutput
+ * @returns {Promise<boolean>} if it worked, it never rejects
+ */
+export async function runAfterTests(afterTests, env, beforeTestsOutput) {
+  /** @type {NodeJS.Timeout | undefined} */
+  let timer
+  try {
+    await Promise.race([
+      afterTests(env, beforeTestsOutput),
+      new Promise((_resolve, reject) => {
+        timer = setTimeout(
+          reject,
+          AFTER_TESTS_TIMEOUT,
+          new Error(`It did not finish in ${AFTER_TESTS_TIMEOUT}ms.`)
+        )
+      }),
+    ])
+    return true
+  } catch (/** @type {any} */ error) {
+    log.error(`The afterTests hook failed.\n${error?.stack ?? error}`)
+    return false
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /**
  * @param {number} ms
  */
@@ -55,6 +136,7 @@ export function runTimeoutMessage(ms) {
   return `Run timed out after ${ms}ms, use --run-timeout to change it.`
 }
 
+/** @type {Omit<import('../types').RunnerOptions, 'testRunner'>} */
 export const defaultOptions = {
   cwd: process.cwd(),
   assets: '',
@@ -64,7 +146,7 @@ export const defaultOptions = {
   incognito: false,
   input: undefined,
   extension: false,
-  testRunner: DefaultRunners.none,
+  runner: 'none',
   before: undefined,
   sw: undefined,
   extensions: 'js,cjs,mjs,ts,tsx,jsx',
@@ -107,15 +189,6 @@ export const log = {
   error(message, quiet = false) {
     if (!quiet) {
       console.warn(kleur.red('✘'), message)
-    }
-  },
-  /**
-   * @param {string} message
-   * @param {boolean} quiet
-   */
-  success(message, quiet = false) {
-    if (!quiet) {
-      console.warn(kleur.green('✔'), message)
     }
   },
 }
@@ -256,18 +329,51 @@ export function findTests({ cwd, extensions, filePatterns }) {
 }
 
 /**
- * workaround to get hidden description
- * jsonValue() on errors returns {}
+ * What JSON can't hold, runs in the page. Primitives like BigInt get to the handle
+ * as undefined already, those can't be told apart.
  *
- * @param {any} arg
+ * @param {unknown} value
  */
-function extractErrorMessage(arg) {
-  // pup-firefox doesnt have this
-  if (arg._remoteObject) {
-    return arg._remoteObject.subtype === 'error'
-      ? arg._remoteObject.description
-      : undefined
+function describeValue(value) {
+  if (
+    typeof value === 'symbol' ||
+    typeof value === 'function' ||
+    value instanceof RegExp
+  ) {
+    return { text: String(value) }
   }
+  if (value instanceof Map) {
+    return { map: [...value] }
+  }
+  if (value instanceof Set) {
+    return { set: [...value] }
+  }
+}
+
+/**
+ * Read the value of a console argument to print it.
+ *
+ * @param {import('playwright-core').JSHandle} arg
+ */
+async function readConsoleArg(arg) {
+  const value = await arg.jsonValue()
+  const lossy =
+    value === undefined ||
+    (Object.getPrototypeOf(value) === Object.prototype &&
+      Object.keys(value).length === 0)
+  if (!lossy) {
+    return value
+  }
+
+  const { text, map, set } =
+    (await arg.evaluate(describeValue).catch(() => undefined)) ?? {}
+  if (map) {
+    return new Map(map)
+  }
+  if (set) {
+    return new Set(set)
+  }
+  return text ?? value
 }
 
 /** @type {Record<string, any>} */
@@ -289,53 +395,110 @@ const messageTypeToConsoleFn = {
   table: console.table,
   count: console.count,
   timeEnd: console.log,
+  timeLog: console.log,
 
   // we ignore calls to console.clear, as we don't want the page to clear our terminal
   // clear: console.clear
 }
 
 /**
+ * Print a console message from the browser.
+ *
+ * @param {import('playwright-core').ConsoleMessage} msg
+ * @param {any[]} msgArgs
+ * @param {string} text
+ * @param {<T>(value: T) => T} mapStack
+ */
+function printConsole(msg, msgArgs, text, mapStack) {
+  const type = msg.type()
+  const consoleFn = messageTypeToConsoleFn[type]
+
+  switch (type) {
+    case 'endGroup': {
+      // It has no arguments in Firefox and WebKit
+      console.groupEnd()
+      return
+    }
+    case 'assert': {
+      // The page already checked it, and doesn't send the condition. Chromium
+      // sends its name when there's no message.
+      console.assert(false, ...msgArgs.filter((a) => a !== 'console.assert'))
+      return
+    }
+    case 'count': {
+      // Chromium sends what to print, Firefox only the label for us to count
+      if (/: \d+$/.test(text)) {
+        console.log(text)
+      } else {
+        console.count(text)
+      }
+      return
+    }
+    case 'trace': {
+      // console.trace would print the stack of this function
+      const { url, lineNumber, columnNumber } = msg.location()
+      console.error(
+        'Trace:',
+        ...msgArgs.filter((a) => a !== 'console.trace'),
+        mapStack(`\n    at ${url}:${lineNumber + 1}:${columnNumber + 1}`)
+      )
+      return
+    }
+    default:
+  }
+
+  if (msgArgs.length > 0) {
+    consoleFn.apply(console, msgArgs)
+  } else if (['debug', 'timeEnd', 'timeLog'].includes(type)) {
+    // How WebKit sends console.count and console.timeEnd
+    consoleFn.call(console, text)
+  } else if (text) {
+    console.error(kleur.dim(`🌐${text}`))
+  } else if (type === 'log') {
+    // Firefox sends console.log() and the others nothing at all
+    console.log()
+  }
+}
+
+/**
+ * Read a console message from the browser while its arguments are still there.
+ * Printing is left to the caller, messages take different times to read and have
+ * to come out in the order they went in.
+ *
  * @param {import('playwright-core').ConsoleMessage} msg
  * @param {<T>(value: T) => T} mapStack - map stack traces back to the source files
+ * @returns {Promise<() => void>} prints the message, it never rejects
  */
-export async function redirectConsole(msg, mapStack) {
+export async function readConsole(msg, mapStack) {
   const type = msg.type()
   const consoleFn = messageTypeToConsoleFn[type]
 
   if (!consoleFn) {
-    return
+    return () => {
+      // not printed
+    }
   }
   const text = mapStack(msg.text())
 
   // skip browser informational warnings
   if (text?.includes('Clear-Site-Data')) {
-    return
+    return () => {
+      // not printed
+    }
   }
 
-  // const { url, lineNumber, columnNumber } = msg.location()
-  let msgArgs
-
   try {
-    msgArgs = await Promise.all(
-      msg
-        .args()
-        .map(async (arg) =>
-          mapStack(extractErrorMessage(arg) || (await arg.jsonValue()))
-        )
+    const msgArgs = await Promise.all(
+      msg.args().map(async (arg) => mapStack(await readConsoleArg(arg)))
     )
+    return () => printConsole(msg, msgArgs, text, mapStack)
   } catch {
     // Runner was probably force stopped, the page can't give us the values
     // anymore so print the text on the stream this message belongs to.
     // console.assert would print nothing, it only checks its first argument.
-    const printText = type === 'assert' ? console.error : consoleFn
-    printText.call(console, text)
-    return
-  }
-
-  if (msgArgs.length > 0) {
-    consoleFn.apply(console, msgArgs)
-  } else if (text) {
-    console.error(kleur.dim(`🌐${text}`))
+    const printText =
+      type === 'assert' || type === 'trace' ? console.error : consoleFn
+    return () => printText.call(console, text)
   }
 }
 
@@ -415,7 +578,7 @@ w.onmessage = function(e) {
  * @param {import("../runner").Runner} runner
  * @param {ESBuildOptions} config - Runner esbuild config
  * @param {string} tmpl
- * @param {"bundle" | "before" | "watch"} mode
+ * @param {"bundle" | "before"} mode
  */
 export async function build(runner, config = {}, tmpl = '', mode = 'bundle') {
   const outName = `${mode}-out.js`
@@ -435,12 +598,14 @@ ${tmpl}
 Object.assign(process.env, ${JSON.stringify(runner.env)})
 import.meta.env = ${JSON.stringify(runner.env)}
 
-await import('${require
-      .resolve('../../static/setup.js')
-      .replaceAll('\\', '/')}')
-await import('${require
-      .resolve(path.join(runner.options.cwd, runner.options.before))
-      .replaceAll('\\', '/')}')
+await import(${JSON.stringify(
+      require.resolve('../../static/setup.js').replaceAll('\\', '/')
+    )})
+await import(${JSON.stringify(
+      require
+        .resolve(path.resolve(runner.options.cwd, runner.options.before))
+        .replaceAll('\\', '/')
+    )})
 `
   }
 
@@ -476,51 +641,6 @@ await import('${require
   await esbuild.build(merge(defaultOptions, config, runner.options.buildConfig))
 
   return { outName, files }
-}
-
-/**
- * Resolves module id from give base or cwd
- *
- * @param {string} id - module id
- * @param {string} [base] - base path
- */
-export async function resolveModule(id, base = process.cwd()) {
-  try {
-    // Note we need to ensure base has trailing `/` or the the
-    // last entry is going to be dropped during resolution.
-    const path = createRequire(toDirectoryPath(base)).resolve(id)
-    const url = pathToFileURL(path)
-    return await import(url.href)
-  } catch (error) {
-    throw new Error(
-      `Cannot resolve module "${id}" from "${base}"\n${
-        /** @type {Error} */ (error).message
-      }`
-    )
-  }
-}
-
-/**
- * Ensures that path ends with a path separator
- *
- * @param {string} source
- */
-export const toDirectoryPath = (source) =>
-  source.endsWith(path.sep) ? source : `${source}${path.sep}`
-
-/**
- *
- * @param {string} runner
- * @param {string} cwd
- */
-export async function resolveTestRunner(runner, cwd) {
-  const module = await resolveModule(runner, cwd)
-  /** @type {import('../types.js').TestRunner} */
-  const testRunner = module.playwrightTestRunner
-  if (!testRunner) {
-    throw new Error(`Cannot find playwrightTestRunner export in "${runner}"`)
-  }
-  return testRunner
 }
 
 /**
@@ -581,7 +701,7 @@ export async function createPolka(dir, cwd, assets) {
         })
       )
       .use(
-        sirv(path.join(cwd, assets), {
+        sirv(path.resolve(cwd, assets), {
           dev: true,
           setHeaders: (
             /** @type {{ setHeader: (arg0: string, arg1: string) => void; }} */ rsp,

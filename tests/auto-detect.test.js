@@ -5,7 +5,6 @@ import {
 } from 'node:assert/strict'
 import { after, before, describe, it } from 'node:test'
 import fs from 'fs'
-import * as runners from '../src/test-runners.js'
 import { detectTestRunners } from '../src/utils/auto-detect.js'
 import { runCli } from './helpers.js'
 
@@ -35,7 +34,7 @@ describe('runner auto detection', () => {
    * @param {string[]} files
    */
   const detect = (files) =>
-    [...detectTestRunners(files, runners).keys()].map((r) => r.moduleId)
+    [...detectTestRunners(files).keys()].map((r) => r.moduleId)
 
   /** @type {Array<[string, string, string[], string?]>} */
   const cases = [
@@ -187,15 +186,6 @@ describe('runner auto detection', () => {
       ok(proc.stderr.includes('No test files were found'), proc.stderr)
       ok(!proc.stderr.includes('Using "none"'), proc.stderr)
       ok(!proc.stderr.includes('ERR_INVALID_ARG_TYPE'), proc.stderr)
-    })
-
-    it('a config runner is not reported as detected', async () => {
-      const proc = await runCli(
-        ['mocks/test.mocha.js', '--config', 'mocks/config.js'],
-        { reject: false }
-      )
-
-      ok(!proc.stderr.includes('Autodetected'), proc.stderr)
     })
 
     it('--runner node-test', async () => {

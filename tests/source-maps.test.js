@@ -252,14 +252,14 @@ globalThis.out = [fromMocha, fromSource]
 
   it('reset reads the bundles again', async () => {
     const mapper = createStackMapper(dir)
-    await bundle('watch-out.js')
-    const before = positionIn('watch-out.js', 'new Error("fromSource")')
-    const text = `at fn (watch-out.js:${before})`
+    await bundle('sw-out.js')
+    const before = positionIn('sw-out.js', 'new Error("fromSource")')
+    const text = `at fn (sw-out.js:${before})`
     const mapped = mapper.map(text)
     ok(mapped.includes('source.js:3:33'), mapped)
 
     // A build that moves the same position to nothing
-    await bundle('watch-out.js', { sourcemap: false })
+    await bundle('sw-out.js', { sourcemap: false })
     is(mapper.map(text), mapped, 'cached')
     mapper.reset()
     is(mapper.map(text), text)

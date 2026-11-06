@@ -417,8 +417,7 @@ describe('playwright-test/node-test', () => {
       return [
         ...output
           .slice(0, failing)
-          // What the runner prints before the tests in browsers
-          .filter((line) => line.trim() !== '' && line !== 'Setup complete')
+          .filter((line) => line.trim() !== '')
           .filter((line) => !/^ℹ (?:duration_ms|fail) /.test(line)),
         ...output.slice(failing).filter((line) => STATUS.test(line)),
       ].map((line) => line.replace(/ \(\d+(?:\.\d+)?ms\)/, ''))

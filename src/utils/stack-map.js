@@ -11,7 +11,7 @@ import { isFrame, removeInternalFrames } from './stack-frames.js'
  * `at fn (bundle-out.js:1:2)`.
  */
 const POSITION =
-  /(?<![\w./-])(?:[a-z][\w+.-]*:\/\/[^\s()/]+\/)?((?:before|bundle|sw|watch)-out\.js):(\d+):(\d+)/g
+  /(?<![\w./-])(?:[a-z][\w+.-]*:\/\/[^\s()/]+\/)?((?:before|bundle|sw)-out\.js):(\d+):(\d+)/g
 const INLINE_MAP = 'sourceMappingURL=data:application/json;base64,'
 
 // The filters of the test runners run in the page, where they only see bundles

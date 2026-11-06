@@ -1,4 +1,3 @@
-/** biome-ignore-all lint/suspicious/noConsole: its ok */
 class PwTestController {
   constructor() {
     this.beforeEnded = false
@@ -27,4 +26,3 @@ class PwTestController {
 }
 
 globalThis.PW_TEST = new PwTestController()
-console.log('Setup complete')

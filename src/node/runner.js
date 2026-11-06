@@ -9,53 +9,26 @@ import mergeOptions from 'merge-options'
 import { nanoid } from 'nanoid'
 // @ts-expect-error
 import { premove } from 'premove'
-import * as DefaultRunners from '../test-runners.js'
 import {
+  AFTER_TESTS_TIMEOUT,
   assertRunTimeout,
   createPolka,
-  DEFAULT_RUN_TIMEOUT,
+  defaultOptions,
   findTests,
   log,
+  resolveTestRunner,
+  runAfterTests,
   runTimeoutMessage,
 } from '../utils/index.js'
 import { killTree, withLocalBins } from '../utils/process.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const merge = mergeOptions.bind({ ignoreUndefined: true })
+const EXIT_WAIT = 1000
 
 /**
  * @typedef {import('../types.js').RunnerOptions} RunnerOptions
- * @typedef {import('../types.js').TestRunner} TestRunner
  */
-
-/**
- * @type {import('../types.js').RunnerOptions}
- */
-const defaultOptions = {
-  cwd: process.cwd(),
-  assets: '',
-  browser: 'chromium',
-  debug: false,
-  mode: 'main', // worker
-  incognito: false,
-  input: undefined,
-  extension: false,
-  testRunner: DefaultRunners.none,
-  before: undefined,
-  sw: undefined,
-  extensions: 'js,cjs,mjs,ts,tsx,jsx',
-  transform: true,
-  runTimeout: DEFAULT_RUN_TIMEOUT,
-  buildConfig: {},
-  buildSWConfig: {},
-  browserContextOptions: {},
-  beforeTests: async () => {
-    // noop
-  },
-  afterTests: async () => {
-    // noop
-  },
-}
 
 /**
  * Runs tests directly in Node.js without bundling.
@@ -68,23 +41,25 @@ const defaultOptions = {
 export class NodeRunner {
   /**
    *
-   * @param {Partial<import('../types.js').RunnerOptions>} options
+   * @param {import('../types.js').Config} options
    * @param {string[]} [testFiles]
    */
   constructor(options, testFiles) {
     /** @type {import('../types.js').RunnerOptions} */
     this.options = merge(defaultOptions, options)
+    this.options.testRunner = resolveTestRunner(options)
     assertRunTimeout(this.options.runTimeout)
+    this.options.cwd = path.resolve(this.options.cwd)
     /** @type {import('polka').Polka["server"] | undefined} */
     this.server = undefined
     /** @type {import('node:child_process').ChildProcess | undefined} */
     this.child = undefined
     this.dir = path.join(__dirname, '../.tmp', nanoid())
-    mkdirSync(this.dir, {
-      recursive: true,
-    })
     this.stopped = false
-    this.watching = false
+    /** @type {unknown} */
+    this.beforeTestsOutput = undefined
+    /** @type {Promise<boolean> | undefined} */
+    this.afterTestsResult = undefined
     /**
      * @type {import('../types.js').RunnerEnv}
      */
@@ -103,11 +78,15 @@ export class NodeRunner {
       })
 
     if (this.tests.length === 0) {
-      // Not with `stop`, under --debug it would wait with nothing to debug
       this.stopped = true
       log.error('No test files were found.')
       gracefulExit(1)
+      return
     }
+
+    mkdirSync(this.dir, {
+      recursive: true,
+    })
   }
 
   async #setupServer() {
@@ -174,12 +153,15 @@ export class NodeRunner {
   }
 
   async run() {
+    if (this.stopped) {
+      return
+    }
     asyncExitHook(this.#clean.bind(this), {
-      wait: 1000,
+      wait: AFTER_TESTS_TIMEOUT + EXIT_WAIT,
     })
 
     await this.#setupServer()
-    await this.options.beforeTests(this.env)
+    this.beforeTestsOutput = await this.options.beforeTests(this.env)
 
     const { child, finished } = this.runTests()
     const ms = this.options.runTimeout
@@ -198,16 +180,19 @@ export class NodeRunner {
     if (!passed) {
       await this.stop(true, timedOut ? runTimeoutMessage(ms) : 'Tests failed.')
     }
-    this.stop(false, 'Tests passed.')
+    this.stop(false)
   }
 
   async watch() {
+    if (this.stopped) {
+      return
+    }
     asyncExitHook(this.#clean.bind(this), {
-      wait: 1000,
+      wait: AFTER_TESTS_TIMEOUT + EXIT_WAIT,
     })
 
     await this.#setupServer()
-    await this.options.beforeTests(this.env)
+    this.beforeTestsOutput = await this.options.beforeTests(this.env)
 
     const cwd = this.options.cwd
     const extensions = this.options.extensions.split(',')
@@ -253,46 +238,60 @@ export class NodeRunner {
     }).on('change', restart)
   }
 
+  /**
+   * Run the after tests hook once, `stop` needs its result for the exit code and
+   * when this process gets stopped only the exit hook gets to run it.
+   */
+  #afterTests() {
+    this.afterTestsResult ??= runAfterTests(
+      this.options.afterTests,
+      this.env,
+      this.beforeTestsOutput
+    )
+    return this.afterTestsResult
+  }
+
   async #clean() {
     // Don't leave the tests running when this process gets stopped
     if (this.child) {
       killTree(this.child)
     }
-    // Run after tests hook
-    await this.options.afterTests(this.env)
+    await this.#afterTests()
     await premove(this.dir)
-    const serverClose = new Promise((resolve, reject) => {
-      if (this.server) {
-        this.server.close((err) => {
-          if (err) {
-            return reject(err)
-          }
-          resolve(true)
-        })
-      } else {
-        resolve(true)
-      }
-    })
 
-    await serverClose
+    /** @type {NodeJS.Timeout | undefined} */
+    let timer
+    await Promise.race([
+      new Promise((resolve) => {
+        if (this.server) {
+          this.server.close(() => resolve(true))
+        } else {
+          resolve(true)
+        }
+      }),
+      new Promise((resolve) => {
+        timer = setTimeout(resolve, EXIT_WAIT)
+      }),
+    ])
+    clearTimeout(timer)
   }
 
   /**
    * @param {boolean} fail
    * @param {string | undefined} [msg]
    */
-  stop(fail, msg) {
-    if (this.stopped || this.options.debug) {
-      return Promise.resolve()
+  async stop(fail, msg) {
+    // Also with --debug, there's no browser to keep open
+    if (this.stopped) {
+      return
     }
     this.stopped = true
 
     if (fail && msg) {
       log.error(msg)
-    } else if (msg) {
-      log.success(msg)
     }
 
-    gracefulExit(fail ? 1 : 0)
+    const afterTestsPassed = await this.#afterTests()
+    gracefulExit(fail || !afterTestsPassed ? 1 : 0)
   }
 }
