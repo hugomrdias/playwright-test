@@ -61,6 +61,8 @@
   "files": [
     "dist/src/runner.d.ts",
     "dist/src/runner.d.ts.map",
+    "dist/src/base-runner.d.ts",
+    "dist/src/base-runner.d.ts.map",
     "dist/src/node",
     "dist/src/types.d.ts",
     "dist/src/client",

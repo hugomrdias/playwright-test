@@ -31,6 +31,9 @@ export const DEFAULT_RUN_TIMEOUT = 30 * 60 * 1000
 export const AFTER_TESTS_TIMEOUT =
   Number(process.env.PW_TEST_AFTER_TESTS_TIMEOUT) || 60_000
 
+/** An error that only needs its message shown. */
+export class UsageError extends Error {}
+
 /**
  * Check `runTimeout` before anything starts. setTimeout fires right away for
  * anything that isn't a number and for delays over 2^31 - 1.
@@ -43,14 +46,11 @@ export function assertRunTimeout(value) {
     /** @type {number} */ (value) < 0 ||
     /** @type {number} */ (value) > 2 ** 31 - 1
   ) {
-    throw new TypeError(
+    throw new UsageError(
       `Invalid run timeout "${value}", expected milliseconds or 0 to turn it off.`
     )
   }
 }
-
-/** An error that only needs its message shown. */
-export class UsageError extends Error {}
 
 /** @type {Record<string, import('../types').TestRunner>} */
 const runners = {
@@ -62,11 +62,11 @@ const runners = {
 /**
  * The runner for these options, with the options from the config file.
  *
- * @param {import('../types').Config} options
+ * @param {{ runner: string, testRunner?: Partial<import('../types').TestRunner> }} options
  * @returns {import('../types').TestRunner}
  */
-export function resolveTestRunner({ runner = 'none', testRunner }) {
-  if (/** @type {any} */ (testRunner)?.compileRuntime) {
+export function resolveTestRunner({ runner, testRunner }) {
+  if (testRunner?.compileRuntime) {
     throw new UsageError(
       'Custom test runners are not supported, set runner to mocha, node-test or none.'
     )
@@ -86,15 +86,15 @@ export function resolveTestRunner({ runner = 'none', testRunner }) {
  */
 export function assertBrowserOptions({ browser, extension, incognito, mode }) {
   if (mode !== 'main' && mode !== 'worker') {
-    throw new TypeError(
-      `Invalid mode "${mode}", expected "main", "worker" or "node".`
+    throw new UsageError(
+      `Invalid mode "${mode}", this runner takes "main" or "worker".`
     )
   }
   if (extension && browser !== 'chromium') {
-    throw new TypeError('Extension testing is only supported in chromium.')
+    throw new UsageError('Extension testing is only supported in chromium.')
   }
   if (extension && incognito) {
-    throw new TypeError('Extension testing does not work with incognito.')
+    throw new UsageError('Extension testing does not work with incognito.')
   }
 }
 
@@ -357,6 +357,9 @@ function describeValue(value) {
  */
 async function readConsoleArg(arg) {
   const value = await arg.jsonValue()
+  if (value === null) {
+    return value
+  }
   const lossy =
     value === undefined ||
     (Object.getPrototypeOf(value) === Object.prototype &&

@@ -188,7 +188,12 @@ function checkUnknownFlags(opts) {
 /**
  * @param {import('./src/types.js').RunnerOptions} options
  */
-function validateTestOptions({ testNamePattern, testTimeout }) {
+function validateOptions({ mode, testNamePattern, testTimeout }) {
+  if (!['main', 'worker', 'node'].includes(mode)) {
+    throw new UsageError(
+      `Invalid mode "${mode}", expected "main", "worker" or "node".`
+    )
+  }
   if (Array.isArray(testNamePattern)) {
     throw new UsageError(
       '--test-name-pattern can only be set once, use a regular expression like "a|b".'
@@ -371,7 +376,7 @@ sade2
         filePatterns: options.input ?? [],
       })
 
-      validateTestOptions(options)
+      validateOptions(options)
 
       options.runner ??= autoDetectTestRunner(testFiles)
       warnUnsupportedTestOptions(options)

@@ -75,7 +75,6 @@ ${importAll(paths)}
  */
 export const none = {
   name: 'none',
-  moduleId: 'none',
   options: {},
   compileRuntime(_options, paths) {
     return `

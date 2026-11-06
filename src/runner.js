@@ -2,37 +2,26 @@
 
 import { fileURLToPath } from 'node:url'
 import { watch } from 'chokidar'
-import { asyncExitHook, gracefulExit } from 'exit-hook'
-import { mkdirSync } from 'fs'
+import { asyncExitHook } from 'exit-hook'
 import { cp } from 'fs/promises'
 import kleur from 'kleur'
-// @ts-expect-error
-import mergeOptions from 'merge-options'
-import { nanoid } from 'nanoid'
 import path from 'path'
-// @ts-expect-error
-import { premove } from 'premove/sync'
+import { BaseRunner } from './base-runner.js'
 import { compileSw } from './utils/build-sw.js'
 import {
   AFTER_TESTS_TIMEOUT,
   addWorker,
   assertBrowserOptions,
-  assertRunTimeout,
   build,
   createPolka,
-  defaultOptions,
-  findTests,
   getPw,
   log,
   readConsole,
-  resolveTestRunner,
-  runAfterTests,
   runTimeoutMessage,
 } from './utils/index.js'
 import { createStackMapper } from './utils/stack-map.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
 // Tests of stuck pages lower it, they always wait for all of it
 const CONSOLE_FLUSH_TIMEOUT =
   Number(process.env.PW_TEST_CONSOLE_FLUSH_TIMEOUT) || 5000
@@ -53,61 +42,29 @@ const WATCH_DEBOUNCE = 200
  * @typedef {import('./types').ConfigFn} ConfigFn
  */
 
-export class Runner {
+export class Runner extends BaseRunner {
   /**
    *
    * @param {import('./types').Config} options
    * @param {string[]} [testFiles]
    */
   constructor(options, testFiles) {
-    /** @type {import('./types').RunnerOptions} */
-    this.options = merge(defaultOptions, options)
-    this.options.testRunner = resolveTestRunner(options)
-    assertRunTimeout(this.options.runTimeout)
-    assertBrowserOptions(this.options)
-    this.options.cwd = path.resolve(this.options.cwd)
-    /** @type {import('polka').Polka["server"] | undefined} */
-    this.server = undefined
-
-    this.dir = path.join(__dirname, '../.tmp', nanoid())
+    super(options, testFiles)
     this.stackMapper = createStackMapper(this.dir)
     this.url = ''
-    this.stopped = false
     this.pageErrored = false
-    /** @type {unknown} */
-    this.beforeTestsOutput = undefined
-    /** @type {Promise<boolean> | undefined} */
-    this.afterTestsResult = undefined
     /** @type {Set<Promise<void>>} */
     this.pendingConsole = new Set()
-    /** @type {Promise<void>} */
-    this.lastConsole = Promise.resolve()
+    /** @type {WeakMap<object, Promise<void>>} */
+    this.lastConsole = new WeakMap()
 
-    /** @type {import('./types').RunnerEnv} */
-    this.env = merge(JSON.parse(JSON.stringify(process.env)), {
-      PW_OPTIONS: JSON.stringify(this.options),
-      NODE_ENV: 'test',
-    })
-    this.tests =
-      testFiles ??
-      findTests({
-        cwd: this.options.cwd,
-        extensions: this.options.extensions.split(','),
-        filePatterns: options.input ?? [],
-      })
-
-    if (this.tests.length === 0) {
-      // Not with `stop`, under --debug it would wait with nothing to debug
-      this.stopped = true
-      log.error('No test files were found.')
-      gracefulExit(1)
-      return
+    if (!this.stopped) {
+      process.env.DEBUG = [process.env.DEBUG, '-pw:*'].filter(Boolean).join(',')
     }
+  }
 
-    mkdirSync(this.dir, {
-      recursive: true,
-    })
-    process.env.DEBUG = [process.env.DEBUG, '-pw:*'].filter(Boolean).join(',')
+  assertOptions() {
+    assertBrowserOptions(this.options)
   }
 
   async setupContext() {
@@ -137,6 +94,8 @@ export class Runner {
       // https://github.com/microsoft/playwright/issues/33566
       channel: this.options.extension ? this.options.browser : undefined,
       headless: !this.options.debug,
+      // It ends this process once the browser closes, see #handleInterrupt
+      handleSIGINT: false,
       args: this.options.extension
         ? [
             `--disable-extensions-except=${this.dir}`,
@@ -151,6 +110,8 @@ export class Runner {
               : []),
           ],
     }
+
+    this.#handleInterrupt()
 
     // create context
     if (this.options.incognito) {
@@ -343,7 +304,7 @@ export class Runner {
       const context = await this.setupContext()
       // After setupContext, downloading a browser doesn't count
       this.#startRunTimeout()
-      this.beforeTestsOutput = await this.options.beforeTests(this.env)
+      await this.runBeforeTests()
 
       // Run the before script
       if (this.options.before) {
@@ -453,7 +414,7 @@ export class Runner {
     try {
       // Setup the context
       const context = await this.setupContext()
-      this.beforeTestsOutput = await this.options.beforeTests(this.env)
+      await this.runBeforeTests()
 
       // Run the before script
       if (this.options.before) {
@@ -474,8 +435,9 @@ export class Runner {
     /** @type {NodeJS.Timeout | undefined} */
     let debounce
 
-    // One run at a time, a reload in the middle of another one breaks both.
-    // Changes that happen during a run get a single run after it.
+    // One reload and build at a time, one in the middle of another breaks both.
+    // Changes during those get a single one after them. This ends once the tests
+    // are loaded, a change while they run reloads them and cancels that run.
     const rerun = async () => {
       if (running) {
         pending = true
@@ -521,6 +483,23 @@ export class Runner {
   }
 
   /**
+   * Let the exit hook finish when this process gets interrupted. The listener of
+   * the hook only runs once and a library inside Playwright raises the signal again
+   * when no other listener is left, so there has to be one. A second interrupt
+   * stops waiting for the hook.
+   */
+  #handleInterrupt() {
+    let interrupted = false
+    process.on('SIGINT', () => {
+      if (interrupted) {
+        this.removeFiles()
+        process.exit(130)
+      }
+      interrupted = true
+    })
+  }
+
+  /**
    * Fail the run when it takes too long. Nothing in the page can be trusted to
    * end it, a test stuck in a loop blocks the thread it would report from.
    */
@@ -537,9 +516,12 @@ export class Runner {
    * @param {import('playwright-core').ConsoleMessage} msg
    */
   #onConsole = (msg) => {
-    // Read it right away, print it after the messages that came before it
+    // Read it right away, print it after the messages that came before it from
+    // the same thread. A thread stuck in a loop can't answer the read of its last
+    // message, that can't hold back the others.
     const read = readConsole(msg, this.stackMapper.map)
-    const pending = this.lastConsole
+    const thread = msg.worker() ?? msg.page() ?? this
+    const pending = (this.lastConsole.get(thread) ?? Promise.resolve())
       .then(async () => {
         const print = await read
         print()
@@ -547,7 +529,7 @@ export class Runner {
       .finally(() => {
         this.pendingConsole.delete(pending)
       })
-    this.lastConsole = pending
+    this.lastConsole.set(thread, pending)
     this.pendingConsole.add(pending)
   }
 
@@ -594,26 +576,11 @@ export class Runner {
     }
   }
 
-  /**
-   * Run the after tests hook once, `stop` needs its result for the exit code and
-   * when this process gets stopped only the exit hook gets to run it.
-   */
-  #afterTests() {
-    this.afterTestsResult ??= runAfterTests(
-      this.options.afterTests,
-      this.env,
-      this.beforeTestsOutput
-    )
-    return this.afterTestsResult
-  }
-
   async #clean() {
     // Whatever is running fails from here on because of the browser closing
     this.stopped = true
 
-    await this.#afterTests()
-
-    premove(this.dir)
+    await this.runAfterTests()
 
     const close = async () => {
       // Before the server, its open connections could use up the wait for the exit
@@ -641,6 +608,9 @@ export class Runner {
       }),
     ])
     clearTimeout(timer)
+
+    // After the browser closed, it can still be using them
+    this.removeFiles()
   }
 
   /**
@@ -664,12 +634,7 @@ export class Runner {
       await this.#flushConsole()
     }
 
-    if (fail && msg) {
-      log.error(msg)
-    }
-
-    const afterTestsPassed = await this.#afterTests()
-    gracefulExit(fail || !afterTestsPassed ? 1 : 0)
+    await this.exit(fail, msg)
   }
 
   /**

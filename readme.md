@@ -475,6 +475,7 @@ export interface RunnerOptions {
   buildSWConfig: BuildOptions
   browserContextOptions?: BrowserContextOptions
   beforeTests: (env: RunnerEnv) => Promise<unknown>
+  // Only runs when beforeTests finished
   afterTests: (env: RunnerEnv, beforeTestsOutput: unknown) => Promise<unknown>
 }
 ```

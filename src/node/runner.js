@@ -1,29 +1,17 @@
 import { spawn } from 'node:child_process'
-import { mkdirSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { pathToFileURL } from 'node:url'
 import { watch } from 'chokidar'
-import { asyncExitHook, gracefulExit } from 'exit-hook'
-// @ts-expect-error
-import mergeOptions from 'merge-options'
-import { nanoid } from 'nanoid'
-// @ts-expect-error
-import { premove } from 'premove'
+import { asyncExitHook } from 'exit-hook'
+import { BaseRunner } from '../base-runner.js'
 import {
   AFTER_TESTS_TIMEOUT,
-  assertRunTimeout,
   createPolka,
-  defaultOptions,
-  findTests,
   log,
-  resolveTestRunner,
-  runAfterTests,
   runTimeoutMessage,
 } from '../utils/index.js'
 import { killTree, withLocalBins } from '../utils/process.js'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const merge = mergeOptions.bind({ ignoreUndefined: true })
 const EXIT_WAIT = 1000
 
 /**
@@ -38,55 +26,21 @@ const EXIT_WAIT = 1000
  * Unless `options.transform` is off, `hooks.js` is preloaded to transform project
  * files one by one.
  */
-export class NodeRunner {
+export class NodeRunner extends BaseRunner {
   /**
    *
    * @param {import('../types.js').Config} options
    * @param {string[]} [testFiles]
    */
   constructor(options, testFiles) {
-    /** @type {import('../types.js').RunnerOptions} */
-    this.options = merge(defaultOptions, options)
-    this.options.testRunner = resolveTestRunner(options)
-    assertRunTimeout(this.options.runTimeout)
-    this.options.cwd = path.resolve(this.options.cwd)
-    /** @type {import('polka').Polka["server"] | undefined} */
-    this.server = undefined
+    super(options, testFiles)
     /** @type {import('node:child_process').ChildProcess | undefined} */
     this.child = undefined
-    this.dir = path.join(__dirname, '../.tmp', nanoid())
-    this.stopped = false
-    /** @type {unknown} */
-    this.beforeTestsOutput = undefined
-    /** @type {Promise<boolean> | undefined} */
-    this.afterTestsResult = undefined
-    /**
-     * @type {import('../types.js').RunnerEnv}
-     */
-    this.env = merge(JSON.parse(JSON.stringify(process.env)), {
-      PW_OPTIONS: JSON.stringify(this.options),
-      NODE_ENV: 'test',
-      // For reporters to remove our frames from stack traces
-      PW_TEST_SRC: new URL('../', import.meta.url).href.replace('file://', ''),
-    })
-    this.tests =
-      testFiles ??
-      findTests({
-        cwd: this.options.cwd,
-        extensions: this.options.extensions.split(','),
-        filePatterns: options.input ?? [],
-      })
-
-    if (this.tests.length === 0) {
-      this.stopped = true
-      log.error('No test files were found.')
-      gracefulExit(1)
-      return
-    }
-
-    mkdirSync(this.dir, {
-      recursive: true,
-    })
+    // For reporters to remove our frames from stack traces
+    this.env.PW_TEST_SRC = new URL('../', import.meta.url).href.replace(
+      'file://',
+      ''
+    )
   }
 
   async #setupServer() {
@@ -161,7 +115,11 @@ export class NodeRunner {
     })
 
     await this.#setupServer()
-    this.beforeTestsOutput = await this.options.beforeTests(this.env)
+    await this.runBeforeTests()
+    // Stopped during the hook, nothing would stop the tests started now
+    if (this.stopped) {
+      return
+    }
 
     const { child, finished } = this.runTests()
     const ms = this.options.runTimeout
@@ -192,7 +150,11 @@ export class NodeRunner {
     })
 
     await this.#setupServer()
-    this.beforeTestsOutput = await this.options.beforeTests(this.env)
+    await this.runBeforeTests()
+    // Stopped during the hook, nothing would stop the tests started now
+    if (this.stopped) {
+      return
+    }
 
     const cwd = this.options.cwd
     const extensions = this.options.extensions.split(',')
@@ -203,6 +165,9 @@ export class NodeRunner {
     // Wait for the previous run to exit before starting the next one, and
     // coalesce changes that happen while restarting into a single run
     const restart = async () => {
+      if (this.stopped) {
+        return
+      }
       if (restarting) {
         pending = true
         return
@@ -213,6 +178,10 @@ export class NodeRunner {
         log.info('Reloading tests...')
         killTree(tests.child)
         await tests.finished
+        // Stopped in the meantime, nothing would stop the tests started now
+        if (this.stopped) {
+          return
+        }
         tests = this.runTests()
       } while (pending)
       restarting = false
@@ -238,26 +207,15 @@ export class NodeRunner {
     }).on('change', restart)
   }
 
-  /**
-   * Run the after tests hook once, `stop` needs its result for the exit code and
-   * when this process gets stopped only the exit hook gets to run it.
-   */
-  #afterTests() {
-    this.afterTestsResult ??= runAfterTests(
-      this.options.afterTests,
-      this.env,
-      this.beforeTestsOutput
-    )
-    return this.afterTestsResult
-  }
-
   async #clean() {
+    this.stopped = true
+
     // Don't leave the tests running when this process gets stopped
     if (this.child) {
       killTree(this.child)
     }
-    await this.#afterTests()
-    await premove(this.dir)
+    await this.runAfterTests()
+    this.removeFiles()
 
     /** @type {NodeJS.Timeout | undefined} */
     let timer
@@ -287,11 +245,6 @@ export class NodeRunner {
     }
     this.stopped = true
 
-    if (fail && msg) {
-      log.error(msg)
-    }
-
-    const afterTestsPassed = await this.#afterTests()
-    gracefulExit(fail || !afterTestsPassed ? 1 : 0)
+    await this.exit(fail, msg)
   }
 }

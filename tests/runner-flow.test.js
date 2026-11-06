@@ -10,7 +10,7 @@ import { execa, runCli } from './helpers.js'
 const FLOW = 'mocks/flow'
 
 /**
- * @typedef {{ env?: Record<string, string | undefined>, timeout?: number }} RunOptions
+ * @typedef {{ all?: boolean, env?: Record<string, string | undefined>, timeout?: number }} RunOptions
  */
 
 /**
@@ -206,8 +206,50 @@ describe('afterTests', () => {
         is(proc.exitCode, 0, proc.stderr)
         ok(proc.stderr.includes('after-got:string:from-before'), proc.stderr)
       })
+
+      it('does not run when beforeTests did not finish', async () => {
+        const proc = await runHook('before-throws')
+
+        is(proc.exitCode, 1, 'exit code')
+        ok(proc.stderr.includes('before-boom'), proc.stderr)
+        ok(!proc.stderr.includes('after-ran'), proc.stderr)
+        ok(!proc.stderr.includes('afterTests hook failed'), proc.stderr)
+      })
     })
   }
+
+  // On Windows a killed process can't run any cleanup
+  it('gets the time it needs when stopped', {
+    skip: process.platform === 'win32',
+  }, async () => {
+    const running = runFlow('never-ends.js', [
+      '--config',
+      `${FLOW}/after-slow.config.mjs`,
+    ])
+    await once(running.stdout, 'data')
+    running.kill('SIGINT')
+    const proc = await running
+
+    is(proc.exitCode, 130, proc.stderr)
+    ok(proc.stderr.includes('after-finished'), proc.stderr)
+  })
+
+  it('stops waiting when stopped twice', {
+    skip: process.platform === 'win32',
+  }, async () => {
+    const running = runFlow('never-ends.js', [
+      '--config',
+      `${FLOW}/after-slow.config.mjs`,
+    ])
+    await once(running.stdout, 'data')
+    running.kill('SIGINT')
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    running.kill('SIGINT')
+    const proc = await running
+
+    is(proc.exitCode, 130, proc.stderr)
+    ok(!proc.stderr.includes('after-finished'), proc.stderr)
+  })
 })
 
 describe('paths', () => {
@@ -354,6 +396,20 @@ describe('the runner classes', () => {
       )
     })
 
+    if (className === 'Runner') {
+      it('Runner rejects the mode it does not run', async () => {
+        const proc = await runScript(`{ mode: 'node' }`)
+
+        is(proc.exitCode, 1, 'exit code')
+        ok(
+          String(proc.stderr).includes(
+            'Invalid mode "node", this runner takes "main" or "worker".'
+          ),
+          String(proc.stderr)
+        )
+      })
+    }
+
     it(`${className} rejects a custom runner`, async () => {
       const proc = await runScript(
         `{ testRunner: { compileRuntime: () => '' }, mode: '${mode}' }`
@@ -420,7 +476,7 @@ describe('invalid options', () => {
 
       is(proc.exitCode, 1, 'exit code')
       ok(proc.stderr.includes(/** @type {string} */ (message)), proc.stderr)
-      ok(proc.stderr.includes('assertBrowserOptions'), proc.stderr)
+      ok(!proc.stderr.includes('    at '), 'only the message')
     })
   }
 })
@@ -507,7 +563,7 @@ describe('console', () => {
       ok(!proc.stderr.includes('ASSERT-NOT-PRINTED'), proc.stderr)
       ok(stdout.includes('lbl: 1'), proc.stdout)
       match(proc.stderr, /Trace: TRACE-MSG\s+at .*flow\/console\.js:5:/)
-      ok(!proc.stderr.includes('redirectConsole'), proc.stderr)
+      ok(!/src[/\\]utils/.test(proc.stderr), proc.stderr)
       ok(stdout.includes('  in-group'), proc.stdout)
       ok(stdout.includes('after-group'), proc.stdout)
       ok(stdout.includes('Map(1) { 1 => 2 }'), proc.stdout)
@@ -515,6 +571,11 @@ describe('console', () => {
       ok(stdout.includes('/x/g'), proc.stdout)
       ok(stdout.includes('{}'), proc.stdout)
       ok(stdout.includes('undefined'), proc.stdout)
+      ok(
+        stdout.includes('NULL-ARG null { deep: { a: { b: 1 } } }'),
+        proc.stdout
+      )
+      ok(stdout.includes('null'), proc.stdout)
       ok(
         stdout.some((line) => line.startsWith('Symbol(')),
         proc.stdout
@@ -525,6 +586,20 @@ describe('console', () => {
       )
     })
   }
+
+  it('prints the page while a worker is stuck', async () => {
+    const proc = /** @type {any} */ (
+      await runFlow('stuck-worker.js', [], {
+        all: true,
+        env: { PW_TEST_CONSOLE_FLUSH_TIMEOUT: '1000' },
+      })
+    )
+    const printed = proc.all.indexOf('page-3')
+
+    is(proc.exitCode, 0, proc.all)
+    ok(printed !== -1, proc.all)
+    ok(printed < proc.all.indexOf('Timed out waiting'), proc.all)
+  })
 })
 
 describe('--watch', () => {
@@ -548,6 +623,42 @@ describe('--watch', () => {
 
   after(() => {
     fs.rmSync(root, { force: true, recursive: true })
+  })
+
+  // On Windows a killed process can't run any cleanup
+  it('starts no tests once stopped with mode:node', {
+    skip: process.platform === 'win32',
+  }, async () => {
+    const dir = `${root}/stopped`
+    fs.mkdirSync(dir, { recursive: true })
+    const file = `${dir}/a.test.js`
+    // Doesn't stay around for long if this breaks, nothing would stop it
+    fs.writeFileSync(
+      file,
+      "console.log('STARTED')\nsetTimeout(() => process.exit(0), 15000)\n"
+    )
+
+    const proc = run([
+      'a.test.js',
+      '--runner',
+      'none',
+      '--mode',
+      'node',
+      '--watch',
+      '--cwd',
+      dir,
+      '--config',
+      `${FLOW}/after-slow.config.mjs`,
+    ])
+    await once(proc.stdout, 'data')
+    proc.kill('SIGINT')
+    // While afterTests runs, the watcher takes a moment to report it
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    fs.appendFileSync(file, '// changed\n')
+    const { stderr, stdout } = await proc
+
+    ok(stderr.includes('after-finished'), stderr)
+    is(String(stdout).match(/STARTED/g)?.length, 1, String(stdout))
   })
 
   it('reruns once for what changed and keeps running', async () => {

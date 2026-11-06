@@ -65,7 +65,7 @@ export interface RunnerOptions {
    */
   beforeTests: (env: RunnerEnv) => Promise<unknown>
   /**
-   * After tests hook
+   * After tests hook, it only runs when `beforeTests` finished.
    *
    * It failing fails the run, and so does it not finishing in 60 seconds.
    *
@@ -128,9 +128,10 @@ export interface CompilerOutput {
 export interface TestRunner {
   name: NonNullable<RunnerOptions['runner']>
   /**
-   * Module ID of the runner, also what auto detection looks for.
+   * Module ID of the runner, also what auto detection looks for. `none` has no
+   * module to look for.
    */
-  moduleId: string
+  moduleId?: string
   /**
    * Other module IDs that also tell a test file uses this runner.
    */
