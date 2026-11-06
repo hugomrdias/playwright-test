@@ -1217,15 +1217,20 @@ class Test {
       time: this.startTime?.() ?? 0,
     }
 
-    this.announceParents()
     this.count()
-    console.log(formatTest(result, this.nesting))
-    for (const message of this.diagnostics) {
-      console.log(formatDiagnostic(this.nesting, message))
+    // A failing todo doesn't fail the run, so it's not a failure to show
+    const failed = !this.passed && !this.skipped && !this.isTodo
+    if (!config.minimal || failed) {
+      this.announceParents()
+      console.log(formatTest(result, this.nesting))
+      for (const message of this.diagnostics) {
+        console.log(formatDiagnostic(this.nesting, message))
+      }
     }
 
     if (
       this.error === null ||
+      (config.minimal && !failed) ||
       // What failed in the subtests is already there
       (this.error.failureType === kSubtestsFailed &&
         counters.errors.length !== this.errorsAtStart)
@@ -1694,8 +1699,10 @@ async function runRoot() {
         root.fail(err)
       }
 
-      for (const message of root.diagnostics) {
-        console.log(formatDiagnostic(0, message))
+      if (!config.minimal || root.error !== null) {
+        for (const message of root.diagnostics) {
+          console.log(formatDiagnostic(0, message))
+        }
       }
       if (root.error !== null) {
         rootError(root.error)

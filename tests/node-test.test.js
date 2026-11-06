@@ -517,4 +517,81 @@ describe('playwright-test/node-test', () => {
     ok(proc.stdout.includes('Promise resolution is still pending'), proc.stdout)
     ok(!proc.stdout.includes('NOT RUN'), proc.stdout)
   })
+
+  describe('in an AI agent', () => {
+    const agent = {
+      AI_AGENT: 'test-agent',
+      FORCE_COLOR: undefined,
+      NO_COLOR: undefined,
+    }
+    /**
+     * @param {string} mode
+     * @param {Record<string, string | undefined>} [env]
+     */
+    const run = (mode, env = agent) =>
+      runCli([fixture('minimal'), ...runner, '--mode', mode], {
+        reject: false,
+        env,
+      })
+
+    for (const mode of ['node', 'main']) {
+      it(`only prints failures and their parents in ${mode} mode`, async () => {
+        const proc = await run(mode)
+        is(proc.exitCode, 1)
+        const output = proc.stdout.split('\n')
+        const failing = output.indexOf('✖ failing tests:')
+        const tree = output.slice(0, failing).filter((l) => /[▶✔✖﹣⚠]/.test(l))
+        equal(
+          tree.map((l) => l.replace(/ \(\d.*$/, '')),
+          [
+            '▶ outer',
+            '  ▶ inner',
+            '    ✖ nested fails',
+            '  ✖ inner',
+            '✖ outer',
+            '✖ top fails',
+          ]
+        )
+        ok(output.includes('    ℹ shown with the failure'))
+        ok(!proc.stdout.includes('hidden'))
+        ok(!proc.stdout.includes('todo fails'))
+        is(summary(proc.stdout, 'tests'), 6)
+        is(summary(proc.stdout, 'pass'), 2)
+        is(summary(proc.stdout, 'fail'), 2)
+        is(summary(proc.stdout, 'skipped'), 1)
+        is(summary(proc.stdout, 'todo'), 1)
+        ok(proc.stdout.includes('console from a passing test'))
+        ok(
+          !proc.stdout
+            .replaceAll('\u001B[35mtest color\u001B[39m', '')
+            .includes('\u001B[')
+        )
+        ok(proc.stdout.includes('\u001B[35mtest color\u001B[39m'))
+      })
+
+      it(`keeps the summary of passing runs in ${mode} mode`, async () => {
+        const proc = await runCli(
+          [fixture('minimal-pass'), ...runner, '--mode', mode],
+          { reject: false, env: agent }
+        )
+        is(proc.exitCode, 0)
+        ok(!/[▶✔✖]/.test(proc.stdout))
+        is(summary(proc.stdout, 'pass'), 2)
+      })
+
+      it(`colors the output with FORCE_COLOR in ${mode} mode`, async () => {
+        const proc = await run(mode, { ...agent, FORCE_COLOR: '1' })
+        ok(proc.stdout.includes('\u001B[31m✖ top fails\u001B[39m'))
+      })
+
+      it(`keeps the spec output without an agent in ${mode} mode`, async () => {
+        const proc = await run(mode, { FORCE_COLOR: undefined })
+        const output = lines(proc.stdout)
+        ok(output.some((l) => l.startsWith('    ✔ nested hidden')))
+        ok(output.some((l) => l.startsWith('    ﹣ skipped hidden')))
+        ok(output.some((l) => l.startsWith('⚠ todo fails')))
+        ok(output.includes('ℹ root hidden'))
+      })
+    }
+  })
 })

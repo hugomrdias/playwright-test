@@ -105,6 +105,7 @@
     "premove": "^4.0.0",
     "sade": "^1.8.1",
     "sirv": "^3.0.2",
+    "std-env": "^4.3.0",
     "tinyglobby": "^0.2.17"
   },
   "devDependencies": {

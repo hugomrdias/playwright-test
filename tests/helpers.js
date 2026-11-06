@@ -28,3 +28,24 @@ export const execaSync = baseExecaSync(options)
 export function runCli(args, cliOptions) {
   return /** @type {any} */ (execa('./cli.js', args, cliOptions ?? {}))
 }
+
+// Runs started from an AI agent must report like any other, tests opt in with `AI_AGENT`.
+for (const name of [
+  'AI_AGENT',
+  'AUGMENT_AGENT',
+  'CLAUDECODE',
+  'CLAUDE_CODE',
+  'CODEX_SANDBOX',
+  'CODEX_THREAD_ID',
+  'COPILOT_AGENT',
+  'COPILOT_CLI',
+  'CURSOR_AGENT',
+  'GEMINI_CLI',
+  'GOOSE_PROVIDER',
+  'JUNIE_DATA',
+  'JUNIE_SHIM_PATH',
+  'OPENCODE',
+  'REPL_ID',
+]) {
+  delete process.env[name]
+}

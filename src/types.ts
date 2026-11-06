@@ -52,6 +52,11 @@ export interface RunnerOptions {
    */
   testTimeout?: number
   /**
+   * Set by the CLI when an AI agent drives the run. The `node:test` API then
+   * only prints failures and the summary.
+   */
+  minimal?: boolean
+  /**
    * Esbuild config. In node mode only `define`, `loader`, the `jsx*` options and
    * `tsconfigRaw` apply.
    */
@@ -103,7 +108,7 @@ export interface CliOptions {
 /**
  * `testRunner.options` configures whichever runner gets used.
  */
-export type Config = Partial<Omit<RunnerOptions, 'testRunner'>> & {
+export type Config = Partial<Omit<RunnerOptions, 'testRunner' | 'minimal'>> & {
   testRunner?: Pick<TestRunner, 'options'>
 }
 
