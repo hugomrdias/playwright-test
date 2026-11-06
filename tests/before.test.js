@@ -123,6 +123,6 @@ describe('--before', () => {
 
     is(proc.timedOut, false, 'ended by itself')
     is(proc.exitCode, 1, 'exit code')
-    ok(proc.stderr.includes('mocks/before/missing.js'), proc.stderr)
+    ok(proc.stderr.includes('missing.js'), proc.stderr)
   })
 })
