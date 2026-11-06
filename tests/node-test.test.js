@@ -7,14 +7,30 @@ import { before, describe, it } from 'node:test'
 import { pathToFileURL } from 'url'
 import { execa, runCli } from './helpers.js'
 
-describe('taps node:test api', () => {
-  const runner = ['--runner', './mocks/node-test/runner.js']
+describe('playwright-test/node-test', () => {
+  const runner = ['--runner', 'node-test']
   const modes = ['node', 'main', 'worker']
+
+  /** A test in the output: its symbol, name and what's after `#`. */
+  const STATUS = /^\s*(✔|✖|﹣|⚠) (.*) \(\d+(?:\.\d+)?ms\)(?: # (.*))?$/
 
   /**
    * @param {string} name
    */
   const fixture = (name) => `mocks/node-test/${name}.test.js`
+
+  /**
+   * The value of a line of the summary.
+   *
+   * @param {string} text
+   * @param {string} label
+   */
+  const summary = (text, label) =>
+    Number(
+      lines(text)
+        .find((l) => l.startsWith(`ℹ ${label} `))
+        ?.split(' ')[2]
+    )
 
   /**
    * @param {string} text
@@ -34,20 +50,23 @@ describe('taps node:test api', () => {
       reject: false,
     })
     const output = lines(proc.stdout)
-    const results = output.flatMap((line) => {
-      const match = line.match(/^(✔|✘|-) \d+ (.*) \(\d+\.\d+ms\)$/)
+    const failing = output.indexOf('✖ failing tests:')
+    const reported = failing === -1 ? output : output.slice(0, failing)
+    const results = reported.flatMap((line) => {
+      const match = line.match(STATUS)
       if (!match) {
         return []
       }
-      const [, symbol, reported] = match
-      const directive = reported.match(/ # (SKIP|TODO)( .*)?$/)
-      const fullName = directive ? reported.slice(0, directive.index) : reported
-      const outcome = directive
-        ? directive[1].toLowerCase()
-        : symbol === '✔'
-          ? 'pass'
-          : 'fail'
-      return [`${outcome} ${fullName.split(' > ').at(-1)}`]
+      const [, symbol, name, directive] = match
+      const outcome =
+        symbol === '﹣'
+          ? 'skip'
+          : directive
+            ? 'todo'
+            : symbol === '✔'
+              ? 'pass'
+              : 'fail'
+      return [`${outcome} ${name}`]
     })
     return {
       proc,
@@ -83,16 +102,12 @@ describe('taps node:test api', () => {
       results: output
         .filter((line) => line.startsWith('RESULT '))
         .map((line) => line.replace('RESULT ', '')),
+      counts: JSON.parse(
+        output.findLast((line) => line.startsWith('SUMMARY '))?.slice(8) ?? '{}'
+      ),
       order: output.filter((line) => line.startsWith('ORDER ')),
     }
   }
-
-  /**
-   * @param {string[]} results
-   * @param {string} outcome
-   */
-  const count = (results, outcome) =>
-    results.filter((result) => result.startsWith(`${outcome} `)).length
 
   /**
    * Same execution order, per test results and exit code as the real `node:test`.
@@ -110,6 +125,12 @@ describe('taps node:test api', () => {
     { name: 'fail-root-before', exitCode: 1 },
     { name: 'fail-root-each', exitCode: 1 },
     { name: 'fail-uncaught', exitCode: 1 },
+    { name: 'fail-falsy', exitCode: 1 },
+    { name: 'shorthand', exitCode: 0 },
+    // Real node:test only has these assertions since Node.js 26
+    ...(Number.parseInt(process.versions.node, 10) >= 26
+      ? [{ name: 'mock-assert', exitCode: 0 }]
+      : []),
     // Real node:test only filters with the flag, this API always does
     { name: 'only', exitCode: 0, flags: ['--test-only'] },
   ]
@@ -133,18 +154,16 @@ describe('taps node:test api', () => {
           equal(api.results, real.results)
           is(api.proc.exitCode, exitCode, 'exit code')
 
-          const output = lines(api.proc.stdout).join('\n')
-          for (const [outcome, label] of [
-            ['pass', 'passing'],
-            ['skip', 'skipping'],
+          // `fail` is different, here failed hooks of suites also count
+          for (const [key, label] of [
+            ['tests', 'tests'],
+            ['suites', 'suites'],
+            ['passed', 'pass'],
+            ['cancelled', 'cancelled'],
+            ['skipped', 'skipped'],
             ['todo', 'todo'],
           ]) {
-            const expected = count(real.results, outcome)
-            is(
-              output.includes(`  ${expected} ${label}`),
-              expected > 0,
-              `${expected} ${label}`
-            )
+            is(summary(api.proc.stdout, label), real.counts[key], label)
           }
           ok(!api.order.some((line) => line.includes('NOT RUN')), 'not run')
         })
@@ -159,14 +178,14 @@ describe('taps node:test api', () => {
         const output = lines(proc.stdout).join('\n')
 
         is(proc.exitCode, 1, 'exit code')
-        ok(output.includes(' FAILURE  "sync throw"'), output)
+        ok(output.includes('✖ failing tests:'), output)
+        ok(output.includes('✖ sync throw'), output)
         ok(output.includes('Error: sync throw'), output)
-        ok(output.includes(' FAILURE  "throws a string"'), output)
-        ok(output.includes('Error: a string'), output)
+        ok(output.includes('✖ throws a string'), output)
+        ok(output.includes("'a string'"), output)
         ok(output.includes('test timed out after 20ms'), output)
         ok(output.includes('plan expected 2 assertions but received 1'), output)
         ok(output.includes('failing subtest'), output)
-        ok(output.includes('✘ '), output)
       })
 
       it('reports hook failures', async () => {
@@ -174,9 +193,8 @@ describe('taps node:test api', () => {
         const output = lines(proc.stdout).join('\n')
 
         is(proc.exitCode, 1, 'exit code')
-        ok(output.includes('failed running before hook'), output)
-        ok(output.includes('Caused by Error: before throws'), output)
-        ok(output.includes('failed running afterEach hook'), output)
+        ok(output.includes('Error: before throws'), output)
+        ok(output.includes('Error: afterEach throws'), output)
       })
 
       // Exits with 0 with real node:test, this would report a failure as a pass.
@@ -185,8 +203,55 @@ describe('taps node:test api', () => {
         const output = lines(proc.stdout).join('\n')
 
         is(proc.exitCode, 1, 'exit code')
-        ok(output.includes('failed running after hook'), output)
+        ok(output.includes('✖ <root>'), output)
         ok(output.includes('root after throws'), output)
+      })
+
+      it('a failure outside of a test counts as failing', async () => {
+        const suite = await runApi('fail-suite-after', mode)
+        const root = await runApi('fail-root-after', mode)
+
+        is(suite.proc.exitCode, 1, 'exit code')
+        is(summary(suite.proc.stdout, 'pass'), 1, suite.proc.stdout)
+        is(summary(suite.proc.stdout, 'fail'), 1, suite.proc.stdout)
+        is(root.proc.exitCode, 1, 'exit code')
+        is(summary(root.proc.stdout, 'fail'), 1, root.proc.stdout)
+      })
+
+      it('a failure without an error still fails the run', async () => {
+        const { proc, order } = await runApi('fail-falsy', mode)
+
+        is(proc.exitCode, 1, 'exit code')
+        equal(order, ['ORDER runs after'])
+        is(summary(proc.stdout, 'fail'), 2, proc.stdout)
+        is(summary(proc.stdout, 'pass'), 1, proc.stdout)
+      })
+
+      it('passing tests leave the exit code alone', async () => {
+        const { proc } = await runApi('exit-code', mode)
+
+        // The cli only tells if the run failed, see below for the code itself
+        is(proc.exitCode, 1, proc.stdout)
+      })
+
+      it('mock assertions in t.assert', async () => {
+        const { proc } = await runApi('mock-assert', mode)
+
+        is(proc.exitCode, 0, proc.stdout)
+        is(summary(proc.stdout, 'pass'), 6, proc.stdout)
+      })
+
+      it('no colors with NO_COLOR', async () => {
+        const proc = await runCli(
+          [fixture('fail-falsy'), ...runner, '--mode', mode],
+          { reject: false, env: { FORCE_COLOR: undefined, NO_COLOR: '1' } }
+        )
+
+        is(proc.exitCode, 1, 'exit code')
+        ok(proc.stdout.includes('✖ throws undefined'), proc.stdout)
+        ok(proc.stdout.includes('\n  undefined\n'), proc.stdout)
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: ansi colors
+        ok(!/\u001B\[/.test(proc.stdout), proc.stdout)
       })
 
       it('root after hook runs when the run ends', async () => {
@@ -208,8 +273,13 @@ describe('taps node:test api', () => {
         const { proc, order, results } = await runApi('entrypoint', mode)
 
         is(proc.exitCode, 0, proc.stdout)
-        equal(order, ['ORDER exec function hold function'])
-        equal(results, ['pass works', 'pass default export'])
+        // `exec`, `hold` and `configure` aren't in `node:test`
+        equal(order, ['ORDER internal exports: 0'])
+        equal(results, [
+          'pass works',
+          'pass from the package entrypoint',
+          'pass default export',
+        ])
       })
 
       it('multiple files share the run', async () => {
@@ -221,55 +291,11 @@ describe('taps node:test api', () => {
         ])
 
         is(proc.exitCode, 0, 'exit code')
-        ok(proc.stdout.includes('2 passing'), proc.stdout)
+        is(summary(proc.stdout, 'pass'), 2, proc.stdout)
         ok(
           proc.stdout.includes('ORDER root beforeEach from file b'),
           proc.stdout
         )
-      })
-
-      describe('with playwright-test/taps in the same file', () => {
-        it('runs both', async () => {
-          const { proc, order, results } = await runApi('mixed', mode)
-
-          is(proc.exitCode, 0, proc.stdout)
-          equal(order, [
-            'ORDER taps default suite',
-            'ORDER node test',
-            'ORDER node nested',
-            'ORDER taps named test',
-          ])
-          equal(results, [
-            'pass taps default suite',
-            'pass node test',
-            'pass node nested',
-            'pass taps named test',
-          ])
-          ok(proc.stdout.includes('4 passing'), proc.stdout)
-        })
-
-        it('fails when a node:test test fails', async () => {
-          const { proc } = await runApi('mixed-fail', mode)
-
-          is(proc.exitCode, 1, 'exit code')
-          ok(proc.stdout.includes('1 failing'), proc.stdout)
-          ok(proc.stdout.includes('2 passing'), proc.stdout)
-        })
-
-        it('fails when a taps test fails', async () => {
-          const { proc } = await runApi('mixed-taps-fail', mode)
-
-          is(proc.exitCode, 1, 'exit code')
-          ok(proc.stdout.includes('1 failing'), proc.stdout)
-          ok(proc.stdout.includes('1 passing'), proc.stdout)
-        })
-
-        it('only applies to both', async () => {
-          const { proc, order } = await runApi('mixed-only', mode)
-
-          is(proc.exitCode, 0, proc.stdout)
-          equal(order, ['ORDER node only', 'ORDER taps only'])
-        })
       })
     })
   }
@@ -281,7 +307,28 @@ describe('taps node:test api', () => {
       ])
 
       is(exitCode, 0, 'exit code')
-      ok(stdout.includes('13 passing'), stdout)
+      is(summary(stdout, 'pass'), 13, stdout)
+    })
+
+    it('node runs it, however the binary was called', async () => {
+      const { exitCode, stdout } = await execa(
+        process.execPath,
+        [fixture('order')],
+        { argv0: 'node' }
+      )
+
+      is(exitCode, 0, 'exit code')
+      is(summary(stdout, 'pass'), 13, stdout)
+    })
+
+    it('node keeps an exit code that was already set', async () => {
+      const { exitCode } = await execa(
+        process.execPath,
+        [fixture('exit-code')],
+        { reject: false }
+      )
+
+      is(exitCode, 3, 'exit code')
     })
 
     it('node sets the exit code', async () => {
@@ -292,7 +339,7 @@ describe('taps node:test api', () => {
       )
 
       is(exitCode, 1, 'exit code')
-      ok(stdout.includes('2 failing'), stdout)
+      is(summary(stdout, 'fail'), 2, stdout)
     })
 
     it('top level await', async () => {
@@ -303,8 +350,8 @@ describe('taps node:test api', () => {
       )
 
       is(exitCode, 1, 'exit code')
-      ok(stdout.includes('1 failing'), stdout)
-      ok(stdout.includes('5 passing'), stdout)
+      is(summary(stdout, 'fail'), 1, stdout)
+      is(summary(stdout, 'pass'), 5, stdout)
     })
 
     it('runner none in node mode', async () => {
@@ -314,8 +361,62 @@ describe('taps node:test api', () => {
       )
 
       is(exitCode, 1, 'exit code')
-      ok(stdout.includes('2 failing'), stdout)
+      is(summary(stdout, 'fail'), 2, stdout)
     })
+  })
+
+  describe('same output as the spec reporter of node:test', () => {
+    /**
+     * What doesn't change between runs: test durations and the total are out, and
+     * so is `fail` since failed hooks of suites also count here. Of the list of
+     * failing tests only which ones, the errors have stacks with other frames.
+     *
+     * @param {string} text
+     */
+    const normalize = (text) => {
+      const output = lines(text)
+      const failing = output.indexOf('✖ failing tests:')
+      ok(failing !== -1, text)
+      return [
+        ...output
+          .slice(0, failing)
+          // What the runner prints before the tests in browsers
+          .filter((line) => line.trim() !== '' && line !== 'Setup complete')
+          .filter((line) => !/^ℹ (?:duration_ms|fail) /.test(line)),
+        ...output.slice(failing).filter((line) => STATUS.test(line)),
+      ].map((line) => line.replace(/ \(\d+(?:\.\d+)?ms\)/, ''))
+    }
+
+    /** @type {string[]} */
+    let real
+
+    before(async () => {
+      const proc = await execa(
+        process.execPath,
+        [
+          '--no-warnings',
+          '--import',
+          pathToFileURL('mocks/node-test/use-real-node-test.js').href,
+          '--test-reporter=spec',
+          fixture('spec-format'),
+        ],
+        { reject: false, timeout: 30_000, env: { NO_COLOR: '1' } }
+      )
+      is(proc.exitCode, 1, proc.stderr)
+      real = normalize(proc.stdout)
+    })
+
+    for (const mode of modes) {
+      it(mode, async () => {
+        const proc = await runCli(
+          [fixture('spec-format'), ...runner, '--mode', mode],
+          { reject: false, env: { NO_COLOR: '1' } }
+        )
+
+        is(proc.exitCode, 1, 'exit code')
+        equal(normalize(proc.stdout), real)
+      })
+    }
   })
 
   describe('node:assert', () => {

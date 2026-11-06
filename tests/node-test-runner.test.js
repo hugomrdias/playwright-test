@@ -253,6 +253,6 @@ describe('node:test runner', () => {
     ])
 
     is(proc.exitCode, 0, output(proc))
-    ok(proc.stdout.includes('3 passing'), proc.stdout)
+    ok(proc.stdout.includes('ℹ pass 3'), proc.stdout)
   })
 })

@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { fileURLToPath } from 'url'
-import { equal } from '../src/taps/assert.js'
+import { equal } from '../src/node/assert.js'
 
 describe('Node', () => {
   it('should test node builtins', () => {

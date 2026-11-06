@@ -89,11 +89,7 @@ describe('concurrency', { concurrency: 4 }, () => {
 
 // Timeouts are inherited, and there's no default
 describe('timeout', { timeout: 60_000 }, () => {
-  it(
-    'no timeout by default is more than the 5s of taps',
-    { timeout: 6000 },
-    () => log('timeout')
-  )
+  it('no timeout by default', { timeout: 6000 }, () => log('timeout'))
 })
 test('timeout Infinity', { timeout: Number.POSITIVE_INFINITY }, () =>
   log('timeout infinity')

@@ -17,7 +17,7 @@ function run(file, args) {
 describe('errors while the tests load', () => {
   const throws = 'mocks/load-errors/throws.test.js'
 
-  for (const runner of ['mocha', 'node-test', 'none', 'taps']) {
+  for (const runner of ['mocha', 'node-test', 'none']) {
     for (const mode of ['main', 'worker', 'node']) {
       it(`fails the run with --runner ${runner} --mode ${mode}`, async () => {
         const proc = await run(throws, ['--runner', runner, '--mode', mode])
@@ -76,19 +76,17 @@ describe('errors while the tests load', () => {
 })
 
 describe('projects with type commonjs', () => {
-  for (const runner of ['node-test', 'taps']) {
-    for (const mode of ['main', 'worker']) {
-      it(`runs ${runner} with --mode ${mode}`, async () => {
-        const proc = await run(`mocks/commonjs/${runner}.test.js`, [
-          '--runner',
-          runner,
-          '--mode',
-          mode,
-        ])
+  for (const mode of ['main', 'worker']) {
+    it(`runs node-test with --mode ${mode}`, async () => {
+      const proc = await run('mocks/commonjs/node-test.test.js', [
+        '--runner',
+        'node-test',
+        '--mode',
+        mode,
+      ])
 
-        is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
-        ok(proc.stdout.includes(`commonjs ${runner}`), proc.stdout)
-      })
-    }
+      is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
+      ok(proc.stdout.includes('commonjs node-test'), proc.stdout)
+    })
   }
 })

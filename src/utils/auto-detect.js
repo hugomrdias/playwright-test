@@ -234,10 +234,5 @@ export function detectTestRunners(files, runners) {
       }
     }
   }
-
-  // The node:test runner also runs the taps tests, they share the same queue
-  if (found.has(runners.nodeTest)) {
-    found.delete(runners.taps)
-  }
   return found
 }

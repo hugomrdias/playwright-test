@@ -1,6 +1,6 @@
 # playwright-test [![NPM Version](https://img.shields.io/npm/v/playwright-test.svg)](https://www.npmjs.com/package/playwright-test) [![NPM Downloads](https://img.shields.io/npm/dt/playwright-test.svg)](https://www.npmjs.com/package/playwright-test) [![NPM License](https://img.shields.io/npm/l/playwright-test.svg)](https://www.npmjs.com/package/playwright-test) ![tests](https://github.com/hugomrdias/playwright-test/workflows/tests/badge.svg)
 
-> Run mocha, `node:test` and taps scripts inside real browsers with `playwright`.
+> Run mocha and `node:test` scripts inside real browsers with `playwright`.
 
 ## Install
 
@@ -21,13 +21,13 @@ pw-test [files] [options]
 
 ```shell
 Description
-    Run mocha, node:test and taps scripts inside real browsers with `playwright` and in Node.
+    Run mocha and node:test scripts inside real browsers with `playwright` and in Node.
 
   Usage
     $ playwright-test [files] [options]
 
   Options
-    -r, --runner       Test runner. Options: mocha, none, taps and node-test. Internal runners are autodetected by default, see [auto detection](#runner-auto-detection). It also accepts a path to a module or a module ID that exports a `playwrightTestRunner` object.
+    -r, --runner       Test runner. Options: mocha, none and node-test. Internal runners are autodetected by default, see [auto detection](#runner-auto-detection). It also accepts a path to a module or a module ID that exports a `playwrightTestRunner` object.
     -b, --browser      Browser to run tests. Options: chromium, firefox, webkit.  (default chromium)
     -m, --mode         Run mode. Options: main, worker and node.  (default main)
     -d, --debug        Debug mode, keeps browser window open.  (default false)
@@ -115,7 +115,7 @@ NODE_OPTIONS="--import @nubjs/runner" playwright-test "test/**/*.spec.ts" --mode
 
 ## `node:test` API
 
-`playwright-test/node-test` is an implementation of the [`node:test`](https://nodejs.org/api/test.html) API built on the `taps` harness, so the same test file runs in real browsers (main thread and worker modes) and in Node.
+`playwright-test/node-test` is an implementation of the [`node:test`](https://nodejs.org/api/test.html) API, so the same test file runs in real browsers (main thread and worker modes) and in Node.
 
 ```js
 import { strict as assert } from 'assert'
@@ -163,7 +163,7 @@ Files can import `node:test` instead, and they don't need to change to run anywh
 - In browsers `node:test` resolves to `playwright-test/node-test`, and `node:assert` to [our own](#nodeassert-api).
 - In node mode `node:test` is the real one, with all of its API and reporters, and everything under [what's different](#whats-different-from-nodetest) doesn't apply. A file that imports `playwright-test/node-test` keeps using that one, so it gets the same behaviour everywhere.
 
-`--test-name-pattern` and `--test-timeout` work the same with both. To use a `node:test` reporter in node mode set `testRunner.options.reporter` in the [config file](#runner-options), the output of `playwright-test/node-test` and of browsers is always the `taps` format.
+`--test-name-pattern` and `--test-timeout` work the same with both. To use a `node:test` reporter in node mode set `testRunner.options.reporter` in the [config file](#runner-options), the output of `playwright-test/node-test` and of browsers is always the format of the `spec` reporter.
 
 In node mode the process isn't forced to exit when the tests end, like `node:test`, so `--run-timeout` is what ends a run that something keeps alive.
 
@@ -171,11 +171,11 @@ The types are the ones from `node:test`, which come from `@types/node`.
 
 ### What's supported
 
-- `test` (also the default export), `it`, `describe`, `suite`, `before`, `after`, `beforeEach`, `afterEach`, `mock`, `getTestContext`, and `assert.register`.
+- `test` (also the default export), `it`, `describe`, `suite`, `skip`, `todo`, `only`, `before`, `after`, `beforeEach`, `afterEach`, `mock`, `getTestContext`, and `assert.register`.
 - `test(name?, options?, fn?)`, which returns a promise, and `.skip`, `.todo` and `.only` on all of them.
 - The options `skip`, `todo`, `only`, `timeout`, `plan`, `signal`, `tags` and `concurrency`. There's no default timeout.
 - Suites to any depth, async suites and hooks scoped to their suite. Everything runs in declaration order.
-- The test context: `t.test`, `t.name`, `t.fullName`, `t.skip`, `t.todo`, `t.diagnostic`, `t.log`, `t.plan`, `t.assert`, `t.signal`, `t.mock`, `t.waitFor`, `t.runOnly`, `t.error`, `t.passed`, `t.tags`, `t.before`, `t.after`, `t.beforeEach`, `t.afterEach` and `(t, done)` callbacks, also in hooks.
+- The test context: `t.test`, `t.name`, `t.fullName`, `t.skip`, `t.todo`, `t.diagnostic`, `t.log`, `t.plan`, `t.assert` (with `called`, `callCount`, `lastCalledWith` and `nthCalledWith` in any Node.js version), `t.signal`, `t.mock`, `t.waitFor`, `t.runOnly`, `t.error`, `t.passed`, `t.tags`, `t.before`, `t.after`, `t.beforeEach`, `t.afterEach` and `(t, done)` callbacks, also in hooks.
 - `mock.fn`, `mock.method`, `mock.getter`, `mock.setter`, `mock.property`, `mock.reset` and `mock.restoreAll`. `t.mock` is restored when the test ends.
 
 `tests/node-test.test.js` runs its fixtures with this API and with the real `node:test`, and compares execution order, per test results and exit codes.
@@ -187,7 +187,7 @@ These aren't implemented and throw an error that names them, they never silently
 - `mock.timers` and `mock.module()`
 - `t.assert.snapshot()`, `t.assert.fileSnapshot()` and `snapshot.setDefaultSnapshotSerializers()`, `snapshot.setResolveSnapshotPath()`
 - `run()`
-- `test.expectFailure()` and the `expectFailure` option
+- `expectFailure()`, `test.expectFailure()` and the `expectFailure` option
 
 ### What's different from `node:test`
 
@@ -201,11 +201,28 @@ These aren't implemented and throw an error that names them, they never silently
 - A top level `await test()` runs before anything else, so an `.only` declared later doesn't filter it. A test declared after the run ended throws.
 - Awaiting `t.test()` on a test that already finished resolves and the subtest fails, it hangs in `node:test`.
 - `t.assert` always counts for `t.plan()`, in `node:test` it doesn't if it was read before calling `t.plan()`.
-- The output is the `taps` format, not a `node:test` reporter. `t.filePath` and `t.workerId` are `undefined`.
+- The output is always the format of the `spec` reporter of `node:test`, other reporters aren't supported. The list of failing tests has no `test at file:line:column` lines, the stack trace points at the test.
+- A failed hook of a suite or a root hook counts in `ℹ fail`, in `node:test` it fails the run without counting.
+- `t.filePath` and `t.workerId` are `undefined`.
 
-### With `playwright-test/taps` in the same file
+### Migrating from `playwright-test/taps`
 
-They share the same `exec` and `hold`, reporting and exit code. A run has the default `test` suite of `playwright-test/taps` first, then all the `node:test` tests as one block, then the suites from `suite()` in the order they were created. `.only` in any of them filters out all the others. Root hooks only apply to `node:test` tests.
+`playwright-test/taps` and `--runner taps` are gone, the API is the one from `node:test`:
+
+| `playwright-test/taps`                        | `node:test`                                                                                                   |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `test(name, fn, options)`                     | `test(name, options, fn)`. Options in the old position are **silently ignored**, a `{ skip: true }` test runs |
+| `const s = suite('x'); s('a', fn)`            | `describe('x', () => { it('a', fn) })`                                                                        |
+| `suite('x').skip`, `suite('x').only`          | `describe.skip('x', fn)`, `describe.only('x', fn)`                                                            |
+| `s.before(fn)` and the other hooks of a suite | `before(fn)` inside of `describe`                                                                             |
+| `import { assert } from ...`                  | `import assert from 'playwright-test/node-assert'`, or `node:assert/strict` in tests for node mode only       |
+| `assert.type(x, 'string')`                    | `assert.equal(typeof x, 'string')`                                                                            |
+| `assert.instance(x, Date)`                    | `assert.ok(x instanceof Date)`                                                                                |
+| `assert.subset(a, b)`                         | `assert.partialDeepStrictEqual(a, b)`, it doesn't take compare functions                                      |
+| A default timeout of 5 seconds                | No default timeout, use `--test-timeout`. Otherwise a test that hangs in a browser waits for `--run-timeout`  |
+| `exec`, `hold` and `configure`                | Not available, tests start by themselves                                                                      |
+
+Failures that used to pass are reported now: rejecting with nothing, uncaught errors in browsers, and tests declared inside of a test or after the run started.
 
 ## `node:assert` API
 
@@ -220,8 +237,6 @@ test('compares', () => {
   throws(() => assert.fail('nope'), { code: 'ERR_ASSERTION' })
 })
 ```
-
-`playwright-test/taps` exports this same module, and adds `subset`, `type` and `instance` to it.
 
 It's a separate entrypoint because `node:test` has its own `assert` export, with `assert.register()`. The exports are the ones from `node:assert/strict`: `ok`, `equal`, `notEqual`, `deepEqual`, `notDeepEqual`, `strictEqual`, `notStrictEqual`, `deepStrictEqual`, `notDeepStrictEqual`, `partialDeepStrictEqual`, `throws`, `doesNotThrow`, `rejects`, `doesNotReject`, `match`, `doesNotMatch`, `ifError`, `fail`, `AssertionError`, `Assert`, `CallTracker` and `strict`. The default export is `strict`, and `legacy` is the same thing with the shape of `node:assert`.
 
@@ -325,7 +340,6 @@ playwright-test test.js --test-timeout 10000
 | `mocha`                       | `grep`                               | `timeout`                          |
 | `node-test` with the real one | `--test-name-pattern` of `node:test` | `--test-timeout` of `node:test`    |
 | `node-test` with our API      | Filters the tests                    | Timeout of tests without their own |
-| `taps`                        | Filters the tests                    | Timeout of tests without their own |
 | `none`                        | Warns and is ignored                 | Warns and is ignored               |
 
 - `--test-name-pattern` is a regular expression, or `/expression/flags`. A test matches with its own name, the name of a suite it's in, or any of those joined by a space with the names above them. With `mocha` only the last one counts, so `^adds$` won't match a test inside a suite.
@@ -355,7 +369,7 @@ Without `--runner` or a `testRunner` in the config file, every test file is read
 - A file importing the module of a runner asks for it, through `import`, `require()` or `import()`. Only the exact module counts, `mocha/mocha.js` isn't `mocha`, and neither do type only imports.
 - A top level call to `describe` or `it`, also `.only` and `.skip`, asks for `mocha`, unless the file declares or imports that name itself.
 - When nothing asks for a runner it's `none`, with a warning.
-- When files ask for different runners it's an error that names them. `node-test` and `taps` can be used together, the `node-test` runner runs both.
+- When files ask for different runners it's an error that names them.
 
 ## Flow control
 

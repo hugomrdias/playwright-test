@@ -2,7 +2,7 @@
   "name": "playwright-test",
   "type": "module",
   "version": "15.0.1",
-  "description": "Run mocha, node:test and taps scripts inside real browsers with playwright.",
+  "description": "Run mocha and node:test scripts inside real browsers with playwright.",
   "author": "Hugo Dias <hugomrdias@gmail.com> (hugodias.me)",
   "license": "MIT",
   "repository": "hugomrdias/playwright-test",
@@ -19,10 +19,6 @@
       "default": "./src/runner.js"
     },
     "./package.json": "./package.json",
-    "./taps": {
-      "types": "./dist/src/taps/index.d.ts",
-      "default": "./src/taps/index.js"
-    },
     "./node-test": {
       "types": "./dist/src/node/test.d.ts",
       "default": "./src/node/test.js"
@@ -44,9 +40,6 @@
   "types": "dist/src/runner.d.ts",
   "typesVersions": {
     "*": {
-      "taps": [
-        "dist/src/taps/index.d.ts"
-      ],
       "node-test": [
         "dist/src/node/test.d.ts"
       ],
@@ -70,7 +63,6 @@
     "dist/src/runner.d.ts.map",
     "dist/src/node",
     "dist/src/types.d.ts",
-    "dist/src/taps",
     "dist/src/client",
     "static",
     "src",
@@ -105,7 +97,6 @@
     "lilconfig": "^3.1.4",
     "merge-options": "^3.0.4",
     "nanoid": "^6.0.2",
-    "p-timeout": "^8.0.0",
     "path-browserify": "^1.0.1",
     "playwright-core": "1.65.0",
     "polka": "^0.5.2",

@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { after, before, describe, it } from 'node:test'
 import esbuild from 'esbuild'
-import { stack } from '../src/taps/utils.js'
+import { cleanStack } from '../src/node/test-harness.js'
 import { createStackMapper } from '../src/utils/stack-map.js'
 import { runCli } from './helpers.js'
 
@@ -288,7 +288,6 @@ function assertNoInternals(output) {
 }
 
 const REPORTERS = {
-  taps: ['mocks/source-maps/taps-fails.js', '--runner', 'taps'],
   'our node:test': [
     'mocks/source-maps/node-test-fails.test.js',
     '--runner',
@@ -312,7 +311,7 @@ describe('stack traces in node mode', () => {
     const error = new Error('x')
     error.stack = [
       'Error: x',
-      '    at nodeHelper (/project/taps/node.js:1:1)',
+      '    at nodeHelper (/project/node/helper.js:1:1)',
       '    at drain (file:///src/node/test.js:1:1)',
       '    at node:internal/process/task_queues:1:1',
       '    at [eval1]:7:1',
@@ -320,7 +319,10 @@ describe('stack traces in node mode', () => {
     const previous = process.env.PW_TEST_SRC
     process.env.PW_TEST_SRC = '/src/'
     try {
-      is(stack(error).trim(), 'at nodeHelper (/project/taps/node.js:1:1)')
+      is(
+        cleanStack(/** @type {string} */ (error.stack)),
+        'Error: x\n    at nodeHelper (/project/node/helper.js:1:1)'
+      )
     } finally {
       if (previous === undefined) {
         delete process.env.PW_TEST_SRC

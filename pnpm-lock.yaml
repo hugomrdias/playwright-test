@@ -200,9 +200,6 @@ importers:
       nanoid:
         specifier: ^6.0.2
         version: 6.0.2
-      p-timeout:
-        specifier: ^8.0.0
-        version: 8.0.0
       path-browserify:
         specifier: ^1.0.1
         version: 1.0.1
@@ -1006,10 +1003,6 @@ packages:
     resolution: {integrity: sha512-Mr5KC5efvAK5VUptYEIopP1bakB85k2IWXaRC0rsh1uwn1L6M0LVml8OIQ4Gudg4oyZakf7FmeRLkMMtZW1i5A==}
     engines: {node: '>=12'}
 
-  p-timeout@8.0.0:
-    resolution: {integrity: sha512-IHjMTvwSvMPKVfGAVTRxI+Ea6Vu5soB0oaC3fuEc58EI01T36AiVclDTTYoHBO8M1gjxqAvgkRLm33TGUCzEDw==}
-    engines: {node: '>=22'}
-
   parse-ms@4.0.0:
     resolution: {integrity: sha512-TXfryirbmq34y8QBwgqCVLi+8oA3oWx2eAnSn62ITyEhEYaWRlVZ2DvMM9eZbMs/RfxPu/PK/aBLyGj4IrqMHw==}
     engines: {node: '>=18'}
@@ -1603,8 +1596,6 @@ snapshots:
       unicorn-magic: 0.3.0
 
   p-defer@4.0.1: {}
-
-  p-timeout@8.0.0: {}
 
   parse-ms@4.0.0: {}
 
