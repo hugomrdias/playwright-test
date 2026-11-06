@@ -727,7 +727,14 @@ console.log('RUN', V, O, H)
       ok(!stderr.includes('already been declared'), stderr)
       ok(!stderr.includes('has been closed'), stderr)
     } finally {
-      proc.kill('SIGINT')
+      // On Windows a kill doesn't reach its children, which keep the output open
+      if (process.platform === 'win32') {
+        await execa('taskkill', ['/pid', String(proc.pid), '/T', '/F'], {
+          reject: false,
+        })
+      } else {
+        proc.kill('SIGINT')
+      }
       await proc
     }
   })
