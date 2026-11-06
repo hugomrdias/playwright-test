@@ -382,18 +382,31 @@ export class Runner {
     await page.goto(`${this.url}before.html`)
 
     page.on('console', this.#onConsole)
-    page.on('pageerror', (err) => {
-      log.error(
-        `Uncaught exception happened within the before page. Run with --debug. \n${kleur.dim(
-          this.stackMapper.map(err.stack || err.toString())
-        )}`
-      )
+    page.on('pageerror', async (err) => {
+      const message = `Uncaught exception happened within the before page. Run with --debug. \n${kleur.dim(
+        this.stackMapper.map(err.stack || err.toString())
+      )}`
+      // Ask the page, the wait below only notices `beforeEnd` when it next polls.
+      // Without a page the wait fails the run by itself.
+      const ended = await page
+        .evaluate('self.PW_TEST?.beforeEnded')
+        .catch(() => true)
+
+      // A script that threw may never call `beforeEnd`, don't wait for it. The
+      // page stays open under --debug and `stop` does nothing there.
+      if (ended || this.options.debug) {
+        log.error(message)
+      } else {
+        this.stop(true, message)
+      }
     })
 
     const { outName } = await this.compiler('before')
-    await page.addScriptTag({ url: outName })
-    await page.waitForFunction('self.PW_TEST.beforeEnded', {
+    await page.addScriptTag({ url: outName, type: 'module' })
+    // PW_TEST is set by the bundle, which can still be loading its imports
+    await page.waitForFunction('self.PW_TEST?.beforeEnded', undefined, {
       timeout: 0,
+      polling: 100, // raf doesn't run in a tab that's in the background
     })
   }
 
@@ -408,7 +421,12 @@ export class Runner {
 
     // Run the before script
     if (this.options.before) {
-      await this.setupBeforePage(context)
+      try {
+        await this.setupBeforePage(context)
+      } catch (/** @type {any} */ error) {
+        await this.stop(true, error)
+        return
+      }
     }
 
     // Setup page
