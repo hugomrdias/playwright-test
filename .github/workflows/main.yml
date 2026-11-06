@@ -25,10 +25,13 @@ jobs:
       - run: pnpm run lint
 
   test:
+    # The lowest Node.js we support keeps the plain name
+    name: test (${{ matrix.os }}${{ matrix.node != 24 && format(', node {0}', matrix.node) || '' }})
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [24, 26]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
@@ -36,6 +39,15 @@ jobs:
       - uses: pnpm/setup@v3
         with:
           cache: true
+      # pnpm runs everything with the Node.js from devEngines
+      - run: |
+          pnpm exec node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json')); pkg.devEngines.runtime.version = '^${{ matrix.node }}.0.0'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2))"
+          pnpm install --no-frozen-lockfile
+        if: matrix.node != 24
+        shell: bash
+      # Passing on another version would look like this one works
+      - run: pnpm exec node -p "require('assert').strictEqual(Number.parseInt(process.versions.node, 10), ${{ matrix.node }}); process.version"
+        shell: bash
       - run: pnpm exec playwright-core install-deps webkit
         if: runner.os == 'Linux'
       # Tests would download them on first use, which counts against their timeouts
