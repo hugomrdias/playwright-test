@@ -4,6 +4,22 @@ import { toRegExp } from './utils/name-pattern.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+/**
+ * `debug` inside `mocha.js` reads `localStorage` while it loads, which warns since
+ * Node.js 25 unless there's a file for it. Tests still get what was there.
+ */
+const importMochaInNode = `
+const webStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: undefined })
+await import('mocha/mocha.js')
+if (webStorage) {
+  Object.defineProperty(globalThis, 'localStorage', webStorage)
+} else {
+  delete globalThis.localStorage
+}
+globalThis.location={}
+`
+
 /** @type {import('./types.js').TestRunner} */
 export const mocha = {
   moduleId: 'mocha',
@@ -18,8 +34,7 @@ export const mocha = {
   },
   compileRuntime(options, paths) {
     return `
-import 'mocha/mocha.js'
-${options.mode === 'node' ? 'globalThis.location={}' : ''}
+${options.mode === 'node' ? importMochaInNode : "import 'mocha/mocha.js'"}
 
 const mocha = globalThis.mocha
 

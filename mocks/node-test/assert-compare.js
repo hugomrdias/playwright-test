@@ -2,7 +2,8 @@
 /**
  * Compares our `assert` and `util` in browsers with the real ones in Node.js: every
  * field of every case in `assert-cases.js` and `util-cases.js`. Any difference exits
- * with 1, apart from the messages in `MESSAGE_CAN_DIFFER`.
+ * with 1, apart from the messages in `MESSAGE_CAN_DIFFER` and the colors in
+ * `COLORS_CAN_DIFFER`.
  *
  * Runs in chromium when run without arguments, otherwise pass what's for the CLI:
  *
@@ -64,14 +65,7 @@ function compare(label, real, { cases, impl }) {
     failures++
   }
   for (const key of new Set([...real.keys(), ...cases.keys()])) {
-    const canDiffer =
-      real.has(key) &&
-      cases.has(key) &&
-      MESSAGE_CAN_DIFFER.some((regex) => regex.test(key))
-    const same = canDiffer
-      ? withoutMessage(real.get(key)) === withoutMessage(cases.get(key))
-      : real.get(key) === cases.get(key)
-    if (!same) {
+    if (!isSame(key, real.get(key), cases.get(key))) {
       console.log(
         `${label}: ${key}\n  node:   ${real.get(key)}\n  module: ${cases.get(key)}`
       )
@@ -97,6 +91,37 @@ const MESSAGE_CAN_DIFFER = [
 const withoutMessage = (/** @type {string} */ json) => {
   const { message, string, ...rest } = JSON.parse(json)
   return JSON.stringify(rest)
+}
+
+/**
+ * `src/vendor` has the code from Node.js 24, the lowest version we support. On later
+ * versions the text of these has to be the same, without their colors.
+ */
+const COLORS_CAN_DIFFER =
+  Number.parseInt(process.versions.node, 10) > 24
+    ? // Since Node.js 26 every part of a RegExp has its own color
+      [/^util inspect colors RegExp$/]
+    : []
+
+const withoutColors = (/** @type {string} */ json) =>
+  json.replace(/\\+u001b\[\d+m/g, '')
+
+/**
+ * @param {string} key
+ * @param {string | undefined} real
+ * @param {string | undefined} other
+ */
+function isSame(key, real, other) {
+  if (real === undefined || other === undefined) {
+    return real === other
+  }
+  if (MESSAGE_CAN_DIFFER.some((regex) => regex.test(key))) {
+    return withoutMessage(real) === withoutMessage(other)
+  }
+  if (COLORS_CAN_DIFFER.some((regex) => regex.test(key))) {
+    return withoutColors(real) === withoutColors(other)
+  }
+  return real === other
 }
 
 const flags = process.argv.slice(2)
