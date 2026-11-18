@@ -55,6 +55,10 @@ export class Runner extends BaseRunner {
     this.stackMapper = createStackMapper(this.dir)
     this.url = ''
     this.pageErrored = false
+    /** @type {'' | 'test' | 'before'} the page that crashed */
+    this.crashed = ''
+    /** @type {'' | 'test page' | 'browser'} what closed before the run ended */
+    this.closed = ''
     /** @type {Set<Promise<void>>} */
     this.pendingConsole = new Set()
     /** @type {WeakMap<object, Promise<void>>} */
@@ -129,6 +133,12 @@ export class Runner extends BaseRunner {
         ...this.options.browserContextOptions,
       })
     }
+
+    // Also when it crashes or gets killed, and when --debug users close it. It
+    // fires when this process closes it too, which is after `stopped`.
+    this.context.on('close', () => {
+      this.#browserEnded('browser')
+    })
 
     // Only Chromium reports service workers, the others keep their output
     this.context.on('serviceworker', (worker) => {
@@ -237,6 +247,10 @@ export class Runner extends BaseRunner {
 
     // Setup page events
     this.page.on('console', this.#onConsole)
+    this.page.on('crash', () => this.#pageCrashed('test'))
+    // Under --debug closing the tab leaves nothing to debug, and on macOS the
+    // browser keeps running without windows
+    this.page.on('close', () => this.#browserEnded('test page'))
 
     // uncaught rejections
     this.page.on('pageerror', (err) => {
@@ -370,7 +384,7 @@ export class Runner extends BaseRunner {
         await this.stop(failed, failed ? 'Tests failed.' : undefined)
       }
     } catch (/** @type {any} */ error) {
-      await this.stop(true, error)
+      await this.stop(true, this.#endReason() || error)
     }
   }
 
@@ -403,6 +417,10 @@ export class Runner extends BaseRunner {
       }
     })
 
+    // Once the script ended the page has done its part
+    const onCrash = () => this.#pageCrashed('before')
+    page.on('crash', onCrash)
+
     const { outName } = await this.compiler('before')
     await page.addScriptTag({ url: outName, type: 'module' })
     // PW_TEST is set by the bundle, which can still be loading its imports
@@ -410,6 +428,7 @@ export class Runner extends BaseRunner {
       timeout: 0,
       polling: 100, // raf doesn't run in a tab that's in the background
     })
+    page.off('crash', onCrash)
   }
 
   async watch() {
@@ -439,7 +458,7 @@ export class Runner extends BaseRunner {
 
       ;({ files } = await this.runTests(page))
     } catch (/** @type {any} */ error) {
-      await this.stop(true, error)
+      await this.stop(true, this.#endReason() || error)
       return
     }
 
@@ -510,6 +529,72 @@ export class Runner extends BaseRunner {
       }
       interrupted = true
     })
+  }
+
+  /**
+   * If the browser process is still there, it isn't once it crashed or got closed.
+   */
+  #browserConnected() {
+    return this.context?.browser()?.isConnected() ?? false
+  }
+
+  /**
+   * Why the browser can't finish the run, it wins over the errors that causes.
+   * Those can reach `stop` first, the waits of the run reject right away.
+   */
+  #endReason() {
+    if (this.crashed) {
+      return `The ${this.crashed} page crashed, it may have run out of memory.`
+    }
+    if (this.closed) {
+      return `The ${this.closed} closed before the tests ended.`
+    }
+    return ''
+  }
+
+  /**
+   * End the run, the browser or the test page is gone and can't finish it. Under
+   * --debug that's how users end it, whatever the tests did.
+   *
+   * @param {'browser' | 'test page'} what
+   */
+  #browserEnded(what) {
+    // The browser closing closes the test page first, then the context in the
+    // same tick. Recorded right away, the reason is ready for whatever comes next.
+    if (what === 'browser' || !this.closed) {
+      this.closed = what
+    }
+    if (this.stopped) {
+      return
+    }
+    if (what === 'test page') {
+      // A stop now would say the page closed when the whole browser did
+      setImmediate(() => this.#stopClosed())
+    } else {
+      this.#stopClosed()
+    }
+  }
+
+  #stopClosed() {
+    if (this.options.debug) {
+      this.stop(true, `The ${this.closed} closed, ending the debug run.`, true)
+    } else {
+      this.stop(true, this.#endReason())
+    }
+  }
+
+  /**
+   * Nothing is left to finish the run, Playwright can't use a crashed page again.
+   * Under --debug the browser stays open like with other failures.
+   *
+   * @param {'test' | 'before'} name
+   */
+  #pageCrashed(name) {
+    if (this.stopped) {
+      return
+    }
+    this.crashed ||= name
+    this.stop(true, this.#endReason())
   }
 
   /**
@@ -597,7 +682,8 @@ export class Runner extends BaseRunner {
 
     const close = async () => {
       // Before the server, its open connections could use up the wait for the exit
-      if (this.context) {
+      // A browser that's gone can't close it, and doesn't need to
+      if (this.context && this.#browserConnected()) {
         await this.context.close()
       }
 
@@ -629,13 +715,14 @@ export class Runner extends BaseRunner {
   /**
    * @param {boolean} fail
    * @param {string | undefined} [msg]
+   * @param {boolean} [force] - also under --debug, there's nothing left to debug
    */
-  async stop(fail, msg) {
+  async stop(fail, msg, force = false) {
     if (this.stopped) {
       return
     }
     // The browser stays open to debug the failure, without one there's nothing to
-    if (this.options.debug && this.context) {
+    if (this.options.debug && this.context && !force) {
       if (fail && msg) {
         log.error(msg)
       }
