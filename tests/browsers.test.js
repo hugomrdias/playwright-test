@@ -29,6 +29,15 @@ for (const browser of ['firefox', 'webkit']) {
         'node-test',
         ...flags,
       ],
+      'client context in a worker': [
+        './cli.js',
+        'mocks/client/context.test.js',
+        '--runner',
+        'node-test',
+        '--mode',
+        'worker',
+        ...flags,
+      ],
       'same node:assert results as the real one': [
         process.execPath,
         'mocks/node-test/assert-compare.js',
