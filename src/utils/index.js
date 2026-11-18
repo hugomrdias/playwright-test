@@ -571,6 +571,22 @@ w.onmessage = function(e) {
     if (e.data.pwStderr != null) {
         self.PW_TEST_STDERR_WRITE(e.data.pwStderr)
     }
+    // Browser context calls of playwright-test/client, the bindings are only here
+    if (e.data.pwContextCall) {
+        const { name, args } = e.data.pwContextCall
+        const [port] = e.ports
+        Promise.resolve()
+            .then(() => {
+                if (!name.startsWith('pwContext') || typeof self[name] !== 'function') {
+                    throw new Error('Unknown browser context call: ' + name)
+                }
+                return self[name](...args)
+            })
+            .then(
+                (value) => port.postMessage({ value }),
+                (error) => port.postMessage({ error: String(error?.message ?? error) })
+            )
+    }
 }
 `
 }

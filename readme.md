@@ -326,6 +326,8 @@ it('should geolocation', async () => {
 })
 ```
 
+The `context` methods also work with `--mode worker`, the worker asks the page to call them. In node mode `setOffline` does nothing and the others reject.
+
 ## Runner options
 
 Two options are ours and get mapped to whichever runner is used:
