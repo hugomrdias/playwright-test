@@ -1,5 +1,6 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
+import { existsSync, rmSync, statSync } from 'node:fs'
 import { describe, it } from 'node:test'
 import { execa, runCli } from './helpers.js'
 
@@ -38,15 +39,17 @@ function descendants(pid) {
  *
  * @param {(command: string) => boolean} which - the processes to kill
  * @param {string[]} [args]
+ * @param {string} [file]
  */
-async function killDuringRun(which, args = []) {
-  const proc = runCli(
-    ['mocks/flow/never-ends.js', '--runner', 'none', ...args],
-    {
-      reject: false,
-      timeout: 30_000,
-    }
-  )
+async function killDuringRun(
+  which,
+  args = [],
+  file = 'mocks/flow/never-ends.js'
+) {
+  const proc = runCli([file, '--runner', 'none', ...args], {
+    reject: false,
+    timeout: 30_000,
+  })
   proc.stdout?.on('data', (/** @type {Buffer} */ data) => {
     if (!data.toString().includes('flow-running')) {
       return
@@ -103,6 +106,54 @@ describe('the browser ending the run', {
       ok(!proc.stderr.includes('Could not close the browser'), proc.stderr)
     })
   }
+})
+
+describe('the browser ending a traced run', {
+  skip: process.platform === 'win32' && 'needs pgrep',
+}, () => {
+  const trace = 'mocks/flow/playwright-test-trace-chromium.zip'
+  const args = ['--cwd', 'mocks/flow', '--trace']
+
+  it('still saves the trace when the page crashes', async () => {
+    rmSync(trace, { force: true })
+    try {
+      const proc = await killDuringRun(
+        (command) => command.includes('--type=renderer'),
+        args,
+        'never-ends.js'
+      )
+
+      is(proc.timedOut, false, 'ended by itself')
+      is(proc.exitCode, 1, 'exit code')
+      ok(proc.stderr.includes('Saved the trace'), proc.stderr)
+      ok(statSync(trace).size > 0, 'trace is not empty')
+    } finally {
+      rmSync(trace, { force: true })
+    }
+  })
+
+  it('says it could not save the trace when the browser closes', async () => {
+    rmSync(trace, { force: true })
+    try {
+      const proc = await killDuringRun(
+        (command) => !command.includes('--type='),
+        args,
+        'never-ends.js'
+      )
+
+      is(proc.timedOut, false, 'ended by itself')
+      is(proc.exitCode, 1, 'exit code')
+      ok(
+        proc.stderr.includes(
+          'Could not save the trace, the browser closed before the run ended.'
+        ),
+        proc.stderr
+      )
+      ok(!existsSync(trace), 'no trace')
+    } finally {
+      rmSync(trace, { force: true })
+    }
+  })
 })
 
 describe('the test page closing', () => {

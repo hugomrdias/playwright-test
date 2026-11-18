@@ -84,17 +84,37 @@ export function resolveTestRunner({ runner, testRunner }) {
  *
  * @param {import('../types').RunnerOptions} options
  */
-export function assertBrowserOptions({ browser, extension, incognito, mode }) {
+export function assertBrowserOptions({
+  browser,
+  extension,
+  incognito,
+  mode,
+  trace,
+}) {
   if (mode !== 'main' && mode !== 'worker') {
     throw new UsageError(
       `Invalid mode "${mode}", this runner takes "main" or "worker".`
     )
   }
+  assertTrace(trace)
   if (extension && browser !== 'chromium') {
     throw new UsageError('Extension testing is only supported in chromium.')
   }
   if (extension && incognito) {
     throw new UsageError('Extension testing does not work with incognito.')
+  }
+}
+
+export const TRACE_VALUES = ['off', 'on', 'retain-on-failure']
+
+/**
+ * @param {unknown} trace
+ */
+export function assertTrace(trace) {
+  if (!TRACE_VALUES.includes(/** @type {string} */ (trace))) {
+    throw new UsageError(
+      `Invalid trace "${trace}", expected "on", "off" or "retain-on-failure".`
+    )
   }
 }
 
@@ -152,6 +172,7 @@ export const defaultOptions = {
   extensions: 'js,cjs,mjs,ts,tsx,jsx',
   transform: true,
   runTimeout: DEFAULT_RUN_TIMEOUT,
+  trace: 'off',
   buildConfig: {},
   buildSWConfig: {},
   browserContextOptions: {},

@@ -20,6 +20,7 @@ import {
   defaultOptions,
   findTests,
   log,
+  TRACE_VALUES,
   UsageError,
 } from './src/utils/index.js'
 import { toRegExp } from './src/utils/name-pattern.js'
@@ -168,6 +169,7 @@ const KNOWN_FLAGS = new Set([
   'sw',
   'test-name-pattern',
   'test-timeout',
+  'trace',
   'transform',
   'w',
   'watch',
@@ -194,10 +196,20 @@ function checkUnknownFlags(opts) {
 /**
  * @param {import('./src/types.js').RunnerOptions} options
  */
-function validateOptions({ mode, testNamePattern, testTimeout }) {
+function validateOptions({ mode, testNamePattern, testTimeout, trace }) {
   if (!['main', 'worker', 'node'].includes(mode)) {
     throw new UsageError(
       `Invalid mode "${mode}", expected "main", "worker" or "node".`
+    )
+  }
+  if (Array.isArray(trace) || !TRACE_VALUES.includes(trace)) {
+    throw new UsageError(
+      `Invalid --trace "${trace}", expected "on", "off" or "retain-on-failure". Put the test files before --trace, or use --trace=on.`
+    )
+  }
+  if (mode === 'node' && trace !== 'off') {
+    throw new UsageError(
+      '--trace records the browser, it does not work with --mode node.'
     )
   }
   if (Array.isArray(testNamePattern)) {
@@ -260,6 +272,7 @@ const cliDefaults = {
   extensions: defaultOptions.extensions,
   incognito: defaultOptions.incognito,
   mode: defaultOptions.mode,
+  trace: defaultOptions.trace,
 }
 
 sade2
@@ -322,6 +335,10 @@ sade2
     '--test-timeout',
     'Timeout in milliseconds for tests without their own, 0 for none.'
   )
+  .option(
+    '--trace',
+    'Save a Playwright trace to playwright-test-trace-<browser>.zip in --cwd, open it with `npx playwright show-trace`. Alone it only keeps the trace of a failed run, `--trace on` always keeps it. Not with --mode node, ignored with --debug and --watch.  (default off)'
+  )
   .option('--config', 'Path to the config file')
   .action(async (input, opts) => {
     let config
@@ -369,6 +386,8 @@ sade2
         extensions: opts.extensions,
         transform: opts.transform,
         runTimeout: opts['run-timeout'],
+        // Without a value it's an empty string
+        trace: opts.trace === '' ? 'retain-on-failure' : opts.trace,
         testNamePattern: opts['test-name-pattern'],
         testTimeout: opts['test-timeout'],
         beforeTests: opts.beforeTests,
@@ -408,5 +427,6 @@ sade2
   .parse(process.argv, {
     // Without defaults to tell their types, `--debug test.js` would take the file
     boolean: ['debug', 'extension', 'incognito', 'watch'],
-    string: ['browser', 'cwd', 'extensions', 'mode'],
+    // `--trace` alone keeps only failed runs, so a value has to be a string
+    string: ['browser', 'cwd', 'extensions', 'mode', 'trace'],
   })

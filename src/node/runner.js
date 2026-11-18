@@ -9,6 +9,7 @@ import {
   createPolka,
   log,
   runTimeoutMessage,
+  UsageError,
 } from '../utils/index.js'
 import { killTree, withLocalBins } from '../utils/process.js'
 
@@ -41,6 +42,14 @@ export class NodeRunner extends BaseRunner {
       'file://',
       ''
     )
+  }
+
+  assertOptions() {
+    if (this.options.trace !== 'off') {
+      throw new UsageError(
+        'Tracing records the browser, it does not work with --mode node.'
+      )
+    }
   }
 
   async #setupServer() {

@@ -16,3 +16,4 @@ dist
 .tmp
 .coverage
 mocks/tmp-*
+playwright-test-trace-*.zip
