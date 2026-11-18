@@ -73,11 +73,11 @@
   "engines": {
     "node": ">=24.0.0"
   },
-  "packageManager": "pnpm@12.7.0",
+  "packageManager": "pnpm@12.21.0",
   "devEngines": {
     "runtime": {
       "name": "node",
-      "version": "^24.0.0",
+      "version": "^26.0.0",
       "onFail": "download"
     }
   },
