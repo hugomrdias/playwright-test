@@ -55,8 +55,10 @@ export class Runner extends BaseRunner {
     this.stackMapper = createStackMapper(this.dir)
     this.url = ''
     this.pageErrored = false
-    /** Why the browser can't finish the run, it wins over the errors that causes */
-    this.endReason = ''
+    /** @type {'' | 'test' | 'before'} the page that crashed */
+    this.crashed = ''
+    /** @type {'' | 'test page' | 'browser'} what closed before the run ended */
+    this.closed = ''
     /** @type {Set<Promise<void>>} */
     this.pendingConsole = new Set()
     /** @type {WeakMap<object, Promise<void>>} */
@@ -248,13 +250,7 @@ export class Runner extends BaseRunner {
     this.page.on('crash', () => this.#pageCrashed('test'))
     // Under --debug closing the tab leaves nothing to debug, and on macOS the
     // browser keeps running without windows
-    this.page.on('close', () => {
-      // The browser closing closes the page first, then the context in the same
-      // tick. Its message is the one that says what happened.
-      setImmediate(() => {
-        this.#browserEnded('test page')
-      })
-    })
+    this.page.on('close', () => this.#browserEnded('test page'))
 
     // uncaught rejections
     this.page.on('pageerror', (err) => {
@@ -388,7 +384,7 @@ export class Runner extends BaseRunner {
         await this.stop(failed, failed ? 'Tests failed.' : undefined)
       }
     } catch (/** @type {any} */ error) {
-      await this.stop(true, this.endReason || error)
+      await this.stop(true, this.#endReason() || error)
     }
   }
 
@@ -462,7 +458,7 @@ export class Runner extends BaseRunner {
 
       ;({ files } = await this.runTests(page))
     } catch (/** @type {any} */ error) {
-      await this.stop(true, this.endReason || error)
+      await this.stop(true, this.#endReason() || error)
       return
     }
 
@@ -543,21 +539,48 @@ export class Runner extends BaseRunner {
   }
 
   /**
+   * Why the browser can't finish the run, it wins over the errors that causes.
+   * Those can reach `stop` first, the waits of the run reject right away.
+   */
+  #endReason() {
+    if (this.crashed) {
+      return `The ${this.crashed} page crashed, it may have run out of memory.`
+    }
+    if (this.closed) {
+      return `The ${this.closed} closed before the tests ended.`
+    }
+    return ''
+  }
+
+  /**
    * End the run, the browser or the test page is gone and can't finish it. Under
    * --debug that's how users end it, whatever the tests did.
    *
    * @param {'browser' | 'test page'} what
    */
   #browserEnded(what) {
+    // The browser closing closes the test page first, then the context in the
+    // same tick. Recorded right away, the reason is ready for whatever comes next.
+    if (what === 'browser' || !this.closed) {
+      this.closed = what
+    }
     if (this.stopped) {
       return
     }
-    if (this.options.debug) {
-      this.stop(true, `The ${what} closed, ending the debug run.`, true)
-      return
+    if (what === 'test page') {
+      // A stop now would say the page closed when the whole browser did
+      setImmediate(() => this.#stopClosed())
+    } else {
+      this.#stopClosed()
     }
-    this.endReason ||= `The ${what} closed before the tests ended.`
-    this.stop(true, this.endReason)
+  }
+
+  #stopClosed() {
+    if (this.options.debug) {
+      this.stop(true, `The ${this.closed} closed, ending the debug run.`, true)
+    } else {
+      this.stop(true, this.#endReason())
+    }
   }
 
   /**
@@ -570,8 +593,8 @@ export class Runner extends BaseRunner {
     if (this.stopped) {
       return
     }
-    this.endReason ||= `The ${name} page crashed, it may have run out of memory.`
-    this.stop(true, this.endReason)
+    this.crashed ||= name
+    this.stop(true, this.#endReason())
   }
 
   /**

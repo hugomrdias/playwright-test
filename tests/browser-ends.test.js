@@ -1,7 +1,7 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { describe, it } from 'node:test'
-import { runCli } from './helpers.js'
+import { execa, runCli } from './helpers.js'
 
 /**
  * The processes started by this one, all the way down.
@@ -103,4 +103,21 @@ describe('the browser ending the run', {
       ok(!proc.stderr.includes('Could not close the browser'), proc.stderr)
     })
   }
+})
+
+describe('the test page closing', () => {
+  it('fails the run with why', async () => {
+    const proc = await execa(process.execPath, ['mocks/flow/closes-page.mjs'], {
+      reject: false,
+      timeout: 30_000,
+    })
+
+    is(proc.timedOut, false, 'ended by itself')
+    is(proc.exitCode, 1, 'exit code')
+    ok(
+      proc.stderr.includes('The test page closed before the tests ended.'),
+      proc.stderr
+    )
+    ok(!proc.stderr.includes('Target page'), proc.stderr)
+  })
 })
