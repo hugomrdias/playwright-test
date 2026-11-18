@@ -3,6 +3,7 @@ import type {
   BrowserContextOptions,
   ChromiumBrowser,
   FirefoxBrowser,
+  LaunchOptions,
   WebKitBrowser,
 } from 'playwright-core'
 
@@ -63,6 +64,16 @@ export interface RunnerOptions {
   buildConfig: BuildOptions
   buildSWConfig: BuildOptions
   browserContextOptions?: BrowserContextOptions
+  /**
+   * Playwright launch options, for example `channel: 'chrome'` or
+   * `executablePath` to use another browser, `args`, `proxy`, `slowMo` or
+   * `firefoxUserPrefs`. `args` come after ours, and `headless` defaults to
+   * `!debug`. `handleSIGINT` is always `false`, the runner handles interrupts.
+   *
+   * Nothing gets downloaded with `executablePath` or a channel other than
+   * `chromium`, the browser has to be there.
+   */
+  launchOptions?: LaunchOptions
   /**
    * Before tests hook
    *

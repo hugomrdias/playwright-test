@@ -155,6 +155,7 @@ export const defaultOptions = {
   buildConfig: {},
   buildSWConfig: {},
   browserContextOptions: {},
+  launchOptions: {},
   beforeTests: async () => {
     // noop
   },
@@ -506,18 +507,33 @@ export async function readConsole(msg, mapStack) {
 }
 
 /**
+ * The Playwright browser type, with the browser it launches installed.
+ *
  * @template {RunnerOptions["browser"]} TBrowser
  * @param {TBrowser} browserName
- * @param {boolean} debug
- * @param {boolean} extension
+ * @param {object} launch - what gets launched, from the launch options
+ * @param {boolean} launch.headless
+ * @param {string} [launch.channel]
+ * @param {string} [launch.executablePath]
  * @returns {Promise<import('playwright-core').BrowserType<import('../types').PwResult<TBrowser>>>}
  */
-export async function getPw(browserName, debug, extension) {
+export async function getPw(
+  browserName,
+  { headless, channel, executablePath }
+) {
   if (!['chromium', 'firefox', 'webkit'].includes(String(browserName))) {
     throw new Error(`Browser not supported: ${browserName}`)
   }
 
-  if (browserName === 'chromium' && !debug && !extension) {
+  const api = await import('playwright-core')
+  // Their own browser, or one installed on the system like `chrome` or `msedge`
+  if (executablePath || (channel && channel !== 'chromium')) {
+    // @ts-expect-error
+    return api[browserName]
+  }
+
+  // The `chromium` channel is the new headless, it needs the whole browser
+  if (browserName === 'chromium' && headless && !channel) {
     // @ts-expect-error
     browserName = 'chromium-headless-shell'
   }
@@ -526,7 +542,6 @@ export async function getPw(browserName, debug, extension) {
     registry: { registry },
     // @ts-expect-error
   } = await import('playwright-core/lib/coreBundle')
-  const api = await import('playwright-core')
   const browser = registry.findExecutable(browserName)
 
   // playwright will log browser download progress to stdout, temporarily
