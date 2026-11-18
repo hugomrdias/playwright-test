@@ -227,27 +227,30 @@ export class Runner extends BaseRunner {
       this.page = context.pages()[0]
       await this.page.goto(`chrome-extension://${extensionId}/popup.html`)
 
-      // if (!this.page) {
-      //   throw new Error('Could not find the background page for the extension.')
-      // }
-
       if (this.options.debug) {
-        // Open extension devtools window
+        // Open the devtools of the extension service worker. It's only a
+        // convenience, so when chrome://extensions changes it warns and goes on.
+        // Locators pierce the open shadow roots of that page.
         const extPage = await context.newPage()
-
-        await extPage.goto(`chrome://extensions/?id=${extensionId}`)
-
-        const buttonHandle = await extPage.evaluateHandle(
-          'document.querySelector("body > extensions-manager").shadowRoot.querySelector("extensions-toolbar").shadowRoot.querySelector("#devMode")'
-        )
-
-        await buttonHandle.click()
-
-        const backgroundPageLink = await extPage.evaluateHandle(
-          'document.querySelector("body > extensions-manager").shadowRoot.querySelector("#viewManager > extensions-detail-view").shadowRoot.querySelector("#inspect-views > li:nth-child(2) > a")'
-        )
-
-        await backgroundPageLink.click()
+        try {
+          await extPage.goto(`chrome://extensions/?id=${extensionId}`)
+          // The toggle is a switch or a button depending on the Chrome version
+          const devMode = extPage.locator('#devMode')
+          await devMode.waitFor({ timeout: 5000 })
+          const on =
+            (await devMode.getAttribute('aria-checked')) ??
+            (await devMode.getAttribute('aria-pressed'))
+          if (on !== 'true') {
+            await devMode.click({ timeout: 5000 })
+          }
+          await extPage
+            .getByRole('link', { name: /service worker/i })
+            .click({ timeout: 5000 })
+        } catch {
+          log.warn(
+            `Could not open the extension service worker devtools, open chrome://extensions/?id=${extensionId} and click "service worker" by hand.`
+          )
+        }
       }
     } else if (this.options.incognito) {
       this.page = await context.newPage()
