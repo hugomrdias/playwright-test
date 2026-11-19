@@ -1,11 +1,12 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
 import { existsSync, readFileSync, rmSync } from 'node:fs'
+import path from 'node:path'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import { runCli } from './helpers.js'
 
 // Its own cwd, the trace of other runs can't end up there
 const cwd = 'mocks/trace'
-const trace = `${cwd}/playwright-test-trace-chromium.zip`
+const trace = path.join(cwd, 'playwright-test-trace-chromium.zip')
 
 /**
  * @param {string[]} args
