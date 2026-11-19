@@ -1,11 +1,5 @@
 import type { BuildOptions } from 'esbuild'
-import type {
-  BrowserContextOptions,
-  ChromiumBrowser,
-  FirefoxBrowser,
-  LaunchOptions,
-  WebKitBrowser,
-} from 'playwright-core'
+import type { BrowserContextOptions, LaunchOptions } from 'playwright-core'
 
 export interface RunnerOptions {
   input?: string[]
@@ -17,7 +11,7 @@ export interface RunnerOptions {
   testRunner: TestRunner
   cwd: string
   extensions: string
-  browser: 'chromium' | 'firefox' | 'webkit' | 'chromium-headless-shell'
+  browser: 'chromium' | 'firefox' | 'webkit'
   debug: boolean
   mode: 'main' | 'worker' | 'node'
   incognito: boolean
@@ -136,14 +130,6 @@ export type Config = Partial<Omit<RunnerOptions, 'testRunner' | 'minimal'>> & {
 }
 
 export type ConfigFn = (options: CliOptions) => Config
-
-export type PwResult<TBrowser> = TBrowser extends 'webkit'
-  ? WebKitBrowser
-  : TBrowser extends 'firefox'
-    ? FirefoxBrowser
-    : TBrowser extends 'chromium'
-      ? ChromiumBrowser
-      : never
 
 export interface CompilerOutput {
   outName: string

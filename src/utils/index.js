@@ -530,40 +530,38 @@ export async function readConsole(msg, mapStack) {
 /**
  * The Playwright browser type, with the browser it launches installed.
  *
- * @template {RunnerOptions["browser"]} TBrowser
- * @param {TBrowser} browserName
+ * @param {RunnerOptions["browser"]} browserName
  * @param {object} launch - what gets launched, from the launch options
  * @param {boolean} launch.headless
  * @param {string} [launch.channel]
  * @param {string} [launch.executablePath]
- * @returns {Promise<import('playwright-core').BrowserType<import('../types').PwResult<TBrowser>>>}
+ * @returns {Promise<import('playwright-core').BrowserType>}
  */
 export async function getPw(
   browserName,
   { headless, channel, executablePath }
 ) {
-  if (!['chromium', 'firefox', 'webkit'].includes(String(browserName))) {
+  if (!['chromium', 'firefox', 'webkit'].includes(browserName)) {
     throw new Error(`Browser not supported: ${browserName}`)
   }
 
   const api = await import('playwright-core')
   // Their own browser, or one installed on the system like `chrome` or `msedge`
   if (executablePath || (channel && channel !== 'chromium')) {
-    // @ts-expect-error
     return api[browserName]
   }
 
   // The `chromium` channel is the new headless, it needs the whole browser
-  if (browserName === 'chromium' && headless && !channel) {
-    // @ts-expect-error
-    browserName = 'chromium-headless-shell'
-  }
+  const executable =
+    browserName === 'chromium' && headless && !channel
+      ? 'chromium-headless-shell'
+      : browserName
 
   const {
     registry: { registry },
     // @ts-expect-error
   } = await import('playwright-core/lib/coreBundle')
-  const browser = registry.findExecutable(browserName)
+  const browser = registry.findExecutable(executable)
 
   // playwright will log browser download progress to stdout, temporarily
   // redirect the output to stderr
@@ -583,11 +581,6 @@ export async function getPw(
     console.log = log
     console.info = info
   }
-  if (browserName === 'chromium-headless-shell') {
-    return api.chromium
-  }
-
-  // @ts-expect-error
   return api[browserName]
 }
 

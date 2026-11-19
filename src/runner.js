@@ -39,7 +39,6 @@ const TRACE_WAIT = 30_000
  * @typedef {import('playwright-core').Page} Page
  * @typedef {import('playwright-core').BrowserContext} Context
  * @typedef {import('playwright-core').Browser} Browser
- * @typedef {import('playwright-core').ChromiumBrowserContext} ChromiumBrowserContext
  * @typedef {import('./types').RunnerOptions} RunnerOptions
  * @typedef {import('./types').RunnerEnv} RunnerEnv
  * @typedef {import('./types').CliOptions} CliOptions
@@ -218,7 +217,6 @@ export class Runner extends BaseRunner {
     const url = this.options.before ? `${this.url}index.html` : this.url
 
     if (this.options.extension) {
-      const context = /** @type {ChromiumBrowserContext} */ (this.context)
       let [serviceWorker] = context.serviceWorkers()
       if (!serviceWorker)
         serviceWorker = await context.waitForEvent('serviceworker')
