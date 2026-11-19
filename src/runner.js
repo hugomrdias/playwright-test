@@ -87,34 +87,39 @@ export class Runner extends BaseRunner {
     this.url = url
     this.server = server
 
+    const { launchOptions = {} } = this.options
+    const headless = launchOptions.headless ?? !this.options.debug
+    // optin to new chromium headless for extension testing
+    // https://github.com/microsoft/playwright/issues/33566
+    const channel =
+      launchOptions.channel ?? (this.options.extension ? 'chromium' : undefined)
+
     // download playwright if needed
-    const pw = await getPw(
-      this.options.browser,
-      this.options.debug,
-      this.options.extension
-    )
+    const pw = await getPw(this.options.browser, {
+      headless,
+      channel,
+      executablePath: launchOptions.executablePath,
+    })
 
     /** @type {import('playwright-core').LaunchOptions} */
     const pwOptions = {
-      // optin to new chromium headless for extension testing
-      // https://github.com/microsoft/playwright/issues/33566
-      channel: this.options.extension ? this.options.browser : undefined,
-      headless: !this.options.debug,
+      ...launchOptions,
+      channel,
+      headless,
       // It ends this process once the browser closes, see #handleInterrupt
       handleSIGINT: false,
-      args: this.options.extension
-        ? [
-            `--disable-extensions-except=${this.dir}`,
-            `--load-extension=${this.dir}`,
-            ...(this.options.browser === 'chromium' && this.options.debug
-              ? ['--auto-open-devtools-for-tabs']
-              : []),
-          ]
-        : [
-            ...(this.options.browser === 'chromium' && this.options.debug
-              ? ['--auto-open-devtools-for-tabs']
-              : []),
-          ],
+      args: [
+        ...(this.options.extension
+          ? [
+              `--disable-extensions-except=${this.dir}`,
+              `--load-extension=${this.dir}`,
+            ]
+          : []),
+        ...(this.options.browser === 'chromium' && this.options.debug
+          ? ['--auto-open-devtools-for-tabs']
+          : []),
+        ...(launchOptions.args ?? []),
+      ],
     }
 
     this.#handleInterrupt()

@@ -40,6 +40,18 @@ describe('config file', () => {
     ok(mode.includes('document: object'), mode)
   })
 
+  for (const args of [[], ['--incognito']]) {
+    it(`passes launchOptions to the browser ${args.join(' ')}`, async () => {
+      const stdout = await run([...config('launch-args'), ...args])
+      ok(stdout.includes('agent: pw-test-launch-options'), stdout)
+    })
+  }
+
+  it('launches launchOptions.executablePath', async () => {
+    const stdout = await run(config('launch-exe'))
+    ok(stdout.includes('HeadlessChrome'), stdout)
+  })
+
   it('gets the cli defaults in a function', async () => {
     ok((await run(config('function'))).includes('Firefox'))
   })

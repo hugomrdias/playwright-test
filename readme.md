@@ -461,6 +461,25 @@ function buildConfig(cliOptions) {
 export default buildConfig
 ```
 
+### Browser launch and context options
+
+`launchOptions` go to Playwright's [`launch`](https://playwright.dev/docs/api/class-browsertype#browser-type-launch) and `browserContextOptions` to the [browser context](https://playwright.dev/docs/api/class-browser#browser-new-context).
+
+```js
+export default {
+  launchOptions: {
+    // Google Chrome installed on the system instead of the downloaded Chromium
+    channel: 'chrome',
+    args: ['--disable-gpu'],
+  },
+  browserContextOptions: {
+    locale: 'pt-PT',
+  },
+}
+```
+
+`args` come after the ones the runner needs, `headless` defaults to `!debug`, and `handleSIGINT` is always `false` because the runner handles interrupts. With `executablePath` or a `channel` other than `chromium` nothing gets downloaded, the browser has to be installed.
+
 ### Interface
 
 ```ts
@@ -482,6 +501,8 @@ export interface RunnerOptions {
   buildConfig: BuildOptions
   buildSWConfig: BuildOptions
   browserContextOptions?: BrowserContextOptions
+  // Playwright launch options, `args` come after ours
+  launchOptions?: LaunchOptions
   beforeTests: (env: RunnerEnv) => Promise<unknown>
   // Only runs when beforeTests finished
   afterTests: (env: RunnerEnv, beforeTestsOutput: unknown) => Promise<unknown>
