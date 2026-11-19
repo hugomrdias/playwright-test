@@ -291,7 +291,7 @@ Reading `error.stack` inside the page gives positions in the bundle.
 
 ## Client
 
-This client package exposes the `playwright-test` options and some Playwright browser context methods to be used in tests.
+This client package exposes the `playwright-test` options, some Playwright browser context methods and trusted input on the test page to be used in tests.
 
 ```ts
 import * as Client from 'playwright-test/client'
@@ -327,7 +327,43 @@ it('should geolocation', async () => {
 })
 ```
 
-The `context` methods also work with `--mode worker`, the worker asks the page to call them. In node mode `setOffline` does nothing and the others reject.
+`context` has these methods of Playwright's [`BrowserContext`](https://playwright.dev/docs/api/class-browsercontext), with the same arguments and results:
+
+- `setOffline`
+- `grantPermissions`, `clearPermissions`
+- `setGeolocation`
+- `setExtraHTTPHeaders`
+- `addCookies`, `cookies`, `clearCookies`
+
+They also work with `--mode worker`, the worker asks the page to call them. In node mode `setOffline` does nothing and the others reject, there's no browser to set or read anything in.
+
+### Trusted input
+
+Code in the page can only dispatch events with `isTrusted` set to `false`, which don't count as user activation. `page` sends real input through Playwright instead, for what needs a user gesture, like the clipboard, fullscreen, popups or `navigator.userActivation`:
+
+```js
+import * as Client from 'playwright-test/client'
+
+it('counts as user activation', async () => {
+  const button = document.createElement('button')
+  document.body.append(button)
+  const clicked = new Promise((resolve) =>
+    button.addEventListener('click', resolve)
+  )
+
+  await Client.page.click('button')
+
+  equal((await clicked).isTrusted, true)
+  equal(navigator.userActivation.isActive, true)
+})
+```
+
+- `page.click(selector, options)`, Playwright's [`page.click`](https://playwright.dev/docs/api/class-page#page-click). It waits for the element to be visible and stable, up to the `timeout` option, 30 seconds by default.
+- `page.keyboard.press(key, options)` and `page.keyboard.type(text, options)`, Playwright's [`keyboard`](https://playwright.dev/docs/api/class-keyboard). They go to the focused element.
+
+The input always goes to the test page, the popup with `--extension`. With `--mode worker` it still goes to the page that started the worker, so it can click what the page shows, but the worker can't see the events or get the user activation, workers have none. In node mode they reject.
+
+Only these are there, not the rest of Playwright's `Page`, like `mouse`, `touchscreen`, `fill` or locators. Tests run in the page and can do most of it themselves, what they can't is trusted input.
 
 ## Runner options
 
