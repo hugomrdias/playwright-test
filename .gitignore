@@ -17,3 +17,4 @@ dist
 .coverage
 mocks/tmp-*
 playwright-test-trace-*.zip
+.wrangler

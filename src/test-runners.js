@@ -40,7 +40,7 @@ export const mocha = {
   },
   compileRuntime(options, paths) {
     return `
-${options.mode === 'node' ? importMochaInNode : "import 'mocha/mocha.js'"}
+${options.mode === 'node' || options.mode === 'workerd' ? importMochaInNode : "import 'mocha/mocha.js'"}
 
 const mocha = globalThis.mocha
 

@@ -1,0 +1,12 @@
+{
+  "name": "playwright-test-fixture",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": { "GREETING": "hello" },
+  "kv_namespaces": [{ "binding": "KV", "id": "local" }],
+  "durable_objects": {
+    "bindings": [{ "name": "COUNTER", "class_name": "Counter" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Counter"] }]
+}

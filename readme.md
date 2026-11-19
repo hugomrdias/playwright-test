@@ -29,7 +29,7 @@ Description
   Options
     -r, --runner       Test runner. Options: mocha, node-test and none, which only loads the files and is for scripts like benchmarks. Autodetected by default, see [auto detection](#runner-auto-detection).
     -b, --browser      Browser to run tests. Options: chromium, firefox, webkit.  (default chromium)
-    -m, --mode         Run mode. Options: main, worker and node.  (default main)
+    -m, --mode         Run mode. Options: main, worker, node and workerd.  (default main)
     -d, --debug        Debug mode, keeps browser window open.  (default false)
     -w, --watch        Watch files for changes and re-run tests.
     -i, --incognito    Use incognito window to run tests.  (default false)
@@ -41,7 +41,7 @@ Description
     --extensions       File extensions allowed in the bundle.  (default js,cjs,mjs,ts,tsx)
     --no-transform     Node mode only. Run files as plain Node would, without the built-in esbuild transform.
     --run-timeout      Fail the run after this many milliseconds, 0 turns it off. Not used with --debug or --watch.  (default 1800000)
-    --trace            Save a Playwright trace to playwright-test-trace-<browser>.zip in --cwd, open it with `npx playwright show-trace`. Alone it only keeps the trace of a failed run, `--trace on` always keeps it. Not with --mode node, ignored with --debug and --watch.  (default off)
+    --trace            Save a Playwright trace to playwright-test-trace-<browser>.zip in --cwd, open it with `npx playwright show-trace`. Alone it only keeps the trace of a failed run, `--trace on` always keeps it. Not with --mode node or workerd, ignored with --debug and --watch.  (default off)
     --config           Path to the config file
     -v, --version      Displays current version
     -h, --help         Displays this message
@@ -113,6 +113,43 @@ NODE_OPTIONS="--import tsx" playwright-test "test/**/*.spec.ts" --mode node --no
 ```shell
 NODE_OPTIONS="--import @nubjs/runner" playwright-test "test/**/*.spec.ts" --mode node --no-transform
 ```
+
+## Workerd mode
+
+`--mode workerd` runs your tests in [workerd](https://github.com/cloudflare/workerd), the Cloudflare Workers runtime, with Miniflare 5. It needs `wrangler` or the [`cf` CLI](https://developers.cloudflare.com/cf/) in your project, both bring Miniflare along.
+
+```shell
+npm install -D wrangler
+playwright-test "test/**/*.test.js" --mode workerd
+```
+
+The tests run inside the worker described by the config in `cwd`, with its bindings, compatibility date and flags. That's `cloudflare.config.ts` of the `cf` CLI (also `.mts`, `.js` and `.mjs`), or else `wrangler.jsonc`, `wrangler.json` or `wrangler.toml`. `nodejs_compat` is always on. The tests and the worker's `main` are bundled into one module with esbuild, the way `wrangler deploy` bundles a worker, so Durable Object classes exported from `main` work with their bindings. Tests reach the worker with `exports` and its bindings with `env`, both from `cloudflare:workers`:
+
+```js
+import assert from 'node:assert/strict'
+import { it } from 'node:test'
+import { env, exports } from 'cloudflare:workers'
+
+it('greets', async () => {
+  const response = await exports.default.fetch('http://example.com/greet')
+  assert.equal(await response.text(), 'hello world')
+})
+
+it('counts', async () => {
+  assert.equal(await env.COUNTER.getByName('a').increment(), 1)
+})
+```
+
+Without a config the tests run in an empty worker. The `workerd` key of the config file takes:
+
+- `configPath`, the worker config to use.
+- `environment`, the wrangler environment, or the mode `cloudflare.config.ts` functions get, `test` by default.
+- `main`, the worker entry point, instead of the one in the worker config.
+- `miniflare`, Miniflare 5 worker options merged over the ones from the worker config, for example `{ config: { env: { GREETING: { type: 'text', value: 'hi' } } } }`.
+
+With `cloudflare.config.ts`, secrets come from the environment and every binding is local.
+
+`--before`, `--sw`, `--extension`, `--trace` and `--watch` don't work in this mode. A test that never settles fails the run, workerd cancels the request it runs in.
 
 ## `node:test` API
 

@@ -13,12 +13,16 @@ export interface RunnerOptions {
   extensions: string
   browser: 'chromium' | 'firefox' | 'webkit'
   debug: boolean
-  mode: 'main' | 'worker' | 'node'
+  mode: 'main' | 'worker' | 'node' | 'workerd'
   incognito: boolean
   extension: boolean
   assets: string
   before?: string
   sw?: string
+  /**
+   * Options for the workerd mode.
+   */
+  workerd?: WorkerdOptions
   /**
    * Transform project files with esbuild in node mode (full TypeScript, JSX,
    * extensionless imports and `import.meta.env`). Turn it off to get plain Node
@@ -95,6 +99,35 @@ export interface RunnerOptions {
   afterTests: (env: RunnerEnv, beforeTestsOutput: unknown) => Promise<unknown>
 }
 
+export interface WorkerdOptions {
+  /**
+   * Path to the worker config, by default `cloudflare.config.ts` of the `cf`
+   * CLI or else `wrangler.jsonc`, `wrangler.json` or `wrangler.toml` in `cwd`.
+   * Its bindings, compatibility date and flags and entry point configure the
+   * worker the tests run in.
+   */
+  configPath?: string
+  /**
+   * Environment of the wrangler config, or the mode `cloudflare.config.ts`
+   * functions get, `test` by default.
+   */
+  environment?: string
+  /**
+   * Entry point of the worker, instead of `main` in the wrangler config. Tests
+   * reach its default export with `exports.default` from `cloudflare:workers`.
+   */
+  main?: string
+  /**
+   * Miniflare 5 worker options, merged over the ones from the worker config.
+   *
+   * @example
+   * ```js
+   * { config: { env: { GREETING: { type: 'text', value: 'hi' } } } }
+   * ```
+   */
+  miniflare?: Record<string, unknown>
+}
+
 export interface RunnerEnv extends NodeJS.ProcessEnv {
   PW_SERVER: string
   PW_OPTIONS: string
@@ -104,7 +137,7 @@ export interface RunnerEnv extends NodeJS.ProcessEnv {
 export interface CliOptions {
   runner: 'mocha' | 'none' | 'node-test'
   browser: 'chromium' | 'firefox' | 'webkit'
-  mode: 'main' | 'worker' | 'node'
+  mode: 'main' | 'worker' | 'node' | 'workerd'
   debug: boolean
   incognito: boolean
   extension: boolean
