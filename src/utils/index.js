@@ -528,7 +528,65 @@ export async function readConsole(msg, mapStack) {
 }
 
 /**
- * The Playwright browser type, with the browser it launches installed.
+ * Playwright's browser registry, a private API that any playwright-core
+ * release can change. Checked here so a change fails with what to do instead of
+ * a TypeError.
+ *
+ * @param {any} bundle `playwright-core/lib/coreBundle`, undefined if it didn't load
+ * @param {string[]} names the executables to find
+ * @returns {{ install: (executables: any[]) => Promise<void>, executables: { executablePath: () => string | undefined }[] }}
+ */
+export function browserRegistry(bundle, names) {
+  const registry = bundle?.registry?.registry
+  const executables =
+    typeof registry?.findExecutable === 'function' &&
+    typeof registry.install === 'function'
+      ? names.map((name) => registry.findExecutable(name))
+      : []
+  if (
+    executables.length === 0 ||
+    !executables.every((e) => typeof e?.executablePath === 'function')
+  ) {
+    const name = names.at(-1)
+    const version = require('playwright-core/package.json').version
+    const tested = require('../../package.json').dependencies['playwright-core']
+    throw new Error(
+      `Can't find or install the ${name} browser, playwright-core ${version} changed the private API playwright-test uses for it.\n` +
+        `Use playwright-core ${tested}, the version playwright-test is tested with, or install the browser with "npx playwright-core install ${name}".`
+    )
+  }
+  return {
+    install: (executables) => registry.install(executables),
+    executables,
+  }
+}
+
+/**
+ * If the browser at this executable finished downloading. Playwright writes
+ * INSTALLATION_COMPLETE in the browser's folder last, an interrupted download
+ * can leave the executable without it.
+ *
+ * @param {string | undefined} executablePath
+ */
+export function isInstalled(executablePath) {
+  if (!executablePath || !fs.existsSync(executablePath)) {
+    return false
+  }
+  for (
+    let dir = path.dirname(executablePath);
+    dir !== path.dirname(dir);
+    dir = path.dirname(dir)
+  ) {
+    if (fs.existsSync(path.join(dir, 'INSTALLATION_COMPLETE'))) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
+ * The Playwright browser type, with the browser it launches installed. It only
+ * downloads the browser when it's missing.
  *
  * @template {RunnerOptions["browser"]} TBrowser
  * @param {TBrowser} browserName
@@ -547,48 +605,67 @@ export async function getPw(
   }
 
   const api = await import('playwright-core')
+  // @ts-expect-error
+  const browserType = api[browserName]
   // Their own browser, or one installed on the system like `chrome` or `msedge`
   if (executablePath || (channel && channel !== 'chromium')) {
-    // @ts-expect-error
-    return api[browserName]
+    return browserType
   }
 
-  // The `chromium` channel is the new headless, it needs the whole browser
-  if (browserName === 'chromium' && headless && !channel) {
-    // @ts-expect-error
-    browserName = 'chromium-headless-shell'
+  // Headless chromium launches the headless shell, the public API only knows
+  // where the full chromium is. The `chromium` channel is the new headless, it
+  // needs the whole browser.
+  const name =
+    browserName === 'chromium' && headless && !channel
+      ? 'chromium-headless-shell'
+      : browserName
+
+  // Launching on Windows checks the browser with winldd, the public API
+  // doesn't know where that is either.
+  if (name === browserName && process.platform !== 'win32') {
+    let installedPath
+    try {
+      installedPath = browserType.executablePath()
+    } catch {
+      // Not supported on this platform, the registry install below says so.
+    }
+    if (isInstalled(installedPath)) {
+      return browserType
+    }
   }
 
-  const {
-    registry: { registry },
+  /** @type {any} */
+  let bundle
+  try {
     // @ts-expect-error
-  } = await import('playwright-core/lib/coreBundle')
-  const browser = registry.findExecutable(browserName)
+    bundle = await import('playwright-core/lib/coreBundle')
+  } catch {
+    // browserRegistry explains it.
+  }
+  const registry = browserRegistry(
+    bundle,
+    process.platform === 'win32' ? ['winldd', name] : [name]
+  )
+  const missing = registry.executables.filter(
+    (e) => !isInstalled(e.executablePath())
+  )
+  if (missing.length === 0) {
+    return browserType
+  }
 
   // playwright will log browser download progress to stdout, temporarily
   // redirect the output to stderr
   const log = console.log
   const info = console.info
-
   try {
     console.log = console.error
     console.info = console.error
-    // Validating the browser on Windows needs winldd, same as Playwright's own install.
-    await registry.install(
-      process.platform === 'win32'
-        ? [registry.findExecutable('winldd'), browser]
-        : [browser]
-    )
+    await registry.install(missing)
   } finally {
     console.log = log
     console.info = info
   }
-  if (browserName === 'chromium-headless-shell') {
-    return api.chromium
-  }
-
-  // @ts-expect-error
-  return api[browserName]
+  return browserType
 }
 
 /**
