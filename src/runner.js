@@ -32,6 +32,8 @@ const EXIT_WAIT = 5000
 const WATCH_DEBOUNCE = 200
 // Tests of workers that never claim the page lower it
 const SW_CLAIM_TIMEOUT = Number(process.env.PW_TEST_SW_CLAIM_TIMEOUT) || 5000
+// Writing the screenshots and snapshots of a long run takes a while
+const TRACE_WAIT = 30_000
 
 /**
  * @typedef {import('playwright-core').Page} Page
@@ -63,6 +65,9 @@ export class Runner extends BaseRunner {
     this.pendingConsole = new Set()
     /** @type {WeakMap<object, Promise<void>>} */
     this.lastConsole = new WeakMap()
+    /** If the context records a trace, see `#startTracing` */
+    this.tracing = false
+    this.watching = false
 
     if (!this.stopped) {
       process.env.DEBUG = [process.env.DEBUG, '-pw:*'].filter(Boolean).join(',')
@@ -144,6 +149,8 @@ export class Runner extends BaseRunner {
     this.context.on('close', () => {
       this.#browserEnded('browser')
     })
+
+    await this.#startTracing(this.context)
 
     // Only Chromium reports service workers, the others keep their output
     this.context.on('serviceworker', (worker) => {
@@ -328,7 +335,10 @@ export class Runner extends BaseRunner {
       return
     }
     asyncExitHook(this.#clean.bind(this), {
-      wait: AFTER_TESTS_TIMEOUT + EXIT_WAIT,
+      wait:
+        AFTER_TESTS_TIMEOUT +
+        EXIT_WAIT +
+        (this.options.trace === 'off' || this.options.debug ? 0 : TRACE_WAIT),
     })
 
     try {
@@ -440,6 +450,7 @@ export class Runner extends BaseRunner {
     if (this.stopped) {
       return
     }
+    this.watching = true
     asyncExitHook(this.#clean.bind(this), {
       wait: AFTER_TESTS_TIMEOUT + EXIT_WAIT,
     })
@@ -534,6 +545,81 @@ export class Runner extends BaseRunner {
       }
       interrupted = true
     })
+  }
+
+  /**
+   * Record a trace of the run. Not under --debug, the browser closing ends the
+   * run there and takes the trace with it, and not in watch mode, which would
+   * keep all of the reruns in memory.
+   *
+   * @param {Context} context
+   */
+  async #startTracing(context) {
+    const { trace, debug } = this.options
+    if (trace === 'off') {
+      return
+    }
+    if (debug || this.watching) {
+      log.warn(
+        `Ignoring --trace, it does not work with ${debug ? '--debug' : '--watch'}.`
+      )
+      return
+    }
+    await context.tracing.start({
+      screenshots: true,
+      snapshots: true,
+      sources: false,
+    })
+    this.tracing = true
+  }
+
+  /**
+   * Save the trace, with `retain-on-failure` only when the run failed. Closing
+   * the context throws the trace away.
+   *
+   * @param {number} exitCode
+   */
+  async #saveTrace(exitCode) {
+    if (!this.tracing || (this.options.trace !== 'on' && exitCode === 0)) {
+      return
+    }
+    this.tracing = false
+    // The context can be gone before the browser process notices
+    if (this.closed === 'browser' || !this.#browserConnected()) {
+      log.warn(
+        'Could not save the trace, the browser closed before the run ended.'
+      )
+      return
+    }
+    const file = path.join(
+      this.options.cwd,
+      `playwright-test-trace-${this.options.browser}.zip`
+    )
+
+    /** @type {NodeJS.Timeout | undefined} */
+    let timer
+    const saved = await Promise.race([
+      /** @type {Context} */ (this.context).tracing.stop({ path: file }).then(
+        () => true,
+        (/** @type {Error} */ error) => {
+          log.warn(`Could not save the trace: ${error.message}`)
+          return undefined
+        }
+      ),
+      new Promise((resolve) => {
+        timer = setTimeout(resolve, TRACE_WAIT, false)
+      }),
+    ])
+    clearTimeout(timer)
+
+    if (saved) {
+      const shown = path.relative(process.cwd(), file) || file
+      log.info(
+        `Saved the trace, open it with \`npx playwright show-trace ${shown}\`.`
+      )
+    } else if (saved === false) {
+      log.warn(`Timed out saving the trace after ${TRACE_WAIT}ms.`)
+    }
   }
 
   /**
@@ -679,11 +765,16 @@ export class Runner extends BaseRunner {
     }
   }
 
-  async #clean() {
+  /**
+   * @param {number} exitCode
+   */
+  async #clean(exitCode) {
     // Whatever is running fails from here on because of the browser closing
     this.stopped = true
 
     await this.runAfterTests()
+    // Before the close, it has its own wait
+    await this.#saveTrace(exitCode)
 
     const close = async () => {
       // Before the server, its open connections could use up the wait for the exit

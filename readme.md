@@ -41,6 +41,7 @@ Description
     --extensions       File extensions allowed in the bundle.  (default js,cjs,mjs,ts,tsx)
     --no-transform     Node mode only. Run files as plain Node would, without the built-in esbuild transform.
     --run-timeout      Fail the run after this many milliseconds, 0 turns it off. Not used with --debug or --watch.  (default 1800000)
+    --trace            Save a Playwright trace to playwright-test-trace-<browser>.zip in --cwd, open it with `npx playwright show-trace`. Alone it only keeps the trace of a failed run, `--trace on` always keeps it. Not with --mode node, ignored with --debug and --watch.  (default off)
     --config           Path to the config file
     -v, --version      Displays current version
     -h, --help         Displays this message
@@ -498,6 +499,8 @@ export interface RunnerOptions {
   before?: string
   sw?: string
   transform: boolean
+  // 'retain-on-failure' only keeps the trace of failed runs
+  trace: 'off' | 'on' | 'retain-on-failure'
   buildConfig: BuildOptions
   buildSWConfig: BuildOptions
   browserContextOptions?: BrowserContextOptions
@@ -512,6 +515,30 @@ export interface RunnerOptions {
 ## Run in CI
 
 Check our CI config `.github/workflows/main.yml` and the playwright [Github Action](https://playwright.dev/docs/ci/#github-actions)
+
+### Traces
+
+`--debug` needs a display, so to see what happened in a run that failed in CI record a [Playwright trace](https://playwright.dev/docs/trace-viewer) with `--trace`. It has screenshots, DOM snapshots, console output and network requests of the run.
+
+```shell
+playwright-test test --trace     # keeps the trace when the run fails
+playwright-test test --trace on  # always keeps it
+```
+
+The trace is saved as `playwright-test-trace-<browser>.zip` in `--cwd`, replacing the one of an earlier run, and the run prints where it went. Upload it as an artifact and open it with `npx playwright show-trace playwright-test-trace-chromium.zip` or at [trace.playwright.dev](https://trace.playwright.dev).
+
+```yaml
+- run: pnpm test --trace
+- uses: actions/upload-artifact@v4
+  if: failure()
+  with:
+    name: trace
+    path: playwright-test-trace-*.zip
+```
+
+Put the test files before `--trace`, `--trace test.js` would take the file as its value, or use `--trace=on`. In a config file it's `trace: 'on'` or `trace: 'retain-on-failure'`.
+
+There's no trace in node mode, the flag fails the run there. It's ignored with `--debug`, closing the browser ends that run and takes the trace with it, and with `--watch`. When the browser crashes or gets killed there's nothing left to save, a crash of only the page still saves it.
 
 ## License
 

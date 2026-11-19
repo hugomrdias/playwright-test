@@ -43,6 +43,16 @@ export interface RunnerOptions {
    */
   runTimeout: number
   /**
+   * Record a Playwright trace of the run in browser modes, to open with
+   * `npx playwright show-trace`. It's saved as
+   * `playwright-test-trace-<browser>.zip` in `cwd`. `retain-on-failure` only
+   * keeps it when the run fails, `on` always does. Ignored with `debug` and in
+   * watch mode, not supported in node mode.
+   *
+   * @default 'off'
+   */
+  trace: 'off' | 'on' | 'retain-on-failure'
+  /**
    * Only run tests whose name matches this regular expression, or
    * `/expression/flags`. Each test is matched by its own name, the name of its
    * ancestors and all of those names joined by a space.
@@ -111,6 +121,8 @@ export interface CliOptions {
   cwd: string
   extensions: string
   transform?: boolean
+  /** `''` when the flag has no value */
+  trace?: string
   testNamePattern?: string
   testTimeout?: number
   config?: string
