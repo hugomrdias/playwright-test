@@ -25,6 +25,15 @@ export type PageBinding =
 export type Binding = ContextBinding | PageBinding
 
 /**
+ * Options of [page.click](https://playwright.dev/docs/api/class-page#page-click),
+ * without `signal`, an `AbortSignal` can't be sent to the runner
+ */
+export type ClickOptions = Omit<
+  NonNullable<Parameters<Page['click']>[1]>,
+  'signal'
+>
+
+/**
  * Trusted input on the test page, the subset of Playwright's `Page` that
  * playwright-test/client exposes
  */
@@ -32,8 +41,9 @@ export interface ClientPage {
   /**
    * Clicks the element that matches `selector` in the test page, see
    * [page.click](https://playwright.dev/docs/api/class-page#page-click).
+   * It takes the same options, except `signal`.
    */
-  click: Page['click']
+  click(selector: string, options?: ClickOptions): Promise<void>
   keyboard: {
     /**
      * Presses a key in the test page, see
@@ -73,7 +83,7 @@ declare global {
   function pwContextClearCookies(
     ...args: Parameters<BrowserContext['clearCookies']>
   ): Promise<void>
-  function pwPageClick(...args: Parameters<Page['click']>): Promise<void>
+  function pwPageClick(selector: string, options?: ClickOptions): Promise<void>
   function pwPageKeyboardPress(
     ...args: Parameters<Page['keyboard']['press']>
   ): Promise<void>

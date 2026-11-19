@@ -15,7 +15,18 @@ async function run(args) {
   return proc
 }
 
+/**
+ * @param {import('../src/client/types.js').ClickOptions} options
+ */
+const clickOptions = (options) => options
+
 describe('playwright-test/client', () => {
+  it('has no signal option for page.click', () => {
+    // @ts-expect-error an AbortSignal can't be sent to the runner
+    clickOptions({ signal: AbortSignal.abort() })
+    is(typeof clickOptions({ timeout: 1 }), 'object')
+  })
+
   // browsers.test.js runs them in the other browsers
   for (const mode of ['main', 'worker']) {
     it(`calls the browser context with --mode ${mode}`, async () => {

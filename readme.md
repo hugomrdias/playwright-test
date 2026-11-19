@@ -358,7 +358,7 @@ it('counts as user activation', async () => {
 })
 ```
 
-- `page.click(selector, options)`, Playwright's [`page.click`](https://playwright.dev/docs/api/class-page#page-click). It waits for the element to be visible and stable, up to the `timeout` option, 30 seconds by default.
+- `page.click(selector, options)`, Playwright's [`page.click`](https://playwright.dev/docs/api/class-page#page-click). It waits for the element to be visible and stable, up to the `timeout` option, 30 seconds by default. It takes the options of Playwright except `signal`, an `AbortSignal` can't be sent to the runner.
 - `page.keyboard.press(key, options)` and `page.keyboard.type(text, options)`, Playwright's [`keyboard`](https://playwright.dev/docs/api/class-keyboard). They go to the focused element.
 
 The input always goes to the test page, the popup with `--extension`. With `--mode worker` it still goes to the page that started the worker, so it can click what the page shows, but the worker can't see the events or get the user activation, workers have none. In node mode they reject.
