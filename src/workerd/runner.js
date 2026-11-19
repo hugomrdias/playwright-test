@@ -31,6 +31,7 @@ const CLOUDFLARE_CONFIGS = [
 /** Requests with it start the tests, everything else goes to the worker. */
 const RUN_HEADER = 'x-playwright-test-run'
 const RUNTIME_MODULE = 'playwright-test:runtime'
+const ENV_MODULE = 'playwright-test:env'
 const BUILTINS = new Set(builtinModules.filter((name) => !name.startsWith('_')))
 
 /**
@@ -244,17 +245,16 @@ const builtinsPlugin = {
  * @param {object} opts
  * @param {string | undefined} opts.main
  * @param {string} opts.token
- * @param {import('../types.js').RunnerEnv} opts.env
  */
-function workerEntry({ main, token, env }) {
+function workerEntry({ main, token }) {
   const mainImports = main
     ? `import * as __pwMain from ${JSON.stringify(main)}
 export * from ${JSON.stringify(main)}`
     : 'const __pwMain = {}'
 
-  return `${mainImports}
-
-const ENV = ${JSON.stringify(env)}
+  // Imports run in order, the worker sees the env when it loads
+  return `import ${JSON.stringify(ENV_MODULE)}
+${mainImports}
 
 function isRun(request) {
   return request.headers.get(${JSON.stringify(RUN_HEADER)}) === ${JSON.stringify(token)}
@@ -262,7 +262,6 @@ function isRun(request) {
 
 // Test runners end the run with process.exit, like in the other modes
 async function run() {
-  Object.assign(process.env, ENV)
   const { promise, resolve } = Promise.withResolvers()
   process.exit = (code = process.exitCode) => resolve(Number(code ?? 0))
   try {
@@ -366,6 +365,7 @@ export class WorkerdRunner extends BaseRunner {
   async #bundle(main, define) {
     const outfile = path.join(this.dir, 'bundle-out.js')
     const cwd = this.options.cwd
+    const env = this.env
     const runtime = this.options.testRunner.compileRuntime(
       this.options,
       this.tests.map((t) => path.resolve(cwd, t).replaceAll('\\', '/'))
@@ -375,22 +375,31 @@ export class WorkerdRunner extends BaseRunner {
     const runtimePlugin = {
       name: 'workerd-runtime',
       setup(build) {
-        build.onResolve({ filter: /^playwright-test:runtime$/ }, () => ({
-          path: RUNTIME_MODULE,
-          namespace: 'workerd-runtime',
-        }))
-        build.onLoad({ filter: /.*/, namespace: 'workerd-runtime' }, () => ({
-          contents: runtime,
-          resolveDir: cwd,
-          loader: 'js',
-        }))
+        build.onResolve(
+          { filter: /^playwright-test:(runtime|env)$/ },
+          (args) => ({
+            path: args.path,
+            namespace: 'workerd-runtime',
+          })
+        )
+        build.onLoad(
+          { filter: /.*/, namespace: 'workerd-runtime' },
+          (args) => ({
+            contents:
+              args.path === ENV_MODULE
+                ? `Object.assign(globalThis.process.env, ${JSON.stringify(env)})`
+                : runtime,
+            resolveDir: cwd,
+            loader: 'js',
+          })
+        )
       },
     }
 
     /** @type {import('esbuild').BuildOptions} */
     const defaults = {
       stdin: {
-        contents: workerEntry({ main, token: this.token, env: this.env }),
+        contents: workerEntry({ main, token: this.token }),
         resolveDir: cwd,
         sourcefile: 'workerd-entry.js',
       },
