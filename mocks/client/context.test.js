@@ -25,12 +25,18 @@ test('setGeolocation', async () => {
   await Client.context.setGeolocation({ latitude: 59.95, longitude: 30.31667 })
 })
 
-// Not every browser has had the Permissions API in workers
-const permissions = globalThis.navigator?.permissions
-
-test('clearPermissions', { skip: !permissions }, async () => {
+test('clearPermissions', async (t) => {
   const query = async () =>
-    (await permissions.query({ name: 'geolocation' })).state
+    (await navigator.permissions.query({ name: 'geolocation' })).state
+  // WebKit on Windows has the Permissions API in workers, but query throws
+  const supported = await query().then(
+    () => true,
+    () => false
+  )
+  if (!supported) {
+    t.skip('no permissions.query for geolocation here')
+    return
+  }
   await Client.context.grantPermissions(['geolocation'])
   assert.equal(await query(), 'granted')
   await Client.context.clearPermissions()
