@@ -71,6 +71,8 @@ export class Runner extends BaseRunner {
     this.pendingConsole = new Set()
     /** @type {WeakMap<object, Promise<void>>} */
     this.lastConsole = new WeakMap()
+    /** @type {WeakSet<import('playwright-core').ConsoleMessage>} */
+    this.seenConsole = new WeakSet()
     /** If the context records a trace, see `#startTracing` */
     this.tracing = false
     this.watching = false
@@ -160,12 +162,24 @@ export class Runner extends BaseRunner {
       this.#browserEnded('browser')
     })
 
-    await this.#startTracing(this.context)
-
-    // Only Chromium reports service workers, the others keep their output
-    this.context.on('serviceworker', (worker) => {
+    // Only Chromium reports service workers, the others keep their output.
+    // Extension service workers can already be running before tracing starts.
+    /** @type {WeakSet<import('playwright-core').Worker>} */
+    const trackedWorkers = new WeakSet()
+    /** @param {import('playwright-core').Worker} worker */
+    const trackServiceWorker = (worker) => {
+      if (trackedWorkers.has(worker)) {
+        return
+      }
+      trackedWorkers.add(worker)
       worker.on('console', this.#onConsole)
-    })
+    }
+    this.context.on('serviceworker', trackServiceWorker)
+    for (const worker of this.context.serviceWorkers()) {
+      trackServiceWorker(worker)
+    }
+
+    await this.#startTracing(this.context)
 
     // Multiplexed bindings of playwright-test/client; a worker running the
     // tests calls them through the page, see `addWorker`. Trusted input goes
@@ -747,8 +761,10 @@ export class Runner extends BaseRunner {
         try {
           // Unregister any service worker in the page before reload
           await page.evaluate(async () => {
-            const regs = await navigator.serviceWorker.getRegistrations()
-            await Promise.all(regs.map((reg) => reg.unregister()))
+            if (navigator.serviceWorker) {
+              const regs = await navigator.serviceWorker.getRegistrations()
+              await Promise.all(regs.map((reg) => reg.unregister()))
+            }
           })
           await page.reload()
           console.error()
@@ -876,7 +892,7 @@ export class Runner extends BaseRunner {
    * If the browser process is still there, it isn't once it crashed or got closed.
    */
   #browserConnected() {
-    return this.context?.browser()?.isConnected() ?? false
+    return (this.browser ?? this.context?.browser())?.isConnected() ?? false
   }
 
   /**
@@ -955,6 +971,13 @@ export class Runner extends BaseRunner {
    * @param {import('playwright-core').ConsoleMessage} msg
    */
   #onConsole = (msg) => {
+    // Playwright emits the same ConsoleMessage on both a service worker and
+    // any in-scope page listening to console events.
+    if (this.seenConsole.has(msg)) {
+      return
+    }
+    this.seenConsole.add(msg)
+
     // Read it right away, print it after the messages that came before it from
     // the same thread. A thread stuck in a loop can't answer the read of its last
     // message, that can't hold back the others.
@@ -1029,8 +1052,16 @@ export class Runner extends BaseRunner {
     const close = async () => {
       // Before the server, its open connections could use up the wait for the exit
       // A browser that's gone can't close it, and doesn't need to
-      if (this.context && this.#browserConnected()) {
-        await this.context.close()
+      if (this.#browserConnected()) {
+        try {
+          if (this.context) {
+            await this.context.close()
+          }
+        } finally {
+          if (this.browser?.isConnected()) {
+            await this.browser.close()
+          }
+        }
       }
 
       await new Promise((resolve, reject) => {

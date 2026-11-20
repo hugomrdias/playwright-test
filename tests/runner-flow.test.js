@@ -721,6 +721,112 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
       ok(printed !== -1, proc.all)
       ok(printed < proc.all.indexOf('Timed out waiting'), proc.all)
     })
+
+    it('prints what the extension service worker logs once', async () => {
+      const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-test-ext-sw-'))
+      const script = `
+        const { Runner } = await import(${JSON.stringify(
+          new URL('../src/runner.js', import.meta.url).href
+        )})
+        const test = ${JSON.stringify(path.resolve(FLOW, 'pass.js'))}
+        const runner = new Runner(
+          {
+            runner: 'none',
+            extension: true,
+            trace: 'on',
+            cwd: ${JSON.stringify(temp)},
+          },
+          [test]
+        )
+        const setupPage = runner.setupPage.bind(runner)
+        runner.setupPage = async (context) => {
+          let [worker] = context.serviceWorkers()
+          if (!worker) {
+            worker = await context.waitForEvent('serviceworker')
+          }
+          await worker.evaluate(() => console.log('ext-sw-before-page'))
+          const page = await setupPage(context)
+          await worker.evaluate(() => console.log('ext-sw-after-page'))
+          return page
+        }
+        await runner.run()
+      `
+      try {
+        const proc = await execa(
+          process.execPath,
+          ['--input-type=module', '-e', script],
+          { reject: false, timeout: 30_000 }
+        )
+
+        is(proc.exitCode, 0, proc.stderr)
+        is(
+          proc.stdout.match(/ext-sw-before-page/g)?.length,
+          1,
+          proc.stdout + proc.stderr
+        )
+        is(
+          proc.stdout.match(/ext-sw-after-page/g)?.length,
+          1,
+          proc.stdout + proc.stderr
+        )
+      } finally {
+        fs.rmSync(temp, { force: true, recursive: true })
+      }
+    })
+  })
+
+  describe('--incognito cleanup', { concurrency: false }, () => {
+    /**
+     * @param {string} [extraOptions]
+     */
+    const runIncognito = (extraOptions = '') => {
+      const script = `
+        const { Runner } = await import(${JSON.stringify(
+          new URL('../src/runner.js', import.meta.url).href
+        )})
+        const test = ${JSON.stringify(path.resolve(FLOW, 'pass.js'))}
+        const runner = new Runner(
+          { runner: 'none', incognito: true${extraOptions} },
+          [test]
+        )
+        const removeFiles = runner.removeFiles.bind(runner)
+        runner.removeFiles = () => {
+          console.log('browser-connected:' + String(runner.browser?.isConnected()))
+          removeFiles()
+        }
+        await runner.run()
+      `
+      return execa(process.execPath, ['--input-type=module', '-e', script], {
+        reject: false,
+        timeout: 30_000,
+      })
+    }
+
+    it('closes the browser before cleanup finishes', async () => {
+      const proc = await runIncognito()
+
+      is(proc.exitCode, 0, proc.stderr)
+      ok(proc.stdout.includes('flow-pass'), proc.stdout)
+      ok(
+        proc.stdout.includes('browser-connected:false'),
+        proc.stdout + proc.stderr
+      )
+    })
+
+    it('closes the browser when creating the context fails', async () => {
+      const proc = await runIncognito(
+        `, browserContextOptions: { storageState: ${JSON.stringify(
+          path.join(os.tmpdir(), `pw-missing-${nanoid()}.json`)
+        )} }`
+      )
+
+      is(proc.exitCode, 1, 'exit code')
+      ok(
+        proc.stdout.includes('browser-connected:false'),
+        proc.stdout + proc.stderr
+      )
+      ok(!proc.stderr.includes('Could not close the browser'), proc.stderr)
+    })
   })
 
   describe('--watch', { concurrency: false }, () => {
@@ -855,6 +961,69 @@ console.log('RUN', V, O, H)
         ok(!stderr.includes('has been closed'), stderr)
       } finally {
         // On Windows a kill doesn't reach its children, which keep the output open
+        if (process.platform === 'win32') {
+          await execa('taskkill', ['/pid', String(proc.pid), '/T', '/F'], {
+            reject: false,
+          })
+        } else {
+          proc.kill('SIGINT')
+        }
+        await proc
+      }
+    })
+
+    it('reloads in firefox --incognito without failing on serviceWorker', async () => {
+      const dir = `${root}/firefox-incognito`
+      fs.mkdirSync(dir, { recursive: true })
+      const file = `${dir}/a.test.js`
+      fs.writeFileSync(file, "console.log('RUN v1')\n")
+
+      const proc = run(
+        [
+          'a.test.js',
+          '--runner',
+          'none',
+          '--watch',
+          '--browser',
+          'firefox',
+          '--incognito',
+          '--cwd',
+          dir,
+        ],
+        { timeout: 45_000 }
+      )
+      let stdout = ''
+      let stderr = ''
+      proc.stdout.on('data', (data) => {
+        stdout += data
+      })
+      proc.stderr.on('data', (data) => {
+        stderr += data
+      })
+
+      /**
+       * @param {string} line
+       */
+      async function seen(line) {
+        const start = Date.now()
+        while (!stdout.includes(`RUN ${line}\n`)) {
+          ok(
+            Date.now() - start < 15_000,
+            `no "${line}" in:\n${stdout}\n${stderr}`
+          )
+          await new Promise((resolve) => setTimeout(resolve, 50))
+        }
+      }
+
+      try {
+        await seen('v1')
+        fs.writeFileSync(file, "console.log('RUN v2')\n")
+        await seen('v2')
+
+        ok(stderr.includes('Reloading tests...'), stderr)
+        ok(!stderr.includes('TypeError'), stderr)
+        ok(!stderr.includes('serviceWorker'), stderr)
+      } finally {
         if (process.platform === 'win32') {
           await execa('taskkill', ['/pid', String(proc.pid), '/T', '/F'], {
             reject: false,
