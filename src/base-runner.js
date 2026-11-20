@@ -25,11 +25,11 @@ const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
 export class BaseRunner {
   /**
    *
-   * @param {import('./types').Config} options
+   * @param {import('./types.js').Config} options
    * @param {string[]} [testFiles]
    */
   constructor(options, testFiles) {
-    /** @type {import('./types').RunnerOptions} */
+    /** @type {import('./types.js').RunnerOptions} */
     this.options = merge(defaultOptions, options)
     this.options.testRunner = resolveTestRunner(
       /** @type {{ runner: string }} */ (this.options)
@@ -37,7 +37,7 @@ export class BaseRunner {
     assertRunTimeout(this.options.runTimeout)
     this.assertOptions()
     this.options.cwd = path.resolve(this.options.cwd)
-    /** @type {import('polka').Polka["server"] | undefined} */
+    /** @type {import('node:http').Server | undefined} */
     this.server = undefined
     this.dir = path.join(__dirname, '../.tmp', nanoid())
     this.stopped = false
@@ -46,7 +46,7 @@ export class BaseRunner {
     this.beforeTestsOutput = undefined
     /** @type {Promise<boolean> | undefined} */
     this.afterTestsResult = undefined
-    /** @type {import('./types').RunnerEnv} */
+    /** @type {import('./types.js').RunnerEnv} */
     this.env = merge(JSON.parse(JSON.stringify(process.env)), {
       PW_OPTIONS: JSON.stringify(this.options),
       NODE_ENV: 'test',

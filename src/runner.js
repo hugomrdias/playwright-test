@@ -50,7 +50,7 @@ const TRACE_WAIT = 30_000
 export class Runner extends BaseRunner {
   /**
    *
-   * @param {import('./types').Config} options
+   * @param {import('./types.js').Config} options
    * @param {string[]} [testFiles]
    */
   constructor(options, testFiles) {
@@ -862,7 +862,7 @@ export class Runner extends BaseRunner {
    * Compile tests
    *
    * @param {"before" | "bundle"} mode
-   * @returns {Promise<import('./types').CompilerOutput>} file to be loaded in the page
+   * @returns {Promise<import('./types.js').CompilerOutput>} file to be loaded in the page
    */
   compiler(mode = 'bundle') {
     return build(

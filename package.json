@@ -65,6 +65,7 @@
     "dist/src/base-runner.d.ts.map",
     "dist/src/node",
     "dist/src/types.d.ts",
+    "dist/src/types.d.ts.map",
     "dist/src/client",
     "static",
     "src",

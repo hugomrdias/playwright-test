@@ -28,11 +28,6 @@ import {
 } from './test-harness.js'
 import { MockTracker, mockAssertions, unsupported } from './test-mock.js'
 
-/**
- * @typedef {'before' | 'after' | 'beforeEach' | 'afterEach'} HookName
- * @typedef {{ ctx: TestContext | SuiteContext }} RunArgs
- */
-
 const kAborted = 'testAborted'
 const kCallbackAndPromisePresent = 'callbackAndPromisePresent'
 const kCancelledByParent = 'cancelledByParent'
@@ -576,7 +571,7 @@ class TestHook {
   promise
 
   /**
-   * @param {HookName} hookType
+   * @param {'before' | 'after' | 'beforeEach' | 'afterEach'} hookType
    * @param {any} fn
    * @param {{ timeout?: number | null, signal?: AbortSignal }} options
    */
@@ -594,7 +589,7 @@ class TestHook {
   }
 
   /**
-   * @param {RunArgs} args
+   * @param {{ ctx: TestContext | SuiteContext }} args
    */
   run(args) {
     if (this.hookType === 'before' || this.hookType === 'after') {
@@ -605,7 +600,7 @@ class TestHook {
   }
 
   /**
-   * @param {RunArgs} args
+   * @param {{ ctx: TestContext | SuiteContext }} args
    */
   async #run({ ctx }) {
     this.error = null
@@ -878,7 +873,7 @@ class Test {
   }
 
   /**
-   * @param {HookName} name
+   * @param {'before' | 'after' | 'beforeEach' | 'afterEach'} name
    * @param {any} fn
    * @param {any} [options]
    */
@@ -964,15 +959,15 @@ class Test {
   }
 
   /**
-   * @returns {RunArgs}
+   * @returns {{ ctx: TestContext | SuiteContext }}
    */
   getRunArgs() {
     return { ctx: this.getCtx() }
   }
 
   /**
-   * @param {HookName} name
-   * @param {RunArgs} args
+   * @param {'before' | 'after' | 'beforeEach' | 'afterEach'} name
+   * @param {{ ctx: TestContext | SuiteContext }} args
    */
   async runHook(name, args) {
     try {
@@ -1261,7 +1256,7 @@ class Suite extends Test {
   }
 
   /**
-   * @returns {RunArgs}
+   * @returns {{ ctx: TestContext | SuiteContext }}
    */
   getRunArgs() {
     return { ctx: new SuiteContext(this) }
@@ -1772,7 +1767,7 @@ function createApi(Factory) {
 }
 
 /**
- * @param {HookName} name
+ * @param {'before' | 'after' | 'beforeEach' | 'afterEach'} name
  */
 function createHookApi(name) {
   return (/** @type {any} */ fn, /** @type {any} */ options) => {
@@ -1823,9 +1818,11 @@ export const assert = {
 
 /**
  * The context of the running test, if there's one.
+ *
+ * @returns {import('node:test').TestContext | undefined}
  */
 export function getTestContext() {
-  return current === root ? undefined : current.getCtx()
+  return /** @type {any} */ (current === root ? undefined : current.getCtx())
 }
 
 /** @type {typeof import('node:test').test} */
