@@ -26,6 +26,50 @@ describe('workerd mode', () => {
     ok(proc.stdout.includes('pass 1'), proc.stdout)
   })
 
+  it('starts the tests of a worker with static assets', async () => {
+    const proc = await runWorkerd(['test/assets.test.js'])
+
+    is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
+    ok(proc.stdout.includes('pass 1'), proc.stdout)
+  })
+
+  it('imports text, data and wasm modules', async () => {
+    const proc = await runWorkerd(['test/modules.test.js'])
+
+    is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
+    ok(proc.stdout.includes('pass 3'), proc.stdout)
+  })
+
+  it('keeps configured vars over the env of this process', async () => {
+    const proc = await runCli(
+      [
+        '--mode',
+        'workerd',
+        '--cwd',
+        'mocks/workerd',
+        'test/configured.test.js',
+      ],
+      {
+        env: { CONFIGURED: 'from this process', NODE_TEST_CONTEXT: undefined },
+        reject: false,
+      }
+    )
+
+    is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
+    ok(proc.stdout.includes('pass 1'), proc.stdout)
+  })
+
+  it('gets the env beforeTests sets', async () => {
+    const proc = await runWorkerd([
+      '--config',
+      'mocks/workerd/before-tests.config.mjs',
+      'test/before-tests.test.js',
+    ])
+
+    is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
+    ok(proc.stdout.includes('pass 1'), proc.stdout)
+  })
+
   it('runs mocha files', async () => {
     const proc = await runWorkerd(['test/worker.mocha.js'])
 

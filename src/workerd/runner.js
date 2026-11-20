@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { builtinModules, createRequire } from 'node:module'
 import path from 'node:path'
@@ -32,6 +32,18 @@ const CLOUDFLARE_CONFIGS = [
 const RUN_HEADER = 'x-playwright-test-run'
 const RUNTIME_MODULE = 'playwright-test:runtime'
 const ENV_MODULE = 'playwright-test:env'
+/** Wrangler's, for workers without a wrangler config. */
+const DEFAULT_MODULE_RULES = [
+  { type: 'Text', include: ['**/*.txt', '**/*.html', '**/*.sql'] },
+  { type: 'Data', include: ['**/*.bin'] },
+  { type: 'CompiledWasm', include: ['**/*.wasm', '**/*.wasm?module'] },
+]
+/** Module rule types that become workerd modules, the others get bundled. */
+const MODULE_TYPES = /** @type {Record<string, 'text' | 'data' | 'wasm'>} */ ({
+  Text: 'text',
+  Data: 'data',
+  CompiledWasm: 'wasm',
+})
 const BUILTINS = new Set(builtinModules.filter((name) => !name.startsWith('_')))
 
 /**
@@ -119,6 +131,8 @@ function importPackage(dir) {
  * @property {object[]} otherWorkers - workers it has service bindings to
  * @property {string} [main] - its entry point
  * @property {Record<string, string>} define
+ * @property {{ type: string, include: string[] }[]} moduleRules - how to load
+ *   non-JavaScript imports, like wrangler's `rules`
  */
 
 /**
@@ -317,6 +331,8 @@ export class WorkerdRunner extends BaseRunner {
     this.stackMapper = createStackMapper(this.dir)
     /** @type {any} */
     this.mf = undefined
+    /** @type {string | undefined} */
+    this.workerName = undefined
     this.token = randomUUID()
   }
 
@@ -359,13 +375,55 @@ export class WorkerdRunner extends BaseRunner {
   }
 
   /**
-   * @param {string | undefined} main
-   * @param {Record<string, string>} define
+   * The env module sets what the runner adds over the worker's `process.env`,
+   * like `NODE_ENV` and what `beforeTests` sets. What it inherited from this
+   * process only fills in, so the worker's own vars stay what its config says.
    */
-  async #bundle(main, define) {
+  #envModule() {
+    /** @type {Record<string, string>} */
+    const runner = {}
+    /** @type {Record<string, string>} */
+    const inherited = {}
+    for (const [key, value] of Object.entries(this.env)) {
+      if (value === undefined) {
+        continue
+      }
+      if (
+        key === 'NODE_ENV' ||
+        key.startsWith('PW_') ||
+        process.env[key] !== value
+      ) {
+        runner[key] = value
+      } else {
+        inherited[key] = value
+      }
+    }
+    return `const env = globalThis.process.env
+for (const [key, value] of Object.entries(${JSON.stringify(inherited)})) {
+  env[key] ??= value
+}
+Object.assign(env, ${JSON.stringify(runner)})`
+  }
+
+  /**
+   * @param {string | undefined} main
+   * @param {LoadedWorker} loaded
+   * @param {any} miniflare
+   */
+  async #bundle(main, { define, moduleRules }, miniflare) {
     const outfile = path.join(this.dir, 'bundle-out.js')
     const cwd = this.options.cwd
-    const env = this.env
+    const envModule = this.#envModule()
+    /** @type {Map<string, { type: 'text' | 'data' | 'wasm', path: string }>} */
+    const modules = new Map()
+    const rules = miniflare
+      .compileModuleRules(
+        moduleRules.filter((rule) => Object.hasOwn(MODULE_TYPES, rule.type))
+      )
+      .map((/** @type {any} */ rule) => ({
+        ...rule,
+        type: MODULE_TYPES[rule.type],
+      }))
     const runtime = this.options.testRunner.compileRuntime(
       this.options,
       this.tests.map((t) => path.resolve(cwd, t).replaceAll('\\', '/'))
@@ -385,13 +443,55 @@ export class WorkerdRunner extends BaseRunner {
         build.onLoad(
           { filter: /.*/, namespace: 'workerd-runtime' },
           (args) => ({
-            contents:
-              args.path === ENV_MODULE
-                ? `Object.assign(globalThis.process.env, ${JSON.stringify(env)})`
-                : runtime,
+            contents: args.path === ENV_MODULE ? envModule : runtime,
             resolveDir: cwd,
             loader: 'js',
           })
+        )
+      },
+    }
+
+    /**
+     * Imports that match a module rule stay out of the bundle and become
+     * workerd modules next to it, the way wrangler deploys them.
+     *
+     * @type {ESBuildPlugin}
+     */
+    const modulesPlugin = {
+      name: 'workerd-modules',
+      setup(build) {
+        build.onResolve(
+          { filter: /\.\w+(\?module)?$/ },
+          async (/** @type {any} */ args) => {
+            if (args.pluginData?.workerdModule) {
+              return
+            }
+            const rule = rules.find((/** @type {any} */ rule) =>
+              miniflare.testRegExps(rule.include, args.path)
+            )
+            if (!rule) {
+              return
+            }
+            const resolved = await build.resolve(
+              args.path.replace(/\?module$/, ''),
+              {
+                kind: args.kind,
+                importer: args.importer,
+                resolveDir: args.resolveDir,
+                pluginData: { workerdModule: true },
+              }
+            )
+            if (resolved.errors.length > 0) {
+              return { errors: resolved.errors }
+            }
+            const hash = createHash('sha256')
+              .update(resolved.path)
+              .digest('hex')
+              .slice(0, 8)
+            const name = `modules/${hash}-${path.basename(resolved.path)}`
+            modules.set(name, { type: rule.type, path: resolved.path })
+            return { path: `./${name}`, external: true }
+          }
         )
       },
     }
@@ -416,7 +516,7 @@ export class WorkerdRunner extends BaseRunner {
         'import.meta.env': 'globalThis.process.env',
         ...define,
       },
-      plugins: [runtimePlugin, builtinsPlugin],
+      plugins: [modulesPlugin, runtimePlugin, builtinsPlugin],
       logLevel: 'error',
     }
     await esbuild.build(
@@ -426,7 +526,7 @@ export class WorkerdRunner extends BaseRunner {
         this.options.buildConfig
       )
     )
-    return outfile
+    return { outfile, modules }
   }
 
   #logHandler() {
@@ -448,11 +548,9 @@ export class WorkerdRunner extends BaseRunner {
    * @param {string} text
    */
   #mapStack(text) {
-    const dir = this.dir.replaceAll('\\', '/')
+    // A path, a file URL or `/bundle-out.js` on Windows, workerd drops the drive
     return this.stackMapper.map(
-      text
-        .replaceAll(`${pathToFileURL(this.dir).href}/`, '')
-        .replaceAll(`${dir}/`, '')
+      text.replace(/[^\s()'"]*[\\/](bundle-out\.js:\d+:\d+)/g, '$1')
     )
   }
 
@@ -475,7 +573,7 @@ export class WorkerdRunner extends BaseRunner {
     const main = this.options.workerd?.main
       ? path.resolve(this.options.cwd, this.options.workerd.main)
       : loaded.main
-    const outfile = await this.#bundle(main, loaded.define)
+    const { outfile, modules } = await this.#bundle(main, loaded, miniflare)
     const name = path.basename(outfile)
 
     /** @type {{ config: Record<string, any> }} */
@@ -488,6 +586,18 @@ export class WorkerdRunner extends BaseRunner {
       modulesRoot: this.dir,
       modules: {
         [name]: { type: 'esm', contents: readFileSync(outfile, 'utf8') },
+        ...Object.fromEntries(
+          [...modules].map(([moduleName, module]) => [
+            moduleName,
+            {
+              type: module.type,
+              contents:
+                module.type === 'text'
+                  ? readFileSync(module.path, 'utf8')
+                  : new Uint8Array(readFileSync(module.path)),
+            },
+          ])
+        ),
       },
     }
 
@@ -496,6 +606,7 @@ export class WorkerdRunner extends BaseRunner {
       handleStructuredLogs: this.#logHandler(),
       workers: [worker, ...loaded.otherWorkers],
     })
+    this.workerName = worker.config.name
     await this.mf.ready
   }
 
@@ -516,6 +627,7 @@ export class WorkerdRunner extends BaseRunner {
         },
         otherWorkers: [],
         define: {},
+        moduleRules: DEFAULT_MODULE_RULES,
       }
     }
     /** @type {{ workerOptions: Record<string, any>, main?: string, define: Record<string, string>, externalWorkers: object[] }} */
@@ -547,6 +659,8 @@ export class WorkerdRunner extends BaseRunner {
       otherWorkers,
       main: fromConfig.main,
       define: fromConfig.define,
+      moduleRules:
+        fromConfig.workerOptions.modulesRules ?? DEFAULT_MODULE_RULES,
     }
   }
 
@@ -603,6 +717,7 @@ export class WorkerdRunner extends BaseRunner {
       otherWorkers: [],
       main: entrypoint,
       define: {},
+      moduleRules: DEFAULT_MODULE_RULES,
     }
   }
 
@@ -610,7 +725,9 @@ export class WorkerdRunner extends BaseRunner {
    * @returns {Promise<boolean>} if the tests passed
    */
   async runTests() {
-    const response = await this.mf.dispatchFetch('http://localhost/', {
+    // Straight to the worker, past routing like static assets coming first
+    const worker = await this.mf.getWorker(this.workerName)
+    const response = await worker.fetch('http://localhost/', {
       headers: { [RUN_HEADER]: this.token },
     })
     if (!response.ok) {

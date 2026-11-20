@@ -3,7 +3,8 @@
   "main": "src/index.js",
   "compatibility_date": "2026-11-01",
   "compatibility_flags": ["nodejs_compat"],
-  "vars": { "GREETING": "hello" },
+  "vars": { "GREETING": "hello", "CONFIGURED": "from the config" },
+  "assets": { "directory": "./public", "binding": "ASSETS" },
   "kv_namespaces": [{ "binding": "KV", "id": "local" }],
   "durable_objects": {
     "bindings": [{ "name": "COUNTER", "class_name": "Counter" }]

@@ -1,4 +1,7 @@
 import { DurableObject } from 'cloudflare:workers'
+import wasm from './add.wasm'
+import data from './data.bin'
+import template from './template.html'
 
 // Read when the worker loads, before any request
 const loadedWith = process.env.NODE_ENV
@@ -16,6 +19,19 @@ export default {
     const { pathname } = new URL(request.url)
     if (pathname === '/greet') {
       return new Response(`${env.GREETING} world`)
+    }
+    if (pathname === '/template') {
+      return new Response(template)
+    }
+    if (pathname === '/data') {
+      return new Response(new TextDecoder().decode(data))
+    }
+    if (pathname === '/wasm') {
+      const { exports } = await WebAssembly.instantiate(wasm)
+      return new Response(String(exports.add(2, 3)))
+    }
+    if (pathname === '/configured') {
+      return new Response(process.env.CONFIGURED)
     }
     if (pathname === '/env') {
       return new Response(loadedWith ?? 'unset')
