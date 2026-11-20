@@ -1,60 +1,93 @@
-declare global {
-  function pwContextSetOffline(offline: boolean): Promise<void>
+import type { BrowserContext, Page } from 'playwright-core'
+
+/**
+ * Names of the browser context bindings of playwright-test/client
+ */
+export type ContextBinding =
+  | 'pwContextSetOffline'
+  | 'pwContextGrantPermissions'
+  | 'pwContextClearPermissions'
+  | 'pwContextSetGeolocation'
+  | 'pwContextSetExtraHTTPHeaders'
+  | 'pwContextAddCookies'
+  | 'pwContextCookies'
+  | 'pwContextClearCookies'
+
+/**
+ * Names of the page bindings of playwright-test/client, they act on the page
+ * that calls them
+ */
+export type PageBinding =
+  | 'pwPageClick'
+  | 'pwPageKeyboardPress'
+  | 'pwPageKeyboardType'
+
+export type Binding = ContextBinding | PageBinding
+
+/**
+ * Options of [page.click](https://playwright.dev/docs/api/class-page#page-click),
+ * without `signal`, an `AbortSignal` can't be sent to the runner
+ */
+export type ClickOptions = Omit<
+  NonNullable<Parameters<Page['click']>[1]>,
+  'signal'
+>
+
+/**
+ * Trusted input on the test page, the subset of Playwright's `Page` that
+ * playwright-test/client exposes
+ */
+export interface ClientPage {
   /**
-   * Grants specified permissions to the browser context. Only grants corresponding permissions to the given origin if
-   * specified.
-   *
-   * @param permissions A permission or an array of permissions to grant. Permissions can be one of the following values:
-   * - `'geolocation'`
-   * - `'midi'`
-   * - `'midi-sysex'` (system-exclusive midi)
-   * - `'notifications'`
-   * - `'camera'`
-   * - `'microphone'`
-   * - `'background-sync'`
-   * - `'ambient-light-sensor'`
-   * - `'accelerometer'`
-   * - `'gyroscope'`
-   * - `'magnetometer'`
-   * - `'accessibility-events'`
-   * - `'clipboard-read'`
-   * - `'clipboard-write'`
-   * - `'payment-handler'`
-   * @param options
-   * @param options.origin
+   * Clicks the element that matches `selector` in the test page, see
+   * [page.click](https://playwright.dev/docs/api/class-page#page-click).
+   * It takes the same options, except `signal`.
    */
-  function pwContextGrantPermissions(
-    permissions: readonly string[],
-    options?: {
-      /**
-       * The [origin] to grant permissions to, e.g. "https://example.com".
-       */
-      origin?: string
-    }
-  ): Promise<void>
-
-  /**
-   *
-   * @param geolocation
-   */
-  function pwContextSetGeolocation(
-    geolocation: null | {
-      /**
-       * Latitude between -90 and 90.
-       */
-      latitude: number
-
-      /**
-       * Longitude between -180 and 180.
-       */
-      longitude: number
-
-      /**
-       * Non-negative accuracy value. Defaults to `0`.
-       */
-      accuracy?: number
-    }
-  ): Promise<void>
+  click(selector: string, options?: ClickOptions): Promise<void>
+  keyboard: {
+    /**
+     * Presses a key in the test page, see
+     * [keyboard.press](https://playwright.dev/docs/api/class-keyboard#keyboard-press).
+     */
+    press: Page['keyboard']['press']
+    /**
+     * Types text in the focused element of the test page, see
+     * [keyboard.type](https://playwright.dev/docs/api/class-keyboard#keyboard-type).
+     */
+    type: Page['keyboard']['type']
+  }
 }
 
-export {}
+declare global {
+  function pwContextSetOffline(
+    ...args: Parameters<BrowserContext['setOffline']>
+  ): Promise<void>
+  function pwContextGrantPermissions(
+    ...args: Parameters<BrowserContext['grantPermissions']>
+  ): Promise<void>
+  function pwContextClearPermissions(
+    ...args: Parameters<BrowserContext['clearPermissions']>
+  ): Promise<void>
+  function pwContextSetGeolocation(
+    ...args: Parameters<BrowserContext['setGeolocation']>
+  ): Promise<void>
+  function pwContextSetExtraHTTPHeaders(
+    ...args: Parameters<BrowserContext['setExtraHTTPHeaders']>
+  ): Promise<void>
+  function pwContextAddCookies(
+    ...args: Parameters<BrowserContext['addCookies']>
+  ): Promise<void>
+  function pwContextCookies(
+    ...args: Parameters<BrowserContext['cookies']>
+  ): ReturnType<BrowserContext['cookies']>
+  function pwContextClearCookies(
+    ...args: Parameters<BrowserContext['clearCookies']>
+  ): Promise<void>
+  function pwPageClick(selector: string, options?: ClickOptions): Promise<void>
+  function pwPageKeyboardPress(
+    ...args: Parameters<Page['keyboard']['press']>
+  ): Promise<void>
+  function pwPageKeyboardType(
+    ...args: Parameters<Page['keyboard']['type']>
+  ): Promise<void>
+}

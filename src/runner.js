@@ -156,32 +156,54 @@ export class Runner extends BaseRunner {
       worker.on('console', this.#onConsole)
     })
 
-    // bindings
-    await this.context.exposeFunction(
-      'pwContextSetOffline',
-      async (/** @type {boolean} */ offline) => {
-        await this.context?.setOffline(offline)
-      }
-    )
+    // bindings of playwright-test/client, a worker running the tests calls
+    // them through the page, see `addWorker`
+    const context = this.context
+    /** @type {{ [K in import('./client/types.js').ContextBinding]: (...args: Parameters<typeof globalThis[K]>) => ReturnType<typeof globalThis[K]> }} */
+    const contextBindings = {
+      pwContextSetOffline: async (offline) => {
+        await context.setOffline(offline)
+      },
+      pwContextGrantPermissions: async (permissions, options) => {
+        await context.grantPermissions(permissions, options)
+      },
+      pwContextClearPermissions: async () => {
+        await context.clearPermissions()
+      },
+      pwContextSetGeolocation: async (geolocation) => {
+        await context.setGeolocation(geolocation)
+      },
+      pwContextSetExtraHTTPHeaders: async (headers) => {
+        await context.setExtraHTTPHeaders(headers)
+      },
+      pwContextAddCookies: async (cookies) => {
+        await context.addCookies(cookies)
+      },
+      pwContextCookies: (urls) => context.cookies(urls),
+      pwContextClearCookies: async (options) => {
+        await context.clearCookies(options)
+      },
+    }
+    for (const [name, fn] of Object.entries(contextBindings)) {
+      await context.exposeFunction(name, fn)
+    }
 
-    await this.context.exposeFunction(
-      'pwContextGrantPermissions',
-      async (
-        /** @type {string[]} */ permissions,
-        /** @type {{ origin?: string | undefined; } | undefined} */ options
-      ) => {
-        await this.context?.grantPermissions(permissions, options)
-      }
-    )
-
-    await this.context.exposeFunction(
-      'pwContextSetGeolocation',
-      async (
-        /** @type {{ latitude: number; longitude: number; accuracy?: number | undefined; } | null} */ geolocation
-      ) => {
-        await this.context?.setGeolocation(geolocation)
-      }
-    )
+    // Trusted input goes to the page that calls it, the test page
+    /** @type {{ [K in import('./client/types.js').PageBinding]: (source: { page: Page }, ...args: Parameters<typeof globalThis[K]>) => ReturnType<typeof globalThis[K]> }} */
+    const pageBindings = {
+      pwPageClick: async ({ page }, selector, options) => {
+        await page.click(selector, options)
+      },
+      pwPageKeyboardPress: async ({ page }, key, options) => {
+        await page.keyboard.press(key, options)
+      },
+      pwPageKeyboardType: async ({ page }, text, options) => {
+        await page.keyboard.type(text, options)
+      },
+    }
+    for (const [name, fn] of Object.entries(pageBindings)) {
+      await context.exposeBinding(name, fn)
+    }
 
     await this.context.exposeFunction(
       'PW_TEST_STDOUT_WRITE',

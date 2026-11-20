@@ -600,14 +600,15 @@ w.onmessage = function(e) {
     if (e.data.pwStderr != null) {
         self.PW_TEST_STDERR_WRITE(e.data.pwStderr)
     }
-    // Browser context calls of playwright-test/client, the bindings are only here
-    if (e.data.pwContextCall) {
-        const { name, args } = e.data.pwContextCall
+    // Calls of playwright-test/client, the bindings are only here. Only its
+    // context and page bindings, not the others of the runner.
+    if (e.data.pwBindingCall) {
+        const { name, args } = e.data.pwBindingCall
         const [port] = e.ports
         Promise.resolve()
             .then(() => {
-                if (!name.startsWith('pwContext') || typeof self[name] !== 'function') {
-                    throw new Error('Unknown browser context call: ' + name)
+                if (!/^pw(Context|Page)[A-Z]/.test(name) || typeof self[name] !== 'function') {
+                    throw new Error('Unknown playwright-test/client call: ' + name)
                 }
                 return self[name](...args)
             })

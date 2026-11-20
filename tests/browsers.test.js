@@ -38,6 +38,13 @@ for (const browser of ['firefox', 'webkit']) {
         'worker',
         ...flags,
       ],
+      'client page input': [
+        './cli.js',
+        'mocks/client/page.test.js',
+        '--runner',
+        'node-test',
+        ...flags,
+      ],
       'same node:assert results as the real one': [
         process.execPath,
         'mocks/node-test/assert-compare.js',
