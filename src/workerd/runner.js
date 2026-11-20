@@ -38,6 +38,8 @@ const MODULE_TYPES = /** @type {const} */ ([
   [/\.(txt|html|sql)$/, 'text'],
   [/\.bin$/, 'data'],
   [/\.wasm(\?module)?$/, 'wasm'],
+  // Vite's, a function that instantiates the wasm module
+  [/\.wasm\?init$/, 'init'],
 ])
 const BUILTINS = new Set(builtinModules.filter((name) => !name.startsWith('_')))
 
@@ -386,7 +388,7 @@ Object.assign(env, ${JSON.stringify(runner)})`
 
     /**
      * Text, data and wasm imports stay out of the bundle and become workerd
-     * modules next to it.
+     * modules next to it. `.wasm?init` imports get a function around one.
      *
      * @type {ESBuildPlugin}
      */
@@ -394,14 +396,14 @@ Object.assign(env, ${JSON.stringify(runner)})`
       name: 'workerd-modules',
       setup(build) {
         build.onResolve(
-          { filter: /\.(txt|html|sql|bin|wasm)(\?module)?$/ },
+          { filter: /\.(txt|html|sql|bin|wasm)(\?(module|init))?$/ },
           async (/** @type {any} */ args) => {
             const type = MODULE_TYPES.find(([re]) => re.test(args.path))?.[1]
             if (!type || args.pluginData?.workerdModule) {
               return
             }
             const resolved = await build.resolve(
-              args.path.replace(/\?module$/, ''),
+              args.path.replace(/\?(module|init)$/, ''),
               {
                 kind: args.kind,
                 importer: args.importer,
@@ -412,6 +414,9 @@ Object.assign(env, ${JSON.stringify(runner)})`
             if (resolved.errors.length > 0) {
               return { errors: resolved.errors }
             }
+            if (type === 'init') {
+              return { path: resolved.path, namespace: 'workerd-wasm-init' }
+            }
             const hash = createHash('sha256')
               .update(resolved.path)
               .digest('hex')
@@ -420,6 +425,15 @@ Object.assign(env, ${JSON.stringify(runner)})`
             modules.set(name, { type, path: resolved.path })
             return { path: `./${name}`, external: true }
           }
+        )
+        build.onLoad(
+          { filter: /.*/, namespace: 'workerd-wasm-init' },
+          (args) => ({
+            contents: `import wasm from ${JSON.stringify(args.path)}
+export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
+            resolveDir: path.dirname(args.path),
+            loader: 'js',
+          })
         )
       },
     }

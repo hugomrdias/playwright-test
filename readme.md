@@ -123,7 +123,7 @@ npm install -D cf
 playwright-test "test/**/*.test.js" --mode workerd
 ```
 
-The tests run inside the worker of `cloudflare.config.ts` in `cwd` (also `.mts`, `.js` and `.mjs`), with its bindings, exports, compatibility date and flags. `nodejs_compat` is always on, secrets come from the environment and every binding is local. The tests and the worker's entry point are bundled into one module with esbuild, so Durable Object classes exported from the entry point work with their bindings. `.txt`, `.html` and `.sql` imports are text, `.bin` is data and `.wasm` is a compiled module, like with `cf build`. Tests reach the worker with `exports` and its bindings with `env`, both from `cloudflare:workers`:
+The tests run inside the worker of `cloudflare.config.ts` in `cwd` (also `.mts`, `.js` and `.mjs`), with its bindings, exports, compatibility date and flags. `nodejs_compat` is always on, secrets come from the environment and every binding is local. The tests and the worker's entry point are bundled into one module with esbuild, so Durable Object classes exported from the entry point work with their bindings. `.txt`, `.html` and `.sql` imports are text, `.bin` is data and `.wasm` is a compiled module, like with `cf build`. A `.wasm?init` import is a function that instantiates the module, `await init(imports)` gives a `WebAssembly.Instance`. Tests reach the worker with `exports` and its bindings with `env`, both from `cloudflare:workers`:
 
 ```js
 import assert from 'node:assert/strict'

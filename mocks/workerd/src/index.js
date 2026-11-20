@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers'
 import wasm from './add.wasm'
+import init from './add.wasm?init'
 import data from './data.bin'
 import template from './template.html'
 
@@ -29,6 +30,10 @@ export default {
     if (pathname === '/wasm') {
       const { exports } = await WebAssembly.instantiate(wasm)
       return new Response(String(exports.add(2, 3)))
+    }
+    if (pathname === '/wasm-init') {
+      const instance = await init()
+      return new Response(String(instance.exports.add(4, 5)))
     }
     if (pathname === '/configured') {
       return new Response(process.env.CONFIGURED)

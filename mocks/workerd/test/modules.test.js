@@ -22,3 +22,7 @@ it('imports data modules', async () => {
 it('imports wasm modules', async () => {
   assert.equal(await get('/wasm'), '5')
 })
+
+it('imports wasm modules with ?init', async () => {
+  assert.equal(await get('/wasm-init'), '9')
+})
