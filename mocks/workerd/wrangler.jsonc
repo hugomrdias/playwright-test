@@ -9,5 +9,12 @@
   "durable_objects": {
     "bindings": [{ "name": "COUNTER", "class_name": "Counter" }]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Counter"] }]
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Counter"] }],
+  "rules": [
+    {
+      "type": "Data",
+      "globs": ["assets/*.txt", "**/raw/*.txt"],
+      "fallthrough": true
+    }
+  ]
 }

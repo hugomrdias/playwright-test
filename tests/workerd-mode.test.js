@@ -37,7 +37,7 @@ describe('workerd mode', () => {
     const proc = await runWorkerd(['test/modules.test.js'])
 
     is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
-    ok(proc.stdout.includes('pass 3'), proc.stdout)
+    ok(proc.stdout.includes('pass 4'), proc.stdout)
   })
 
   it('keeps configured vars over the env of this process', async () => {

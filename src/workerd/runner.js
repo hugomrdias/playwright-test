@@ -32,7 +32,11 @@ const CLOUDFLARE_CONFIGS = [
 const RUN_HEADER = 'x-playwright-test-run'
 const RUNTIME_MODULE = 'playwright-test:runtime'
 const ENV_MODULE = 'playwright-test:env'
-/** Wrangler's, for workers without a wrangler config. */
+/**
+ * Wrangler's, they come after the configured rules.
+ *
+ * @type {{ type: string, include: string[], fallthrough?: boolean }[]}
+ */
 const DEFAULT_MODULE_RULES = [
   { type: 'Text', include: ['**/*.txt', '**/*.html', '**/*.sql'] },
   { type: 'Data', include: ['**/*.bin'] },
@@ -125,14 +129,66 @@ function importPackage(dir) {
 }
 
 /**
+ * A module rule glob as wrangler matches it, with `glob-to-regexp`'s defaults:
+ * `*` matches any characters, `/` included, and the whole import specifier
+ * has to match.
+ *
+ * @param {string} glob
+ */
+function globToRegExp(glob) {
+  let source = ''
+  for (let i = 0; i < glob.length; i++) {
+    const char = glob[i]
+    if (char === '*') {
+      while (glob[i + 1] === '*') {
+        i++
+      }
+      source += '.*'
+    } else if ('/$^+.()=!|?[]{},'.includes(char)) {
+      source += `\\${char}`
+    } else {
+      source += char
+    }
+  }
+  return new RegExp(`^${source}$`)
+}
+
+/**
+ * The module rules wrangler applies, in order: the configured ones, then the
+ * defaults. A rule without `fallthrough` ends the rules of its type.
+ *
+ * @param {LoadedWorker['moduleRules']} moduleRules
+ */
+function compileModuleRules(moduleRules) {
+  const done = new Set()
+  /** @type {{ type: 'text' | 'data' | 'wasm', include: RegExp[] }[]} */
+  const rules = []
+  for (const rule of [...moduleRules, ...DEFAULT_MODULE_RULES]) {
+    if (done.has(rule.type)) {
+      continue
+    }
+    if (rule.fallthrough !== true) {
+      done.add(rule.type)
+    }
+    if (Object.hasOwn(MODULE_TYPES, rule.type)) {
+      rules.push({
+        type: MODULE_TYPES[rule.type],
+        include: rule.include.map(globToRegExp),
+      })
+    }
+  }
+  return rules
+}
+
+/**
  * @typedef {{ type: 'wrangler' | 'cloudflare', path: string }} WorkerConfig
  * @typedef {object} LoadedWorker
  * @property {{ config: Record<string, any> }} worker - the worker the tests run in
  * @property {object[]} otherWorkers - workers it has service bindings to
  * @property {string} [main] - its entry point
  * @property {Record<string, string>} define
- * @property {{ type: string, include: string[] }[]} moduleRules - how to load
- *   non-JavaScript imports, like wrangler's `rules`
+ * @property {{ type: string, include: string[], fallthrough?: boolean }[]} moduleRules
+ *   - how to load non-JavaScript imports, wrangler's `rules`
  */
 
 /**
@@ -408,22 +464,14 @@ Object.assign(env, ${JSON.stringify(runner)})`
   /**
    * @param {string | undefined} main
    * @param {LoadedWorker} loaded
-   * @param {any} miniflare
    */
-  async #bundle(main, { define, moduleRules }, miniflare) {
+  async #bundle(main, { define, moduleRules }) {
     const outfile = path.join(this.dir, 'bundle-out.js')
     const cwd = this.options.cwd
     const envModule = this.#envModule()
     /** @type {Map<string, { type: 'text' | 'data' | 'wasm', path: string }>} */
     const modules = new Map()
-    const rules = miniflare
-      .compileModuleRules(
-        moduleRules.filter((rule) => Object.hasOwn(MODULE_TYPES, rule.type))
-      )
-      .map((/** @type {any} */ rule) => ({
-        ...rule,
-        type: MODULE_TYPES[rule.type],
-      }))
+    const rules = compileModuleRules(moduleRules)
     const runtime = this.options.testRunner.compileRuntime(
       this.options,
       this.tests.map((t) => path.resolve(cwd, t).replaceAll('\\', '/'))
@@ -461,13 +509,19 @@ Object.assign(env, ${JSON.stringify(runner)})`
       name: 'workerd-modules',
       setup(build) {
         build.onResolve(
-          { filter: /\.\w+(\?module)?$/ },
+          {
+            filter: new RegExp(
+              rules
+                .flatMap((rule) => rule.include.map((re) => re.source))
+                .join('|')
+            ),
+          },
           async (/** @type {any} */ args) => {
             if (args.pluginData?.workerdModule) {
               return
             }
-            const rule = rules.find((/** @type {any} */ rule) =>
-              miniflare.testRegExps(rule.include, args.path)
+            const rule = rules.find((rule) =>
+              rule.include.some((re) => re.test(args.path))
             )
             if (!rule) {
               return
@@ -573,7 +627,7 @@ Object.assign(env, ${JSON.stringify(runner)})`
     const main = this.options.workerd?.main
       ? path.resolve(this.options.cwd, this.options.workerd.main)
       : loaded.main
-    const { outfile, modules } = await this.#bundle(main, loaded, miniflare)
+    const { outfile, modules } = await this.#bundle(main, loaded)
     const name = path.basename(outfile)
 
     /** @type {{ config: Record<string, any> }} */
@@ -627,7 +681,7 @@ Object.assign(env, ${JSON.stringify(runner)})`
         },
         otherWorkers: [],
         define: {},
-        moduleRules: DEFAULT_MODULE_RULES,
+        moduleRules: [],
       }
     }
     /** @type {{ workerOptions: Record<string, any>, main?: string, define: Record<string, string>, externalWorkers: object[] }} */
@@ -659,8 +713,7 @@ Object.assign(env, ${JSON.stringify(runner)})`
       otherWorkers,
       main: fromConfig.main,
       define: fromConfig.define,
-      moduleRules:
-        fromConfig.workerOptions.modulesRules ?? DEFAULT_MODULE_RULES,
+      moduleRules: fromConfig.workerOptions.modulesRules ?? [],
     }
   }
 
@@ -717,7 +770,7 @@ Object.assign(env, ${JSON.stringify(runner)})`
       otherWorkers: [],
       main: entrypoint,
       define: {},
-      moduleRules: DEFAULT_MODULE_RULES,
+      moduleRules: [],
     }
   }
 
