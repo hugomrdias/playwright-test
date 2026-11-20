@@ -1,5 +1,7 @@
-import { strictEqual as is, ok } from 'node:assert/strict'
+import { strictEqual as is, ok, throws } from 'node:assert/strict'
 import { describe, it } from 'node:test'
+import { UsageError } from '../src/utils/index.js'
+import { WorkerdRunner } from '../src/workerd/runner.js'
 import { runCli } from './helpers.js'
 
 /**
@@ -31,6 +33,13 @@ describe('workerd mode', () => {
 
     is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
     ok(proc.stdout.includes('pass 4'), proc.stdout)
+  })
+
+  it('bundles Node built-ins whose names contain digits', async () => {
+    const proc = await runWorkerd(['test/builtins.test.js'])
+
+    is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
+    ok(proc.stdout.includes('pass 1'), proc.stdout)
   })
 
   it('keeps configured vars over the env of this process', async () => {
@@ -160,6 +169,51 @@ describe('workerd mode', () => {
       proc.stderr.includes('it does not work with --mode workerd.'),
       proc.stderr
     )
+  })
+
+  it('rejects trace when constructing WorkerdRunner directly', () => {
+    for (const trace of /** @type {const} */ (['on', 'retain-on-failure'])) {
+      throws(
+        () =>
+          new WorkerdRunner(
+            {
+              cwd: 'mocks/workerd',
+              runner: 'node-test',
+              trace,
+            },
+            ['test/worker.test.js']
+          ),
+        (/** @type {unknown} */ err) =>
+          err instanceof UsageError &&
+          err.message.includes('it does not work with --mode workerd.')
+      )
+    }
+  })
+
+  it('does not stall shutdown when an asset server request stays active', async () => {
+    const proc = await runCli(
+      [
+        '--mode',
+        'workerd',
+        '--cwd',
+        'mocks/workerd',
+        '--config',
+        'mocks/workerd/open-connection.config.mjs',
+        'test/env.test.js',
+      ],
+      {
+        env: {
+          PW_TEST_AFTER_TESTS_TIMEOUT: '15000',
+          NODE_TEST_CONTEXT: undefined,
+        },
+        reject: false,
+        timeout: 12_000,
+      }
+    )
+
+    is(proc.timedOut, false, 'exited before the exit-hook deadline')
+    is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
+    ok(proc.stdout.includes('pass 1'), proc.stdout)
   })
 
   it('does not take browser only options', async () => {
