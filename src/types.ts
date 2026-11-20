@@ -134,7 +134,7 @@ export interface RunnerEnv extends NodeJS.ProcessEnv {
 }
 
 export interface CliOptions {
-  runner: 'mocha' | 'none' | 'node-test'
+  runner?: 'mocha' | 'none' | 'node-test'
   browser: 'chromium' | 'firefox' | 'webkit'
   mode: 'main' | 'worker' | 'node' | 'workerd'
   debug: boolean
@@ -143,10 +143,11 @@ export interface CliOptions {
   watch?: boolean
   before?: string
   sw?: string
-  assets: string
+  assets?: string
   cwd: string
   extensions: string
   transform?: boolean
+  runTimeout?: number
   /** `''` when the flag has no value */
   trace?: string
   testNamePattern?: string
