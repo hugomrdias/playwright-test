@@ -2,12 +2,15 @@ allowBuilds:
   "@biomejs/biome": true
   esbuild: true
   simple-git-hooks: true
+  workerd: true
 minimumReleaseAgeExclude:
   - playwright-core@1.65.0
+  - cf@1.0.0-rc.1
 onlyBuiltDependencies:
   - "@biomejs/biome"
   - esbuild
   - simple-git-hooks
+  - workerd
 # The latest mocha still asks for these majors, and the fixes only exist in the
 # next ones. Drop these once it moves up.
 # GHSA-3g3m-2fjr-6pw4 (glob), GHSA-g3hv-75wg-m249 (minimatch)

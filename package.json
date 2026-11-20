@@ -108,10 +108,19 @@
     "std-env": "^4.3.0",
     "tinyglobby": "^0.2.17"
   },
+  "peerDependencies": {
+    "cf": "^1.0.0-rc.1"
+  },
+  "peerDependenciesMeta": {
+    "cf": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
     "@hugomrdias/configs": "^2.0.0",
     "@types/polka": "^0.5.8",
+    "cf": "1.0.0-rc.1",
     "debug": "^4.4.3",
     "delay": "^7.0.0",
     "execa": "^10.2.1",

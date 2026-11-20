@@ -24,6 +24,7 @@ import {
   UsageError,
 } from './src/utils/index.js'
 import { toRegExp } from './src/utils/name-pattern.js'
+import { WorkerdRunner } from './src/workerd/runner.js'
 
 if (isAgent && !isColorForced()) {
   kleur.enabled = false
@@ -197,9 +198,9 @@ function checkUnknownFlags(opts) {
  * @param {import('./src/types.js').RunnerOptions} options
  */
 function validateOptions({ mode, testNamePattern, testTimeout, trace }) {
-  if (!['main', 'worker', 'node'].includes(mode)) {
+  if (!['main', 'worker', 'node', 'workerd'].includes(mode)) {
     throw new UsageError(
-      `Invalid mode "${mode}", expected "main", "worker" or "node".`
+      `Invalid mode "${mode}", expected "main", "worker", "node" or "workerd".`
     )
   }
   if (Array.isArray(trace) || !TRACE_VALUES.includes(trace)) {
@@ -207,9 +208,9 @@ function validateOptions({ mode, testNamePattern, testTimeout, trace }) {
       `Invalid --trace "${trace}", expected "on", "off" or "retain-on-failure". Put the test files before --trace, or use --trace=on.`
     )
   }
-  if (mode === 'node' && trace !== 'off') {
+  if ((mode === 'node' || mode === 'workerd') && trace !== 'off') {
     throw new UsageError(
-      '--trace records the browser, it does not work with --mode node.'
+      `--trace records the browser, it does not work with --mode ${mode}.`
     )
   }
   if (Array.isArray(testNamePattern)) {
@@ -290,7 +291,7 @@ sade2
   )
   .option(
     '-m, --mode',
-    `Run mode. Options: main, worker and node.  (default ${cliDefaults.mode})`
+    `Run mode. Options: main, worker, node and workerd.  (default ${cliDefaults.mode})`
   )
   .option(
     '-d, --debug',
@@ -337,7 +338,7 @@ sade2
   )
   .option(
     '--trace',
-    'Save a Playwright trace to playwright-test-trace-<browser>.zip in --cwd, open it with `npx playwright show-trace`. Alone it only keeps the trace of a failed run, `--trace on` always keeps it. Not with --mode node, ignored with --debug and --watch.  (default off)'
+    'Save a Playwright trace to playwright-test-trace-<browser>.zip in --cwd, open it with `npx playwright show-trace`. Alone it only keeps the trace of a failed run, `--trace on` always keeps it. Not with --mode node or workerd, ignored with --debug and --watch.  (default off)'
   )
   .option('--config', 'Path to the config file')
   .action(async (input, opts) => {
@@ -410,6 +411,8 @@ sade2
       let runner
       if (options.mode === 'node') {
         runner = new NodeRunner(options, testFiles)
+      } else if (options.mode === 'workerd') {
+        runner = new WorkerdRunner(options, testFiles)
       } else {
         runner = new Runner(options, testFiles)
       }
