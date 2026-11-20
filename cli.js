@@ -219,8 +219,11 @@ function validateOptions({ mode, testNamePattern, testTimeout, trace }) {
     )
   }
   if (testNamePattern != null) {
+    if (typeof testNamePattern !== 'string' || testNamePattern === '') {
+      throw new UsageError('--test-name-pattern requires a non-empty pattern.')
+    }
     try {
-      toRegExp(String(testNamePattern))
+      toRegExp(testNamePattern)
     } catch (error) {
       throw new UsageError(
         `Invalid --test-name-pattern: ${/** @type {Error} */ (error).message}`
@@ -229,10 +232,12 @@ function validateOptions({ mode, testNamePattern, testTimeout, trace }) {
   }
   if (
     testTimeout != null &&
-    !(typeof testTimeout === 'number' && testTimeout >= 0)
+    (!Number.isInteger(testTimeout) ||
+      testTimeout < 0 ||
+      testTimeout > 2 ** 31 - 1)
   ) {
     throw new UsageError(
-      '--test-timeout must be a number of milliseconds, 0 for none.'
+      '--test-timeout must be a number of milliseconds (integer up to 2147483647), 0 for none.'
     )
   }
 }
@@ -361,19 +366,7 @@ sade2
         }
       }
 
-      // if the supplied config module was a function, invoke it
-      if (config && typeof config.config === 'function') {
-        config.config = await config.config(merge(cliDefaults, opts))
-      }
-
-      /**
-       * Merge cli options with config file options
-       *
-       * @type {import('./src/types.js').RunnerOptions}
-       */
-      const options = merge(cliDefaults, config ? config.config : {}, {
-        input: input ? [input, ...opts._] : undefined,
-        testFiles: [],
+      const cliFlags = {
         runner: opts.runner,
         cwd: opts.cwd,
         assets: opts.assets,
@@ -387,12 +380,32 @@ sade2
         extensions: opts.extensions,
         transform: opts.transform,
         runTimeout: opts['run-timeout'],
-        // Without a value it's an empty string
-        trace: opts.trace === '' ? 'retain-on-failure' : opts.trace,
         testNamePattern: opts['test-name-pattern'],
         testTimeout: opts['test-timeout'],
-        beforeTests: opts.beforeTests,
-        afterTests: opts.afterTests,
+      }
+
+      // if the supplied config module was a function, invoke it
+      if (config && typeof config.config === 'function') {
+        config.config = await config.config(
+          merge(cliDefaults, cliFlags, {
+            watch: opts.watch,
+            trace: opts.trace,
+            config: opts.config,
+          })
+        )
+      }
+
+      /**
+       * Merge cli options with config file options
+       *
+       * @type {import('./src/types.js').RunnerOptions}
+       */
+      const options = merge(cliDefaults, config ? config.config : {}, {
+        ...cliFlags,
+        input: input ? [input, ...opts._] : undefined,
+        testFiles: [],
+        // Without a value it's an empty string
+        trace: opts.trace === '' ? 'retain-on-failure' : opts.trace,
       })
       options.minimal = isAgent
       options.cwd = path.resolve(options.cwd)
@@ -418,9 +431,9 @@ sade2
       }
 
       if (opts.watch) {
-        runner.watch()
+        await runner.watch()
       } else {
-        runner.run()
+        await runner.run()
       }
     } catch (error) {
       console.error(error instanceof UsageError ? error.message : error)
@@ -431,5 +444,12 @@ sade2
     // Without defaults to tell their types, `--debug test.js` would take the file
     boolean: ['debug', 'extension', 'incognito', 'watch'],
     // `--trace` alone keeps only failed runs, so a value has to be a string
-    string: ['browser', 'cwd', 'extensions', 'mode', 'trace'],
+    string: [
+      'browser',
+      'cwd',
+      'extensions',
+      'mode',
+      'test-name-pattern',
+      'trace',
+    ],
   })

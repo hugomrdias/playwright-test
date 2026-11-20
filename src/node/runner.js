@@ -123,31 +123,40 @@ export class NodeRunner extends BaseRunner {
       wait: AFTER_TESTS_TIMEOUT + EXIT_WAIT,
     })
 
-    await this.#setupServer()
-    await this.runBeforeTests()
-    // Stopped during the hook, nothing would stop the tests started now
-    if (this.stopped) {
-      return
-    }
-
-    const { child, finished } = this.runTests()
-    const ms = this.options.runTimeout
-    let timedOut = false
     /** @type {NodeJS.Timeout | undefined} */
     let timer
-    if (ms > 0 && !this.options.debug) {
-      timer = setTimeout(() => {
-        timedOut = true
-        killTree(child)
-      }, ms)
-    }
+    try {
+      await this.#setupServer()
+      await this.runBeforeTests()
+      // Stopped during the hook, nothing would stop the tests started now
+      if (this.stopped) {
+        return
+      }
 
-    const passed = await finished
-    clearTimeout(timer)
-    if (!passed) {
-      await this.stop(true, timedOut ? runTimeoutMessage(ms) : 'Tests failed.')
+      const { child, finished } = this.runTests()
+      const ms = this.options.runTimeout
+      let timedOut = false
+      if (ms > 0 && !this.options.debug) {
+        timer = setTimeout(() => {
+          timedOut = true
+          killTree(child)
+        }, ms)
+      }
+
+      const passed = await finished
+      if (!passed) {
+        await this.stop(
+          true,
+          timedOut ? runTimeoutMessage(ms) : 'Tests failed.'
+        )
+        return
+      }
+      await this.stop(false)
+    } catch (/** @type {any} */ error) {
+      await this.stop(true, error)
+    } finally {
+      clearTimeout(timer)
     }
-    this.stop(false)
   }
 
   async watch() {
@@ -158,16 +167,24 @@ export class NodeRunner extends BaseRunner {
       wait: AFTER_TESTS_TIMEOUT + EXIT_WAIT,
     })
 
-    await this.#setupServer()
-    await this.runBeforeTests()
-    // Stopped during the hook, nothing would stop the tests started now
-    if (this.stopped) {
+    /** @type {{ child: import('node:child_process').ChildProcess, finished: Promise<boolean> }} */
+    let tests
+    try {
+      await this.#setupServer()
+      await this.runBeforeTests()
+      // Stopped during the hook, nothing would stop the tests started now
+      if (this.stopped) {
+        return
+      }
+
+      tests = this.runTests()
+    } catch (/** @type {any} */ error) {
+      await this.stop(true, error)
       return
     }
 
     const cwd = this.options.cwd
     const extensions = this.options.extensions.split(',')
-    let tests = this.runTests()
     let restarting = false
     let pending = false
 
