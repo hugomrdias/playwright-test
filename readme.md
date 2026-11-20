@@ -147,7 +147,9 @@ Without a config the tests run in an empty worker. The `workerd` key of the conf
 - `main`, the worker entry point, instead of the config's `entrypoint`.
 - `miniflare`, Miniflare 5 worker options merged over the ones from the config, for example `{ config: { env: { GREETING: { type: 'text', value: 'hi' } } } }`.
 
-`--before`, `--sw`, `--extension`, `--trace` and `--watch` don't work in this mode, and neither do static assets. A test that never settles fails the run, workerd cancels the request it runs in.
+The http server of `--assets` runs as in the other modes, tests fetch its files from `process.env.PW_SERVER`.
+
+`--before`, `--sw`, `--extension`, `--trace` and `--watch` don't work in this mode, and neither do the static assets of `cloudflare.config.ts`, it doesn't say where their files are. A test that never settles fails the run, workerd cancels the request it runs in.
 
 ## `node:test` API
 

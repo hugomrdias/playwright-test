@@ -63,6 +63,13 @@ describe('workerd mode', () => {
     ok(proc.stdout.includes('pass 1'), proc.stdout)
   })
 
+  it('serves --assets to the worker', async () => {
+    const proc = await runWorkerd(['--assets', 'src', 'test/server.test.js'])
+
+    is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
+    ok(proc.stdout.includes('pass 1'), proc.stdout)
+  })
+
   it('runs mocha files', async () => {
     const proc = await runWorkerd(['test/worker.mocha.js'])
 
