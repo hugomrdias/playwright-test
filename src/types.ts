@@ -101,24 +101,23 @@ export interface RunnerOptions {
 
 export interface WorkerdOptions {
   /**
-   * Path to the worker config, by default `cloudflare.config.ts` of the `cf`
-   * CLI or else `wrangler.jsonc`, `wrangler.json` or `wrangler.toml` in `cwd`.
-   * Its bindings, compatibility date and flags and entry point configure the
-   * worker the tests run in.
+   * Path to the `cloudflare.config.ts` of the `cf` CLI, by default the one in
+   * `cwd` (also `.mts`, `.js` or `.mjs`). Its bindings, compatibility date and
+   * flags and entry point configure the worker the tests run in.
    */
   configPath?: string
   /**
-   * Environment of the wrangler config, or the mode `cloudflare.config.ts`
-   * functions get, `test` by default.
+   * The mode `cloudflare.config.ts` functions get, like `cf dev --mode`,
+   * `test` by default.
    */
   environment?: string
   /**
-   * Entry point of the worker, instead of `main` in the wrangler config. Tests
+   * Entry point of the worker, instead of the config's `entrypoint`. Tests
    * reach its default export with `exports.default` from `cloudflare:workers`.
    */
   main?: string
   /**
-   * Miniflare 5 worker options, merged over the ones from the worker config.
+   * Miniflare 5 worker options, merged over the ones from the config.
    *
    * @example
    * ```js

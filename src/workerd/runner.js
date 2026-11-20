@@ -20,9 +20,10 @@ import { createStackMapper } from '../utils/stack-map.js'
 const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
 
 const EXIT_WAIT = 1000
-const WRANGLER_CONFIGS = ['wrangler.jsonc', 'wrangler.json', 'wrangler.toml']
-/** The config of the `cf` CLI, it comes before the wrangler ones. */
-const CLOUDFLARE_CONFIGS = [
+/** How long to wait for the last of the worker's output after the run. */
+const OUTPUT_WAIT = 5000
+/** The config of the `cf` CLI. */
+const CONFIGS = [
   'cloudflare.config.ts',
   'cloudflare.config.mts',
   'cloudflare.config.js',
@@ -32,22 +33,12 @@ const CLOUDFLARE_CONFIGS = [
 const RUN_HEADER = 'x-playwright-test-run'
 const RUNTIME_MODULE = 'playwright-test:runtime'
 const ENV_MODULE = 'playwright-test:env'
-/**
- * Wrangler's, they come after the configured rules.
- *
- * @type {{ type: string, include: string[], fallthrough?: boolean }[]}
- */
-const DEFAULT_MODULE_RULES = [
-  { type: 'Text', include: ['**/*.txt', '**/*.html', '**/*.sql'] },
-  { type: 'Data', include: ['**/*.bin'] },
-  { type: 'CompiledWasm', include: ['**/*.wasm', '**/*.wasm?module'] },
-]
-/** Module rule types that become workerd modules, the others get bundled. */
-const MODULE_TYPES = /** @type {Record<string, 'text' | 'data' | 'wasm'>} */ ({
-  Text: 'text',
-  Data: 'data',
-  CompiledWasm: 'wasm',
-})
+/** Imports that become workerd modules, like `cf build` makes them. */
+const MODULE_TYPES = /** @type {const} */ ([
+  [/\.(txt|html|sql)$/, 'text'],
+  [/\.bin$/, 'data'],
+  [/\.wasm(\?module)?$/, 'wasm'],
+])
 const BUILTINS = new Set(builtinModules.filter((name) => !name.startsWith('_')))
 
 /**
@@ -63,28 +54,6 @@ const IGNORED_LOGS = [
  * @typedef {import('../types.js').RunnerOptions} RunnerOptions
  * @typedef {import('esbuild').Plugin} ESBuildPlugin
  */
-
-/**
- * The first of the modules that resolves, from the project and then from here.
- *
- * @param {string} cwd
- * @param {string} id
- * @param {string} [from] - also try from this module
- */
-function tryResolve(cwd, id, from) {
-  const requires = [
-    createRequire(path.join(cwd, 'noop.js')),
-    createRequire(import.meta.url),
-    ...(from ? [createRequire(from)] : []),
-  ]
-  for (const require of requires) {
-    try {
-      return require.resolve(id)
-    } catch {
-      // Try the next one
-    }
-  }
-}
 
 /**
  * The folder of a package installed in or above one of these folders. Unlike
@@ -129,119 +98,36 @@ function importPackage(dir) {
 }
 
 /**
- * A module rule glob as wrangler matches it, with `glob-to-regexp`'s defaults:
- * `*` matches any characters, `/` included, and the whole import specifier
- * has to match.
- *
- * @param {string} glob
- */
-function globToRegExp(glob) {
-  let source = ''
-  for (let i = 0; i < glob.length; i++) {
-    const char = glob[i]
-    if (char === '*') {
-      while (glob[i + 1] === '*') {
-        i++
-      }
-      source += '.*'
-    } else if ('/$^+.()=!|?[]{},'.includes(char)) {
-      source += `\\${char}`
-    } else {
-      source += char
-    }
-  }
-  return new RegExp(`^${source}$`)
-}
-
-/**
- * The module rules wrangler applies, in order: the configured ones, then the
- * defaults. A rule without `fallthrough` ends the rules of its type.
- *
- * @param {LoadedWorker['moduleRules']} moduleRules
- */
-function compileModuleRules(moduleRules) {
-  const done = new Set()
-  /** @type {{ type: 'text' | 'data' | 'wasm', include: RegExp[] }[]} */
-  const rules = []
-  for (const rule of [...moduleRules, ...DEFAULT_MODULE_RULES]) {
-    if (done.has(rule.type)) {
-      continue
-    }
-    if (rule.fallthrough !== true) {
-      done.add(rule.type)
-    }
-    if (Object.hasOwn(MODULE_TYPES, rule.type)) {
-      rules.push({
-        type: MODULE_TYPES[rule.type],
-        include: rule.include.map(globToRegExp),
-      })
-    }
-  }
-  return rules
-}
-
-/**
- * @typedef {{ type: 'wrangler' | 'cloudflare', path: string }} WorkerConfig
- * @typedef {object} LoadedWorker
- * @property {{ config: Record<string, any> }} worker - the worker the tests run in
- * @property {object[]} otherWorkers - workers it has service bindings to
- * @property {string} [main] - its entry point
- * @property {Record<string, string>} define
- * @property {{ type: string, include: string[], fallthrough?: boolean }[]} moduleRules
- *   - how to load non-JavaScript imports, wrangler's `rules`
- */
-
-/**
- * What reads the project's config and Miniflare, which runs workerd. They come
- * from the project, Miniflare also from wrangler or `cf` since they ship with it.
+ * Miniflare, which runs workerd, and `@cloudflare/config`, which reads
+ * `cloudflare.config.ts`. Both come with `cf`, Miniflare can also be the
+ * project's own.
  *
  * @param {string} cwd
- * @param {WorkerConfig | undefined} config
+ * @param {boolean} withConfig - if the worker has a config to read
  */
-async function loadCloudflare(cwd, config) {
-  const wranglerPath = tryResolve(cwd, 'wrangler')
-  if (config?.type === 'wrangler' && !wranglerPath) {
+async function loadCloudflare(cwd, withConfig) {
+  const cfDir = findPackage('cf', [cwd])
+  const configDir =
+    withConfig && findPackage('@cloudflare/config', [cwd, cfDir ?? cwd])
+  if (withConfig && !configDir) {
     throw new UsageError(
-      'Reading the wrangler config needs wrangler, install it with `npm install -D wrangler`.'
+      'Reading cloudflare.config.ts needs the cf CLI, install it with `npm install -D cf`.'
     )
   }
-  const cfDir = findPackage('cf', [cwd])
-  const miniflare = await loadMiniflare([
-    path.join(cwd, 'noop.js'),
-    ...(wranglerPath ? [wranglerPath] : []),
-    ...(cfDir ? [path.join(cfDir, 'package.json')] : []),
-    import.meta.url,
-  ])
-
-  /** @type {any} */
-  let cloudflareConfig
-  if (config?.type === 'cloudflare') {
-    const dir = findPackage('@cloudflare/config', [
-      cwd,
-      ...(cfDir ? [cfDir] : []),
-    ])
-    if (!dir) {
-      throw new UsageError(
-        'Reading cloudflare.config.ts needs the cf CLI, install it with `npm install -D cf`.'
-      )
-    }
-    cloudflareConfig = await importPackage(dir)
-  }
-
   return {
+    miniflare: await loadMiniflare([
+      path.join(cwd, 'noop.js'),
+      ...(cfDir ? [path.join(cfDir, 'package.json')] : []),
+      import.meta.url,
+    ]),
     /** @type {any} */
-    wrangler:
-      config?.type === 'wrangler' && wranglerPath
-        ? await import(pathToFileURL(wranglerPath).href)
-        : undefined,
-    cloudflareConfig,
-    miniflare,
+    cloudflareConfig: configDir ? await importPackage(configDir) : undefined,
   }
 }
 
 /**
  * The first Miniflare 5 that resolves from these modules. A project can have an
- * older one next to the one wrangler or cf ship with.
+ * older one next to the one cf ships with.
  *
  * @param {string[]} from - module paths or URLs to resolve from
  * @returns {Promise<any>}
@@ -257,14 +143,14 @@ async function loadMiniflare(from) {
     }
     found = true
     const miniflare = await import(pathToFileURL(resolved).href)
-    if (miniflare.convertV4MiniflareOptions && miniflare.resolveLocalBindings) {
+    if (miniflare.resolveLocalBindings) {
       return miniflare
     }
   }
   throw new UsageError(
     found
-      ? 'The workerd mode needs Miniflare 5, update wrangler or cf.'
-      : 'The workerd mode needs wrangler or cf, install one with `npm install -D wrangler`.'
+      ? 'The workerd mode needs Miniflare 5, update cf.'
+      : 'The workerd mode needs the cf CLI, install it with `npm install -D cf`.'
   )
 }
 
@@ -308,6 +194,15 @@ const builtinsPlugin = {
 }
 
 /**
+ * What the worker logs once the tests are done.
+ *
+ * @param {string} token
+ */
+function doneLog(token) {
+  return `playwright-test:done:${token}`
+}
+
+/**
  * The worker's default export, it starts the tests for requests with the run
  * header and passes everything else to the default export of `main`, so tests
  * reach the worker with `exports.default` from `cloudflare:workers`.
@@ -340,7 +235,10 @@ async function run() {
     console.error(error)
     resolve(1)
   }
-  return Response.json({ code: await promise })
+  const code = await promise
+  // Output reaches the runner after the response, this tells it all came
+  console.log(${JSON.stringify(doneLog(token))})
+  return Response.json({ code })
 }
 
 const userDefault = __pwMain.default
@@ -374,8 +272,8 @@ export default handler
 
 /**
  * Runs the tests in workerd with Miniflare, inside the worker described by the
- * project's wrangler config. Tests and the worker's `main` are bundled into one
- * module, the way wrangler deploys it.
+ * project's `cloudflare.config.ts`. Tests and the worker's entry point are
+ * bundled into one module.
  */
 export class WorkerdRunner extends BaseRunner {
   /**
@@ -390,6 +288,8 @@ export class WorkerdRunner extends BaseRunner {
     /** @type {string | undefined} */
     this.workerName = undefined
     this.token = randomUUID()
+    /** @type {PromiseWithResolvers<void>} */
+    this.outputDone = Promise.withResolvers()
   }
 
   assertOptions() {
@@ -401,33 +301,20 @@ export class WorkerdRunner extends BaseRunner {
   }
 
   /**
-   * The config of the worker, undefined without one.
-   *
-   * @returns {WorkerConfig | undefined}
+   * The path of the worker config, undefined without one.
    */
-  #config() {
-    /**
-     * @param {string} file
-     * @returns {WorkerConfig}
-     */
-    const toConfig = (file) => ({
-      type: path.basename(file).startsWith('cloudflare.config.')
-        ? 'cloudflare'
-        : 'wrangler',
-      path: file,
-    })
+  #configPath() {
     const { configPath } = this.options.workerd ?? {}
     if (configPath) {
       const file = path.resolve(this.options.cwd, configPath)
       if (!existsSync(file)) {
         throw new UsageError(`Could not find the worker config ${file}.`)
       }
-      return toConfig(file)
+      return file
     }
-    const file = [...CLOUDFLARE_CONFIGS, ...WRANGLER_CONFIGS]
-      .map((name) => path.join(this.options.cwd, name))
-      .find((file) => existsSync(file))
-    return file ? toConfig(file) : undefined
+    return CONFIGS.map((name) => path.join(this.options.cwd, name)).find(
+      (file) => existsSync(file)
+    )
   }
 
   /**
@@ -463,15 +350,13 @@ Object.assign(env, ${JSON.stringify(runner)})`
 
   /**
    * @param {string | undefined} main
-   * @param {LoadedWorker} loaded
    */
-  async #bundle(main, { define, moduleRules }) {
+  async #bundle(main) {
     const outfile = path.join(this.dir, 'bundle-out.js')
     const cwd = this.options.cwd
     const envModule = this.#envModule()
     /** @type {Map<string, { type: 'text' | 'data' | 'wasm', path: string }>} */
     const modules = new Map()
-    const rules = compileModuleRules(moduleRules)
     const runtime = this.options.testRunner.compileRuntime(
       this.options,
       this.tests.map((t) => path.resolve(cwd, t).replaceAll('\\', '/'))
@@ -500,8 +385,8 @@ Object.assign(env, ${JSON.stringify(runner)})`
     }
 
     /**
-     * Imports that match a module rule stay out of the bundle and become
-     * workerd modules next to it, the way wrangler deploys them.
+     * Text, data and wasm imports stay out of the bundle and become workerd
+     * modules next to it.
      *
      * @type {ESBuildPlugin}
      */
@@ -509,21 +394,10 @@ Object.assign(env, ${JSON.stringify(runner)})`
       name: 'workerd-modules',
       setup(build) {
         build.onResolve(
-          {
-            filter: new RegExp(
-              rules
-                .flatMap((rule) => rule.include.map((re) => re.source))
-                .join('|')
-            ),
-          },
+          { filter: /\.(txt|html|sql|bin|wasm)(\?module)?$/ },
           async (/** @type {any} */ args) => {
-            if (args.pluginData?.workerdModule) {
-              return
-            }
-            const rule = rules.find((rule) =>
-              rule.include.some((re) => re.test(args.path))
-            )
-            if (!rule) {
+            const type = MODULE_TYPES.find(([re]) => re.test(args.path))?.[1]
+            if (!type || args.pluginData?.workerdModule) {
               return
             }
             const resolved = await build.resolve(
@@ -543,7 +417,7 @@ Object.assign(env, ${JSON.stringify(runner)})`
               .digest('hex')
               .slice(0, 8)
             const name = `modules/${hash}-${path.basename(resolved.path)}`
-            modules.set(name, { type: rule.type, path: resolved.path })
+            modules.set(name, { type, path: resolved.path })
             return { path: `./${name}`, external: true }
           }
         )
@@ -560,16 +434,13 @@ Object.assign(env, ${JSON.stringify(runner)})`
       bundle: true,
       format: 'esm',
       platform: 'neutral',
-      // Same as wrangler
+      // Packages built for the Workers runtime
       conditions: ['workerd', 'worker', 'browser'],
       mainFields: ['browser', 'module', 'main'],
       outfile,
       sourcemap: 'inline',
       external: ['cloudflare:*', 'workerd:*'],
-      define: {
-        'import.meta.env': 'globalThis.process.env',
-        ...define,
-      },
+      define: { 'import.meta.env': 'globalThis.process.env' },
       plugins: [modulesPlugin, runtimePlugin, builtinsPlugin],
       logLevel: 'error',
     }
@@ -587,6 +458,10 @@ Object.assign(env, ${JSON.stringify(runner)})`
     return (
       /** @type {{ level: string, message: string }} */ { level, message }
     ) => {
+      if (message.includes(doneLog(this.token))) {
+        this.outputDone.resolve()
+        return
+      }
       if (IGNORED_LOGS.some((ignored) => message.includes(ignored))) {
         return
       }
@@ -609,25 +484,26 @@ Object.assign(env, ${JSON.stringify(runner)})`
   }
 
   async #startMiniflare() {
-    const config = this.#config()
-    const { wrangler, cloudflareConfig, miniflare } = await loadCloudflare(
+    const configPath = this.#configPath()
+    const { miniflare, cloudflareConfig } = await loadCloudflare(
       this.options.cwd,
-      config
+      Boolean(configPath)
     )
-
-    const loaded =
-      config?.type === 'cloudflare'
-        ? await this.#loadCloudflareConfig(
-            config.path,
-            cloudflareConfig,
-            miniflare
-          )
-        : this.#loadWranglerConfig(config?.path, wrangler, miniflare)
+    const loaded = configPath
+      ? await this.#loadConfig(configPath, cloudflareConfig, miniflare)
+      : {
+          worker: {
+            config: {
+              name: 'playwright-test',
+              compatibilityDate: '2026-11-01',
+            },
+          },
+        }
 
     const main = this.options.workerd?.main
       ? path.resolve(this.options.cwd, this.options.workerd.main)
       : loaded.main
-    const { outfile, modules } = await this.#bundle(main, loaded)
+    const { outfile, modules } = await this.#bundle(main)
     const name = path.basename(outfile)
 
     /** @type {{ config: Record<string, any> }} */
@@ -658,75 +534,22 @@ Object.assign(env, ${JSON.stringify(runner)})`
     this.mf = new miniflare.Miniflare({
       log: new miniflare.Log(miniflare.LogLevel.WARN),
       handleStructuredLogs: this.#logHandler(),
-      workers: [worker, ...loaded.otherWorkers],
+      workers: [worker],
     })
     this.workerName = worker.config.name
     await this.mf.ready
   }
 
   /**
-   * The worker of a wrangler config, or an empty one without a config, in the
-   * shape Miniflare 5 takes.
-   *
-   * @param {string | undefined} configPath
-   * @param {any} wrangler
-   * @param {any} miniflare
-   * @returns {LoadedWorker}
-   */
-  #loadWranglerConfig(configPath, wrangler, miniflare) {
-    if (!configPath) {
-      return {
-        worker: {
-          config: { name: 'playwright-test', compatibilityDate: '2026-11-01' },
-        },
-        otherWorkers: [],
-        define: {},
-        moduleRules: [],
-      }
-    }
-    /** @type {{ workerOptions: Record<string, any>, main?: string, define: Record<string, string>, externalWorkers: object[] }} */
-    const fromConfig = wrangler.unstable_getMiniflareWorkerOptions(
-      configPath,
-      this.options.workerd?.environment
-    )
-    // Wrangler gives Miniflare 4 options without code, the bundle replaces it
-    const { workers } = miniflare.convertV4MiniflareOptions({
-      workers: [
-        {
-          name: 'playwright-test',
-          ...fromConfig.workerOptions,
-          modulesRoot: this.dir,
-          modules: [
-            {
-              type: 'ESModule',
-              path: path.join(this.dir, 'bundle-out.js'),
-              contents: '',
-            },
-          ],
-        },
-        ...fromConfig.externalWorkers,
-      ],
-    })
-    const [worker, ...otherWorkers] = workers
-    return {
-      worker,
-      otherWorkers,
-      main: fromConfig.main,
-      define: fromConfig.define,
-      moduleRules: fromConfig.workerOptions.modulesRules ?? [],
-    }
-  }
-
-  /**
-   * The worker of a `cloudflare.config.ts`, the config of the `cf` CLI. It's
-   * already in the shape Miniflare 5 takes.
+   * The worker of a `cloudflare.config.ts`, it's already in the shape
+   * Miniflare 5 takes.
    *
    * @param {string} configPath
    * @param {any} cloudflareConfig - the `@cloudflare/config` package
    * @param {any} miniflare
-   * @returns {Promise<LoadedWorker>}
+   * @returns {Promise<{ worker: { config: Record<string, any> }, main?: string }>}
    */
-  async #loadCloudflareConfig(configPath, cloudflareConfig, miniflare) {
+  async #loadConfig(configPath, cloudflareConfig, miniflare) {
     // Config functions get it as `ctx.mode`, like `cf dev --mode`
     const mode = this.options.workerd?.environment ?? 'test'
     const { result } = await cloudflareConfig.loadAndParseConfig(configPath, {
@@ -744,6 +567,7 @@ Object.assign(env, ${JSON.stringify(runner)})`
       )
     }
 
+    // The entry point gets bundled with the tests, static assets don't work yet
     const { entrypoint, assets: _assets, env, ...config } = result.data.worker
 
     /** @type {Record<string, string>} */
@@ -767,18 +591,30 @@ Object.assign(env, ${JSON.stringify(runner)})`
           }),
         },
       },
-      otherWorkers: [],
       main: entrypoint,
-      define: {},
-      moduleRules: [],
     }
+  }
+
+  /**
+   * Waits for the worker's output to reach this process, it comes after the
+   * response to the run.
+   */
+  async #outputDone() {
+    /** @type {NodeJS.Timeout | undefined} */
+    let timer
+    await Promise.race([
+      this.outputDone.promise,
+      new Promise((resolve) => {
+        timer = setTimeout(resolve, OUTPUT_WAIT)
+      }),
+    ])
+    clearTimeout(timer)
   }
 
   /**
    * @returns {Promise<boolean>} if the tests passed
    */
   async runTests() {
-    // Straight to the worker, past routing like static assets coming first
     const worker = await this.mf.getWorker(this.workerName)
     const response = await worker.fetch('http://localhost/', {
       headers: { [RUN_HEADER]: this.token },
@@ -788,6 +624,7 @@ Object.assign(env, ${JSON.stringify(runner)})`
       return false
     }
     const { code } = /** @type {{ code: number }} */ (await response.json())
+    await this.#outputDone()
     return code === 0
   }
 

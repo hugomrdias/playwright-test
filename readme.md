@@ -116,14 +116,14 @@ NODE_OPTIONS="--import @nubjs/runner" playwright-test "test/**/*.spec.ts" --mode
 
 ## Workerd mode
 
-`--mode workerd` runs your tests in [workerd](https://github.com/cloudflare/workerd), the Cloudflare Workers runtime, with Miniflare 5. It needs `wrangler` or the [`cf` CLI](https://developers.cloudflare.com/cf/) in your project, both bring Miniflare along.
+`--mode workerd` runs your tests in [workerd](https://github.com/cloudflare/workerd), the Cloudflare Workers runtime, inside the worker of your [`cf` CLI](https://developers.cloudflare.com/cf/) config. It needs `cf` in your project, it brings Miniflare 5 along.
 
 ```shell
-npm install -D wrangler
+npm install -D cf
 playwright-test "test/**/*.test.js" --mode workerd
 ```
 
-The tests run inside the worker described by the config in `cwd`, with its bindings, compatibility date and flags. That's `cloudflare.config.ts` of the `cf` CLI (also `.mts`, `.js` and `.mjs`), or else `wrangler.jsonc`, `wrangler.json` or `wrangler.toml`. `nodejs_compat` is always on. The tests and the worker's `main` are bundled into one module with esbuild, the way `wrangler deploy` bundles a worker, so Durable Object classes exported from `main` work with their bindings. Tests reach the worker with `exports` and its bindings with `env`, both from `cloudflare:workers`:
+The tests run inside the worker of `cloudflare.config.ts` in `cwd` (also `.mts`, `.js` and `.mjs`), with its bindings, exports, compatibility date and flags. `nodejs_compat` is always on, secrets come from the environment and every binding is local. The tests and the worker's entry point are bundled into one module with esbuild, so Durable Object classes exported from the entry point work with their bindings. `.txt`, `.html` and `.sql` imports are text, `.bin` is data and `.wasm` is a compiled module, like with `cf build`. Tests reach the worker with `exports` and its bindings with `env`, both from `cloudflare:workers`:
 
 ```js
 import assert from 'node:assert/strict'
@@ -142,14 +142,12 @@ it('counts', async () => {
 
 Without a config the tests run in an empty worker. The `workerd` key of the config file takes:
 
-- `configPath`, the worker config to use.
-- `environment`, the wrangler environment, or the mode `cloudflare.config.ts` functions get, `test` by default.
-- `main`, the worker entry point, instead of the one in the worker config.
-- `miniflare`, Miniflare 5 worker options merged over the ones from the worker config, for example `{ config: { env: { GREETING: { type: 'text', value: 'hi' } } } }`.
+- `configPath`, the `cloudflare.config.ts` to use.
+- `environment`, the mode `cloudflare.config.ts` functions get, like `cf dev --mode`, `test` by default.
+- `main`, the worker entry point, instead of the config's `entrypoint`.
+- `miniflare`, Miniflare 5 worker options merged over the ones from the config, for example `{ config: { env: { GREETING: { type: 'text', value: 'hi' } } } }`.
 
-With `cloudflare.config.ts`, secrets come from the environment and every binding is local.
-
-`--before`, `--sw`, `--extension`, `--trace` and `--watch` don't work in this mode. A test that never settles fails the run, workerd cancels the request it runs in.
+`--before`, `--sw`, `--extension`, `--trace` and `--watch` don't work in this mode, and neither do static assets. A test that never settles fails the run, workerd cancels the request it runs in.
 
 ## `node:test` API
 

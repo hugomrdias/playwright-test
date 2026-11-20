@@ -109,10 +109,10 @@
     "tinyglobby": "^0.2.17"
   },
   "peerDependencies": {
-    "wrangler": "^4.0.0"
+    "cf": "^1.0.0-rc.1"
   },
   "peerDependenciesMeta": {
-    "wrangler": {
+    "cf": {
       "optional": true
     }
   },
@@ -128,8 +128,7 @@
     "p-defer": "^4.0.1",
     "simple-git-hooks": "^2.14.0",
     "tinybench": "^6.2.3",
-    "typescript": "^7.0.2",
-    "wrangler": "^4.164.0"
+    "typescript": "^7.0.2"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm exec biome check --no-errors-on-unmatched --files-ignore-unknown=true --staged"

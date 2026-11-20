@@ -19,15 +19,6 @@ it('imports data modules', async () => {
   assert.equal(await get('/data'), 'data')
 })
 
-it('picks the module rule wrangler picks', async () => {
-  // `assets/*.txt` has to match the whole import, `./other/assets/file.txt`
-  // stays text
-  assert.deepEqual(JSON.parse(await get('/rules')), {
-    asset: 'string',
-    raw: true,
-  })
-})
-
 it('imports wasm modules', async () => {
   assert.equal(await get('/wasm'), '5')
 })

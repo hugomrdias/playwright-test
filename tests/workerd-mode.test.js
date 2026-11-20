@@ -12,7 +12,7 @@ function runWorkerd(args) {
 }
 
 describe('workerd mode', () => {
-  it('runs node:test files in the worker of the wrangler config', async () => {
+  it('runs node:test files in the worker of cloudflare.config.ts', async () => {
     const proc = await runWorkerd(['test/worker.test.js'])
 
     is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
@@ -26,18 +26,11 @@ describe('workerd mode', () => {
     ok(proc.stdout.includes('pass 1'), proc.stdout)
   })
 
-  it('starts the tests of a worker with static assets', async () => {
-    const proc = await runWorkerd(['test/assets.test.js'])
-
-    is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
-    ok(proc.stdout.includes('pass 1'), proc.stdout)
-  })
-
   it('imports text, data and wasm modules', async () => {
     const proc = await runWorkerd(['test/modules.test.js'])
 
     is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
-    ok(proc.stdout.includes('pass 4'), proc.stdout)
+    ok(proc.stdout.includes('pass 3'), proc.stdout)
   })
 
   it('keeps configured vars over the env of this process', async () => {
@@ -77,7 +70,7 @@ describe('workerd mode', () => {
     ok(proc.stdout.includes('1 passing'), proc.stdout)
   })
 
-  it('runs without a wrangler config', async () => {
+  it('runs without a worker config', async () => {
     const proc = await runCli(['--mode', 'workerd', 'mocks/node.test.js'], {
       reject: false,
     })
@@ -110,26 +103,16 @@ describe('workerd mode', () => {
     ok(proc.stderr.includes('Could not bundle the tests.'), proc.stderr)
   })
 
-  it('runs in the worker of a cloudflare.config.ts', async () => {
-    const proc = await runCli(
-      ['--mode', 'workerd', '--cwd', 'mocks/workerd-cf', 'test/worker.test.js'],
-      { reject: false }
-    )
-
-    is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
-    ok(proc.stdout.includes('pass 4'), proc.stdout)
-  })
-
   it('passes the environment as the mode of cloudflare.config.ts', async () => {
     const proc = await runCli(
       [
         '--mode',
         'workerd',
         '--cwd',
-        'mocks/workerd-cf',
+        'mocks/workerd',
         '--config',
-        'mocks/workerd-cf/staging.config.mjs',
-        'test/worker.test.js',
+        'mocks/workerd/staging.config.mjs',
+        'test/mode.test.js',
       ],
       {
         env: { EXPECTED_MODE: 'staging', NODE_TEST_CONTEXT: undefined },
@@ -138,34 +121,29 @@ describe('workerd mode', () => {
     )
 
     is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
-    ok(proc.stdout.includes('pass 4'), proc.stdout)
+    ok(proc.stdout.includes('pass 1'), proc.stdout)
   })
 
-  for (const cwd of ['mocks/workerd', 'mocks/workerd-cf']) {
-    it(`merges Miniflare options over the config in ${cwd}`, async () => {
-      const proc = await runCli(
-        [
-          '--mode',
-          'workerd',
-          '--cwd',
-          cwd,
-          '--config',
-          'mocks/workerd/override.config.mjs',
-          '../workerd/test/greeting.test.js',
-        ],
-        {
-          env: {
-            EXPECTED_GREETING: 'overridden',
-            NODE_TEST_CONTEXT: undefined,
-          },
-          reject: false,
-        }
-      )
+  it('merges Miniflare options over the config', async () => {
+    const proc = await runCli(
+      [
+        '--mode',
+        'workerd',
+        '--cwd',
+        'mocks/workerd',
+        '--config',
+        'mocks/workerd/override.config.mjs',
+        'test/greeting.test.js',
+      ],
+      {
+        env: { EXPECTED_GREETING: 'overridden', NODE_TEST_CONTEXT: undefined },
+        reject: false,
+      }
+    )
 
-      is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
-      ok(proc.stdout.includes('pass 1'), proc.stdout)
-    })
-  }
+    is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
+    ok(proc.stdout.includes('pass 1'), proc.stdout)
+  })
 
   it('does not record a trace', async () => {
     const proc = await runWorkerd(['test/worker.test.js', '--trace=on'])

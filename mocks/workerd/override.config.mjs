@@ -1,4 +1,4 @@
-// Miniflare 5 worker options, merged over the ones from the worker config
+// Miniflare 5 worker options, merged over the ones from cloudflare.config.ts
 export default {
   workerd: {
     miniflare: {
