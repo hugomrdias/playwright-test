@@ -38,7 +38,6 @@ const TRACE_WAIT = 30_000
 /**
  * @typedef {import('playwright-core').Page} Page
  * @typedef {import('playwright-core').BrowserContext} Context
- * @typedef {import('playwright-core').Browser} Browser
  * @typedef {import('./types.js').RunnerOptions} RunnerOptions
  * @typedef {import('./types.js').RunnerEnv} RunnerEnv
  * @typedef {import('./types.js').CliOptions} CliOptions
@@ -71,6 +70,8 @@ export class Runner extends BaseRunner {
     this.pendingConsole = new Set()
     /** @type {WeakMap<object, Promise<void>>} */
     this.lastConsole = new WeakMap()
+    /** @type {WeakSet<import('playwright-core').ConsoleMessage>} */
+    this.seenConsole = new WeakSet()
     /** If the context records a trace, see `#startTracing` */
     this.tracing = false
     this.watching = false
@@ -139,20 +140,12 @@ export class Runner extends BaseRunner {
 
     this.#handleInterrupt()
 
-    // create context
-    if (this.options.incognito) {
-      this.browser = await pw.launch(pwOptions)
-      this.context = await this.browser.newContext(
-        this.options.browserContextOptions
-      )
-    } else {
-      // With an empty path Playwright creates the profile in the temp folder and
-      // deletes it, also when the exit hook doesn't wait for the browser to close
-      this.context = await pw.launchPersistentContext('', {
-        ...pwOptions,
-        ...this.options.browserContextOptions,
-      })
-    }
+    // With an empty path Playwright creates the profile in the temp folder and
+    // deletes it, also when the exit hook doesn't wait for the browser to close
+    this.context = await pw.launchPersistentContext('', {
+      ...pwOptions,
+      ...this.options.browserContextOptions,
+    })
 
     // Also when it crashes or gets killed, and when --debug users close it. It
     // fires when this process closes it too, which is after `stopped`.
@@ -160,12 +153,24 @@ export class Runner extends BaseRunner {
       this.#browserEnded('browser')
     })
 
-    await this.#startTracing(this.context)
-
-    // Only Chromium reports service workers, the others keep their output
-    this.context.on('serviceworker', (worker) => {
+    // Only Chromium reports service workers, the others keep their output.
+    // Extension service workers can already be running before tracing starts.
+    /** @type {WeakSet<import('playwright-core').Worker>} */
+    const trackedWorkers = new WeakSet()
+    /** @param {import('playwright-core').Worker} worker */
+    const trackServiceWorker = (worker) => {
+      if (trackedWorkers.has(worker)) {
+        return
+      }
+      trackedWorkers.add(worker)
       worker.on('console', this.#onConsole)
-    })
+    }
+    this.context.on('serviceworker', trackServiceWorker)
+    for (const worker of this.context.serviceWorkers()) {
+      trackServiceWorker(worker)
+    }
+
+    await this.#startTracing(this.context)
 
     // Multiplexed bindings of playwright-test/client; a worker running the
     // tests calls them through the page, see `addWorker`. Trusted input goes
@@ -308,9 +313,6 @@ export class Runner extends BaseRunner {
           )
         }
       }
-    } else if (this.options.incognito) {
-      this.page = await context.newPage()
-      await this.page.goto(url)
     } else {
       this.page = context.pages()[0]
       await this.page.goto(url)
@@ -747,8 +749,10 @@ export class Runner extends BaseRunner {
         try {
           // Unregister any service worker in the page before reload
           await page.evaluate(async () => {
-            const regs = await navigator.serviceWorker.getRegistrations()
-            await Promise.all(regs.map((reg) => reg.unregister()))
+            if (navigator.serviceWorker) {
+              const regs = await navigator.serviceWorker.getRegistrations()
+              await Promise.all(regs.map((reg) => reg.unregister()))
+            }
           })
           await page.reload()
           console.error()
@@ -955,6 +959,13 @@ export class Runner extends BaseRunner {
    * @param {import('playwright-core').ConsoleMessage} msg
    */
   #onConsole = (msg) => {
+    // Playwright emits the same ConsoleMessage on both a service worker and
+    // any in-scope page listening to console events.
+    if (this.seenConsole.has(msg)) {
+      return
+    }
+    this.seenConsole.add(msg)
+
     // Read it right away, print it after the messages that came before it from
     // the same thread. A thread stuck in a loop can't answer the read of its last
     // message, that can't hold back the others.

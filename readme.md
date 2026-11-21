@@ -32,7 +32,6 @@ Description
     -m, --mode             Run mode. Options: main, worker, node and workerd.  (default main)
     -d, --debug            Debug mode, keeps browser window open.  (default false)
     -w, --watch            Watch files for changes and re-run tests.
-    -i, --incognito        Use incognito window to run tests.  (default false)
     -e, --extension        Use extension background_page to run tests.  (default false)
     --before               Path to a script to be loaded on a separate tab before the main script.
     --sw                   Path to a script to be loaded in a service worker.
@@ -52,7 +51,7 @@ Description
   Examples
     $ playwright-test test.js --runner mocha
     $ playwright-test test --debug
-    $ playwright-test "test/**/*.spec.js" --browser webkit --mode worker --incognito --debug
+    $ playwright-test "test/**/*.spec.js" --browser webkit --mode worker --debug
 
     $ playwright-test "test/**/*.spec.js" --debug --before ./mocks/before.js
     # Run a script in a separate tab. Check ./mocks/before.js for an example.

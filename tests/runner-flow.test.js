@@ -580,11 +580,6 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
         ['--extension', '--browser', 'firefox'],
         'only supported in chromium',
       ],
-      [
-        'an extension in incognito',
-        ['--extension', '--incognito'],
-        'does not work with incognito',
-      ],
     ]) {
       it(`rejects ${name} before starting a browser`, async () => {
         const proc = await runFlow('pass.js', /** @type {string[]} */ (args))
@@ -720,6 +715,58 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
       is(proc.exitCode, 0, proc.all)
       ok(printed !== -1, proc.all)
       ok(printed < proc.all.indexOf('Timed out waiting'), proc.all)
+    })
+
+    it('prints what the extension service worker logs once', async () => {
+      const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-test-ext-sw-'))
+      const script = `
+        const { Runner } = await import(${JSON.stringify(
+          new URL('../src/runner.js', import.meta.url).href
+        )})
+        const test = ${JSON.stringify(path.resolve(FLOW, 'pass.js'))}
+        const runner = new Runner(
+          {
+            runner: 'none',
+            extension: true,
+            trace: 'on',
+            cwd: ${JSON.stringify(temp)},
+          },
+          [test]
+        )
+        const setupPage = runner.setupPage.bind(runner)
+        runner.setupPage = async (context) => {
+          let [worker] = context.serviceWorkers()
+          if (!worker) {
+            worker = await context.waitForEvent('serviceworker')
+          }
+          await worker.evaluate(() => console.log('ext-sw-before-page'))
+          const page = await setupPage(context)
+          await worker.evaluate(() => console.log('ext-sw-after-page'))
+          return page
+        }
+        await runner.run()
+      `
+      try {
+        const proc = await execa(
+          process.execPath,
+          ['--input-type=module', '-e', script],
+          { reject: false, timeout: 30_000 }
+        )
+
+        is(proc.exitCode, 0, proc.stderr)
+        is(
+          proc.stdout.match(/ext-sw-before-page/g)?.length,
+          1,
+          proc.stdout + proc.stderr
+        )
+        is(
+          proc.stdout.match(/ext-sw-after-page/g)?.length,
+          1,
+          proc.stdout + proc.stderr
+        )
+      } finally {
+        fs.rmSync(temp, { force: true, recursive: true })
+      }
     })
   })
 

@@ -48,12 +48,10 @@ describe('config file', { concurrency: TEST_CONCURRENCY }, () => {
     ok(mode.includes('document: object'), mode)
   })
 
-  for (const args of [[], ['--incognito']]) {
-    it(`passes launchOptions to the browser ${args.join(' ')}`, async () => {
-      const stdout = await run([...config('launch-args'), ...args])
-      ok(stdout.includes('agent: pw-test-launch-options'), stdout)
-    })
-  }
+  it('passes launchOptions to the browser', async () => {
+    const stdout = await run(config('launch-args'))
+    ok(stdout.includes('agent: pw-test-launch-options'), stdout)
+  })
 
   it('launches launchOptions.executablePath', async () => {
     const stdout = await run(config('launch-exe'))
@@ -229,7 +227,7 @@ describe('without a config file', { concurrency: TEST_CONCURRENCY }, () => {
 
   it('keeps files after boolean flags', async () => {
     const proc = await runCli(
-      ['--incognito', 'mocks/config/where.js', '--runner', 'none'],
+      ['--extension', 'mocks/config/where.js', '--runner', 'none'],
       { reject: false }
     )
     is(proc.exitCode, 0, proc.stderr)

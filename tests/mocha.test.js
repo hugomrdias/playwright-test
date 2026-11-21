@@ -68,13 +68,6 @@ describe('mocha', { concurrency: TEST_CONCURRENCY }, () => {
     ok(proc.stdout.includes('app test pass'), 'debug output')
   })
 
-  it('incognito', async () => {
-    const proc = await runCli(['mocks/test.mocha.js', '--incognito'])
-
-    is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('passing'), 'process stdout')
-  })
-
   it('mode:worker', async () => {
     const proc = await runCli(['mocks/test.mocha.js', '--mode', 'worker'])
 
