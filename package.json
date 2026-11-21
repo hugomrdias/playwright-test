@@ -117,7 +117,7 @@
     }
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.4",
+    "@biomejs/biome": "2.6.8",
     "@hugomrdias/configs": "^2.0.0",
     "@types/polka": "^0.5.8",
     "cf": "1.0.0-rc.1",
