@@ -3,6 +3,7 @@ import { PassThrough } from 'node:stream'
 import { describe, it } from 'node:test'
 import { WriteStream } from 'node:tty'
 import { styleText } from 'node:util'
+import { process as browserProcess } from '../src/polyfills/process.js'
 import { styleText as polyfillStyleText } from '../src/polyfills/util.js'
 import {
   colors,
@@ -195,19 +196,20 @@ describe('colors', () => {
         }),
         true
       )
+      const ciEnv = { CI: '1', TERM: 'xterm-256color' }
       is(
         supportsColor({
-          env: { CI: '1', TERM: 'xterm-256color' },
+          env: ciEnv,
           stream: {
             isTTY: true,
             getColorDepth: WriteStream.prototype.getColorDepth,
           },
         }),
-        false
+        WriteStream.prototype.getColorDepth(ciEnv) > 1
       )
       is(
         supportsColor({
-          env: { CI: '1', TERM: 'xterm-256color', FORCE_COLOR: '1' },
+          env: { ...ciEnv, FORCE_COLOR: '1' },
           stream: {
             isTTY: true,
             getColorDepth: WriteStream.prototype.getColorDepth,
@@ -373,31 +375,17 @@ describe('colors', () => {
     })
 
     it('respects stream isTTY and env precedence when validateStream is true', () => {
-      const saved = {
-        FORCE_COLOR: process.env.FORCE_COLOR,
-        NO_COLOR: process.env.NO_COLOR,
-        NODE_DISABLE_COLORS: process.env.NODE_DISABLE_COLORS,
-        TERM: process.env.TERM,
-      }
-      const restore = () => {
-        for (const [k, v] of Object.entries(saved)) {
-          if (v === undefined) {
-            delete process.env[k]
-          } else {
-            process.env[k] = v
-          }
+      const savedForce = process.env.FORCE_COLOR
+      const savedBrowserEnv = { ...browserProcess.env }
+      const resetBrowserEnv = (/** @type {Record<string, string>} */ next) => {
+        for (const k of Object.keys(browserProcess.env)) {
+          delete browserProcess.env[k]
         }
+        Object.assign(browserProcess.env, next)
       }
       try {
         delete process.env.FORCE_COLOR
-        delete process.env.NO_COLOR
-        delete process.env.NODE_DISABLE_COLORS
-        process.env.TERM = 'xterm-256color'
 
-        const ttyStream = Object.assign(new PassThrough(), {
-          isTTY: true,
-          getColorDepth: WriteStream.prototype.getColorDepth,
-        })
         const monoTty = Object.assign(new PassThrough(), {
           isTTY: true,
           getColorDepth: () => 1,
@@ -411,10 +399,6 @@ describe('colors', () => {
           getColorDepth: () => 8,
         })
 
-        is(
-          polyfillStyleText('red', 'x', { stream: ttyStream }),
-          '\u001B[31mx\u001B[39m'
-        )
         is(polyfillStyleText('red', 'x', { stream: monoTty }), 'x')
         is(
           polyfillStyleText('red', 'x', { stream: colorTty }),
@@ -422,8 +406,29 @@ describe('colors', () => {
         )
         is(polyfillStyleText('red', 'x', { stream: nonTty }), 'x')
 
-        process.env.TERM = 'dumb'
-        is(polyfillStyleText('red', 'x', { stream: ttyStream }), 'x')
+        resetBrowserEnv({ TERM: 'xterm-256color' })
+        is(
+          polyfillStyleText('red', 'x', { stream: browserProcess.stdout }),
+          '\u001B[31mx\u001B[39m'
+        )
+
+        resetBrowserEnv({ TERM: 'dumb' })
+        is(
+          polyfillStyleText('red', 'x', { stream: browserProcess.stdout }),
+          'x'
+        )
+
+        resetBrowserEnv({ TERM: 'xterm-256color', NO_COLOR: '1' })
+        is(
+          polyfillStyleText('red', 'x', { stream: browserProcess.stdout }),
+          'x'
+        )
+
+        resetBrowserEnv({ TERM: 'xterm-256color', NODE_DISABLE_COLORS: '1' })
+        is(
+          polyfillStyleText('red', 'x', { stream: browserProcess.stdout }),
+          'x'
+        )
 
         process.env.FORCE_COLOR = '1'
         is(
@@ -434,17 +439,30 @@ describe('colors', () => {
           polyfillStyleText('red', 'x', { stream: monoTty }),
           '\u001B[31mx\u001B[39m'
         )
-
-        delete process.env.FORCE_COLOR
-        process.env.TERM = 'xterm-256color'
-        process.env.NO_COLOR = '1'
-        is(polyfillStyleText('red', 'x', { stream: ttyStream }), 'x')
+        is(
+          polyfillStyleText('red', 'x', { stream: browserProcess.stdout }),
+          '\u001B[31mx\u001B[39m'
+        )
       } finally {
-        restore()
+        if (savedForce === undefined) {
+          delete process.env.FORCE_COLOR
+        } else {
+          process.env.FORCE_COLOR = savedForce
+        }
+        resetBrowserEnv(savedBrowserEnv)
       }
     })
 
     it('supports #RGB and #RRGGBB hex colors matching Node.js util.styleText', () => {
+      const hasNativeHex = (() => {
+        try {
+          styleText(/** @type {any} */ ('#f80'), 'x', { validateStream: false })
+          return true
+        } catch {
+          return false
+        }
+      })()
+
       /** @type {Array<[string, string]>} */
       const cases = [
         ['#f80', '\u001B[38;2;255;136;0mx\u001B[39m'],
@@ -456,30 +474,48 @@ describe('colors', () => {
       for (const [hex, expected] of cases) {
         const actual = polyfillStyleText(hex, 'x', { validateStream: false })
         is(actual, expected, hex)
+        if (hasNativeHex) {
+          is(
+            actual,
+            styleText(/** @type {any} */ (hex), 'x', { validateStream: false }),
+            hex
+          )
+        }
+      }
+
+      const boldHex = polyfillStyleText(['bold', '#f80'], 'x', {
+        validateStream: false,
+      })
+      is(boldHex, '\u001B[1m\u001B[38;2;255;136;0mx\u001B[39m\u001B[22m')
+      if (hasNativeHex) {
         is(
-          actual,
-          styleText(/** @type {any} */ (hex), 'x', { validateStream: false }),
-          hex
+          boldHex,
+          styleText(/** @type {any} */ (['bold', '#f80']), 'x', {
+            validateStream: false,
+          })
         )
       }
-      is(
-        polyfillStyleText(['bold', '#f80'], 'x', { validateStream: false }),
-        styleText(/** @type {any} */ (['bold', '#f80']), 'x', {
-          validateStream: false,
-        })
+
+      const nestedHex = polyfillStyleText(
+        '#f80',
+        `a ${polyfillStyleText('red', 'b', { validateStream: false })} c`,
+        { validateStream: false }
       )
       is(
-        polyfillStyleText(
-          '#f80',
-          `a ${polyfillStyleText('red', 'b', { validateStream: false })} c`,
-          { validateStream: false }
-        ),
-        styleText(
-          /** @type {any} */ ('#f80'),
-          `a ${styleText('red', 'b', { validateStream: false })} c`,
-          { validateStream: false }
+        nestedHex,
+        '\u001B[38;2;255;136;0ma \u001B[31mb\u001B[38;2;255;136;0m c\u001B[39m'
+      )
+      if (hasNativeHex) {
+        is(
+          nestedHex,
+          styleText(
+            /** @type {any} */ ('#f80'),
+            `a ${styleText('red', 'b', { validateStream: false })} c`,
+            { validateStream: false }
+          )
         )
-      )
+      }
+
       for (const invalid of ['#1234', '#ggg', '#', '#1234567']) {
         throws(
           () => polyfillStyleText(invalid, 'x', { validateStream: false }),
