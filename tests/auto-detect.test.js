@@ -116,6 +116,24 @@ describe('runner auto detection', () => {
       ['mocha'],
       'tsx',
     ],
+    [
+      'jsx',
+      "import 'mocha'\nconst a = <div />\nconsole.log(a)",
+      ['mocha'],
+      'jsx',
+    ],
+    [
+      'jsx text is not a mocha call',
+      "const a = <div>text; describe('not a suite'); more text</div>\nconsole.log(a)",
+      [],
+      'jsx',
+    ],
+    [
+      'jsx node:test',
+      "import { test } from 'node:test'\nconst view = () => <div>ok</div>\ntest('a', () => view())",
+      ['node:test'],
+      'jsx',
+    ],
   ]
 
   for (const [name, source, expected, ext] of cases) {

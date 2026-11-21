@@ -9,11 +9,12 @@ import { mocha, nodeTest } from '../test-runners.js'
  */
 
 /** @type {Record<string, import('esbuild').Loader>} */
-const TS_LOADERS = {
+const LOADERS = {
   '.ts': 'ts',
   '.mts': 'ts',
   '.cts': 'ts',
   '.tsx': 'tsx',
+  '.jsx': 'jsx',
 }
 
 /** What a file imports to ask for a runner. */
@@ -28,14 +29,15 @@ const MOCHA_GLOBALS = new Set(['describe', 'it'])
 const MOCHA_GLOBAL_MODIFIERS = new Set(['only', 'skip'])
 
 /**
- * Read a file as code the parser understands. Types are stripped first, the
- * parser doesn't know `import type` from an import and gets lost in generics.
+ * Read a file as code the parser understands. Types and JSX are stripped first,
+ * the parser doesn't know `import type` from an import and gets lost in
+ * generics and JSX.
  *
  * @param {string} file
  */
 function readSource(file) {
   const contents = fs.readFileSync(file, 'utf8')
-  const loader = TS_LOADERS[path.extname(file)]
+  const loader = LOADERS[path.extname(file)]
   if (!loader) {
     return contents
   }
