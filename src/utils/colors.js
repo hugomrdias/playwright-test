@@ -79,17 +79,20 @@ export function isColorForced(
  * 1. `FORCE_COLOR` when set (`''`, `'1'`, `'2'`, `'3'`, `'true'` enable; any other value disables).
  * 2. `minimal` mode (AI agents) disables colors unless forced above.
  * 3. Non-empty `NODE_DISABLE_COLORS`, non-empty `NO_COLOR`, or `TERM=dumb` disable colors.
- * 4. Otherwise enabled for TTYs, or by default in non-Node runtimes (browsers, workers, workerd).
+ * 4. Otherwise on a stream/terminal, requires `isTTY` and `getColorDepth(env) > 1` when provided.
+ *    In non-Node runtimes without a stdout stream (browsers, workers, workerd), defaults to true.
  *
  * @param {object} [options]
  * @param {Record<string, string | undefined>} [options.env]
  * @param {boolean} [options.isTTY]
  * @param {boolean} [options.minimal]
+ * @param {{ isTTY?: boolean, getColorDepth?: (env?: Record<string, string | undefined>) => number }} [options.stream]
  */
 export function supportsColor({
   env = typeof process === 'undefined' ? undefined : process.env,
   isTTY,
   minimal = false,
+  stream,
 } = {}) {
   if (env?.FORCE_COLOR !== undefined) {
     return isColorForced(env)
@@ -105,19 +108,42 @@ export function supportsColor({
   ) {
     return false
   }
+  if (stream !== undefined) {
+    const tty = isTTY ?? stream?.isTTY
+    if (!tty) {
+      return false
+    }
+    if (typeof stream?.getColorDepth === 'function') {
+      return stream.getColorDepth(env) > 1
+    }
+    return true
+  }
   if (isTTY !== undefined) {
     return Boolean(isTTY)
   }
   if (typeof process === 'undefined') {
     return true
   }
+  const stdout = process.stdout
   const isNode =
     process.release?.name === 'node' &&
     globalThis.navigator?.userAgent !== 'Cloudflare-Workers'
   if (isNode) {
-    return Boolean(process.stdout?.isTTY)
+    if (!stdout?.isTTY) {
+      return false
+    }
+    if (typeof stdout.getColorDepth === 'function') {
+      return stdout.getColorDepth(env) > 1
+    }
+    return true
   }
-  return process.stdout?.isTTY ?? true
+  if (stdout?.isTTY === false) {
+    return false
+  }
+  if (typeof stdout?.getColorDepth === 'function') {
+    return stdout.getColorDepth(env) > 1
+  }
+  return true
 }
 
 /**

@@ -296,6 +296,68 @@ const CASES = [
     (u) => u.styleText('red', 'a', { validateStream: 'yes' }),
   ],
   [
+    'styleText stream depth 1',
+    (u) =>
+      u.styleText('red', 'a', {
+        stream: Object.assign(new WritableStream(), {
+          isTTY: true,
+          getColorDepth: () => 1,
+        }),
+      }),
+  ],
+  [
+    'styleText stream depth 4',
+    (u) =>
+      u.styleText('red', 'a', {
+        stream: Object.assign(new WritableStream(), {
+          isTTY: true,
+          getColorDepth: () => 4,
+        }),
+      }),
+  ],
+  [
+    'styleText stream non-tty depth 8',
+    (u) =>
+      u.styleText('red', 'a', {
+        stream: Object.assign(new WritableStream(), {
+          isTTY: false,
+          getColorDepth: () => 8,
+        }),
+      }),
+  ],
+  [
+    'styleText hex rgb',
+    (u) => u.styleText('#f80', 'a', { validateStream: false }),
+  ],
+  [
+    'styleText hex rrggbb',
+    (u) => u.styleText('#ff8800', 'a', { validateStream: false }),
+  ],
+  [
+    'styleText hex array',
+    (u) => u.styleText(['bold', '#f80'], 'a', { validateStream: false }),
+  ],
+  [
+    'styleText hex nested',
+    (u) =>
+      u.styleText(
+        '#f80',
+        `a ${u.styleText('red', 'b', { validateStream: false })} c`,
+        { validateStream: false }
+      ),
+  ],
+  [
+    'styleText hex invalid',
+    (u) => u.styleText('#1234', 'a', { validateStream: false }),
+  ],
+  [
+    'styleText hex invalid skipped',
+    (u) =>
+      u.styleText('#ggg', 'a', {
+        stream: Object.assign(new WritableStream(), { isTTY: false }),
+      }),
+  ],
+  [
     'isDeepStrictEqual same',
     (u) => u.isDeepStrictEqual({ a: [1] }, { a: [1] }),
   ],

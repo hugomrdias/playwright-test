@@ -1,4 +1,5 @@
-import { strictEqual as is } from 'node:assert/strict'
+import { strictEqual as is, throws } from 'node:assert/strict'
+import { PassThrough } from 'node:stream'
 import { describe, it } from 'node:test'
 import { WriteStream } from 'node:tty'
 import { styleText } from 'node:util'
@@ -179,6 +180,50 @@ describe('colors', () => {
       )
     })
 
+    it('honors stream getColorDepth on TTYs (e.g. CI=1 or depth 1)', () => {
+      is(
+        supportsColor({
+          env: { TERM: 'xterm-256color' },
+          stream: { isTTY: true, getColorDepth: () => 1 },
+        }),
+        false
+      )
+      is(
+        supportsColor({
+          env: { TERM: 'xterm-256color' },
+          stream: { isTTY: true, getColorDepth: () => 4 },
+        }),
+        true
+      )
+      is(
+        supportsColor({
+          env: { CI: '1', TERM: 'xterm-256color' },
+          stream: {
+            isTTY: true,
+            getColorDepth: WriteStream.prototype.getColorDepth,
+          },
+        }),
+        false
+      )
+      is(
+        supportsColor({
+          env: { CI: '1', TERM: 'xterm-256color', FORCE_COLOR: '1' },
+          stream: {
+            isTTY: true,
+            getColorDepth: WriteStream.prototype.getColorDepth,
+          },
+        }),
+        true
+      )
+      is(
+        supportsColor({
+          env: { TERM: 'xterm-256color' },
+          stream: { isTTY: false, getColorDepth: () => 8 },
+        }),
+        false
+      )
+    })
+
     it('matches Node.js WriteStream.prototype.hasColors precedence on TTY', () => {
       /** @type {Array<Record<string, string>>} */
       const envs = [
@@ -349,27 +394,97 @@ describe('colors', () => {
         delete process.env.NODE_DISABLE_COLORS
         process.env.TERM = 'xterm-256color'
 
+        const ttyStream = Object.assign(new PassThrough(), {
+          isTTY: true,
+          getColorDepth: WriteStream.prototype.getColorDepth,
+        })
+        const monoTty = Object.assign(new PassThrough(), {
+          isTTY: true,
+          getColorDepth: () => 1,
+        })
+        const colorTty = Object.assign(new PassThrough(), {
+          isTTY: true,
+          getColorDepth: () => 4,
+        })
+        const nonTty = Object.assign(new PassThrough(), {
+          isTTY: false,
+          getColorDepth: () => 8,
+        })
+
         is(
-          polyfillStyleText('red', 'x', { stream: { isTTY: true } }),
+          polyfillStyleText('red', 'x', { stream: ttyStream }),
           '\u001B[31mx\u001B[39m'
         )
-        is(polyfillStyleText('red', 'x', { stream: { isTTY: false } }), 'x')
+        is(polyfillStyleText('red', 'x', { stream: monoTty }), 'x')
+        is(
+          polyfillStyleText('red', 'x', { stream: colorTty }),
+          '\u001B[31mx\u001B[39m'
+        )
+        is(polyfillStyleText('red', 'x', { stream: nonTty }), 'x')
 
         process.env.TERM = 'dumb'
-        is(polyfillStyleText('red', 'x', { stream: { isTTY: true } }), 'x')
+        is(polyfillStyleText('red', 'x', { stream: ttyStream }), 'x')
 
         process.env.FORCE_COLOR = '1'
         is(
-          polyfillStyleText('red', 'x', { stream: { isTTY: false } }),
+          polyfillStyleText('red', 'x', { stream: nonTty }),
+          '\u001B[31mx\u001B[39m'
+        )
+        is(
+          polyfillStyleText('red', 'x', { stream: monoTty }),
           '\u001B[31mx\u001B[39m'
         )
 
         delete process.env.FORCE_COLOR
         process.env.TERM = 'xterm-256color'
         process.env.NO_COLOR = '1'
-        is(polyfillStyleText('red', 'x', { stream: { isTTY: true } }), 'x')
+        is(polyfillStyleText('red', 'x', { stream: ttyStream }), 'x')
       } finally {
         restore()
+      }
+    })
+
+    it('supports #RGB and #RRGGBB hex colors matching Node.js util.styleText', () => {
+      /** @type {Array<[string, string]>} */
+      const cases = [
+        ['#f80', '\u001B[38;2;255;136;0mx\u001B[39m'],
+        ['#F80', '\u001B[38;2;255;136;0mx\u001B[39m'],
+        ['#ff8800', '\u001B[38;2;255;136;0mx\u001B[39m'],
+        ['#000', '\u001B[38;2;0;0;0mx\u001B[39m'],
+        ['#ffffff', '\u001B[38;2;255;255;255mx\u001B[39m'],
+      ]
+      for (const [hex, expected] of cases) {
+        const actual = polyfillStyleText(hex, 'x', { validateStream: false })
+        is(actual, expected, hex)
+        is(
+          actual,
+          styleText(/** @type {any} */ (hex), 'x', { validateStream: false }),
+          hex
+        )
+      }
+      is(
+        polyfillStyleText(['bold', '#f80'], 'x', { validateStream: false }),
+        styleText(/** @type {any} */ (['bold', '#f80']), 'x', {
+          validateStream: false,
+        })
+      )
+      is(
+        polyfillStyleText(
+          '#f80',
+          `a ${polyfillStyleText('red', 'b', { validateStream: false })} c`,
+          { validateStream: false }
+        ),
+        styleText(
+          /** @type {any} */ ('#f80'),
+          `a ${styleText('red', 'b', { validateStream: false })} c`,
+          { validateStream: false }
+        )
+      )
+      for (const invalid of ['#1234', '#ggg', '#', '#1234567']) {
+        throws(
+          () => polyfillStyleText(invalid, 'x', { validateStream: false }),
+          { code: 'ERR_INVALID_ARG_VALUE' }
+        )
       }
     })
   })
