@@ -4,7 +4,6 @@ import esbuild from 'esbuild'
 import { wasmLoader } from 'esbuild-plugin-wasm'
 import fs from 'fs'
 import { createServer } from 'http'
-import kleur from 'kleur'
 // @ts-expect-error
 import mergeOptions from 'merge-options'
 import { createRequire } from 'module'
@@ -14,6 +13,7 @@ import sirv from 'sirv'
 import { convertPathToPattern, globSync } from 'tinyglobby'
 import { fileURLToPath } from 'url'
 import * as DefaultRunners from '../test-runners.js'
+import { colors } from './colors.js'
 import { polyfillAliases } from './polyfill-aliases.js'
 
 const require = createRequire(import.meta.url)
@@ -192,7 +192,7 @@ export const log = {
    */
   info(message, quiet = false) {
     if (!quiet) {
-      console.error(kleur.blue('ℹ'), message)
+      console.error(colors.blue('ℹ'), message)
     }
   },
   /**
@@ -201,7 +201,7 @@ export const log = {
    */
   warn(message, quiet = false) {
     if (!quiet) {
-      console.warn(kleur.yellow('-'), message)
+      console.warn(colors.yellow('-'), message)
     }
   },
   /**
@@ -210,7 +210,7 @@ export const log = {
    */
   error(message, quiet = false) {
     if (!quiet) {
-      console.warn(kleur.red('✘'), message)
+      console.warn(colors.red('✘'), message)
     }
   },
 }
@@ -478,7 +478,7 @@ function printConsole(msg, msgArgs, text, mapStack) {
     // How WebKit sends console.count and console.timeEnd
     consoleFn.call(console, text)
   } else if (text) {
-    console.error(kleur.dim(`🌐${text}`))
+    console.error(colors.dim(`🌐${text}`))
   } else if (type === 'log') {
     // Firefox sends console.log() and the others nothing at all
     console.log()

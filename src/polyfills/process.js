@@ -96,7 +96,31 @@ function createStream(binding, key, method) {
       }
       return true
     },
-    getColorDepth: () => 256,
+    getColorDepth: (env = p.env) => {
+      if (env?.FORCE_COLOR !== undefined) {
+        switch (env.FORCE_COLOR) {
+          case '':
+          case '1':
+          case 'true':
+            return 4
+          case '2':
+            return 8
+          case '3':
+            return 24
+          default:
+            return 1
+        }
+      }
+      if (
+        (env?.NODE_DISABLE_COLORS !== undefined &&
+          env.NODE_DISABLE_COLORS !== '') ||
+        (env?.NO_COLOR !== undefined && env.NO_COLOR !== '') ||
+        env?.TERM === 'dumb'
+      ) {
+        return 1
+      }
+      return 8
+    },
     isTTY: true,
   }
 }

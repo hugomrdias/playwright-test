@@ -10,6 +10,7 @@
  *   node mocks/node-test/assert-compare.js --browser webkit
  */
 import { fileURLToPath } from 'node:url'
+import { styleText } from 'node:util'
 import { execa } from 'execa'
 
 // The CLI takes globs, which can't be absolute paths with backslashes on Windows.
@@ -107,11 +108,27 @@ const withoutColors = (/** @type {string} */ json) =>
   json.replace(/\\+u001b\[\d+m/g, '')
 
 /**
+ * Hex colors in `util.styleText` were added after Node.js 24.0.0. Skip comparing
+ * them against the real module on runtimes that predate hex support.
+ */
+const HAS_HEX_STYLE_TEXT = (() => {
+  try {
+    styleText('#f80', 'x', { validateStream: false })
+    return true
+  } catch {
+    return false
+  }
+})()
+
+/**
  * @param {string} key
  * @param {string | undefined} real
  * @param {string | undefined} other
  */
 function isSame(key, real, other) {
+  if (!HAS_HEX_STYLE_TEXT && key.startsWith('util styleText hex')) {
+    return true
+  }
   if (real === undefined || other === undefined) {
     return real === other
   }

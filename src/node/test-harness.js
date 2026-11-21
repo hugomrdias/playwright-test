@@ -3,9 +3,8 @@
  * What the runners use to drive `./test.js`, and what it uses to report. It's
  * internal, `playwright-test/node-test` only exports what `node:test` does.
  */
-import kleur from 'kleur'
-import { inspect } from 'util'
-import { isColorForced } from '../utils/force-color.js'
+import { inspect, styleText } from 'util'
+import { supportsColor } from '../utils/colors.js'
 import { toRegExp } from '../utils/name-pattern.js'
 import { isFrame, removeInternalFrames } from '../utils/stack-frames.js'
 
@@ -88,21 +87,22 @@ export function cleanStack(text) {
  * }}
  */
 export const config = {
-  colors: true,
+  colors: supportsColor(),
   minimal: false,
   namePattern: null,
   timeout: undefined,
 }
 
 /**
- * Color our own output. `kleur.enabled` is shared with any test using `kleur`,
- * and what tests print isn't ours to change.
+ * Color our own output without touching any global state that user tests could see.
  *
  * @param {'blue' | 'gray' | 'green' | 'red' | 'yellow'} color
  * @param {string} text
  */
 function paint(color, text) {
-  return config.colors ? kleur[color](text) : text
+  return config.colors
+    ? styleText(color, text, { validateStream: false })
+    : text
 }
 
 /**
@@ -121,7 +121,7 @@ export function configure({
   testTimeout,
 } = {}) {
   config.minimal = minimal
-  config.colors = !minimal || isColorForced()
+  config.colors = supportsColor({ minimal })
   config.namePattern =
     testNamePattern == null ? null : toRegExp(String(testNamePattern))
   config.timeout = testTimeout
@@ -233,7 +233,7 @@ function useV8Stack(error) {
 function inspectThrown(thrown) {
   const options = {
     breakLength: Number.POSITIVE_INFINITY,
-    colors: !(thrown instanceof Error) && kleur.enabled && config.colors,
+    colors: !(thrown instanceof Error) && config.colors,
   }
   try {
     useV8Stack(thrown)

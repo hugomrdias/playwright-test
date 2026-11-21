@@ -17,6 +17,144 @@ import * as types from './types.js'
 
 export { format, formatWithOptions, inspect, stripVTControlCharacters, types }
 
+const HEX_COLOR_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/
+const HEX_CLOSE = '\u001B[39m'
+
+/**
+ * Parse a validated `#RGB` or `#RRGGBB` string to `[r, g, b]`.
+ *
+ * @param {string} hex
+ */
+function parseHexColor(hex) {
+  if (hex.length === 4) {
+    return [
+      Number.parseInt(hex[1] + hex[1], 16),
+      Number.parseInt(hex[2] + hex[2], 16),
+      Number.parseInt(hex[3] + hex[3], 16),
+    ]
+  }
+  return [
+    Number.parseInt(hex.slice(1, 3), 16),
+    Number.parseInt(hex.slice(3, 5), 16),
+    Number.parseInt(hex.slice(5, 7), 16),
+  ]
+}
+
+/**
+ * Whether `styleText` should emit ANSI codes for `stream` under `env`, matching
+ * Node.js's `shouldColorize` / `tty.WriteStream.prototype.getColorDepth`.
+ *
+ * @param {any} stream
+ */
+function shouldColorize(stream) {
+  const env = globalThis.process?.env
+  if (env?.FORCE_COLOR !== undefined) {
+    const value = env.FORCE_COLOR
+    return (
+      value === '' ||
+      value === '1' ||
+      value === '2' ||
+      value === '3' ||
+      value === 'true'
+    )
+  }
+  if (!stream?.isTTY) {
+    return false
+  }
+  if (typeof stream.getColorDepth === 'function') {
+    return stream.getColorDepth() > 1
+  }
+  return true
+}
+
+/**
+ * Format text with ANSI SGR escape sequences, matching `node:util`'s `styleText`.
+ *
+ * @param {string | string[]} format
+ * @param {string} text
+ * @param {{ stream?: any, validateStream?: boolean }} [options]
+ */
+export function styleText(format, text, options) {
+  if (typeof text !== 'string') {
+    throw new codes.ERR_INVALID_ARG_TYPE('text', 'string', text)
+  }
+  if (
+    options !== undefined &&
+    (options === null || typeof options !== 'object' || Array.isArray(options))
+  ) {
+    throw new codes.ERR_INVALID_ARG_TYPE('options', 'Object', options)
+  }
+  const validateStream = options?.validateStream ?? true
+  if (typeof validateStream !== 'boolean') {
+    throw new codes.ERR_INVALID_ARG_TYPE(
+      'options.validateStream',
+      'boolean',
+      validateStream
+    )
+  }
+
+  const skipColorize =
+    validateStream &&
+    !shouldColorize(options?.stream ?? globalThis.process?.stdout)
+  const formatArray = Array.isArray(format) ? format : [format]
+
+  let openCodes = ''
+  let closeCodes = ''
+  let processedText = text
+
+  for (const key of formatArray) {
+    if (key === 'none') {
+      continue
+    }
+    if (typeof key === 'string' && key[0] === '#') {
+      if (!HEX_COLOR_RE.test(key)) {
+        throw new codes.ERR_INVALID_ARG_VALUE(
+          'format',
+          key,
+          'must be a valid hex color (#RGB or #RRGGBB)'
+        )
+      }
+      if (skipColorize) {
+        continue
+      }
+      const [r, g, b] = parseHexColor(key)
+      const open = `\u001B[38;2;${r};${g};${b}m`
+      openCodes += open
+      closeCodes = HEX_CLOSE + closeCodes
+      if (processedText.includes(HEX_CLOSE)) {
+        processedText = processedText.replaceAll(HEX_CLOSE, open)
+      }
+      continue
+    }
+    const pair = inspect.colors[key]
+    if (!pair) {
+      throw new codes.ERR_INVALID_ARG_VALUE(
+        'format',
+        key,
+        `must be one of: ${Object.getOwnPropertyNames(inspect.colors)
+          .map((name) => `'${name}'`)
+          .join(', ')}`
+      )
+    }
+    if (skipColorize) {
+      continue
+    }
+    const open = `\u001B[${pair[0]}m`
+    const close = `\u001B[${pair[1]}m`
+    const replace = pair[1] === 22 ? close + open : open
+    openCodes += open
+    closeCodes = close + closeCodes
+    if (processedText.includes(close)) {
+      processedText = processedText.replaceAll(close, replace)
+    }
+  }
+
+  if (skipColorize) {
+    return text
+  }
+  return `${openCodes}${processedText}${closeCodes}`
+}
+
 export const isDeepStrictEqual = (a, b) => deepStrictEqual(a, b)
 
 const kCustomPromisify = Symbol.for('nodejs.util.promisify.custom')
@@ -196,6 +334,7 @@ export default {
   log,
   promisify,
   stripVTControlCharacters,
+  styleText,
   TextDecoder,
   TextEncoder,
   toUSVString,
