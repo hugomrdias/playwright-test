@@ -1,8 +1,8 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { runCli } from './helpers.js'
+import { runCli, TEST_CONCURRENCY } from './helpers.js'
 
-describe('--before', () => {
+describe('--before', { concurrency: TEST_CONCURRENCY }, () => {
   /**
    * @param {string} before
    * @param {string[]} [args]
@@ -70,9 +70,15 @@ describe('--before', () => {
     ],
   }
 
+  /** @type {ReturnType<typeof run> | undefined} */
+  let throwsRun
+  const runThrows = () => (throwsRun ??= run('mocks/before/throws.js'))
+
   for (const [name, [file, message]] of Object.entries(failures)) {
     it(`fails the run right away when the script ${name}`, async () => {
-      const proc = await run(`mocks/before/${file}`)
+      const proc = await (file === 'throws.js'
+        ? runThrows()
+        : run(`mocks/before/${file}`))
 
       is(proc.timedOut, false, 'ended by itself')
       is(proc.exitCode, 1, 'exit code')
@@ -91,7 +97,7 @@ describe('--before', () => {
   })
 
   it('prints the output from before a script threw', async () => {
-    const proc = await run('mocks/before/throws.js')
+    const proc = await runThrows()
 
     is(proc.exitCode, 1, 'exit code')
     ok(proc.stdout.includes('before started'), proc.stdout)

@@ -1,6 +1,6 @@
 import { strictEqual as is } from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { runCli } from './helpers.js'
+import { runCli, TEST_CONCURRENCY } from './helpers.js'
 
 /**
  * @param {string[]} args
@@ -20,7 +20,7 @@ async function run(args) {
  */
 const clickOptions = (options) => options
 
-describe('playwright-test/client', () => {
+describe('playwright-test/client', { concurrency: TEST_CONCURRENCY }, () => {
   it('has no signal option for page.click', () => {
     // @ts-expect-error an AbortSignal can't be sent to the runner
     clickOptions({ signal: AbortSignal.abort() })

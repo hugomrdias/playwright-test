@@ -1,7 +1,7 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
 import { after, before, describe, it } from 'node:test'
 import fs from 'fs'
-import { execa, runCli } from './helpers.js'
+import { execa, runCli, TEST_CONCURRENCY } from './helpers.js'
 
 describe('node:test runner', () => {
   const modes = ['node', 'main', 'worker']
@@ -24,7 +24,7 @@ describe('node:test runner', () => {
   const output = (proc) => `${proc.stdout}\n${proc.stderr}`
 
   for (const mode of modes) {
-    describe(`--mode ${mode}`, () => {
+    describe(`--mode ${mode}`, { concurrency: TEST_CONCURRENCY }, () => {
       it('runs node:test files', async () => {
         const proc = await run('pass', mode)
 
@@ -50,9 +50,10 @@ describe('node:test runner', () => {
       })
 
       it('fails when a test fails, also autodetected', async () => {
-        for (const args of [['--runner', 'node-test'], []]) {
-          const proc = await run('fail', mode, args)
-
+        const procs = await Promise.all(
+          [['--runner', 'node-test'], []].map((args) => run('fail', mode, args))
+        )
+        for (const proc of procs) {
           is(proc.exitCode, 1, output(proc))
           ok(proc.stdout.includes('must fail'), output(proc))
         }
@@ -145,7 +146,9 @@ describe('node:test runner', () => {
     })
   }
 
-  describe('--test-timeout on hooks, the same on the real node:test', () => {
+  describe('--test-timeout on hooks, the same on the real node:test', {
+    concurrency: TEST_CONCURRENCY,
+  }, () => {
     const slow = '() => new Promise((resolve) => setTimeout(resolve, 150))'
     const fast = '() => {}'
     const imports =

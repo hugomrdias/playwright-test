@@ -45,7 +45,7 @@ test('t.assert fails', (t) => {
   t.assert.equal(1, 2)
 })
 test('timeout', { timeout: 20 }, async () => {
-  await new Promise((resolve) => setTimeout(resolve, 2000))
+  await new Promise((resolve) => setTimeout(resolve, 200))
 })
 test('timeout aborts the signal', { timeout: 20 }, (t) => {
   return new Promise((resolve) => {

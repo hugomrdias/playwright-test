@@ -17,7 +17,7 @@ import { after, before, describe, it } from 'node:test'
 import esbuild from 'esbuild'
 import { cleanStack } from '../src/node/test-harness.js'
 import { createStackMapper } from '../src/utils/stack-map.js'
-import { runCli } from './helpers.js'
+import { runCli, TEST_CONCURRENCY } from './helpers.js'
 
 const INTERNAL_MOCHA = /node_modules[/\\]mocha/
 
@@ -335,7 +335,9 @@ describe('stack traces in node mode', () => {
 
 // The other files run in chromium, stack traces can't be mapped in the page in the others
 for (const browser of ['chromium', 'firefox', 'webkit']) {
-  describe(`stack traces in ${browser}`, () => {
+  describe(`stack traces in ${browser}`, {
+    concurrency: TEST_CONCURRENCY,
+  }, () => {
     const flags = ['--browser', browser]
 
     it('mocha points at the source without its own frames', async () => {

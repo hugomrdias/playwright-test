@@ -1,9 +1,9 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import path from 'path'
-import { execaSync, runCli } from './helpers.js'
+import { runCli, TEST_CONCURRENCY } from './helpers.js'
 
-describe('mocha', () => {
+describe('mocha', { concurrency: TEST_CONCURRENCY }, () => {
   it('basic', async () => {
     const proc = await runCli(['mocks/test.mocha.js', '--runner', 'mocha'])
 
@@ -88,8 +88,8 @@ describe('mocha', () => {
     ok(proc.stdout.includes('passing'), 'process stdout')
   })
 
-  it('sw', () => {
-    const proc = execaSync('./cli.js', [
+  it('sw', async () => {
+    const proc = await runCli([
       'mocks/sw/sw-test.js',
       '--sw',
       'mocks/sw/sw.js',

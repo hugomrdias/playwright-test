@@ -1,4 +1,12 @@
+import os from 'node:os'
 import { execa as baseExeca, execaSync as baseExecaSync } from 'execa'
+
+// Bounded in-file concurrency: paired with file concurrency in tests/run.js,
+// this keeps total concurrent browsers safe on 4-vCPU CI runners (~4-6) while
+// scaling with available cores locally.
+export const TEST_CONCURRENCY = process.env.CI
+  ? 2
+  : Math.min(3, Math.max(2, Math.floor(os.availableParallelism() / 3)))
 
 // `node --test` runs each file with NODE_TEST_CONTEXT=child-v8. Children would inherit
 // it, and it changes the output of the real `node:test` runs in the fixtures.

@@ -1,9 +1,9 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
 import { once } from 'node:events'
 import { describe, it } from 'node:test'
-import { runCli } from './helpers.js'
+import { runCli, TEST_CONCURRENCY } from './helpers.js'
 
-describe('run timeout', () => {
+describe('run timeout', { concurrency: TEST_CONCURRENCY }, () => {
   /**
    * @param {string} fixture
    * @param {string[]} args

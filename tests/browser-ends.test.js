@@ -2,7 +2,7 @@ import { strictEqual as is, ok } from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { existsSync, rmSync, statSync } from 'node:fs'
 import { describe, it } from 'node:test'
-import { execa, runCli } from './helpers.js'
+import { execa, runCli, TEST_CONCURRENCY } from './helpers.js'
 
 /**
  * The processes started by this one, all the way down.
@@ -68,6 +68,7 @@ async function killDuringRun(
 // Killing the processes stands for a crash and for --debug users closing the
 // browser, which can't be tested without a display
 describe('the browser ending the run', {
+  concurrency: TEST_CONCURRENCY,
   skip: process.platform === 'win32' && 'needs pgrep',
 }, () => {
   for (const args of [[], ['--incognito'], ['--mode', 'worker']]) {

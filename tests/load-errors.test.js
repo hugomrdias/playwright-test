@@ -1,6 +1,6 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { runCli } from './helpers.js'
+import { runCli, TEST_CONCURRENCY } from './helpers.js'
 
 /**
  * @param {string} file
@@ -14,7 +14,9 @@ function run(file, args) {
   })
 }
 
-describe('errors while the tests load', () => {
+describe('errors while the tests load', {
+  concurrency: TEST_CONCURRENCY,
+}, () => {
   const throws = 'mocks/load-errors/throws.test.js'
 
   for (const runner of ['mocha', 'node-test', 'none']) {
@@ -75,7 +77,9 @@ describe('errors while the tests load', () => {
   }
 })
 
-describe('projects with type commonjs', () => {
+describe('projects with type commonjs', {
+  concurrency: TEST_CONCURRENCY,
+}, () => {
   for (const mode of ['main', 'worker']) {
     it(`runs node-test with --mode ${mode}`, async () => {
       const proc = await run('mocks/commonjs/node-test.test.js', [

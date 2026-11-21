@@ -1,8 +1,8 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { runCli } from './helpers.js'
+import { runCli, TEST_CONCURRENCY } from './helpers.js'
 
-describe('stdout / stderr', () => {
+describe('stdout / stderr', { concurrency: TEST_CONCURRENCY }, () => {
   it('does not add line breaks', async () => {
     const proc = await runCli(['mocks/none/stdout.test.js', '--runner', 'none'])
 
@@ -46,7 +46,7 @@ describe('stdout / stderr', () => {
   })
 })
 
-describe('process in the browser', () => {
+describe('process in the browser', { concurrency: TEST_CONCURRENCY }, () => {
   for (const mode of ['main', 'worker']) {
     it(`has what bundles expect with mode:${mode}`, async () => {
       const proc = await runCli([
@@ -76,7 +76,7 @@ describe('process in the browser', () => {
   }
 })
 
-describe('path in the browser', () => {
+describe('path in the browser', { concurrency: TEST_CONCURRENCY }, () => {
   for (const mode of ['main', 'worker']) {
     it(`resolves every import to the same module with mode:${mode}`, async () => {
       const proc = await runCli([
@@ -108,7 +108,9 @@ describe('path in the browser', () => {
 
 for (const browser of ['chromium', 'firefox']) {
   // Firefox is where the messages arrive late
-  describe(`console output when the run ends in ${browser}`, () => {
+  describe(`console output when the run ends in ${browser}`, {
+    concurrency: TEST_CONCURRENCY,
+  }, () => {
     const timeout = 120_000
 
     /**
