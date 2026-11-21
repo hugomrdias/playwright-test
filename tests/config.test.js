@@ -129,6 +129,94 @@ export default function config(cli) {
       fs.rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('validates explicit CLI test flags before calling a config function', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-test-cfg-invalid-'))
+    const cfgFile = path.join(dir, 'pw.config.mjs')
+    try {
+      fs.writeFileSync(
+        cfgFile,
+        `export default function config(cli) {
+  console.error('CALLBACK_CALLED')
+  cli.testTimeout?.toFixed()
+  cli.runTimeout?.toFixed()
+  cli.testNamePattern?.trim()
+  return {}
+}
+`
+      )
+
+      /** @type {Array<[string[], string]>} */
+      const cases = [
+        [['--test-timeout=soon'], 'must be a number'],
+        [['--test-timeout'], 'must be a number'],
+        [['--test-timeout', String(2 ** 31 - 1)], 'must be a number'],
+        [
+          ['--test-name-pattern', 'a', '--test-name-pattern', 'b'],
+          'only be set once',
+        ],
+        [['--test-name-pattern'], 'non-empty pattern'],
+        [['--run-timeout=soon'], 'Invalid run timeout'],
+      ]
+
+      for (const [args, message] of cases) {
+        const proc = await runCli(
+          [
+            'mocks/runner-options/mocha.js',
+            '--config',
+            cfgFile,
+            '--mode',
+            'node',
+            ...args,
+          ],
+          { reject: false }
+        )
+
+        is(
+          proc.exitCode,
+          1,
+          `${args.join(' ')}: ${proc.stdout}\n${proc.stderr}`
+        )
+        ok(proc.stderr.includes(message), proc.stderr)
+        ok(!proc.stderr.includes('CALLBACK_CALLED'), proc.stderr)
+        ok(!proc.stderr.includes('TypeError'), proc.stderr)
+        ok(!proc.stderr.includes('    at '), proc.stderr)
+      }
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('validates invalid test options returned by a config function', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-test-cfg-ret-'))
+    const cfgFile = path.join(dir, 'pw.config.mjs')
+    try {
+      fs.writeFileSync(
+        cfgFile,
+        `export default function config() {
+  return { testTimeout: 1.5 }
+}
+`
+      )
+
+      const proc = await runCli(
+        [
+          'mocks/runner-options/mocha.js',
+          '--config',
+          cfgFile,
+          '--mode',
+          'node',
+        ],
+        { reject: false }
+      )
+
+      is(proc.exitCode, 1, `${proc.stdout}\n${proc.stderr}`)
+      ok(proc.stderr.includes('must be a number'), proc.stderr)
+      ok(!proc.stderr.includes('    at '), proc.stderr)
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('without a config file', () => {

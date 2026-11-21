@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { inspect } from 'node:util'
 import { watch } from 'chokidar'
 import { asyncExitHook } from 'exit-hook'
 import { BaseRunner } from '../base-runner.js'
@@ -14,6 +15,23 @@ import {
 import { killTree, withLocalBins } from '../utils/process.js'
 
 const EXIT_WAIT = 1000
+
+/**
+ * Preserve the stack for Error instances and turn any other thrown value into
+ * a non-empty diagnostic so `BaseRunner.exit()` always logs it.
+ *
+ * @param {unknown} error
+ * @returns {any}
+ */
+function formatError(error) {
+  if (error instanceof Error) {
+    return error
+  }
+  if (typeof error === 'string' && error.length > 0) {
+    return error
+  }
+  return `Runner failed: ${inspect(error)}`
+}
 
 /**
  * @typedef {import('../types.js').RunnerOptions} RunnerOptions
@@ -152,8 +170,8 @@ export class NodeRunner extends BaseRunner {
         return
       }
       await this.stop(false)
-    } catch (/** @type {any} */ error) {
-      await this.stop(true, error)
+    } catch (error) {
+      await this.stop(true, formatError(error))
     } finally {
       clearTimeout(timer)
     }
@@ -178,8 +196,8 @@ export class NodeRunner extends BaseRunner {
       }
 
       tests = this.runTests()
-    } catch (/** @type {any} */ error) {
-      await this.stop(true, error)
+    } catch (error) {
+      await this.stop(true, formatError(error))
       return
     }
 

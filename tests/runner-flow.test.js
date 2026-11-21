@@ -489,6 +489,45 @@ describe('the runner classes', () => {
       is(proc.timedOut, false, 'ended by itself')
       is(proc.exitCode, 1, 'exit code')
       ok(proc.stderr.includes('before-boom'), proc.stderr)
+      ok(proc.stderr.includes('before-throws.config.mjs'), proc.stderr)
+      ok(!proc.stderr.includes('UNHANDLED:'), proc.stderr)
+      ok(!proc.stderr.includes('after-ran'), proc.stderr)
+    })
+
+    it(`NodeRunner.${method}() logs a diagnostic when beforeTests throws null`, async () => {
+      const script = `
+        const { NodeRunner } = await import(${JSON.stringify(
+          new URL('../src/node/runner.js', import.meta.url).href
+        )})
+        const test = ${JSON.stringify(path.resolve(FLOW, 'pass.js'))}
+        const runner = new NodeRunner({
+          runner: 'none',
+          mode: 'node',
+          beforeTests: () => Promise.reject(null),
+          afterTests: () => {
+            console.error('after-ran')
+            return Promise.resolve()
+          },
+        }, [test])
+        try {
+          await runner.${method}()
+        } catch (error) {
+          console.error('UNHANDLED:', error)
+          process.exit(2)
+        }
+      `
+      const proc = await execa(
+        process.execPath,
+        ['--input-type=module', '-e', script],
+        {
+          reject: false,
+          timeout: 15_000,
+        }
+      )
+
+      is(proc.timedOut, false, 'ended by itself')
+      is(proc.exitCode, 1, 'exit code')
+      ok(proc.stderr.includes('null'), proc.stderr)
       ok(!proc.stderr.includes('UNHANDLED:'), proc.stderr)
       ok(!proc.stderr.includes('after-ran'), proc.stderr)
     })
