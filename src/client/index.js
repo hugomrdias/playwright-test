@@ -31,20 +31,19 @@ const inTestWorker =
  *
  * @template {import('./types.js').Binding} N
  * @param {N} name
- * @param {Parameters<typeof globalThis[N]>} args
- * @returns {ReturnType<typeof globalThis[N]> | undefined} undefined when there's no browser
+ * @param {Parameters<import('./types.js').ClientBindings[N]>} args
+ * @returns {ReturnType<import('./types.js').ClientBindings[N]> | undefined} undefined when there's no browser
  */
 function callBinding(name, args) {
-  if (name in globalThis) {
-    // @ts-expect-error the types of each binding are checked by its caller
-    return globalThis[name](...args)
+  if ('pwClientCall' in globalThis) {
+    return globalThis.pwClientCall(name, ...args)
   }
   if (!inTestWorker) {
     return
   }
   // A port of its own, the messages of the tests to the worker stay theirs
   const { port1, port2 } = new MessageChannel()
-  return /** @type {ReturnType<typeof globalThis[N]>} */ (
+  return /** @type {ReturnType<import('./types.js').ClientBindings[N]>} */ (
     new Promise((resolve, reject) => {
       port1.onmessage = ({ data }) => {
         port1.close()

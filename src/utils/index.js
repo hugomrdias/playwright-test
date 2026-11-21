@@ -1,5 +1,6 @@
 /** biome-ignore-all lint/suspicious/noConsole: its ok */
 
+import { createHash } from 'crypto'
 import esbuild from 'esbuild'
 import { wasmLoader } from 'esbuild-plugin-wasm'
 import fs from 'fs'
@@ -528,6 +529,28 @@ export async function readConsole(msg, mapStack) {
 }
 
 /**
+ * Whether this `playwright-core` package is already registered in Playwright's
+ * `.links` cache directory so another Playwright version's GC won't delete it.
+ *
+ * @param {string} registryDirectory
+ */
+function hasPackageLink(registryDirectory) {
+  try {
+    const packagePath = path.dirname(
+      require.resolve('playwright-core/package.json')
+    )
+    const linkPath = path.join(
+      registryDirectory,
+      '.links',
+      createHash('sha1').update(packagePath).digest('hex')
+    )
+    return fs.readFileSync(linkPath, 'utf8') === packagePath
+  } catch {
+    return false
+  }
+}
+
+/**
  * The Playwright browser type, with the browser it launches installed.
  *
  * @param {RunnerOptions["browser"]} browserName
@@ -558,10 +581,33 @@ export async function getPw(
       : browserName
 
   const {
-    registry: { registry },
+    registry: { registry, registryDirectory },
     // @ts-expect-error
   } = await import('playwright-core/lib/coreBundle')
   const browser = registry.findExecutable(executable)
+  // Validating the browser on Windows needs winldd, same as Playwright's own install.
+  const executables =
+    process.platform === 'win32'
+      ? [registry.findExecutable('winldd'), browser]
+      : [browser]
+
+  // Skip the lockfile + GC + marker check in `registry.install` when every
+  // required executable is completely installed and this package is registered
+  // in `.links` (so another Playwright version's GC won't remove the browser).
+  const installed =
+    hasPackageLink(registryDirectory) &&
+    executables.every((exe) => {
+      const exePath = exe?.executablePath()
+      return Boolean(
+        exePath &&
+          fs.existsSync(exePath) &&
+          (!exe.directory ||
+            fs.existsSync(path.join(exe.directory, 'INSTALLATION_COMPLETE')))
+      )
+    })
+  if (installed) {
+    return api[browserName]
+  }
 
   // playwright will log browser download progress to stdout, temporarily
   // redirect the output to stderr
@@ -571,12 +617,7 @@ export async function getPw(
   try {
     console.log = console.error
     console.info = console.error
-    // Validating the browser on Windows needs winldd, same as Playwright's own install.
-    await registry.install(
-      process.platform === 'win32'
-        ? [registry.findExecutable('winldd'), browser]
-        : [browser]
-    )
+    await registry.install(executables)
   } finally {
     console.log = log
     console.info = info
@@ -607,10 +648,10 @@ w.onmessage = function(e) {
         const [port] = e.ports
         Promise.resolve()
             .then(() => {
-                if (!/^pw(Context|Page)[A-Z]/.test(name) || typeof self[name] !== 'function') {
+                if (!/^pw(Context|Page)[A-Z]/.test(name) || typeof self.pwClientCall !== 'function') {
                     throw new Error('Unknown playwright-test/client call: ' + name)
                 }
-                return self[name](...args)
+                return self.pwClientCall(name, ...args)
             })
             .then(
                 (value) => port.postMessage({ value }),

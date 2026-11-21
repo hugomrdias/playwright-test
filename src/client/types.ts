@@ -58,36 +58,43 @@ export interface ClientPage {
   }
 }
 
-declare global {
-  function pwContextSetOffline(
+export interface ClientBindings {
+  pwContextSetOffline(
     ...args: Parameters<BrowserContext['setOffline']>
   ): Promise<void>
-  function pwContextGrantPermissions(
+  pwContextGrantPermissions(
     ...args: Parameters<BrowserContext['grantPermissions']>
   ): Promise<void>
-  function pwContextClearPermissions(
+  pwContextClearPermissions(
     ...args: Parameters<BrowserContext['clearPermissions']>
   ): Promise<void>
-  function pwContextSetGeolocation(
+  pwContextSetGeolocation(
     ...args: Parameters<BrowserContext['setGeolocation']>
   ): Promise<void>
-  function pwContextSetExtraHTTPHeaders(
+  pwContextSetExtraHTTPHeaders(
     ...args: Parameters<BrowserContext['setExtraHTTPHeaders']>
   ): Promise<void>
-  function pwContextAddCookies(
+  pwContextAddCookies(
     ...args: Parameters<BrowserContext['addCookies']>
   ): Promise<void>
-  function pwContextCookies(
+  pwContextCookies(
     ...args: Parameters<BrowserContext['cookies']>
   ): ReturnType<BrowserContext['cookies']>
-  function pwContextClearCookies(
+  pwContextClearCookies(
     ...args: Parameters<BrowserContext['clearCookies']>
   ): Promise<void>
-  function pwPageClick(selector: string, options?: ClickOptions): Promise<void>
-  function pwPageKeyboardPress(
+  pwPageClick(selector: string, options?: ClickOptions): Promise<void>
+  pwPageKeyboardPress(
     ...args: Parameters<Page['keyboard']['press']>
   ): Promise<void>
-  function pwPageKeyboardType(
+  pwPageKeyboardType(
     ...args: Parameters<Page['keyboard']['type']>
   ): Promise<void>
+}
+
+declare global {
+  function pwClientCall<N extends Binding>(
+    name: N,
+    ...args: Parameters<ClientBindings[N]>
+  ): ReturnType<ClientBindings[N]>
 }
