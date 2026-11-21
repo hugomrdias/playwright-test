@@ -1,8 +1,8 @@
 import os from 'node:os'
 import { execa as baseExeca, execaSync as baseExecaSync } from 'execa'
 
-// Bounded in-file concurrency: paired with file concurrency in tests/run.js,
-// this keeps total concurrent browsers safe on 4-vCPU CI runners (~4-6) while
+// Bounded in-file concurrency: paired with `--test-concurrency=3` in package.json,
+// this keeps total concurrent browsers safe on 4-vCPU CI runners (3x2 = 6) while
 // scaling with available cores locally.
 export const TEST_CONCURRENCY = process.env.CI
   ? 2

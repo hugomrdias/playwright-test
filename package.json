@@ -87,7 +87,7 @@
     "clean": "rm -rf dist node_modules .tmp",
     "fix": "biome check --fix .",
     "lint": "tsc --noEmit && biome check .",
-    "test": "node tests/run.js"
+    "test": "node --test --test-force-exit --test-timeout=50000 --test-concurrency=3 \"tests/*.test.js\""
   },
   "dependencies": {
     "@jridgewell/trace-mapping": "^0.3.31",
