@@ -16,6 +16,7 @@ import { Runner } from './src/runner.js'
 import { detectTestRunners } from './src/utils/auto-detect.js'
 import { colors, supportsColor } from './src/utils/colors.js'
 import {
+  assertRunTimeout,
   defaultOptions,
   findTests,
   log,
@@ -191,25 +192,16 @@ function checkUnknownFlags(opts) {
   }
 }
 
+// Mocha treats 2 ** 31 - 1 as 0 (disables timeouts), so cap one below it.
+const MAX_TEST_TIMEOUT = 2 ** 31 - 2
+
 /**
- * @param {import('./src/types.js').RunnerOptions} options
+ * Validate test-filtering and timeout options. Used both on explicit CLI flags
+ * before invoking a config callback and on the merged options after.
+ *
+ * @param {{ testNamePattern?: unknown, testTimeout?: unknown, runTimeout?: unknown }} options
  */
-function validateOptions({ mode, testNamePattern, testTimeout, trace }) {
-  if (!['main', 'worker', 'node', 'workerd'].includes(mode)) {
-    throw new UsageError(
-      `Invalid mode "${mode}", expected "main", "worker", "node" or "workerd".`
-    )
-  }
-  if (Array.isArray(trace) || !TRACE_VALUES.includes(trace)) {
-    throw new UsageError(
-      `Invalid --trace "${trace}", expected "on", "off" or "retain-on-failure". Put the test files before --trace, or use --trace=on.`
-    )
-  }
-  if ((mode === 'node' || mode === 'workerd') && trace !== 'off') {
-    throw new UsageError(
-      `--trace records the browser, it does not work with --mode ${mode}.`
-    )
-  }
+function validateTestOptions({ testNamePattern, testTimeout, runTimeout }) {
   if (Array.isArray(testNamePattern)) {
     throw new UsageError(
       '--test-name-pattern can only be set once, use a regular expression like "a|b".'
@@ -230,13 +222,39 @@ function validateOptions({ mode, testNamePattern, testTimeout, trace }) {
   if (
     testTimeout != null &&
     (!Number.isInteger(testTimeout) ||
-      testTimeout < 0 ||
-      testTimeout > 2 ** 31 - 1)
+      /** @type {number} */ (testTimeout) < 0 ||
+      /** @type {number} */ (testTimeout) > MAX_TEST_TIMEOUT)
   ) {
     throw new UsageError(
-      '--test-timeout must be a number of milliseconds (integer up to 2147483647), 0 for none.'
+      `--test-timeout must be a number of milliseconds (integer up to ${MAX_TEST_TIMEOUT}), 0 for none.`
     )
   }
+  if (runTimeout != null) {
+    assertRunTimeout(runTimeout)
+  }
+}
+
+/**
+ * @param {import('./src/types.js').RunnerOptions} options
+ */
+function validateOptions(options) {
+  const { mode, trace } = options
+  if (!['main', 'worker', 'node', 'workerd'].includes(mode)) {
+    throw new UsageError(
+      `Invalid mode "${mode}", expected "main", "worker", "node" or "workerd".`
+    )
+  }
+  if (Array.isArray(trace) || !TRACE_VALUES.includes(trace)) {
+    throw new UsageError(
+      `Invalid --trace "${trace}", expected "on", "off" or "retain-on-failure". Put the test files before --trace, or use --trace=on.`
+    )
+  }
+  if ((mode === 'node' || mode === 'workerd') && trace !== 'off') {
+    throw new UsageError(
+      `--trace records the browser, it does not work with --mode ${mode}.`
+    )
+  }
+  validateTestOptions(options)
 }
 
 /**
@@ -380,6 +398,7 @@ sade2
         testNamePattern: opts['test-name-pattern'],
         testTimeout: opts['test-timeout'],
       }
+      validateTestOptions(cliFlags)
 
       // if the supplied config module was a function, invoke it
       if (config && typeof config.config === 'function') {

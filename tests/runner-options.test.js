@@ -1,4 +1,7 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { describe, it } from 'node:test'
 import { execa, runCli, TEST_CONCURRENCY } from './helpers.js'
 
@@ -209,6 +212,11 @@ describe('runner options', () => {
         'must be a number',
       ],
       [
+        '--test-timeout at 2 ** 31 - 1 (disables mocha timeouts)',
+        ['--test-timeout', String(2 ** 31 - 1)],
+        'must be a number',
+      ],
+      [
         '--test-timeout above the max signed 32-bit int',
         ['--test-timeout', String(2 ** 31)],
         'must be a number',
@@ -229,16 +237,36 @@ describe('runner options', () => {
       })
     }
 
-    it('--test-timeout accepts 0 and 2 ** 31 - 1', async () => {
-      for (const timeout of ['0', String(2 ** 31 - 1)]) {
-        const proc = await run('mocha', [
-          '--mode',
-          'node',
-          '--test-timeout',
-          timeout,
-        ])
+    it('--test-timeout accepts 0 and 2 ** 31 - 2 and applies them in mocha', async () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-test-timeout-'))
+      const file = path.join(dir, 'timeout.test.js')
+      try {
+        fs.writeFileSync(
+          file,
+          `it('reports timeout', function () {
+  console.log('EFFECTIVE_TIMEOUT:' + this.timeout())
+})
+`
+        )
+        for (const timeout of ['0', String(2 ** 31 - 2)]) {
+          const proc = await runCli(
+            [
+              file,
+              '--runner',
+              'mocha',
+              '--mode',
+              'node',
+              '--test-timeout',
+              timeout,
+            ],
+            { reject: false }
+          )
 
-        is(proc.exitCode, 0, output(proc))
+          is(proc.exitCode, 0, output(proc))
+          ok(proc.stdout.includes(`EFFECTIVE_TIMEOUT:${timeout}`), output(proc))
+        }
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true })
       }
     })
 
