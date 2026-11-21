@@ -19,6 +19,7 @@ export const {
   isDeepStrictEqual,
   promisify,
   stripVTControlCharacters,
+  styleText,
   TextDecoder,
   TextEncoder,
   toUSVString,

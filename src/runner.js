@@ -4,10 +4,10 @@ import { fileURLToPath } from 'node:url'
 import { watch } from 'chokidar'
 import { asyncExitHook } from 'exit-hook'
 import { cp } from 'fs/promises'
-import kleur from 'kleur'
 import path from 'path'
 import { BaseRunner } from './base-runner.js'
 import { compileSw } from './utils/build-sw.js'
+import { colors } from './utils/colors.js'
 import {
   AFTER_TESTS_TIMEOUT,
   addWorker,
@@ -293,7 +293,7 @@ export class Runner extends BaseRunner {
     this.page.on('pageerror', (err) => {
       this.pageErrored = true
       log.error(
-        `Uncaught exception happened within the page. Run with --debug. \n${kleur.dim(
+        `Uncaught exception happened within the page. Run with --debug. \n${colors.dim(
           // The stack of a syntax error can be empty
           this.stackMapper.map(err.stack || err.toString())
         )}`
@@ -439,7 +439,7 @@ export class Runner extends BaseRunner {
 
     page.on('console', this.#onConsole)
     page.on('pageerror', async (err) => {
-      const message = `Uncaught exception happened within the before page. Run with --debug. \n${kleur.dim(
+      const message = `Uncaught exception happened within the before page. Run with --debug. \n${colors.dim(
         this.stackMapper.map(err.stack || err.toString())
       )}`
       // Ask the page, the wait below only notices `beforeEnd` when it next polls.

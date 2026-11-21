@@ -253,6 +253,49 @@ const CASES = [
     (u) => u.stripVTControlCharacters('\u001B[31ma\u001B[39m'),
   ],
   [
+    'styleText single',
+    (u) => u.styleText('red', 'a', { validateStream: false }),
+  ],
+  [
+    'styleText array',
+    (u) => u.styleText(['bold', 'red'], 'a', { validateStream: false }),
+  ],
+  [
+    'styleText none',
+    (u) => u.styleText('none', 'a', { validateStream: false }),
+  ],
+  [
+    'styleText nested color',
+    (u) =>
+      u.styleText(
+        'red',
+        `a ${u.styleText('blue', 'b', { validateStream: false })} c`,
+        { validateStream: false }
+      ),
+  ],
+  [
+    'styleText nested bold dim',
+    (u) =>
+      u.styleText(
+        'bold',
+        `a ${u.styleText('dim', 'b', { validateStream: false })} c`,
+        { validateStream: false }
+      ),
+  ],
+  [
+    'styleText bad format',
+    (u) => u.styleText('notacolor', 'a', { validateStream: false }),
+  ],
+  [
+    'styleText bad text',
+    (u) => u.styleText('red', 123, { validateStream: false }),
+  ],
+  ['styleText bad options', (u) => u.styleText('red', 'a', 'nope')],
+  [
+    'styleText bad validateStream',
+    (u) => u.styleText('red', 'a', { validateStream: 'yes' }),
+  ],
+  [
     'isDeepStrictEqual same',
     (u) => u.isDeepStrictEqual({ a: [1] }, { a: [1] }),
   ],

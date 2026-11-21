@@ -584,6 +584,15 @@ describe('playwright-test/node-test', () => {
         ok(proc.stdout.includes('\u001B[31m✖ top fails\u001B[39m'))
       })
 
+      it(`colors the output with FORCE_COLOR under TERM=dumb in ${mode} mode`, async () => {
+        const proc = await run(mode, {
+          ...agent,
+          FORCE_COLOR: '1',
+          TERM: 'dumb',
+        })
+        ok(proc.stdout.includes('\u001B[31m✖ top fails\u001B[39m'))
+      })
+
       it(`keeps the spec output without an agent in ${mode} mode`, async () => {
         const proc = await run(mode, { FORCE_COLOR: undefined })
         const output = lines(proc.stdout)

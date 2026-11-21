@@ -4,7 +4,6 @@
 
 import { gracefulExit } from 'exit-hook'
 import fs from 'fs'
-import kleur from 'kleur'
 import { lilconfig } from 'lilconfig'
 // @ts-expect-error
 import mergeOptions from 'merge-options'
@@ -15,7 +14,7 @@ import { fileURLToPath, pathToFileURL } from 'url'
 import { NodeRunner } from './src/node/runner.js'
 import { Runner } from './src/runner.js'
 import { detectTestRunners } from './src/utils/auto-detect.js'
-import { isColorForced } from './src/utils/force-color.js'
+import { colors, supportsColor } from './src/utils/colors.js'
 import {
   defaultOptions,
   findTests,
@@ -26,9 +25,7 @@ import {
 import { toRegExp } from './src/utils/name-pattern.js'
 import { WorkerdRunner } from './src/workerd/runner.js'
 
-if (isAgent && !isColorForced()) {
-  kleur.enabled = false
-}
+colors.enabled = supportsColor({ minimal: isAgent })
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -54,34 +51,34 @@ process.once('unhandledRejection', (err) => {
 })
 
 const extra = `
-  ${kleur.bold('Examples')}
-    ${kleur.dim('$ playwright-test test.js --runner mocha')}
-    ${kleur.dim('$ playwright-test test --debug')}
-    ${kleur.dim(
+  ${colors.bold('Examples')}
+    ${colors.dim('$ playwright-test test.js --runner mocha')}
+    ${colors.dim('$ playwright-test test --debug')}
+    ${colors.dim(
       '$ playwright-test "test/**/*.spec.js" --browser webkit --mode worker --incognito --debug'
     )}
 
-    ${kleur.dim(
+    ${colors.dim(
       '$ playwright-test "test/**/*.spec.js" --debug --before ./mocks/before.js'
     )}
-    ${kleur.gray(
+    ${colors.gray(
       '# Run a script in a separate tab. Check ./mocks/before.js for an example.\n    # Important: You need to call `self.PW_TEST.beforeEnd()` to start the main script.'
     )}
 
-  ${kleur.bold('Runner Options')}
+  ${colors.bold('Runner Options')}
     Everything else a runner takes goes in the config file, under \`testRunner.options\`.
     Check https://github.com/hugomrdias/playwright-test#runner-options
 
-  ${kleur.bold('Notes')}
+  ${colors.bold('Notes')}
     DEBUG env var filtering for 'debug' package logging will work as expected.
-    ${kleur.dim('$ DEBUG=app playwright-test test.js')}
+    ${colors.dim('$ DEBUG=app playwright-test test.js')}
 
     Do not let your shell expand globs, always wrap them.
-    ${kleur.dim('$ playwright-test "test/**"')} GOOD
-    ${kleur.dim('$ playwright-test test/**')} BAD
+    ${colors.dim('$ playwright-test "test/**"')} GOOD
+    ${colors.dim('$ playwright-test test/**')} BAD
 
     A path that exists is used as is, even with glob characters in it.
-    ${kleur.dim('$ playwright-test "app/[id].test.js"')}
+    ${colors.dim('$ playwright-test "app/[id].test.js"')}
 
     It exits with 1 when no test files are found.
 `
