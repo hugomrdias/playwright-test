@@ -40,11 +40,90 @@ const fileConcurrency = process.env.CI
       Math.max(2, Math.floor(os.availableParallelism() / TEST_CONCURRENCY))
     )
 
+// Node CLI flags that consume the following argument when not using `--flag=value`.
+const VALUE_OPTIONS = new Set([
+  '-C',
+  '--conditions',
+  '-r',
+  '--require',
+  '--import',
+  '--loader',
+  '--experimental-loader',
+  '--env-file',
+  '--env-file-if-exists',
+  '--disable-warning',
+  '--localstorage-file',
+  '--redirect-warnings',
+  '--report-dir',
+  '--report-directory',
+  '--report-filename',
+  '--report-signal',
+  '--diagnostic-dir',
+  '--cpu-prof-dir',
+  '--cpu-prof-interval',
+  '--cpu-prof-name',
+  '--heap-prof-dir',
+  '--heap-prof-interval',
+  '--heap-prof-name',
+  '--inspect-port',
+  '--debug-port',
+  '--inspect-publish-uid',
+  '--max-http-header-size',
+  '--max-old-space-size-percentage',
+  '--unhandled-rejections',
+  '--v8-pool-size',
+  '--watch-path',
+  '--watch-kill-signal',
+  '--experimental-test-isolation',
+  '--experimental-test-tag-filter',
+  '--test-concurrency',
+  '--test-coverage-branches',
+  '--test-coverage-exclude',
+  '--test-coverage-functions',
+  '--test-coverage-include',
+  '--test-coverage-lines',
+  '--test-global-setup',
+  '--test-isolation',
+  '--test-name-pattern',
+  '--test-random-seed',
+  '--test-reporter',
+  '--test-reporter-destination',
+  '--test-rerun-failures',
+  '--test-shard',
+  '--test-skip-pattern',
+  '--test-timeout',
+])
+
+/**
+ * Whether `args` includes at least one positional test file or glob rather than
+ * only Node CLI flags and their values.
+ *
+ * @param {string[]} args
+ */
+function hasExplicitFiles(args) {
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]
+    if (arg === '--') {
+      return i + 1 < args.length
+    }
+    if (!arg.startsWith('-') || arg === '-') {
+      return true
+    }
+    if (arg.includes('=')) {
+      continue
+    }
+    const normalized = arg.startsWith('--') ? arg.replaceAll('_', '-') : arg
+    if (VALUE_OPTIONS.has(normalized)) {
+      i++
+    }
+  }
+  return false
+}
+
 const extraArgs = process.argv.slice(2)
 if (extraArgs.length > 0) {
   // Forward custom flags / file filters directly to `node --test`.
-  const hasExplicitFiles = extraArgs.some((arg) => !arg.startsWith('-'))
-  const files = hasExplicitFiles ? [] : ['tests/*.test.js']
+  const files = hasExplicitFiles(extraArgs) ? [] : ['tests/*.test.js']
   const result = spawnSync(
     process.execPath,
     [
