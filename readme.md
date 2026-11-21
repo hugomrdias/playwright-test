@@ -43,7 +43,7 @@ Description
     --run-timeout          Fail the run after this many milliseconds, 0 turns it off. Not used with --debug or --watch.  (default 1800000)
     --test-name-pattern    Only run tests whose name matches this regular expression or /expression/flags.
     --test-timeout         Timeout in milliseconds for tests without their own, 0 for none.
-    --trace                Save a Playwright trace to playwright-test-trace-<browser>.zip in --cwd, open it with `npx playwright show-trace`. Alone it only keeps the trace of a failed run, `--trace on` always keeps it. Not with --mode node or workerd, ignored with --debug and --watch.  (default off)
+    --trace                Save a Playwright trace to playwright-test-trace-<browser>.zip in --cwd, open it with `npx playwright show-trace`. Alone it only keeps the trace of a failed run, `--trace on` always keeps it. Values other than `off` fail with --mode node or workerd; ignored with --debug and --watch.  (default off)
     --config               Path to the config file
     -v, --version          Displays current version
     -h, --help             Displays this message
@@ -558,48 +558,7 @@ export default {
 
 ### Interface
 
-```ts
-export interface RunnerOptions {
-  input?: string[]
-  runner?: 'mocha' | 'node-test' | 'none'
-  testRunner?: { options?: unknown }
-  cwd: string
-  extensions: string
-  browser: 'chromium' | 'firefox' | 'webkit'
-  debug: boolean
-  mode: 'main' | 'worker' | 'node' | 'workerd'
-  incognito: boolean
-  extension: boolean
-  assets: string
-  before?: string
-  sw?: string
-  workerd?: WorkerdOptions
-  transform: boolean
-  // Fail the run after this many milliseconds, 0 turns it off
-  runTimeout: number
-  // 'retain-on-failure' only keeps the trace of failed runs
-  trace: 'off' | 'on' | 'retain-on-failure'
-  testNamePattern?: string
-  testTimeout?: number
-  buildConfig: BuildOptions
-  buildSWConfig: BuildOptions
-  browserContextOptions?: BrowserContextOptions
-  // Playwright launch options, `args` come after ours
-  launchOptions?: LaunchOptions
-  beforeTests: (env: RunnerEnv) => Promise<unknown>
-  // Only runs when beforeTests finished
-  afterTests: (env: RunnerEnv, beforeTestsOutput: unknown) => Promise<unknown>
-}
-
-export interface WorkerdOptions {
-  configPath?: string
-  environment?: string
-  main?: string
-  miniflare?: Record<string, unknown>
-}
-```
-
-See [src/types.ts](./src/types.ts) for the full type definitions, including `Config` and `ConfigFn`.
+Config files take `Config` (the partial config type, with optional `testRunner: { options }`) or `ConfigFn`, while programmatic runs resolve to `RunnerOptions`. See [src/types.ts](./src/types.ts) for the canonical type definitions, including `Config`, `ConfigFn`, `RunnerOptions`, `WorkerdOptions`, `buildConfig`/`buildSWConfig`, and the `beforeTests`/`afterTests` hooks.
 
 ## Run in CI
 
@@ -627,7 +586,7 @@ The trace is saved as `playwright-test-trace-<browser>.zip` in `--cwd`, replacin
 
 Put the test files before `--trace`, `--trace test.js` would take the file as its value, or use `--trace=on`. In a config file it's `trace: 'on'` or `trace: 'retain-on-failure'`.
 
-There's no trace in `node` or `workerd` mode, the flag fails the run there. It's ignored with `--debug`, closing the browser ends that run and takes the trace with it, and with `--watch`. When the browser crashes or gets killed there's nothing left to save, a crash of only the page still saves it.
+There's no trace in `node` or `workerd` mode; values other than `off` fail the run there (`--trace=off` still works to override a config file). It's ignored with `--debug`, closing the browser ends that run and takes the trace with it, and with `--watch`. When the browser crashes or gets killed there's nothing left to save, a crash of only the page still saves it.
 
 ## License
 

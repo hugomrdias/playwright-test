@@ -39,10 +39,12 @@ const TRACE_WAIT = 30_000
  * @typedef {import('playwright-core').Page} Page
  * @typedef {import('playwright-core').BrowserContext} Context
  * @typedef {import('playwright-core').Browser} Browser
- * @typedef {import('./types').RunnerOptions} RunnerOptions
- * @typedef {import('./types').RunnerEnv} RunnerEnv
- * @typedef {import('./types').CliOptions} CliOptions
- * @typedef {import('./types').ConfigFn} ConfigFn
+ * @typedef {import('./types.js').RunnerOptions} RunnerOptions
+ * @typedef {import('./types.js').RunnerEnv} RunnerEnv
+ * @typedef {import('./types.js').CliOptions} CliOptions
+ * @typedef {import('./types.js').Config} Config
+ * @typedef {import('./types.js').ConfigFn} ConfigFn
+ * @typedef {import('./types.js').WorkerdOptions} WorkerdOptions
  */
 
 export class Runner extends BaseRunner {
