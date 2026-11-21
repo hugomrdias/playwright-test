@@ -338,7 +338,7 @@ sade2
   )
   .option(
     '--trace',
-    'Save a Playwright trace to playwright-test-trace-<browser>.zip in --cwd, open it with `npx playwright show-trace`. Alone it only keeps the trace of a failed run, `--trace on` always keeps it. Not with --mode node or workerd, ignored with --debug and --watch.  (default off)'
+    'Save a Playwright trace to playwright-test-trace-<browser>.zip in --cwd, open it with `npx playwright show-trace`. Alone it only keeps the trace of a failed run, `--trace on` always keeps it. Values other than `off` fail with --mode node or workerd; ignored with --debug and --watch.  (default off)'
   )
   .option('--config', 'Path to the config file')
   .action(async (input, opts) => {

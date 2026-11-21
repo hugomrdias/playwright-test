@@ -27,24 +27,26 @@ Description
     $ playwright-test [files] [options]
 
   Options
-    -r, --runner       Test runner. Options: mocha, node-test and none, which only loads the files and is for scripts like benchmarks. Autodetected by default, see [auto detection](#runner-auto-detection).
-    -b, --browser      Browser to run tests. Options: chromium, firefox, webkit.  (default chromium)
-    -m, --mode         Run mode. Options: main, worker, node and workerd.  (default main)
-    -d, --debug        Debug mode, keeps browser window open.  (default false)
-    -w, --watch        Watch files for changes and re-run tests.
-    -i, --incognito    Use incognito window to run tests.  (default false)
-    -e, --extension    Use extension background_page to run tests.  (default false)
-    --before           Path to a script to be loaded on a separate tab before the main script.
-    --sw               Path to a script to be loaded in a service worker.
-    --assets           Folder with assets to be served by the http server.  (default process.cwd())
-    --cwd              Current directory.  (default /Users/hd/code/playwright-test)
-    --extensions       File extensions allowed in the bundle.  (default js,cjs,mjs,ts,tsx)
-    --no-transform     Node mode only. Run files as plain Node would, without the built-in esbuild transform.
-    --run-timeout      Fail the run after this many milliseconds, 0 turns it off. Not used with --debug or --watch.  (default 1800000)
-    --trace            Save a Playwright trace to playwright-test-trace-<browser>.zip in --cwd, open it with `npx playwright show-trace`. Alone it only keeps the trace of a failed run, `--trace on` always keeps it. Not with --mode node or workerd, ignored with --debug and --watch.  (default off)
-    --config           Path to the config file
-    -v, --version      Displays current version
-    -h, --help         Displays this message
+    -r, --runner           Test runner. Options: mocha, node-test and none, which only loads the files and is for scripts like benchmarks. Autodetected by default, see [auto detection](#runner-auto-detection).
+    -b, --browser          Browser to run tests. Options: chromium, firefox, webkit.  (default chromium)
+    -m, --mode             Run mode. Options: main, worker, node and workerd.  (default main)
+    -d, --debug            Debug mode, keeps browser window open.  (default false)
+    -w, --watch            Watch files for changes and re-run tests.
+    -i, --incognito        Use incognito window to run tests.  (default false)
+    -e, --extension        Use extension background_page to run tests.  (default false)
+    --before               Path to a script to be loaded on a separate tab before the main script.
+    --sw                   Path to a script to be loaded in a service worker.
+    --assets               Folder with assets to be served by the http server.  (default process.cwd())
+    --cwd                  Current directory.  (default process.cwd())
+    --extensions           File extensions allowed in the bundle.  (default js,cjs,mjs,ts,tsx,jsx)
+    --no-transform         Node mode only. Run files as plain Node would, without the built-in esbuild transform.
+    --run-timeout          Fail the run after this many milliseconds, 0 turns it off. Not used with --debug or --watch.  (default 1800000)
+    --test-name-pattern    Only run tests whose name matches this regular expression or /expression/flags.
+    --test-timeout         Timeout in milliseconds for tests without their own, 0 for none.
+    --trace                Save a Playwright trace to playwright-test-trace-<browser>.zip in --cwd, open it with `npx playwright show-trace`. Alone it only keeps the trace of a failed run, `--trace on` always keeps it. Values other than `off` fail with --mode node or workerd; ignored with --debug and --watch.  (default off)
+    --config               Path to the config file
+    -v, --version          Displays current version
+    -h, --help             Displays this message
 
 
   Examples
@@ -372,7 +374,7 @@ it('should geolocation', async () => {
 - `setExtraHTTPHeaders`
 - `addCookies`, `cookies`, `clearCookies`
 
-They also work with `--mode worker`, the worker asks the page to call them. In node mode `setOffline` does nothing and the others reject, there's no browser to set or read anything in.
+They also work with `--mode worker`, the worker asks the page to call them. In `node` and `workerd` modes `setOffline` does nothing and the others reject, there's no browser to set or read anything in.
 
 ### Trusted input
 
@@ -398,7 +400,7 @@ it('counts as user activation', async () => {
 - `page.click(selector, options)`, Playwright's [`page.click`](https://playwright.dev/docs/api/class-page#page-click). It waits for the element to be visible and stable, up to the `timeout` option, 30 seconds by default. It takes the options of Playwright except `signal`, an `AbortSignal` can't be sent to the runner.
 - `page.keyboard.press(key, options)` and `page.keyboard.type(text, options)`, Playwright's [`keyboard`](https://playwright.dev/docs/api/class-keyboard). They go to the focused element.
 
-The input always goes to the test page, the popup with `--extension`. With `--mode worker` it still goes to the page that started the worker, so it can click what the page shows, but the worker can't see the events or get the user activation, workers have none. In node mode they reject.
+The input always goes to the test page, the popup with `--extension`. With `--mode worker` it still goes to the page that started the worker, so it can click what the page shows, but the worker can't see the events or get the user activation, workers have none. In `node` and `workerd` modes they reject.
 
 Only these are there, not the rest of Playwright's `Page`, like `mouse`, `touchscreen`, `fill` or locators. Tests run in the page and can do most of it themselves, what they can't is trusted input.
 
@@ -509,10 +511,10 @@ pw-test.config.mjs,
 
 Config files follow the module rules of Node.js: `.mjs` uses `export default`, `.cjs` uses `module.exports`, and `.js` depends on the `type` in your `package.json`.
 
-The config type can be imported from the entrypoint.
+The `Config` type (the partial config type exported alongside `RunnerOptions`) can be imported from the entrypoint.
 
 ```ts
-/** @type {import('playwright-test').RunnerOptions} */
+/** @type {import('playwright-test').Config} */
 const config = {
   // ...
 }
@@ -556,34 +558,7 @@ export default {
 
 ### Interface
 
-```ts
-export interface RunnerOptions {
-  input?: string[]
-  runner?: 'mocha' | 'node-test' | 'none'
-  testRunner?: { options?: unknown }
-  cwd: string
-  extensions: string
-  browser: 'chromium' | 'firefox' | 'webkit'
-  debug: boolean
-  mode: 'main' | 'worker' | 'node'
-  incognito: boolean
-  extension: boolean
-  assets: string
-  before?: string
-  sw?: string
-  transform: boolean
-  // 'retain-on-failure' only keeps the trace of failed runs
-  trace: 'off' | 'on' | 'retain-on-failure'
-  buildConfig: BuildOptions
-  buildSWConfig: BuildOptions
-  browserContextOptions?: BrowserContextOptions
-  // Playwright launch options, `args` come after ours
-  launchOptions?: LaunchOptions
-  beforeTests: (env: RunnerEnv) => Promise<unknown>
-  // Only runs when beforeTests finished
-  afterTests: (env: RunnerEnv, beforeTestsOutput: unknown) => Promise<unknown>
-}
-```
+Config files take `Config` (the partial config type, with optional `testRunner: { options }`) or `ConfigFn`, while programmatic runs resolve to `RunnerOptions`. See [src/types.ts](./src/types.ts) for the canonical type definitions, including `Config`, `ConfigFn`, `RunnerOptions`, `WorkerdOptions`, `buildConfig`/`buildSWConfig`, and the `beforeTests`/`afterTests` hooks.
 
 ## Run in CI
 
@@ -611,7 +586,7 @@ The trace is saved as `playwright-test-trace-<browser>.zip` in `--cwd`, replacin
 
 Put the test files before `--trace`, `--trace test.js` would take the file as its value, or use `--trace=on`. In a config file it's `trace: 'on'` or `trace: 'retain-on-failure'`.
 
-There's no trace in node mode, the flag fails the run there. It's ignored with `--debug`, closing the browser ends that run and takes the trace with it, and with `--watch`. When the browser crashes or gets killed there's nothing left to save, a crash of only the page still saves it.
+There's no trace in `node` or `workerd` mode; values other than `off` fail the run there (`--trace=off` still works to override a config file). It's ignored with `--debug`, closing the browser ends that run and takes the trace with it, and with `--watch`. When the browser crashes or gets killed there's nothing left to save, a crash of only the page still saves it.
 
 ## License
 
