@@ -56,7 +56,7 @@ const extra = `
     ${colors.dim('$ playwright-test test.js --runner mocha')}
     ${colors.dim('$ playwright-test test --debug')}
     ${colors.dim(
-      '$ playwright-test "test/**/*.spec.js" --browser webkit --mode worker --incognito --debug'
+      '$ playwright-test "test/**/*.spec.js" --browser webkit --mode worker --debug'
     )}
 
     ${colors.dim(
@@ -157,8 +157,6 @@ const KNOWN_FLAGS = new Set([
   'e',
   'extension',
   'extensions',
-  'i',
-  'incognito',
   'm',
   'mode',
   'no-transform',
@@ -291,7 +289,6 @@ const cliDefaults = {
   debug: defaultOptions.debug,
   extension: defaultOptions.extension,
   extensions: defaultOptions.extensions,
-  incognito: defaultOptions.incognito,
   mode: defaultOptions.mode,
   trace: defaultOptions.trace,
 }
@@ -318,10 +315,6 @@ sade2
     `Debug mode, keeps browser window open.  (default ${cliDefaults.debug})`
   )
   .option('-w, --watch', 'Watch files for changes and re-run tests.')
-  .option(
-    '-i, --incognito',
-    `Use incognito window to run tests.  (default ${cliDefaults.incognito})`
-  )
   .option(
     '-e, --extension',
     `Use extension background_page to run tests.  (default ${cliDefaults.extension})`
@@ -388,7 +381,6 @@ sade2
         browser: opts.browser,
         debug: opts.debug,
         mode: opts.mode,
-        incognito: opts.incognito,
         extension: opts.extension,
         before: opts.before,
         sw: opts.sw,
@@ -458,7 +450,7 @@ sade2
   })
   .parse(process.argv, {
     // Without defaults to tell their types, `--debug test.js` would take the file
-    boolean: ['debug', 'extension', 'incognito', 'watch'],
+    boolean: ['debug', 'extension', 'watch'],
     // `--trace` alone keeps only failed runs, so a value has to be a string
     string: [
       'browser',

@@ -162,6 +162,7 @@ describe('runner options', () => {
       ['--timeout', '100'],
       ['--reporter', 'tap'],
       ['--ui', 'tdd'],
+      ['--incognito'],
     ]
     for (const args of cases) {
       it(`${args[0]} is an unknown option`, async () => {

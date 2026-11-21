@@ -38,7 +38,6 @@ const TRACE_WAIT = 30_000
 /**
  * @typedef {import('playwright-core').Page} Page
  * @typedef {import('playwright-core').BrowserContext} Context
- * @typedef {import('playwright-core').Browser} Browser
  * @typedef {import('./types.js').RunnerOptions} RunnerOptions
  * @typedef {import('./types.js').RunnerEnv} RunnerEnv
  * @typedef {import('./types.js').CliOptions} CliOptions
@@ -141,20 +140,12 @@ export class Runner extends BaseRunner {
 
     this.#handleInterrupt()
 
-    // create context
-    if (this.options.incognito) {
-      this.browser = await pw.launch(pwOptions)
-      this.context = await this.browser.newContext(
-        this.options.browserContextOptions
-      )
-    } else {
-      // With an empty path Playwright creates the profile in the temp folder and
-      // deletes it, also when the exit hook doesn't wait for the browser to close
-      this.context = await pw.launchPersistentContext('', {
-        ...pwOptions,
-        ...this.options.browserContextOptions,
-      })
-    }
+    // With an empty path Playwright creates the profile in the temp folder and
+    // deletes it, also when the exit hook doesn't wait for the browser to close
+    this.context = await pw.launchPersistentContext('', {
+      ...pwOptions,
+      ...this.options.browserContextOptions,
+    })
 
     // Also when it crashes or gets killed, and when --debug users close it. It
     // fires when this process closes it too, which is after `stopped`.
@@ -322,9 +313,6 @@ export class Runner extends BaseRunner {
           )
         }
       }
-    } else if (this.options.incognito) {
-      this.page = await context.newPage()
-      await this.page.goto(url)
     } else {
       this.page = context.pages()[0]
       await this.page.goto(url)
@@ -892,7 +880,7 @@ export class Runner extends BaseRunner {
    * If the browser process is still there, it isn't once it crashed or got closed.
    */
   #browserConnected() {
-    return (this.browser ?? this.context?.browser())?.isConnected() ?? false
+    return this.context?.browser()?.isConnected() ?? false
   }
 
   /**
@@ -1052,16 +1040,8 @@ export class Runner extends BaseRunner {
     const close = async () => {
       // Before the server, its open connections could use up the wait for the exit
       // A browser that's gone can't close it, and doesn't need to
-      if (this.#browserConnected()) {
-        try {
-          if (this.context) {
-            await this.context.close()
-          }
-        } finally {
-          if (this.browser?.isConnected()) {
-            await this.browser.close()
-          }
-        }
+      if (this.context && this.#browserConnected()) {
+        await this.context.close()
       }
 
       await new Promise((resolve, reject) => {

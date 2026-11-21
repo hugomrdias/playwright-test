@@ -71,7 +71,7 @@ describe('the browser ending the run', {
   concurrency: TEST_CONCURRENCY,
   skip: process.platform === 'win32' && 'needs pgrep',
 }, () => {
-  for (const args of [[], ['--incognito'], ['--mode', 'worker']]) {
+  for (const args of [[], ['--mode', 'worker']]) {
     const flags = args.join(' ') || 'default options'
 
     it(`fails with why when the page crashes with ${flags}`, async () => {

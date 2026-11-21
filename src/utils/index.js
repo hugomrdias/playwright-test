@@ -84,13 +84,7 @@ export function resolveTestRunner({ runner, testRunner }) {
  *
  * @param {import('../types').RunnerOptions} options
  */
-export function assertBrowserOptions({
-  browser,
-  extension,
-  incognito,
-  mode,
-  trace,
-}) {
+export function assertBrowserOptions({ browser, extension, mode, trace }) {
   if (mode !== 'main' && mode !== 'worker') {
     throw new UsageError(
       `Invalid mode "${mode}", this runner takes "main" or "worker".`
@@ -99,9 +93,6 @@ export function assertBrowserOptions({
   assertTrace(trace)
   if (extension && browser !== 'chromium') {
     throw new UsageError('Extension testing is only supported in chromium.')
-  }
-  if (extension && incognito) {
-    throw new UsageError('Extension testing does not work with incognito.')
   }
 }
 
@@ -163,7 +154,6 @@ export const defaultOptions = {
   browser: 'chromium',
   debug: false,
   mode: 'main', // worker
-  incognito: false,
   input: undefined,
   extension: false,
   runner: 'none',

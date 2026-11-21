@@ -14,7 +14,6 @@ export interface RunnerOptions {
   browser: 'chromium' | 'firefox' | 'webkit'
   debug: boolean
   mode: 'main' | 'worker' | 'node' | 'workerd'
-  incognito: boolean
   extension: boolean
   assets: string
   before?: string
@@ -138,7 +137,6 @@ export interface CliOptions {
   browser: 'chromium' | 'firefox' | 'webkit'
   mode: 'main' | 'worker' | 'node' | 'workerd'
   debug: boolean
-  incognito: boolean
   extension: boolean
   watch?: boolean
   before?: string
