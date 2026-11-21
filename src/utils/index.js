@@ -4,7 +4,6 @@ import { createHash } from 'crypto'
 import esbuild from 'esbuild'
 import { wasmLoader } from 'esbuild-plugin-wasm'
 import fs from 'fs'
-import { createServer } from 'http'
 // @ts-expect-error
 import mergeOptions from 'merge-options'
 import { createRequire } from 'module'
@@ -734,35 +733,6 @@ await import(${JSON.stringify(
 }
 
 /**
- * Get a free port
- *
- * @param {number} port
- * @param {string} host
- * @returns {Promise<number>}
- */
-function getPort(port = 3000, host = '127.0.0.1') {
-  const server = createServer()
-
-  return new Promise((resolve, reject) => {
-    server.on('error', (err) => {
-      // @ts-expect-error
-      if (err.code === 'EADDRINUSE' || err.code === 'EACCES') {
-        server.listen(0, host)
-      } else {
-        reject(err)
-      }
-    })
-    server.on('listening', () => {
-      // @ts-expect-error
-      const { port } = server.address()
-
-      server.close(() => resolve(port))
-    })
-    server.listen(port, host)
-  })
-}
-
-/**
  * Create polka server
  *
  * @param {string} dir - Runner directory
@@ -770,12 +740,10 @@ function getPort(port = 3000, host = '127.0.0.1') {
  * @param {string} assets - Assets directory
  * @returns {Promise<{ url: string; server: import('http').Server }>}
  */
-export async function createPolka(dir, cwd, assets) {
+export function createPolka(dir, cwd, assets) {
   const host = '127.0.0.1'
-  const port = await getPort(0, host)
-  const url = `http://${host}:${port}/`
   return new Promise((resolve, reject) => {
-    const { server } = polka()
+    const app = polka()
       .use(
         sirv(dir, {
           dev: true,
@@ -808,15 +776,19 @@ export async function createPolka(dir, cwd, assets) {
           },
         })
       )
-      .listen(port, host, (/** @type {Error} */ err) => {
-        if (err) {
-          return reject(err)
-        }
-
+      .listen(0, host, () => {
+        const { server } = app
         if (!server) {
           return reject(new Error('No server'))
         }
-        resolve({ url, server })
+        server.off('error', reject)
+        const address = server.address()
+        if (!address || typeof address === 'string') {
+          return reject(new Error('Could not read server port'))
+        }
+        resolve({ url: `http://${host}:${address.port}/`, server })
       })
+
+    app.server?.once('error', reject)
   })
 }

@@ -1,6 +1,6 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { runCli } from './helpers.js'
+import { runCli, TEST_CONCURRENCY } from './helpers.js'
 
 /**
  * @param {string[]} args
@@ -19,7 +19,7 @@ const config = (/** @type {string} */ name) => [
   `mocks/config/${name}.config.js`,
 ]
 
-describe('config file', () => {
+describe('config file', { concurrency: TEST_CONCURRENCY }, () => {
   it('uses browser', async () => {
     ok((await run(config('firefox'))).includes('Firefox'))
   })
@@ -33,10 +33,11 @@ describe('config file', () => {
   })
 
   it('loses to flags', async () => {
-    const browser = await run([...config('firefox'), '--browser', 'chromium'])
+    const [browser, mode] = await Promise.all([
+      run([...config('firefox'), '--browser', 'chromium']),
+      run([...config('node'), '--mode', 'main']),
+    ])
     ok(!browser.includes('Firefox'), browser)
-
-    const mode = await run([...config('node'), '--mode', 'main'])
     ok(mode.includes('document: object'), mode)
   })
 
@@ -57,7 +58,7 @@ describe('config file', () => {
   })
 })
 
-describe('without a config file', () => {
+describe('without a config file', { concurrency: TEST_CONCURRENCY }, () => {
   it('uses the defaults', async () => {
     const stdout = await run([])
     ok(stdout.includes('document: object'), stdout)

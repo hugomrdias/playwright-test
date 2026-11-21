@@ -6,7 +6,7 @@ import {
 import { after, before, describe, it } from 'node:test'
 import fs from 'fs'
 import { detectTestRunners } from '../src/utils/auto-detect.js'
-import { runCli } from './helpers.js'
+import { runCli, TEST_CONCURRENCY } from './helpers.js'
 
 describe('runner auto detection', () => {
   /** @type {string} */
@@ -137,7 +137,7 @@ describe('runner auto detection', () => {
     ])
   })
 
-  describe('cli', () => {
+  describe('cli', { concurrency: TEST_CONCURRENCY }, () => {
     it('falls back to none with a warning', async () => {
       const proc = await runCli([write('console.log("ran")'), '--mode', 'node'])
 

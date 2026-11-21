@@ -1,10 +1,10 @@
 import { strictEqual as is } from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { execa } from './helpers.js'
+import { execa, TEST_CONCURRENCY } from './helpers.js'
 
 // The other files run in chromium, this checks the main paths in the other browsers.
 for (const browser of ['firefox', 'webkit']) {
-  describe(browser, () => {
+  describe(browser, { concurrency: TEST_CONCURRENCY }, () => {
     const flags = ['--browser', browser]
     const runs = {
       mocha: ['./cli.js', 'mocks/test.mocha.js', ...flags],

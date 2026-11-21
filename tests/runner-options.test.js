@@ -1,6 +1,6 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { execa, runCli } from './helpers.js'
+import { execa, runCli, TEST_CONCURRENCY } from './helpers.js'
 
 describe('runner options', () => {
   const fixture = (/** @type {string} */ name) =>
@@ -31,7 +31,7 @@ describe('runner options', () => {
   ]
 
   for (const mode of ['node', 'main']) {
-    describe(`--mode ${mode}`, () => {
+    describe(`--mode ${mode}`, { concurrency: TEST_CONCURRENCY }, () => {
       for (const runner of ['mocha', 'node-test']) {
         // mocha only matches the full title, the others also a single name
         /** @type {[string, string[]]} */
@@ -61,15 +61,9 @@ describe('runner options', () => {
 
       it('mocha --test-timeout', async () => {
         const args = ['--runner', 'mocha', '--mode', mode]
-        const failed = await run('mocha-slow', [
-          ...args,
-          '--test-timeout',
-          '50',
-        ])
-        const passed = await run('mocha-slow', [
-          ...args,
-          '--test-timeout',
-          '2000',
+        const [failed, passed] = await Promise.all([
+          run('mocha-slow', [...args, '--test-timeout', '50']),
+          run('mocha-slow', [...args, '--test-timeout', '2000']),
         ])
 
         is(failed.exitCode, 1, output(failed))
@@ -78,15 +72,9 @@ describe('runner options', () => {
 
       it('node-test --test-timeout, tests with their own keep it', async () => {
         const args = ['--runner', 'node-test', '--mode', mode]
-        const failed = await run('node-test-slow', [
-          ...args,
-          '--test-timeout',
-          '50',
-        ])
-        const passed = await run('node-test-slow', [
-          ...args,
-          '--test-timeout',
-          '0',
+        const [failed, passed] = await Promise.all([
+          run('node-test-slow', [...args, '--test-timeout', '50']),
+          run('node-test-slow', [...args, '--test-timeout', '0']),
         ])
 
         is(failed.exitCode, 1, output(failed))
@@ -98,12 +86,14 @@ describe('runner options', () => {
       it('from the config file, and the cli wins', async () => {
         const args = ['--runner', 'mocha', '--mode', mode]
         const config = ['--config', 'mocks/runner-options/pattern.config.js']
-        const fromConfig = await run('mocha', [...args, ...config])
-        const fromCli = await run('mocha', [
-          ...args,
-          ...config,
-          '--test-name-pattern',
-          'alpha two',
+        const [fromConfig, fromCli] = await Promise.all([
+          run('mocha', [...args, ...config]),
+          run('mocha', [
+            ...args,
+            ...config,
+            '--test-name-pattern',
+            'alpha two',
+          ]),
         ])
 
         ok(fromConfig.stdout.includes('beta'), output(fromConfig))
@@ -134,17 +124,16 @@ describe('runner options', () => {
     ok(proc.stderr.includes('ignoring --test-timeout'), proc.stderr)
   })
 
-  describe('testRunner.options in the config file', () => {
+  describe('testRunner.options in the config file', {
+    concurrency: TEST_CONCURRENCY,
+  }, () => {
     const config = ['--config', 'mocks/runner-options/no-bail.config.js']
     const mode = ['--mode', 'node']
 
     it('applies to the runner from --runner', async () => {
-      const bail = await run('mocha-fails', ['--runner', 'mocha', ...mode])
-      const noBail = await run('mocha-fails', [
-        '--runner',
-        'mocha',
-        ...mode,
-        ...config,
+      const [bail, noBail] = await Promise.all([
+        run('mocha-fails', ['--runner', 'mocha', ...mode]),
+        run('mocha-fails', ['--runner', 'mocha', ...mode, ...config]),
       ])
 
       is(bail.exitCode, 1, output(bail))
@@ -162,7 +151,7 @@ describe('runner options', () => {
     })
   })
 
-  describe('errors', () => {
+  describe('errors', { concurrency: TEST_CONCURRENCY }, () => {
     const cases = [
       ['--grep', 'a'],
       ['--bail'],

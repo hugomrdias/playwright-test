@@ -142,28 +142,35 @@ function isSame(key, real, other) {
 }
 
 const flags = process.argv.slice(2)
-const { cases: real } = await collect(fixture('real'))
-if (real.size === 0) {
-  throw new Error('No cases from the real node:assert')
-}
-
-let failures = 0
+/** @type {Array<Promise<[string, Awaited<ReturnType<typeof collect>>]>>} */
+const runs = []
 if (flags.length === 0) {
   // The browser implementation running in Node.js, without a browser or a bundle.
-  failures += compare('node', real, await collect(fixture('polyfill')))
+  runs.push(collect(fixture('polyfill')).then((res) => ['node', res]))
 }
 for (const mode of ['main', 'worker']) {
-  failures += compare(
-    mode,
-    real,
-    await collect(fixture('entrypoint'), [
+  runs.push(
+    collect(fixture('entrypoint'), [
       '--runner',
       'none',
       '--mode',
       mode,
       ...flags,
-    ])
+    ]).then((res) => [mode, res])
   )
+}
+
+const [{ cases: real }, ...others] = await Promise.all([
+  collect(fixture('real')),
+  ...runs,
+])
+if (real.size === 0) {
+  throw new Error('No cases from the real node:assert')
+}
+
+let failures = 0
+for (const [label, result] of others) {
+  failures += compare(label, real, result)
 }
 
 process.exit(failures > 0 ? 1 : 0)

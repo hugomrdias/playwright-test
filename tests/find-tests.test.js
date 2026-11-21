@@ -8,7 +8,7 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import { findTests } from '../src/utils/index.js'
-import { execa, runCli } from './helpers.js'
+import { execa, runCli, TEST_CONCURRENCY } from './helpers.js'
 
 const extensions = ['js', 'ts']
 
@@ -224,7 +224,7 @@ describe('cli', () => {
     is(proc.exitCode, code, `${proc.stdout}\n${proc.stderr}`)
 
   for (const mode of ['node', 'main']) {
-    describe(`--mode ${mode}`, () => {
+    describe(`--mode ${mode}`, { concurrency: TEST_CONCURRENCY }, () => {
       it('runs an absolute path', async () => {
         const proc = await cli([file, '--mode', mode, '--runner', 'none'])
 

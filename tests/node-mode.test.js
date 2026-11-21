@@ -3,9 +3,11 @@ import { afterEach, beforeEach, describe, it } from 'node:test'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import { execa, runCli } from './helpers.js'
+import { execa, runCli, TEST_CONCURRENCY } from './helpers.js'
 
-describe('node mode localStorage with mocha', () => {
+describe('node mode localStorage with mocha', {
+  concurrency: TEST_CONCURRENCY,
+}, () => {
   const fixture = 'mocks/runner-options/mocha.js'
   const args = ['--runner', 'mocha', '--mode', 'node']
 
@@ -122,7 +124,7 @@ console.log('BIN', process.env.PATH.split(${JSON.stringify(path.delimiter)})[0])
   })
 })
 
-describe('node mode transform', () => {
+describe('node mode transform', { concurrency: TEST_CONCURRENCY }, () => {
   const node = ['--mode', 'node']
   const mocha = ['--runner', 'mocha', ...node]
   const none = ['--runner', 'none', ...node]

@@ -5,7 +5,7 @@ import {
 } from 'node:assert/strict'
 import { before, describe, it } from 'node:test'
 import { pathToFileURL } from 'url'
-import { execa, runCli } from './helpers.js'
+import { execa, runCli, TEST_CONCURRENCY } from './helpers.js'
 
 describe('playwright-test/node-test', () => {
   const runner = ['--runner', 'node-test']
@@ -39,13 +39,16 @@ describe('playwright-test/node-test', () => {
     // biome-ignore lint/suspicious/noControlCharactersInRegex: ansi colors
     text.replaceAll(/\u001B\[[0-9;]*m/g, '').split('\n')
 
+  /** @type {Map<string, ReturnType<typeof execApi>>} */
+  const apiCache = new Map()
+
   /**
    * Run a fixture with this API, and read what it reported.
    *
    * @param {string} name
    * @param {string} mode
    */
-  async function runApi(name, mode) {
+  async function execApi(name, mode) {
     const proc = await runCli([fixture(name), ...runner, '--mode', mode], {
       reject: false,
     })
@@ -73,6 +76,22 @@ describe('playwright-test/node-test', () => {
       results,
       order: output.filter((line) => line.startsWith('ORDER ')),
     }
+  }
+
+  /**
+   * Share identical `(name, mode)` CLI runs across parity and mode suites.
+   *
+   * @param {string} name
+   * @param {string} mode
+   */
+  function runApi(name, mode) {
+    const key = `${name}:${mode}`
+    let pending = apiCache.get(key)
+    if (!pending) {
+      pending = execApi(name, mode)
+      apiCache.set(key, pending)
+    }
+    return pending
   }
 
   /**
@@ -135,44 +154,46 @@ describe('playwright-test/node-test', () => {
     { name: 'only', exitCode: 0, flags: ['--test-only'] },
   ]
 
-  for (const { name, exitCode, flags } of parity) {
-    describe(`parity with node:test: ${name}`, () => {
-      /** @type {Awaited<ReturnType<typeof runReal>>} */
-      let real
+  describe('parity with node:test', { concurrency: TEST_CONCURRENCY }, () => {
+    for (const { name, exitCode, flags } of parity) {
+      describe(name, { concurrency: false }, () => {
+        /** @type {Awaited<ReturnType<typeof runReal>>} */
+        let real
 
-      before(async () => {
-        real = await runReal(name, flags)
-        is(real.proc.exitCode, exitCode, real.proc.stderr)
-        ok(real.results.length > 0, 'real node:test reported results')
-      })
-
-      for (const mode of modes) {
-        it(mode, async () => {
-          const api = await runApi(name, mode)
-
-          equal(api.order, real.order)
-          equal(api.results, real.results)
-          is(api.proc.exitCode, exitCode, 'exit code')
-
-          // `fail` is different, here failed hooks of suites also count
-          for (const [key, label] of [
-            ['tests', 'tests'],
-            ['suites', 'suites'],
-            ['passed', 'pass'],
-            ['cancelled', 'cancelled'],
-            ['skipped', 'skipped'],
-            ['todo', 'todo'],
-          ]) {
-            is(summary(api.proc.stdout, label), real.counts[key], label)
-          }
-          ok(!api.order.some((line) => line.includes('NOT RUN')), 'not run')
+        before(async () => {
+          real = await runReal(name, flags)
+          is(real.proc.exitCode, exitCode, real.proc.stderr)
+          ok(real.results.length > 0, 'real node:test reported results')
         })
-      }
-    })
-  }
+
+        for (const mode of modes) {
+          it(mode, async () => {
+            const api = await runApi(name, mode)
+
+            equal(api.order, real.order)
+            equal(api.results, real.results)
+            is(api.proc.exitCode, exitCode, 'exit code')
+
+            // `fail` is different, here failed hooks of suites also count
+            for (const [key, label] of [
+              ['tests', 'tests'],
+              ['suites', 'suites'],
+              ['passed', 'pass'],
+              ['cancelled', 'cancelled'],
+              ['skipped', 'skipped'],
+              ['todo', 'todo'],
+            ]) {
+              is(summary(api.proc.stdout, label), real.counts[key], label)
+            }
+            ok(!api.order.some((line) => line.includes('NOT RUN')), 'not run')
+          })
+        }
+      })
+    }
+  })
 
   for (const mode of modes) {
-    describe(`mode:${mode}`, () => {
+    describe(`mode:${mode}`, { concurrency: TEST_CONCURRENCY }, () => {
       it('reports failures', async () => {
         const { proc } = await runApi('fail-tests', mode)
         const output = lines(proc.stdout).join('\n')
@@ -208,8 +229,10 @@ describe('playwright-test/node-test', () => {
       })
 
       it('a failure outside of a test counts as failing', async () => {
-        const suite = await runApi('fail-suite-after', mode)
-        const root = await runApi('fail-root-after', mode)
+        const [suite, root] = await Promise.all([
+          runApi('fail-suite-after', mode),
+          runApi('fail-root-after', mode),
+        ])
 
         is(suite.proc.exitCode, 1, 'exit code')
         is(summary(suite.proc.stdout, 'pass'), 1, suite.proc.stdout)
@@ -337,7 +360,7 @@ describe('playwright-test/node-test', () => {
     })
   }
 
-  describe('without a runner', () => {
+  describe('without a runner', { concurrency: TEST_CONCURRENCY }, () => {
     it('node runs it, with an absolute path to the binary', async () => {
       const { exitCode, stdout } = await execa(process.execPath, [
         fixture('order'),
@@ -402,7 +425,9 @@ describe('playwright-test/node-test', () => {
     })
   })
 
-  describe('same output as the spec reporter of node:test', () => {
+  describe('same output as the spec reporter of node:test', {
+    concurrency: TEST_CONCURRENCY,
+  }, () => {
     /**
      * What doesn't change between runs: test durations and the total are out, and
      * so is `fail` since failed hooks of suites also count here. Of the list of
@@ -455,7 +480,7 @@ describe('playwright-test/node-test', () => {
     }
   })
 
-  describe('node:assert', () => {
+  describe('node:assert', { concurrency: TEST_CONCURRENCY }, () => {
     // Fails on any difference with the real node:assert, browsers.test.js runs it in the others.
     it('same results as the real one', async () => {
       const { exitCode, stdout, stderr } = await execa(
@@ -518,7 +543,7 @@ describe('playwright-test/node-test', () => {
     ok(!proc.stdout.includes('NOT RUN'), proc.stdout)
   })
 
-  describe('in an AI agent', () => {
+  describe('in an AI agent', { concurrency: TEST_CONCURRENCY }, () => {
     const agent = {
       AI_AGENT: 'test-agent',
       FORCE_COLOR: undefined,
