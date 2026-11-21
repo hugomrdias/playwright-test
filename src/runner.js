@@ -48,6 +48,11 @@ const TRACE_WAIT = 30_000
  */
 
 export class Runner extends BaseRunner {
+  /** @type {{ page: Page, ended: boolean, resolve: () => void } | undefined} */
+  #beforeWait = undefined
+  /** @type {{ page: Page, ended: boolean, failed: boolean, resolve: (result: { failed: boolean, navigated: boolean }) => void } | undefined} */
+  #testWait = undefined
+
   /**
    *
    * @param {import('./types.js').Config} options
@@ -80,19 +85,6 @@ export class Runner extends BaseRunner {
   }
 
   async setupContext() {
-    // copy files to be served
-    await cp(path.join(__dirname, './../static'), this.dir, { recursive: true })
-
-    // setup http server
-    const { server, url } = await createPolka(
-      this.dir,
-      this.options.cwd,
-      this.options.assets
-    )
-    this.env.PW_SERVER = url
-    this.url = url
-    this.server = server
-
     const { launchOptions = {} } = this.options
     const headless = launchOptions.headless ?? !this.options.debug
     // optin to new chromium headless for extension testing
@@ -100,12 +92,29 @@ export class Runner extends BaseRunner {
     const channel =
       launchOptions.channel ?? (this.options.extension ? 'chromium' : undefined)
 
-    // download playwright if needed
-    const pw = await getPw(this.options.browser, {
-      headless,
-      channel,
-      executablePath: launchOptions.executablePath,
+    // Assign server immediately on listen so cleanup still closes it if another
+    // parallel setup step (like invalid browser validation) rejects.
+    const serverPromise = createPolka(
+      this.dir,
+      this.options.cwd,
+      this.options.assets
+    ).then(({ server, url }) => {
+      this.env.PW_SERVER = url
+      this.url = url
+      this.server = server
+      return { server, url }
     })
+
+    // copy files, start http server, and resolve/download playwright in parallel
+    const [, , pw] = await Promise.all([
+      cp(path.join(__dirname, './../static'), this.dir, { recursive: true }),
+      serverPromise,
+      getPw(this.options.browser, {
+        headless,
+        channel,
+        executablePath: launchOptions.executablePath,
+      }),
+    ])
 
     /** @type {import('playwright-core').LaunchOptions} */
     const pwOptions = {
@@ -158,41 +167,34 @@ export class Runner extends BaseRunner {
       worker.on('console', this.#onConsole)
     })
 
-    // bindings of playwright-test/client, a worker running the tests calls
-    // them through the page, see `addWorker`
+    // Multiplexed bindings of playwright-test/client; a worker running the
+    // tests calls them through the page, see `addWorker`. Trusted input goes
+    // to the page that calls it, the test page.
     const context = this.context
-    /** @type {{ [K in import('./client/types.js').ContextBinding]: (...args: Parameters<typeof globalThis[K]>) => ReturnType<typeof globalThis[K]> }} */
-    const contextBindings = {
-      pwContextSetOffline: async (offline) => {
+    /** @type {{ [K in import('./client/types.js').Binding]: (source: { page: Page }, ...args: Parameters<import('./client/types.js').ClientBindings[K]>) => ReturnType<import('./client/types.js').ClientBindings[K]> }} */
+    const clientBindings = {
+      pwContextSetOffline: async (_source, offline) => {
         await context.setOffline(offline)
       },
-      pwContextGrantPermissions: async (permissions, options) => {
+      pwContextGrantPermissions: async (_source, permissions, options) => {
         await context.grantPermissions(permissions, options)
       },
       pwContextClearPermissions: async () => {
         await context.clearPermissions()
       },
-      pwContextSetGeolocation: async (geolocation) => {
+      pwContextSetGeolocation: async (_source, geolocation) => {
         await context.setGeolocation(geolocation)
       },
-      pwContextSetExtraHTTPHeaders: async (headers) => {
+      pwContextSetExtraHTTPHeaders: async (_source, headers) => {
         await context.setExtraHTTPHeaders(headers)
       },
-      pwContextAddCookies: async (cookies) => {
+      pwContextAddCookies: async (_source, cookies) => {
         await context.addCookies(cookies)
       },
-      pwContextCookies: (urls) => context.cookies(urls),
-      pwContextClearCookies: async (options) => {
+      pwContextCookies: (_source, urls) => context.cookies(urls),
+      pwContextClearCookies: async (_source, options) => {
         await context.clearCookies(options)
       },
-    }
-    for (const [name, fn] of Object.entries(contextBindings)) {
-      await context.exposeFunction(name, fn)
-    }
-
-    // Trusted input goes to the page that calls it, the test page
-    /** @type {{ [K in import('./client/types.js').PageBinding]: (source: { page: Page }, ...args: Parameters<typeof globalThis[K]>) => ReturnType<typeof globalThis[K]> }} */
-    const pageBindings = {
       pwPageClick: async ({ page }, selector, options) => {
         await page.click(selector, options)
       },
@@ -203,29 +205,55 @@ export class Runner extends BaseRunner {
         await page.keyboard.type(text, options)
       },
     }
-    for (const [name, fn] of Object.entries(pageBindings)) {
-      await context.exposeBinding(name, fn)
-    }
 
-    await this.context.exposeFunction(
-      'PW_TEST_STDOUT_WRITE',
-      (/** @type {string | Uint8Array} */ msg) =>
-        new Promise((resolve, reject) =>
-          process.stdout.write(this.stackMapper.map(msg), (error) =>
-            error ? reject(error) : resolve(error)
+    await Promise.all([
+      context.exposeBinding(
+        'pwClientCall',
+        (
+          /** @type {{ page: Page }} */ source,
+          /** @type {import('./client/types.js').Binding} */ name,
+          /** @type {unknown[]} */ ...args
+        ) => {
+          if (!Object.hasOwn(clientBindings, name)) {
+            throw new Error(`Unknown playwright-test/client call: ${name}`)
+          }
+          // @ts-expect-error the argument types of each binding are checked by src/client/index.js
+          return clientBindings[name](source, ...args)
+        }
+      ),
+      context.exposeBinding(
+        'PW_TEST_NOTIFY',
+        (
+          /** @type {{ page: Page }} */ { page },
+          /** @type {'beforeEnd' | 'end'} */ event,
+          /** @type {boolean} */ failed
+        ) => {
+          if (event === 'beforeEnd') {
+            this.#onBeforeEnd(page)
+          } else if (event === 'end') {
+            this.#onTestEnd(page, Boolean(failed))
+          }
+        }
+      ),
+      context.exposeFunction(
+        'PW_TEST_STDOUT_WRITE',
+        (/** @type {string | Uint8Array} */ msg) =>
+          new Promise((resolve, reject) =>
+            process.stdout.write(this.stackMapper.map(msg), (error) =>
+              error ? reject(error) : resolve(error)
+            )
           )
-        )
-    )
-
-    await this.context.exposeFunction(
-      'PW_TEST_STDERR_WRITE',
-      (/** @type {string | Uint8Array} */ msg) =>
-        new Promise((resolve, reject) =>
-          process.stderr.write(this.stackMapper.map(msg), (error) =>
-            error ? reject(error) : resolve(error)
+      ),
+      context.exposeFunction(
+        'PW_TEST_STDERR_WRITE',
+        (/** @type {string | Uint8Array} */ msg) =>
+          new Promise((resolve, reject) =>
+            process.stderr.write(this.stackMapper.map(msg), (error) =>
+              error ? reject(error) : resolve(error)
+            )
           )
-        )
-    )
+      ),
+    ])
 
     return this.context
   }
@@ -309,23 +337,31 @@ export class Runner extends BaseRunner {
    * Run the tests
    *
    * @param {Page} page
+   * @param {Promise<import('./types.js').CompilerOutput>} [compiled]
    */
-  async runTests(page) {
-    await page.addScriptTag({ url: 'setup.js' })
-    await page.evaluate((debug) => {
-      localStorage.debug = debug
-    }, [this.env.DEBUG, '-pw:*', '-mocha:*'].filter(Boolean).join(','))
+  async runTests(page, compiled = this.compiler()) {
     this.stackMapper.reset()
-    const files = []
-    const { outName, files: mainFiles } = await this.compiler()
-    files.push(...mainFiles)
+    const swBuild = this.options.sw
+      ? compileSw(this, { entry: this.options.sw })
+      : undefined
+    const debug = [this.env.DEBUG, '-pw:*', '-mocha:*']
+      .filter(Boolean)
+      .join(',')
+
+    const [{ outName, files: mainFiles }, swOutput] = await Promise.all([
+      compiled,
+      swBuild,
+      page.addScriptTag({ url: 'setup.js' }),
+      page.evaluate((value) => {
+        localStorage.debug = value
+      }, debug),
+    ])
+
+    const files = [...mainFiles]
 
     // Inject and register the service worker
-    if (this.options.sw) {
-      const { files: swFiles } = await compileSw(this, {
-        entry: this.options.sw,
-      })
-      files.push(...swFiles)
+    if (swOutput) {
+      files.push(...swOutput.files)
       // `ready` never resolves when the registration fails, and it comes before
       // the worker claims the page, until then requests skip the worker. It may
       // never come, a hard reload under --debug has nothing left to claim the page.
@@ -378,36 +414,35 @@ export class Runner extends BaseRunner {
         await this.setupBeforePage(context)
       }
 
+      // Start esbuild bundling in parallel with setting up the test page
+      const compiled = this.compiler()
+      // Avoid unhandled rejection if setupPage fails before runTests awaits it
+      compiled.catch(() => undefined)
+
       // Setup page
       const page = await this.setupPage(context)
 
-      await this.runTests(page)
+      const testWait = this.options.debug
+        ? undefined
+        : this.#createTestWait(page)
 
-      // Re run on page reload
-      if (this.options.debug) {
-        page.on('load', () => {
-          this.runTests(page).catch((error) => {
-            console.error(error)
+      try {
+        await this.runTests(page, compiled)
+
+        // Re run on page reload
+        if (this.options.debug) {
+          page.on('load', () => {
+            this.runTests(page).catch((error) => {
+              console.error(error)
+            })
           })
-        })
-      }
+          return
+        }
 
-      // run tests
-      if (!this.options.debug) {
-        // wait for the tests
-        await page.waitForFunction(
-          // Nothing ends a run once a navigation took the controller away
-          // @ts-expect-error
-          () => !globalThis.PW_TEST || globalThis.PW_TEST.ended === true,
-          undefined,
-          {
-            timeout: 0,
-            polling: 100, // need to be polling raf doesnt work in extensions
-          }
-        )
-        // Page errors come in order with this result, so they're all in by now
-        const testsFailed = await page.evaluate('globalThis.PW_TEST?.failed')
-        if (testsFailed === undefined) {
+        const result = await /** @type {NonNullable<typeof testWait>} */ (
+          testWait
+        ).wait()
+        if (result.navigated) {
           await this.stop(
             true,
             'The page navigated away from the tests, they have to stay on the page they were loaded in.'
@@ -415,13 +450,24 @@ export class Runner extends BaseRunner {
           return
         }
 
+        // Page errors come in order with evaluate results, so they're all in by now
+        if (
+          !result.failed &&
+          !this.pageErrored &&
+          this.options.runner !== 'none'
+        ) {
+          await page.evaluate('0')
+        }
+
         const failed =
-          testsFailed ||
+          result.failed ||
           // `none` has no tests to fail, the files decide
           (this.pageErrored && this.options.runner !== 'none')
 
         // exit
         await this.stop(failed, failed ? 'Tests failed.' : undefined)
+      } finally {
+        testWait?.dispose()
       }
     } catch (/** @type {any} */ error) {
       await this.stop(true, this.#endReason() || error)
@@ -434,19 +480,40 @@ export class Runner extends BaseRunner {
    * @param {Context} context
    */
   async setupBeforePage(context) {
-    const page = await context.newPage()
-    await page.goto(`${this.url}before.html`)
+    const [page, { outName }] = await Promise.all([
+      context.newPage().then(async (p) => {
+        await p.goto(`${this.url}before.html`)
+        return p
+      }),
+      this.compiler('before'),
+    ])
+
+    /** @type {PromiseWithResolvers<void>} */
+    const {
+      promise: beforeDone,
+      resolve: resolveBefore,
+      reject: rejectBefore,
+    } = Promise.withResolvers()
+    // Avoid unhandled rejection if addScriptTag rejects before awaiting beforeDone
+    beforeDone.catch(() => undefined)
+
+    const state = {
+      page,
+      ended: false,
+      resolve: resolveBefore,
+    }
+    this.#beforeWait = state
 
     page.on('console', this.#onConsole)
     page.on('pageerror', async (err) => {
       const message = `Uncaught exception happened within the before page. Run with --debug. \n${colors.dim(
         this.stackMapper.map(err.stack || err.toString())
       )}`
-      // Ask the page, the wait below only notices `beforeEnd` when it next polls.
-      // Without a page the wait fails the run by itself.
-      const ended = await page
-        .evaluate('self.PW_TEST?.beforeEnded')
-        .catch(() => true)
+      // Check `state.ended` first; if `pageerror` overtook the binding call,
+      // ask the page directly. Without a page the wait fails the run by itself.
+      const ended =
+        state.ended ||
+        (await page.evaluate('self.PW_TEST?.beforeEnded').catch(() => true))
 
       // A script that threw may never call `beforeEnd`, don't wait for it. The
       // page stays open under --debug and `stop` does nothing there.
@@ -458,17 +525,166 @@ export class Runner extends BaseRunner {
     })
 
     // Once the script ended the page has done its part
-    const onCrash = () => this.#pageCrashed('before')
+    const onCrash = () => {
+      this.#pageCrashed('before')
+      rejectBefore(new Error('Target crashed'))
+    }
+    const onClose = () => {
+      // Wait a tick so `context`'s close listener can record `browser` first
+      setImmediate(() => {
+        rejectBefore(
+          new Error('Target page, context or browser has been closed')
+        )
+      })
+    }
     page.on('crash', onCrash)
+    page.on('close', onClose)
 
-    const { outName } = await this.compiler('before')
-    await page.addScriptTag({ url: outName, type: 'module' })
-    // PW_TEST is set by the bundle, which can still be loading its imports
-    await page.waitForFunction('self.PW_TEST?.beforeEnded', undefined, {
-      timeout: 0,
-      polling: 100, // raf doesn't run in a tab that's in the background
-    })
-    page.off('crash', onCrash)
+    try {
+      await page.addScriptTag({ url: outName, type: 'module' })
+      // Fallback in case the script set `PW_TEST.beforeEnded = true` directly
+      if (!state.ended) {
+        const alreadyEnded = await page
+          .evaluate('Boolean(self.PW_TEST?.beforeEnded)')
+          .catch(() => false)
+        if (alreadyEnded && !state.ended) {
+          state.ended = true
+          resolveBefore()
+        }
+      }
+      await beforeDone
+    } finally {
+      page.off('crash', onCrash)
+      page.off('close', onClose)
+      if (this.#beforeWait === state) {
+        this.#beforeWait = undefined
+      }
+    }
+  }
+
+  /**
+   * @param {Page} page
+   */
+  #onBeforeEnd(page) {
+    if (this.#beforeWait?.page === page && !this.#beforeWait.ended) {
+      this.#beforeWait.ended = true
+      this.#beforeWait.resolve()
+    }
+  }
+
+  /**
+   * @param {Page} page
+   * @param {boolean} failed
+   */
+  #onTestEnd(page, failed) {
+    if (this.#testWait?.page === page && !this.#testWait.ended) {
+      this.#testWait.ended = true
+      this.#testWait.failed = failed
+      this.#testWait.resolve({ failed, navigated: false })
+    }
+  }
+
+  /**
+   * Wait for the test page to call `PW_TEST.end()`, navigate away, or close/crash.
+   * Armed before `runTests` injects the bundle so synchronous completion or
+   * top-level navigation during load is never missed.
+   *
+   * @param {Page} page
+   */
+  #createTestWait(page) {
+    /** @type {PromiseWithResolvers<{ failed: boolean, navigated: boolean }>} */
+    const { promise, resolve, reject } = Promise.withResolvers()
+    // Avoid unhandled rejection if `runTests` throws before `wait()` is awaited
+    promise.catch(() => undefined)
+
+    const state = {
+      page,
+      ended: false,
+      failed: false,
+      resolve,
+    }
+    this.#testWait = state
+
+    const onCrash = () => {
+      reject(new Error('Target crashed'))
+    }
+    const onClose = () => {
+      // Wait a tick so `context`'s close listener can record `browser` first
+      setImmediate(() => {
+        reject(new Error('Target page, context or browser has been closed'))
+      })
+    }
+    /** @param {import('playwright-core').Frame} frame */
+    const onFrameNavigated = (frame) => {
+      if (frame !== page.mainFrame() || state.ended) {
+        return
+      }
+      // `history.pushState` and hash changes also fire `framenavigated` without
+      // replacing the document; only a real navigation removes `PW_TEST`.
+      page.evaluate('globalThis.PW_TEST !== undefined').then(
+        (hasController) => {
+          if (!hasController && !state.ended) {
+            state.ended = true
+            resolve({ failed: true, navigated: true })
+          }
+        },
+        () => {
+          // Execution context destroyed by another navigation; if the page
+          // crashed or closed instead, `onCrash`/`onClose` rejects the wait.
+          if (
+            !page.isClosed() &&
+            !this.crashed &&
+            !this.closed &&
+            !state.ended
+          ) {
+            state.ended = true
+            resolve({ failed: true, navigated: true })
+          }
+        }
+      )
+    }
+
+    page.on('crash', onCrash)
+    page.on('close', onClose)
+    page.on('framenavigated', onFrameNavigated)
+
+    return {
+      wait: async () => {
+        if (!state.ended) {
+          const snapshot = await page
+            .evaluate(() => {
+              // @ts-expect-error
+              const ctrl = globalThis.PW_TEST
+              if (!ctrl) {
+                return { navigated: true, ended: true, failed: true }
+              }
+              return {
+                navigated: false,
+                ended: ctrl.ended === true,
+                failed: Boolean(ctrl.failed),
+              }
+            })
+            .catch(() => undefined)
+          if (snapshot?.ended && !state.ended) {
+            state.ended = true
+            state.failed = snapshot.failed
+            resolve({
+              failed: snapshot.failed,
+              navigated: snapshot.navigated,
+            })
+          }
+        }
+        return promise
+      },
+      dispose: () => {
+        page.off('crash', onCrash)
+        page.off('close', onClose)
+        page.off('framenavigated', onFrameNavigated)
+        if (this.#testWait === state) {
+          this.#testWait = undefined
+        }
+      },
+    }
   }
 
   async watch() {
@@ -494,10 +710,13 @@ export class Runner extends BaseRunner {
         await this.setupBeforePage(context)
       }
 
+      const compiled = this.compiler()
+      compiled.catch(() => undefined)
+
       // Setup page
       page = await this.setupPage(context)
 
-      ;({ files } = await this.runTests(page))
+      ;({ files } = await this.runTests(page, compiled))
     } catch (/** @type {any} */ error) {
       await this.stop(true, this.#endReason() || error)
       return
