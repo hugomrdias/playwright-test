@@ -711,6 +711,7 @@ class Test {
       fn = noop
     }
 
+    /** @type {string} */
     this.name =
       typeof name === 'string' && name !== ''
         ? name
@@ -1819,10 +1820,34 @@ export const assert = {
 /**
  * The context of the running test, if there's one.
  *
- * @returns {import('node:test').TestContext | undefined}
+ * @returns {{
+ *   readonly signal: AbortSignal,
+ *   readonly name: string,
+ *   readonly filePath: undefined,
+ *   readonly fullName: string,
+ *   readonly error: any,
+ *   readonly passed: boolean,
+ *   readonly attempt: number,
+ *   readonly tags: string[],
+ *   readonly workerId: undefined,
+ *   readonly assert: Record<string, Function>,
+ *   readonly mock: any,
+ *   diagnostic(message: string): void,
+ *   log(message: string, data?: unknown): void,
+ *   plan(count: number, options?: { wait?: boolean | number }): void,
+ *   runOnly(value: boolean): void,
+ *   skip(message?: string): void,
+ *   todo(message?: string): void,
+ *   test(name?: any, options?: any, fn?: any): Promise<void>,
+ *   before(fn: any, options?: any): void,
+ *   after(fn: any, options?: any): void,
+ *   beforeEach(fn: any, options?: any): void,
+ *   afterEach(fn: any, options?: any): void,
+ *   waitFor<T>(condition: () => T | Promise<T>, options?: { interval?: number, timeout?: number }): Promise<T>,
+ * } | undefined}
  */
 export function getTestContext() {
-  return /** @type {any} */ (current === root ? undefined : current.getCtx())
+  return current === root ? undefined : current.getCtx()
 }
 
 /** @type {typeof import('node:test').test} */
