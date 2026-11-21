@@ -224,10 +224,16 @@ export class Runner extends BaseRunner {
       context.exposeBinding(
         'PW_TEST_NOTIFY',
         (
-          /** @type {{ page: Page }} */ { page },
+          /** @type {{ page: Page, frame: import('playwright-core').Frame }} */ {
+            page,
+            frame,
+          },
           /** @type {'beforeEnd' | 'end'} */ event,
           /** @type {boolean} */ failed
         ) => {
+          if (frame !== page.mainFrame()) {
+            return
+          }
           if (event === 'beforeEnd') {
             this.#onBeforeEnd(page)
           } else if (event === 'end') {
