@@ -1,4 +1,7 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { describe, it } from 'node:test'
 import { execa, runCli, TEST_CONCURRENCY } from './helpers.js'
 
@@ -178,6 +181,21 @@ describe('runner options', () => {
         'only be set once',
       ],
       [
+        '--test-name-pattern without a value',
+        ['--test-name-pattern'],
+        'non-empty pattern',
+      ],
+      [
+        '--test-name-pattern followed by another flag',
+        ['--test-name-pattern', '--runner', 'mocha'],
+        'non-empty pattern',
+      ],
+      [
+        'an empty --test-name-pattern',
+        ['--test-name-pattern='],
+        'non-empty pattern',
+      ],
+      [
         'an invalid --test-name-pattern',
         ['--test-name-pattern', '('],
         'Invalid --test-name-pattern',
@@ -188,6 +206,26 @@ describe('runner options', () => {
         'must be a number',
       ],
       ['a negative --test-timeout', ['--test-timeout=-1'], 'must be a number'],
+      [
+        'a non-integer --test-timeout',
+        ['--test-timeout', '1.5'],
+        'must be a number',
+      ],
+      [
+        '--test-timeout at 2 ** 31 - 1 (disables mocha timeouts)',
+        ['--test-timeout', String(2 ** 31 - 1)],
+        'must be a number',
+      ],
+      [
+        '--test-timeout above the max signed 32-bit int',
+        ['--test-timeout', String(2 ** 31)],
+        'must be a number',
+      ],
+      [
+        '--test-timeout without a value',
+        ['--test-timeout'],
+        'must be a number',
+      ],
     ]
     for (const [name, args, message] of invalid) {
       it(name, async () => {
@@ -198,6 +236,51 @@ describe('runner options', () => {
         ok(!proc.stderr.includes('    at '), proc.stderr)
       })
     }
+
+    it('--test-timeout accepts 0 and 2 ** 31 - 2 and applies them in mocha', async () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-test-timeout-'))
+      const file = path.join(dir, 'timeout.test.js')
+      try {
+        fs.writeFileSync(
+          file,
+          `it('reports timeout', function () {
+  console.log('EFFECTIVE_TIMEOUT:' + this.timeout())
+})
+`
+        )
+        for (const timeout of ['0', String(2 ** 31 - 2)]) {
+          const proc = await runCli(
+            [
+              file,
+              '--runner',
+              'mocha',
+              '--mode',
+              'node',
+              '--test-timeout',
+              timeout,
+            ],
+            { reject: false }
+          )
+
+          is(proc.exitCode, 0, output(proc))
+          ok(proc.stdout.includes(`EFFECTIVE_TIMEOUT:${timeout}`), output(proc))
+        }
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true })
+      }
+    })
+
+    it('--test-name-pattern accepts a numeric pattern as a string', async () => {
+      const proc = await run('mocha', [
+        '--mode',
+        'node',
+        '--test-name-pattern',
+        '123',
+      ])
+
+      is(proc.exitCode, 0, output(proc))
+      ok(!proc.stdout.includes('alpha one'), proc.stdout)
+    })
 
     it('the flags the cli does know still parse', async () => {
       const proc = await run('mocha', ['--mode', 'node', '--no-transform'])
