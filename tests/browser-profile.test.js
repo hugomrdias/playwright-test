@@ -22,9 +22,14 @@ async function withTempDir(fn) {
   const temp = fs.mkdtempSync(path.join(parent, 'pw-profile-'))
   // Which one os.tmpdir() reads depends on the platform
   const env = { TMPDIR: temp, TMP: temp, TEMP: temp }
-  // Firefox makes this one itself on Windows, it's empty and always the same
+  // Firefox makes this one itself on Windows, it's empty and always the same.
+  // Node's compile cache is kept on purpose, it's shared by every run.
   const leftovers = () =>
-    fs.readdirSync(temp).filter((name) => name !== 'mozilla-temp-files')
+    fs
+      .readdirSync(temp)
+      .filter(
+        (name) => name !== 'mozilla-temp-files' && name !== 'node-compile-cache'
+      )
 
   try {
     await fn({ temp, env, leftovers })
