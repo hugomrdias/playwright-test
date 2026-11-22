@@ -26,6 +26,8 @@
     "pw-test": "./src/bin.ts"
   },
   "publishConfig": {
+    "main": "./dist/runner.js",
+    "types": "./dist/runner.d.ts",
     "bin": {
       "playwright-test": "./dist/bin.js",
       "pw-test": "./dist/bin.js"
@@ -52,6 +54,22 @@
         "types": "./dist/client/index.d.ts",
         "default": "./dist/client/index.js"
       }
+    },
+    "typesVersions": {
+      "*": {
+        "node-test": [
+          "dist/node/test.d.ts"
+        ],
+        "node-assert": [
+          "dist/node/assert.d.ts"
+        ],
+        "node-util": [
+          "dist/node/util.d.ts"
+        ],
+        "client": [
+          "dist/client/index.d.ts"
+        ]
+      }
     }
   },
   "files": [
@@ -72,6 +90,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "prepack": "node scripts/prepack.ts && pnpm run build",
     "clean": "rm -rf dist node_modules .tmp",
     "fix": "biome check --fix .",
     "lint": "tsc && biome check .",

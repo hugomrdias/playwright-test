@@ -1,7 +1,7 @@
 import type { ChildProcess } from 'node:child_process'
 import { spawn } from 'node:child_process'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
 import { watch } from 'chokidar'
 import { asyncExitHook } from 'exit-hook'
@@ -47,11 +47,11 @@ export class NodeRunner extends BaseRunner {
   constructor(options: Config, testFiles?: string[]) {
     super(options, testFiles)
     this.child = undefined
-    // For reporters to remove our frames from stack traces
-    this.env.PW_TEST_SRC = new URL('../', import.meta.url).href.replace(
-      'file://',
-      ''
-    )
+    // For reporters to remove our frames from stack traces. A path with forward
+    // slashes, frames have `file:///D:/src`, `/D:/src` or `D:/src` on Windows.
+    this.env.PW_TEST_SRC = fileURLToPath(
+      new URL('../', import.meta.url)
+    ).replaceAll('\\', '/')
   }
 
   assertOptions() {

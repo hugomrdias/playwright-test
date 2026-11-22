@@ -66,7 +66,7 @@ We squash and merge all PRs. Orderly, well-written commits will help us during r
 
 The sources and tests are TypeScript that Node.js runs as is with [type stripping](https://nodejs.org/api/typescript.html#type-stripping), so there's nothing to build to run the CLI or the tests. That means erasable syntax only (no `enum`, `namespace` or parameter properties) and relative imports with their `.ts` extension. `src/vendor` and `src/polyfills` stay JavaScript, they follow the Node.js sources they come from.
 
-In the repo the package exports and bin point to `src`. `pnpm run build` compiles `src` to `dist`, which is what gets published: `publishConfig` swaps the exports and bin for the ones in `dist`, Node.js doesn't strip types under `node_modules`.
+In the repo the package exports and bin point to `src`. `pnpm run build` compiles `src` to `dist`, which is what gets published: `publishConfig` swaps the exports and bin for the ones in `dist`, Node.js doesn't strip types under `node_modules`. Only pnpm applies `publishConfig`, so pack and publish with pnpm, `npm pack` and `npm publish` fail on purpose. `pnpm pack` builds first.
 
 ### Tests
 

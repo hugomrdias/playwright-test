@@ -60,7 +60,12 @@ const IGNORE = /^\s*at.*[\s(](?:node:|internal\/[\w/]*)|^\s*at.*\[eval\d*\]/
  */
 function isInternalFrame(line: string) {
   const src = process.env.PW_TEST_SRC
-  return IGNORE.test(line) || (src !== undefined && line.includes(src))
+  return (
+    IGNORE.test(line) ||
+    (src !== undefined &&
+      // File URLs have the path encoded, like spaces as %20
+      [src, encodeURI(src)].some((s) => line.replaceAll('\\', '/').includes(s)))
+  )
 }
 
 /**

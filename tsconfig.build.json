@@ -4,6 +4,10 @@
   "compilerOptions": {
     "noEmit": false,
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    // Stack traces would point to src, where reporters and the stack mapper
+    // can't tell our frames from the tests'. Like before the build, they stay
+    // in the files that run. Declaration maps still link the types to src.
+    "sourceMap": false
   }
 }

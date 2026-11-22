@@ -330,6 +330,31 @@ describe('stack traces in node mode', () => {
       }
     }
   })
+
+  it('removes the frames of the runner in any form of a Windows path', () => {
+    const stack = [
+      'Error: x',
+      '    at helper (/D:/my project/test.js:1:1)',
+      '    at invoke (D:/my project/src/node/test.ts:1:1)',
+      '    at run (/D:/my project/src/node/test.ts:1:1)',
+      '    at start (file:///D:/my%20project/src/node/test.ts:1:1)',
+      '    at drain (D:\\my project\\src\\node\\test.ts:1:1)',
+    ].join('\n')
+    const previous = process.env.PW_TEST_SRC
+    process.env.PW_TEST_SRC = 'D:/my project/src/'
+    try {
+      is(
+        cleanStack(stack),
+        'Error: x\n    at helper (/D:/my project/test.js:1:1)'
+      )
+    } finally {
+      if (previous === undefined) {
+        delete process.env.PW_TEST_SRC
+      } else {
+        process.env.PW_TEST_SRC = previous
+      }
+    }
+  })
 })
 
 // The other files run in chromium, stack traces can't be mapped in the page in the others
