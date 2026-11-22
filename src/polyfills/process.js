@@ -61,15 +61,44 @@ function hrtime(previousTimestamp) {
   return [seconds, nanoseconds]
 }
 
+/** @type {[string | undefined, any]} */
+let stdioCache = [undefined, undefined]
+
+/**
+ * What the runner says about its own stream in `PW_STDIO`, see
+ * `src/base-runner.js`. Without it the stream is a TTY with 256 colors.
+ *
+ * @param {'stdout' | 'stderr'} name
+ * @returns {{ isTTY: boolean, colorDepth: number }}
+ */
+function runnerStream(name) {
+  const value = p.env.PW_STDIO
+  if (stdioCache[0] !== value) {
+    let parsed
+    try {
+      parsed = value ? JSON.parse(value) : undefined
+    } catch {
+      parsed = undefined
+    }
+    stdioCache = [value, parsed]
+  }
+  const stream = stdioCache[1]?.[name]
+  return {
+    isTTY: stream?.isTTY ?? true,
+    colorDepth: stream?.colorDepth ?? 8,
+  }
+}
+
 /**
  * A stream that writes to the runner. Pages have a binding for it and workers can
  * only post to the page, which is more than service workers can do.
  *
+ * @param {'stdout' | 'stderr'} name
  * @param {string} binding
  * @param {string} key
  * @param {'log' | 'error'} method
  */
-function createStream(binding, key, method) {
+function createStream(name, binding, key, method) {
   return {
     write(message, encoding, callback) {
       const done = typeof encoding === 'function' ? encoding : callback
@@ -119,9 +148,11 @@ function createStream(binding, key, method) {
       ) {
         return 1
       }
-      return 8
+      return runnerStream(name).colorDepth
     },
-    isTTY: true,
+    get isTTY() {
+      return runnerStream(name).isTTY
+    },
   }
 }
 
@@ -175,8 +206,8 @@ const p = {
       globalThis.PW_TEST.end(failed)
     }
   },
-  stdout: createStream('PW_TEST_STDOUT_WRITE', 'pwStdout', 'log'),
-  stderr: createStream('PW_TEST_STDERR_WRITE', 'pwStderr', 'error'),
+  stdout: createStream('stdout', 'PW_TEST_STDOUT_WRITE', 'pwStdout', 'log'),
+  stderr: createStream('stderr', 'PW_TEST_STDERR_WRITE', 'pwStderr', 'error'),
   hrtime,
 }
 

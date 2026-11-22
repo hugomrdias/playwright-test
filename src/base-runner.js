@@ -1,3 +1,4 @@
+import { WriteStream } from 'node:tty'
 import { fileURLToPath } from 'node:url'
 import { gracefulExit } from 'exit-hook'
 import { mkdirSync } from 'fs'
@@ -18,6 +19,34 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
+
+const COLOR_SWITCHES = new Set([
+  'FORCE_COLOR',
+  'NO_COLOR',
+  'NODE_DISABLE_COLORS',
+])
+
+/**
+ * Whether the streams of this process are TTYs and the colors their terminal
+ * has, for the `process.stdout` and `process.stderr` of browsers. The color
+ * depth comes from the env the tests get and leaves out the variables that
+ * turn colors on or off, browsers check those in their own env like Node.js does.
+ *
+ * @param {NodeJS.ProcessEnv} testEnv
+ */
+function stdio(testEnv) {
+  // Undefined values never reach the tests, Node.js checks keys like `CI` with `in`
+  const env = Object.fromEntries(
+    Object.entries(testEnv).filter(
+      ([key, value]) => value !== undefined && !COLOR_SWITCHES.has(key)
+    )
+  )
+  const colorDepth = WriteStream.prototype.getColorDepth(env)
+  return {
+    stdout: { isTTY: Boolean(process.stdout.isTTY), colorDepth },
+    stderr: { isTTY: Boolean(process.stderr.isTTY), colorDepth },
+  }
+}
 
 /**
  * What running the tests takes in a browser and in node.
@@ -49,6 +78,7 @@ export class BaseRunner {
     /** @type {import('./types.js').RunnerEnv} */
     this.env = merge(JSON.parse(JSON.stringify(process.env)), {
       PW_OPTIONS: JSON.stringify(this.options),
+      PW_STDIO: JSON.stringify(stdio(process.env)),
       NODE_ENV: 'test',
     })
     this.tests =
@@ -81,6 +111,8 @@ export class BaseRunner {
 
   async runBeforeTests() {
     this.beforeTestsOutput = await this.options.beforeTests(this.env)
+    // The hook can change the env, like TERM, and with it the color depth
+    this.env.PW_STDIO = JSON.stringify(stdio(this.env))
     this.beforeTestsFinished = true
   }
 

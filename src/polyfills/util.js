@@ -41,13 +41,21 @@ function parseHexColor(hex) {
 }
 
 /**
+ * The `process` of bundles is the polyfill esbuild injects for the free
+ * identifier, `globalThis.process` isn't there in browsers.
+ */
+function runtimeProcess() {
+  return typeof process === 'undefined' ? undefined : process
+}
+
+/**
  * Whether `styleText` should emit ANSI codes for `stream` under `env`, matching
  * Node.js's `shouldColorize` / `tty.WriteStream.prototype.getColorDepth`.
  *
  * @param {any} stream
  */
 function shouldColorize(stream) {
-  const env = globalThis.process?.env
+  const env = runtimeProcess()?.env
   if (env?.FORCE_COLOR !== undefined) {
     const value = env.FORCE_COLOR
     return (
@@ -95,7 +103,7 @@ export function styleText(format, text, options) {
 
   const skipColorize =
     validateStream &&
-    !shouldColorize(options?.stream ?? globalThis.process?.stdout)
+    !shouldColorize(options?.stream ?? runtimeProcess()?.stdout)
   const formatArray = Array.isArray(format) ? format : [format]
 
   let openCodes = ''

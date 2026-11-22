@@ -299,6 +299,56 @@ describe('playwright-test/node-test', () => {
         ok(!/\u001B\[/.test(proc.stdout), proc.stdout)
       })
 
+      it('no colors when piped', async () => {
+        // A color terminal, so only the pipe turns colors off
+        const proc = await runCli(
+          [fixture('fail-falsy'), ...runner, '--mode', mode],
+          {
+            reject: false,
+            env: {
+              FORCE_COLOR: undefined,
+              NO_COLOR: undefined,
+              NODE_DISABLE_COLORS: undefined,
+              TERM: 'xterm-256color',
+            },
+          }
+        )
+
+        is(proc.exitCode, 1, 'exit code')
+        ok(proc.stdout.includes('✖ throws undefined'), proc.stdout)
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: ansi colors
+        ok(!/\u001B\[/.test(proc.stdout), proc.stdout)
+      })
+
+      it('colors with FORCE_COLOR when piped', async () => {
+        const proc = await runCli(
+          [fixture('fail-falsy'), ...runner, '--mode', mode],
+          { reject: false, env: { FORCE_COLOR: '1', NO_COLOR: undefined } }
+        )
+
+        is(proc.exitCode, 1, 'exit code')
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: ansi colors
+        ok(/\u001B\[/.test(proc.stdout), proc.stdout)
+      })
+
+      it('styleText follows the pipe and FORCE_COLOR', async () => {
+        /** @param {Record<string, string | undefined>} env */
+        const styled = async (env) => {
+          const proc = await runCli(
+            [fixture('style-text'), ...runner, '--mode', mode],
+            { reject: false, env: { NO_COLOR: undefined, ...env } }
+          )
+          is(proc.exitCode, 0, proc.stdout)
+          return proc.stdout.match(/STYLED (.*)/)?.[1]
+        }
+
+        is(await styled({ FORCE_COLOR: undefined }), '"x"')
+        is(
+          await styled({ FORCE_COLOR: '1' }),
+          JSON.stringify('\u001B[31mx\u001B[39m')
+        )
+      })
+
       it('root after hook runs when the run ends', async () => {
         // Real node:test runs it after the first test that was awaited
         const { proc, order } = await runApi('top-level-await-after', mode)
