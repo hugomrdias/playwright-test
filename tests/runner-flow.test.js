@@ -1,4 +1,9 @@
-import { strictEqual as is, match, ok } from 'node:assert/strict'
+import {
+  deepStrictEqual as equal,
+  strictEqual as is,
+  match,
+  ok,
+} from 'node:assert/strict'
 import { once } from 'node:events'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -110,7 +115,12 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
         )
 
         is(proc.exitCode, 0, proc.stderr)
-        is(fs.readdirSync(temp).length, 0, 'files left')
+        // Node's compile cache is kept on purpose, it's shared by every run
+        equal(
+          fs.readdirSync(temp).filter((name) => name !== 'node-compile-cache'),
+          [],
+          'files left'
+        )
       } finally {
         fs.rmSync(temp, { force: true, recursive: true })
       }
