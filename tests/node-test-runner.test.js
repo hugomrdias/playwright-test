@@ -91,6 +91,22 @@ describe('node:test runner', () => {
     })
   }
 
+  // In node mode the shim gets the options from PW_OPTIONS, not from node flags
+  it('--test-name-pattern and --test-timeout reach the shim in node mode', async () => {
+    const args = ['--runner', 'node-test']
+    const [filtered, timedOut] = await Promise.all([
+      run('shim', 'node', [...args, '--test-name-pattern', 'alpha']),
+      run('shim', 'node', [...args, '--test-timeout', '50']),
+    ])
+
+    is(filtered.exitCode, 0, output(filtered))
+    ok(filtered.stdout.includes('ℹ pass 1'), output(filtered))
+    ok(!filtered.stdout.includes('is too slow'), output(filtered))
+    is(timedOut.exitCode, 1, output(timedOut))
+    ok(timedOut.stdout.includes('ℹ cancelled 1'), output(timedOut))
+    ok(timedOut.stdout.includes('ℹ pass 2'), output(timedOut))
+  })
+
   // The real node:test in node mode, the shim in browsers, the same in main and worker
   for (const mode of ['node', 'main']) {
     describe(`--test-name-pattern with --mode ${mode}`, {
