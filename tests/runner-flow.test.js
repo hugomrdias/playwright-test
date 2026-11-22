@@ -157,6 +157,77 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
       ok(proc.stdout.includes('controlled:false'), proc.stdout)
     })
 
+    describe('env in the browser', { concurrency: false }, () => {
+      const env = { FLOW_ENV: 'flow-env-value' }
+
+      for (const args of [
+        ['--mode', 'main'],
+        ['--mode', 'worker'],
+        ['--extension'],
+      ]) {
+        it(`has the env and PW_SERVER with ${args.join(' ')}`, async () => {
+          const proc = await runFlow('env.js', args, { env })
+
+          is(proc.exitCode, 0, proc.stderr)
+          ok(
+            proc.stdout.includes('env:flow-env-value:undefined:true'),
+            proc.stdout
+          )
+          ok(
+            proc.stdout.includes('meta-env:flow-env-value:undefined:true'),
+            proc.stdout
+          )
+        })
+      }
+
+      for (const mode of ['main', 'worker']) {
+        it(`has what beforeTests added to the env with mode:${mode}`, async () => {
+          const proc = await runFlow(
+            'env.js',
+            ['--config', `${FLOW}/env.config.mjs`, '--mode', mode],
+            { env }
+          )
+
+          is(proc.exitCode, 0, proc.stderr)
+          ok(
+            proc.stdout.includes('env:flow-env-value:from-before-tests:true'),
+            proc.stdout
+          )
+          ok(
+            proc.stdout.includes(
+              'meta-env:flow-env-value:from-before-tests:true'
+            ),
+            proc.stdout
+          )
+        })
+      }
+
+      it('has the env in the before page', async () => {
+        const proc = await runFlow(
+          'env.js',
+          [
+            '--config',
+            `${FLOW}/env.config.mjs`,
+            '--before',
+            `${FLOW}/env-before.js`,
+          ],
+          { env }
+        )
+
+        is(proc.exitCode, 0, proc.stderr)
+        ok(
+          proc.stdout.includes(
+            'before-env:flow-env-value:from-before-tests:true'
+          ),
+          proc.stdout
+        )
+        ok(
+          proc.stdout.includes('env:flow-env-value:from-before-tests:true'),
+          proc.stdout
+        )
+      })
+    })
+
     it('has the env, the console and stdout in the service worker', async () => {
       const proc = await runFlow(
         'sw-reports.test.js',

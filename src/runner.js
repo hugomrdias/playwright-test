@@ -14,14 +14,17 @@ import {
   assertBrowserOptions,
   build,
   createPolka,
+  defaultOptions,
   getPw,
   log,
   readConsole,
   runTimeoutMessage,
+  writeEnv,
 } from './utils/index.js'
 import { createStackMapper } from './utils/stack-map.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const noop = () => undefined
 // Tests of stuck pages lower it, they always wait for all of it
 const CONSOLE_FLUSH_TIMEOUT =
   Number(process.env.PW_TEST_CONSOLE_FLUSH_TIMEOUT) || 5000
@@ -51,6 +54,8 @@ export class Runner extends BaseRunner {
   #beforeWait = undefined
   /** @type {{ page: Page, ended: boolean, failed: boolean, resolve: (result: { failed: boolean, navigated: boolean }) => void } | undefined} */
   #testWait = undefined
+  /** @type {Promise<import('./types.js').CompilerOutput> | undefined} */
+  #compiling = undefined
 
   /**
    *
@@ -359,6 +364,7 @@ export class Runner extends BaseRunner {
     const [{ outName, files: mainFiles }, swOutput] = await Promise.all([
       compiled,
       swBuild,
+      writeEnv(this.dir, this.env),
       page.addScriptTag({ url: 'setup.js' }),
       page.evaluate((value) => {
         localStorage.debug = value
@@ -410,7 +416,10 @@ export class Runner extends BaseRunner {
         (this.options.trace === 'off' || this.options.debug ? 0 : TRACE_WAIT),
     })
 
+    /** @type {Promise<import('./types.js').CompilerOutput> | undefined} */
+    let compiled
     try {
+      compiled = this.#compileEarly()
       // Setup the context
       const context = await this.setupContext()
       // After setupContext, downloading a browser doesn't count
@@ -422,10 +431,8 @@ export class Runner extends BaseRunner {
         await this.setupBeforePage(context)
       }
 
-      // Start esbuild bundling in parallel with setting up the test page
-      const compiled = this.compiler()
-      // Avoid unhandled rejection if setupPage fails before runTests awaits it
-      compiled.catch(() => undefined)
+      // In parallel with setting up the test page
+      compiled ??= this.#compile()
 
       // Setup page
       const page = await this.setupPage(context)
@@ -494,6 +501,7 @@ export class Runner extends BaseRunner {
         return p
       }),
       this.compiler('before'),
+      writeEnv(this.dir, this.env),
     ])
 
     /** @type {PromiseWithResolvers<void>} */
@@ -708,7 +716,10 @@ export class Runner extends BaseRunner {
     let page
     /** @type {string[]} */
     let files
+    /** @type {Promise<import('./types.js').CompilerOutput> | undefined} */
+    let compiled
     try {
+      compiled = this.#compileEarly()
       // Setup the context
       const context = await this.setupContext()
       await this.runBeforeTests()
@@ -718,8 +729,7 @@ export class Runner extends BaseRunner {
         await this.setupBeforePage(context)
       }
 
-      const compiled = this.compiler()
-      compiled.catch(() => undefined)
+      compiled ??= this.#compile()
 
       // Setup page
       page = await this.setupPage(context)
@@ -1065,7 +1075,9 @@ export class Runner extends BaseRunner {
     ])
     clearTimeout(timer)
 
-    // After the browser closed, it can still be using them
+    // After the browser closed, it can still be using them. A bundle started
+    // early may still be writing when the setup failed.
+    await this.#compiling?.then(noop, noop)
     this.removeFiles()
   }
 
@@ -1092,6 +1104,27 @@ export class Runner extends BaseRunner {
     }
 
     await this.exit(fail, msg)
+  }
+
+  /**
+   * Start the bundle of the tests, it fails the run where it's awaited.
+   */
+  #compile() {
+    const compiled = this.compiler()
+    // Avoid unhandled rejection if something fails before it gets awaited
+    compiled.catch(noop)
+    this.#compiling = compiled
+    return compiled
+  }
+
+  /**
+   * Bundle while the browser starts, the env it needs comes later in
+   * `ENV_FILE`. Not with a `beforeTests` hook, it could make files the tests import.
+   */
+  #compileEarly() {
+    return this.options.beforeTests === defaultOptions.beforeTests
+      ? this.#compile()
+      : undefined
   }
 
   /**

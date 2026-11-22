@@ -652,6 +652,28 @@ w.onmessage = function(e) {
 }
 
 /**
+ * The file with the env of the run, next to the bundles. It's written once the
+ * env is complete, so bundling doesn't have to wait for the server and the
+ * `beforeTests` hook.
+ */
+export const ENV_FILE = 'pw-env.js'
+
+const ENV_MODULE = 'playwright-test:env'
+
+/**
+ * Write the env the bundles import from {@link ENV_FILE}.
+ *
+ * @param {string} dir - Runner directory
+ * @param {Record<string, unknown>} env
+ */
+export function writeEnv(dir, env) {
+  return fs.promises.writeFile(
+    path.join(dir, ENV_FILE),
+    `export default ${JSON.stringify(env)}\n`
+  )
+}
+
+/**
  * Build the bundle
  *
  * @param {import("../runner").Runner} runner
@@ -662,21 +684,20 @@ w.onmessage = function(e) {
 export async function build(runner, config = {}, tmpl = '', mode = 'bundle') {
   const outName = `${mode}-out.js`
   const outPath = path.join(runner.dir, outName)
-  const files = new Set()
 
   // main script template
-  let infileContent = `
-Object.assign(process.env, ${JSON.stringify(runner.env)})
-import.meta.env = ${JSON.stringify(runner.env)}
-
+  // Imports run first, so the env is there before anything the template imports
+  const env = `
+import env from ${JSON.stringify(ENV_MODULE)}
+Object.assign(process.env, env)
+import.meta.env = { ...env }
+`
+  let infileContent = `${env}
 ${tmpl}
 `
   // before script template
   if (mode === 'before' && runner.options.before) {
-    infileContent = `
-Object.assign(process.env, ${JSON.stringify(runner.env)})
-import.meta.env = ${JSON.stringify(runner.env)}
-
+    infileContent = `${env}
 await import(${JSON.stringify(
       require.resolve('../../static/setup.js').replaceAll('\\', '/')
     )})
@@ -689,12 +710,14 @@ await import(${JSON.stringify(
   }
 
   /** @type {ESBuildPlugin} */
-  const watchPlugin = {
-    name: 'watcher',
+  const envPlugin = {
+    name: 'env',
     setup(build) {
-      build.onLoad({ filter: /.*/, namespace: 'file' }, (args) => {
-        files.add(args.path)
-      })
+      // Next to the bundle in the page, the worker and the extension
+      build.onResolve({ filter: new RegExp(`^${ENV_MODULE}$`) }, () => ({
+        path: `./${ENV_FILE}`,
+        external: true,
+      }))
     },
   }
   /** @type {ESBuildOptions} */
@@ -708,7 +731,9 @@ await import(${JSON.stringify(
     sourcemap: 'inline',
     platform: 'browser',
     format: 'esm',
-    plugins: [watchPlugin, wasmLoader()],
+    plugins: [envPlugin, wasmLoader()],
+    // The files to watch, a plugin would wait on this thread for each one
+    metafile: true,
     outfile: outPath,
     inject: [path.join(__dirname, 'inject-process.js')],
     alias: polyfillAliases,
@@ -717,7 +742,18 @@ await import(${JSON.stringify(
       global: 'globalThis',
     },
   }
-  await esbuild.build(merge(defaultOptions, config, runner.options.buildConfig))
+  const options = merge(defaultOptions, config, runner.options.buildConfig)
+  const { metafile } = await esbuild.build(options)
+
+  const cwd = options.absWorkingDir ?? process.cwd()
+  /** @type {Set<string>} */
+  const files = new Set()
+  for (const input of Object.keys(metafile?.inputs ?? {})) {
+    // Not `<stdin>` or the ones of other namespaces, like `wasm-stub:file.wasm`
+    if (!input.startsWith('<') && !/^[\w-]{2,}:/.test(input)) {
+      files.add(path.resolve(cwd, input))
+    }
+  }
 
   return { outName, files }
 }
