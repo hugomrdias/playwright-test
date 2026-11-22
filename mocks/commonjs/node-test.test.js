@@ -1,3 +1,3 @@
-import { test } from '../../src/node/test.js'
+import { test } from '../../src/node/test.ts'
 
 test('commonjs node-test', () => {})

@@ -1,6 +1,6 @@
 /** biome-ignore-all lint/suspicious/noConsole: the output is what's tested */
 import { strict as assert } from 'assert'
-import defaultTest, { describe, it, suite, test } from '../../src/node/test.js'
+import defaultTest, { describe, it, suite, test } from '../../src/node/test.ts'
 
 const log = (/** @type {string} */ msg) => console.log(`ORDER ${msg}`)
 

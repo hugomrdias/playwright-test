@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert'
-import { test } from '../../src/node/test.js'
-import { exec, hold } from '../../src/node/test-harness.js'
+import { test } from '../../src/node/test.ts'
+import { exec, hold } from '../../src/node/test-harness.ts'
 
 hold()
 test('initial', () => {

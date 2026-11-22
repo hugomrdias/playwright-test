@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/suspicious/noConsole: the output is what's tested */
-import { after, test } from '../../src/node/test.js'
+import { after, test } from '../../src/node/test.ts'
 
 const log = (/** @type {string} */ msg) => console.log(`ORDER ${msg}`)
 

@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert'
-import * as Client from '../../src/client/index.js'
-import { test } from '../../src/node/test.js'
+import * as Client from '../../src/client/index.ts'
+import { test } from '../../src/node/test.ts'
 
 // The input goes to the page, a worker running the tests can't see it
 const inPage = globalThis.document !== undefined

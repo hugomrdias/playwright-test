@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert'
-import { mock, test } from '../../src/node/test.js'
+import { mock, test } from '../../src/node/test.ts'
 
 test('mock.fn', () => {
   const fn = mock.fn(

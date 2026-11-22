@@ -4,7 +4,7 @@ import {
   ok,
 } from 'node:assert/strict'
 import createDebug from 'debug'
-import * as Client from '../src/client/index.js'
+import * as Client from '../src/client/index.ts'
 import { bad, good } from './lib.js'
 
 const debug = createDebug('app')

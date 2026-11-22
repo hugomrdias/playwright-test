@@ -14,62 +14,50 @@
     "mocha"
   ],
   "exports": {
-    ".": {
-      "types": "./dist/src/runner.d.ts",
-      "default": "./src/runner.js"
-    },
+    ".": "./src/runner.ts",
     "./package.json": "./package.json",
-    "./node-test": {
-      "types": "./dist/src/node/test.d.ts",
-      "default": "./src/node/test.js"
-    },
-    "./node-assert": {
-      "types": "./dist/src/node/assert.d.ts",
-      "default": "./src/node/assert.js"
-    },
-    "./node-util": {
-      "types": "./dist/src/node/util.d.ts",
-      "default": "./src/node/util.js"
-    },
-    "./client": {
-      "types": "./dist/src/client/index.d.ts",
-      "default": "./src/client/index.js"
-    }
-  },
-  "main": "src/runner.js",
-  "types": "dist/src/runner.d.ts",
-  "typesVersions": {
-    "*": {
-      "node-test": [
-        "dist/src/node/test.d.ts"
-      ],
-      "node-assert": [
-        "dist/src/node/assert.d.ts"
-      ],
-      "node-util": [
-        "dist/src/node/util.d.ts"
-      ],
-      "client": [
-        "dist/src/client/index.d.ts"
-      ]
-    }
+    "./node-test": "./src/node/test.ts",
+    "./node-assert": "./src/node/assert.ts",
+    "./node-util": "./src/node/util.ts",
+    "./client": "./src/client/index.ts"
   },
   "bin": {
-    "playwright-test": "cli.js",
-    "pw-test": "cli.js"
+    "playwright-test": "./src/bin.ts",
+    "pw-test": "./src/bin.ts"
+  },
+  "publishConfig": {
+    "bin": {
+      "playwright-test": "./dist/bin.js",
+      "pw-test": "./dist/bin.js"
+    },
+    "exports": {
+      ".": {
+        "types": "./dist/runner.d.ts",
+        "default": "./dist/runner.js"
+      },
+      "./package.json": "./package.json",
+      "./node-test": {
+        "types": "./dist/node/test.d.ts",
+        "default": "./dist/node/test.js"
+      },
+      "./node-assert": {
+        "types": "./dist/node/assert.d.ts",
+        "default": "./dist/node/assert.js"
+      },
+      "./node-util": {
+        "types": "./dist/node/util.d.ts",
+        "default": "./dist/node/util.js"
+      },
+      "./client": {
+        "types": "./dist/client/index.d.ts",
+        "default": "./dist/client/index.js"
+      }
+    }
   },
   "files": [
-    "dist/src/runner.d.ts",
-    "dist/src/runner.d.ts.map",
-    "dist/src/base-runner.d.ts",
-    "dist/src/base-runner.d.ts.map",
-    "dist/src/node",
-    "dist/src/types.d.ts",
-    "dist/src/types.d.ts.map",
-    "dist/src/client",
-    "static",
+    "dist",
     "src",
-    "cli.js"
+    "static"
   ],
   "engines": {
     "node": ">=24.0.0"
@@ -83,11 +71,11 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist node_modules .tmp",
     "fix": "biome check --fix .",
-    "lint": "tsc --noEmit && biome check .",
-    "test": "node --test --test-force-exit --test-timeout=50000 --test-concurrency=3 \"tests/*.test.js\""
+    "lint": "tsc && biome check .",
+    "test": "node --test --test-force-exit --test-timeout=50000 --test-concurrency=3 \"tests/*.test.ts\""
   },
   "dependencies": {
     "@jridgewell/trace-mapping": "^0.3.31",
