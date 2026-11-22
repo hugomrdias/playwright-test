@@ -23,11 +23,13 @@ const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
 /**
  * Whether the streams of this process are TTYs and the colors their terminal
  * has, for the `process.stdout` and `process.stderr` of browsers. The color
- * depth leaves out the variables that turn colors on or off, browsers check
- * those in their own env like Node.js does.
+ * depth comes from the env the tests get and leaves out the variables that
+ * turn colors on or off, browsers check those in their own env like Node.js does.
+ *
+ * @param {NodeJS.ProcessEnv} testEnv
  */
-function stdio() {
-  const env = { ...process.env }
+function stdio(testEnv) {
+  const env = { ...testEnv }
   delete env.FORCE_COLOR
   delete env.NO_COLOR
   delete env.NODE_DISABLE_COLORS
@@ -68,7 +70,7 @@ export class BaseRunner {
     /** @type {import('./types.js').RunnerEnv} */
     this.env = merge(JSON.parse(JSON.stringify(process.env)), {
       PW_OPTIONS: JSON.stringify(this.options),
-      PW_STDIO: JSON.stringify(stdio()),
+      PW_STDIO: JSON.stringify(stdio(process.env)),
       NODE_ENV: 'test',
     })
     this.tests =
@@ -101,6 +103,8 @@ export class BaseRunner {
 
   async runBeforeTests() {
     this.beforeTestsOutput = await this.options.beforeTests(this.env)
+    // The hook can change the env, like TERM, and with it the color depth
+    this.env.PW_STDIO = JSON.stringify(stdio(this.env))
     this.beforeTestsFinished = true
   }
 
