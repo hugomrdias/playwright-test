@@ -157,7 +157,6 @@ export const defaultOptions = {
   input: undefined,
   extension: false,
   runner: 'none',
-  before: undefined,
   sw: undefined,
   extensions: 'js,cjs,mjs,ts,tsx,jsx',
   transform: true,
@@ -681,35 +680,19 @@ export function writeEnv(dir, env) {
  * @param {import("../runner").Runner} runner
  * @param {ESBuildOptions} config - Runner esbuild config
  * @param {string} tmpl
- * @param {"bundle" | "before"} mode
  */
-export async function build(runner, config = {}, tmpl = '', mode = 'bundle') {
-  const outName = `${mode}-out.js`
+export async function build(runner, config = {}, tmpl = '') {
+  const outName = 'bundle-out.js'
   const outPath = path.join(runner.dir, outName)
 
-  // main script template
   // Imports run first, so the env is there before anything the template imports
-  const env = `
+  const infileContent = `
 import env from ${JSON.stringify(ENV_MODULE)}
 Object.assign(process.env, env)
 import.meta.env = { ...env }
-`
-  let infileContent = `${env}
+
 ${tmpl}
 `
-  // before script template
-  if (mode === 'before' && runner.options.before) {
-    infileContent = `${env}
-await import(${JSON.stringify(
-      require.resolve('../../static/setup.js').replaceAll('\\', '/')
-    )})
-await import(${JSON.stringify(
-      require
-        .resolve(path.resolve(runner.options.cwd, runner.options.before))
-        .replaceAll('\\', '/')
-    )})
-`
-  }
 
   /** @type {ESBuildPlugin} */
   const envPlugin = {

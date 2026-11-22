@@ -33,7 +33,6 @@ Description
     -d, --debug            Debug mode, keeps browser window open.  (default false)
     -w, --watch            Watch files for changes and re-run tests.
     -e, --extension        Use extension background_page to run tests.  (default false)
-    --before               Path to a script to be loaded on a separate tab before the main script.
     --sw                   Path to a script to be loaded in a service worker.
     --assets               Folder with assets to be served by the http server.  (default process.cwd())
     --cwd                  Current directory.  (default process.cwd())
@@ -52,10 +51,6 @@ Description
     $ playwright-test test.js --runner mocha
     $ playwright-test test --debug
     $ playwright-test "test/**/*.spec.js" --browser webkit --mode worker --debug
-
-    $ playwright-test "test/**/*.spec.js" --debug --before ./mocks/before.js
-    # Run a script in a separate tab. Check ./mocks/before.js for an example.
-    # Important: You need to call `self.PW_TEST.beforeEnd()` to start the main script.
 
   Runner Options
     Everything else a runner takes goes in the config file, under `testRunner.options`.
@@ -150,7 +145,7 @@ Without a config the tests run in an empty worker. The `workerd` key of the conf
 
 The http server of `--assets` runs as in the other modes, tests fetch its files from `process.env.PW_SERVER`.
 
-`--before`, `--sw`, `--extension`, `--trace` and `--watch` don't work in this mode, and neither do the static assets of `cloudflare.config.ts`, it doesn't say where their files are. A test that never settles fails the run, workerd cancels the request it runs in.
+`--sw`, `--extension`, `--trace` and `--watch` don't work in this mode, and neither do the static assets of `cloudflare.config.ts`, it doesn't say where their files are. A test that never settles fails the run, workerd cancels the request it runs in.
 
 ## `node:test` API
 

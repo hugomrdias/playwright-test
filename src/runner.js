@@ -50,8 +50,6 @@ const TRACE_WAIT = 30_000
  */
 
 export class Runner extends BaseRunner {
-  /** @type {{ page: Page, ended: boolean, resolve: () => void } | undefined} */
-  #beforeWait = undefined
   /** @type {{ page: Page, ended: boolean, failed: boolean, resolve: (result: { failed: boolean, navigated: boolean }) => void } | undefined} */
   #testWait = undefined
   /** @type {Promise<import('./types.js').CompilerOutput> | undefined} */
@@ -67,8 +65,8 @@ export class Runner extends BaseRunner {
     this.stackMapper = createStackMapper(this.dir)
     this.url = ''
     this.pageErrored = false
-    /** @type {'' | 'test' | 'before'} the page that crashed */
-    this.crashed = ''
+    /** If the test page crashed */
+    this.crashed = false
     /** @type {'' | 'test page' | 'browser'} what closed before the run ended */
     this.closed = ''
     /** @type {Set<Promise<void>>} */
@@ -238,15 +236,9 @@ export class Runner extends BaseRunner {
             page,
             frame,
           },
-          /** @type {'beforeEnd' | 'end'} */ event,
           /** @type {boolean} */ failed
         ) => {
-          if (frame !== page.mainFrame()) {
-            return
-          }
-          if (event === 'beforeEnd') {
-            this.#onBeforeEnd(page)
-          } else if (event === 'end') {
+          if (frame === page.mainFrame()) {
             this.#onTestEnd(page, Boolean(failed))
           }
         }
@@ -280,10 +272,6 @@ export class Runner extends BaseRunner {
    * @param {Context} context
    */
   async setupPage(context) {
-    // `/` clears the storage of the site, which would wipe what the before
-    // script set up. It only runs once, so also not when reloading.
-    const url = this.options.before ? `${this.url}index.html` : this.url
-
     if (this.options.extension) {
       let [serviceWorker] = context.serviceWorkers()
       if (!serviceWorker)
@@ -320,12 +308,12 @@ export class Runner extends BaseRunner {
       }
     } else {
       this.page = context.pages()[0]
-      await this.page.goto(url)
+      await this.page.goto(this.url)
     }
 
     // Setup page events
     this.page.on('console', this.#onConsole)
-    this.page.on('crash', () => this.#pageCrashed('test'))
+    this.page.on('crash', () => this.#pageCrashed())
     // Under --debug closing the tab leaves nothing to debug, and on macOS the
     // browser keeps running without windows
     this.page.on('close', () => this.#browserEnded('test page'))
@@ -426,11 +414,6 @@ export class Runner extends BaseRunner {
       this.#startRunTimeout()
       await this.runBeforeTests()
 
-      // Run the before script
-      if (this.options.before) {
-        await this.setupBeforePage(context)
-      }
-
       // In parallel with setting up the test page
       compiled ??= this.#compile()
 
@@ -486,105 +469,6 @@ export class Runner extends BaseRunner {
       }
     } catch (/** @type {any} */ error) {
       await this.stop(true, this.#endReason() || error)
-    }
-  }
-
-  /**
-   * Setup and run before page
-   *
-   * @param {Context} context
-   */
-  async setupBeforePage(context) {
-    const [page, { outName }] = await Promise.all([
-      context.newPage().then(async (p) => {
-        await p.goto(`${this.url}before.html`)
-        return p
-      }),
-      this.compiler('before'),
-      writeEnv(this.dir, this.env),
-    ])
-
-    /** @type {PromiseWithResolvers<void>} */
-    const {
-      promise: beforeDone,
-      resolve: resolveBefore,
-      reject: rejectBefore,
-    } = Promise.withResolvers()
-    // Avoid unhandled rejection if addScriptTag rejects before awaiting beforeDone
-    beforeDone.catch(() => undefined)
-
-    const state = {
-      page,
-      ended: false,
-      resolve: resolveBefore,
-    }
-    this.#beforeWait = state
-
-    page.on('console', this.#onConsole)
-    page.on('pageerror', async (err) => {
-      const message = `Uncaught exception happened within the before page. Run with --debug. \n${colors.dim(
-        this.stackMapper.map(err.stack || err.toString())
-      )}`
-      // Check `state.ended` first; if `pageerror` overtook the binding call,
-      // ask the page directly. Without a page the wait fails the run by itself.
-      const ended =
-        state.ended ||
-        (await page.evaluate('self.PW_TEST?.beforeEnded').catch(() => true))
-
-      // A script that threw may never call `beforeEnd`, don't wait for it. The
-      // page stays open under --debug and `stop` does nothing there.
-      if (ended || this.options.debug) {
-        log.error(message)
-      } else {
-        this.stop(true, message)
-      }
-    })
-
-    // Once the script ended the page has done its part
-    const onCrash = () => {
-      this.#pageCrashed('before')
-      rejectBefore(new Error('Target crashed'))
-    }
-    const onClose = () => {
-      // Wait a tick so `context`'s close listener can record `browser` first
-      setImmediate(() => {
-        rejectBefore(
-          new Error('Target page, context or browser has been closed')
-        )
-      })
-    }
-    page.on('crash', onCrash)
-    page.on('close', onClose)
-
-    try {
-      await page.addScriptTag({ url: outName, type: 'module' })
-      // Fallback in case the script set `PW_TEST.beforeEnded = true` directly
-      if (!state.ended) {
-        const alreadyEnded = await page
-          .evaluate('Boolean(self.PW_TEST?.beforeEnded)')
-          .catch(() => false)
-        if (alreadyEnded && !state.ended) {
-          state.ended = true
-          resolveBefore()
-        }
-      }
-      await beforeDone
-    } finally {
-      page.off('crash', onCrash)
-      page.off('close', onClose)
-      if (this.#beforeWait === state) {
-        this.#beforeWait = undefined
-      }
-    }
-  }
-
-  /**
-   * @param {Page} page
-   */
-  #onBeforeEnd(page) {
-    if (this.#beforeWait?.page === page && !this.#beforeWait.ended) {
-      this.#beforeWait.ended = true
-      this.#beforeWait.resolve()
     }
   }
 
@@ -720,11 +604,6 @@ export class Runner extends BaseRunner {
       // Setup the context
       const context = await this.setupContext()
       await this.runBeforeTests()
-
-      // Run the before script
-      if (this.options.before) {
-        await this.setupBeforePage(context)
-      }
 
       // Not before the browser starts, the watcher would miss changes until then
       const compiled = this.#compile()
@@ -897,7 +776,7 @@ export class Runner extends BaseRunner {
    */
   #endReason() {
     if (this.crashed) {
-      return `The ${this.crashed} page crashed, it may have run out of memory.`
+      return 'The test page crashed, it may have run out of memory.'
     }
     if (this.closed) {
       return `The ${this.closed} closed before the tests ended.`
@@ -939,14 +818,12 @@ export class Runner extends BaseRunner {
   /**
    * Nothing is left to finish the run, Playwright can't use a crashed page again.
    * Under --debug the browser stays open like with other failures.
-   *
-   * @param {'test' | 'before'} name
    */
-  #pageCrashed(name) {
+  #pageCrashed() {
     if (this.stopped) {
       return
     }
-    this.crashed ||= name
+    this.crashed = true
     this.stop(true, this.#endReason())
   }
 
@@ -1128,18 +1005,16 @@ export class Runner extends BaseRunner {
   /**
    * Compile tests
    *
-   * @param {"before" | "bundle"} mode
    * @returns {Promise<import('./types.js').CompilerOutput>} file to be loaded in the page
    */
-  compiler(mode = 'bundle') {
+  compiler() {
     return build(
       this,
       this.options.testRunner.buildConfig?.(this.options),
       this.options.testRunner.compileRuntime(
         this.options,
         this.tests.map((t) => t.replaceAll('\\', '/'))
-      ),
-      mode
+      )
     )
   }
 }
