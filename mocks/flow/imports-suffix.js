@@ -1,0 +1,1 @@
+import './pass.js?raw'
