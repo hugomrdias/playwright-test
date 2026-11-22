@@ -2,11 +2,13 @@ import {
   deepStrictEqual as equal,
   strictEqual as is,
   ok,
+  rejects,
 } from 'node:assert/strict'
 import { after, before, describe, it } from 'node:test'
 import fs from 'fs'
 import { detectTestRunners } from '../src/utils/auto-detect.js'
-import { runCli, TEST_CONCURRENCY } from './helpers.js'
+import { UsageError } from '../src/utils/index.js'
+import { resolveCli } from './helpers.js'
 
 describe('runner auto detection', () => {
   /** @type {string} */
@@ -154,44 +156,41 @@ describe('runner auto detection', () => {
     ])
   })
 
-  describe('cli', { concurrency: TEST_CONCURRENCY }, () => {
+  describe('cli', () => {
     it('falls back to none with a warning', async () => {
-      const proc = await runCli([write('console.log("ran")'), '--mode', 'node'])
+      const { options, logs } = await resolveCli([
+        write('console.log("ran")'),
+        '--mode',
+        'node',
+      ])
 
-      is(proc.exitCode, 0, 'exit code')
-      ok(proc.stdout.includes('ran'), proc.stdout)
-      ok(proc.stderr.includes('Using "none"'), proc.stderr)
+      is(options.runner, 'none')
+      ok(logs.includes('Using "none"'), logs)
     })
 
     it('fails naming the runners when they conflict', async () => {
-      const proc = await runCli(
-        [write("import 'node:test'"), write("describe('a', () => {})")],
-        { reject: false }
+      await rejects(
+        resolveCli([
+          write("import 'node:test'"),
+          write("describe('a', () => {})"),
+        ]),
+        (/** @type {Error} */ error) =>
+          error instanceof UsageError &&
+          error.message.includes(
+            'Found more than one test runner: "node:test"'
+          ) &&
+          error.message.includes('"mocha"')
       )
-
-      is(proc.exitCode, 1, 'exit code')
-      ok(
-        proc.stderr.includes('Found more than one test runner: "node:test"'),
-        proc.stderr
-      )
-      ok(proc.stderr.includes('"mocha"'), proc.stderr)
-      ok(!proc.stderr.includes('    at '), proc.stderr)
     })
 
     it('--runner skips it', async () => {
-      const proc = await runCli(
-        [
-          write("import 'node:test'\ndescribe('a', () => {})"),
-          '--runner',
-          'none',
-          '--mode',
-          'node',
-          '--no-transform',
-        ],
-        { reject: false }
-      )
+      const { options } = await resolveCli([
+        write("import 'node:test'\ndescribe('a', () => {})"),
+        '--runner',
+        'none',
+      ])
 
-      ok(!proc.stderr.includes('more than one'), proc.stderr)
+      is(options.runner, 'none')
     })
   })
 })

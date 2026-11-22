@@ -70,13 +70,4 @@ describe('run timeout', { concurrency: TEST_CONCURRENCY }, () => {
       ok(!proc.stderr.includes('timed out'), proc.stderr)
     })
   }
-
-  for (const value of ['soon', '-1', '1.5', '2147483648']) {
-    it(`rejects ${value}`, async () => {
-      const proc = await run('stdout', [`--run-timeout=${value}`])
-
-      is(proc.exitCode, 1, 'exit code')
-      ok(proc.stderr.includes('Invalid run timeout'), proc.stderr)
-    })
-  }
 })

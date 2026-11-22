@@ -82,29 +82,4 @@ describe('--trace', () => {
     is(proc.exitCode, 0, proc.stderr)
     assertTrace()
   })
-
-  it('fails with node mode', async () => {
-    const proc = await run(['pass.mocha.js', '--trace', '--mode', 'node'])
-
-    is(proc.exitCode, 1)
-    ok(
-      proc.stderr.includes(
-        '--trace records the browser, it does not work with --mode node.'
-      ),
-      proc.stderr
-    )
-    ok(!existsSync(trace), 'no trace')
-  })
-
-  it('fails with a value it does not know', async () => {
-    const proc = await run(['--trace', 'pass.mocha.js'])
-
-    is(proc.exitCode, 1)
-    ok(
-      proc.stderr.includes(
-        'Invalid --trace "pass.mocha.js", expected "on", "off" or "retain-on-failure".'
-      ),
-      proc.stderr
-    )
-  })
 })

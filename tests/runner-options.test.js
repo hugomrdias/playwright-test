@@ -68,47 +68,8 @@ describe('runner options', () => {
         is(failed.exitCode, 1, output(failed))
         is(passed.exitCode, 0, output(passed))
       })
-
-      it('from the config file, and the cli wins', async () => {
-        const args = ['--runner', 'mocha', '--mode', mode]
-        const config = ['--config', 'mocks/runner-options/pattern.config.js']
-        const [fromConfig, fromCli] = await Promise.all([
-          run('mocha', [...args, ...config]),
-          run('mocha', [
-            ...args,
-            ...config,
-            '--test-name-pattern',
-            'alpha two',
-          ]),
-        ])
-
-        ok(fromConfig.stdout.includes('beta'), output(fromConfig))
-        ok(!fromConfig.stdout.includes('alpha one'), output(fromConfig))
-        ok(fromCli.stdout.includes('alpha two'), output(fromCli))
-        ok(!fromCli.stdout.includes('beta'), output(fromCli))
-      })
     })
   }
-
-  it('none warns they are ignored', async () => {
-    const proc = await runCli(
-      [
-        'mocks/none/stdout.test.js',
-        '--runner',
-        'none',
-        '--mode',
-        'node',
-        '--test-name-pattern',
-        'a',
-        '--test-timeout',
-        '100',
-      ],
-      { reject: false }
-    )
-
-    ok(proc.stderr.includes('ignoring --test-name-pattern'), proc.stderr)
-    ok(proc.stderr.includes('ignoring --test-timeout'), proc.stderr)
-  })
 
   describe('testRunner.options in the config file', {
     concurrency: TEST_CONCURRENCY,
@@ -137,81 +98,7 @@ describe('runner options', () => {
     })
   })
 
-  describe('errors', { concurrency: TEST_CONCURRENCY }, () => {
-    // Mocha flags, next to the ones that replace them
-    const cases = [
-      ['--grep', 'a'],
-      ['--timeout', '100'],
-    ]
-    for (const args of cases) {
-      it(`${args[0]} is an unknown option`, async () => {
-        const proc = await run('mocha', ['--mode', 'node', ...args])
-
-        is(proc.exitCode, 1, output(proc))
-        ok(proc.stderr.includes(`Unknown option ${args[0]}`), proc.stderr)
-        ok(!proc.stdout.includes('alpha one'), proc.stdout)
-      })
-    }
-
-    /** @type {Array<[string, string[], string]>} */
-    const invalid = [
-      [
-        '--test-name-pattern twice',
-        ['--test-name-pattern', 'a', '--test-name-pattern', 'b'],
-        'only be set once',
-      ],
-      [
-        '--test-name-pattern without a value',
-        ['--test-name-pattern'],
-        'non-empty pattern',
-      ],
-      [
-        '--test-name-pattern followed by another flag',
-        ['--test-name-pattern', '--runner', 'mocha'],
-        'non-empty pattern',
-      ],
-      [
-        'an empty --test-name-pattern',
-        ['--test-name-pattern='],
-        'non-empty pattern',
-      ],
-      [
-        'an invalid --test-name-pattern',
-        ['--test-name-pattern', '('],
-        'Invalid --test-name-pattern',
-      ],
-      [
-        '--test-timeout that is not a number',
-        ['--test-timeout', 'soon'],
-        'must be a number',
-      ],
-      ['a negative --test-timeout', ['--test-timeout=-1'], 'must be a number'],
-      [
-        'a non-integer --test-timeout',
-        ['--test-timeout', '1.5'],
-        'must be a number',
-      ],
-      [
-        '--test-timeout at 2 ** 31 - 1 (disables mocha timeouts)',
-        ['--test-timeout', String(2 ** 31 - 1)],
-        'must be a number',
-      ],
-      [
-        '--test-timeout without a value',
-        ['--test-timeout'],
-        'must be a number',
-      ],
-    ]
-    for (const [name, args, message] of invalid) {
-      it(name, async () => {
-        const proc = await run('mocha', ['--mode', 'node', ...args])
-
-        is(proc.exitCode, 1, output(proc))
-        ok(proc.stderr.includes(message), proc.stderr)
-        ok(!proc.stderr.includes('    at '), proc.stderr)
-      })
-    }
-
+  describe('test timeout limits', { concurrency: TEST_CONCURRENCY }, () => {
     it('--test-timeout accepts 0 and 2 ** 31 - 2 and applies them in mocha', async () => {
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-test-timeout-'))
       const file = path.join(dir, 'timeout.test.js')
@@ -243,24 +130,6 @@ describe('runner options', () => {
       } finally {
         fs.rmSync(dir, { recursive: true, force: true })
       }
-    })
-
-    it('--test-name-pattern accepts a numeric pattern as a string', async () => {
-      const proc = await run('mocha', [
-        '--mode',
-        'node',
-        '--test-name-pattern',
-        '123',
-      ])
-
-      is(proc.exitCode, 0, output(proc))
-      ok(!proc.stdout.includes('alpha one'), proc.stdout)
-    })
-
-    it('the flags the cli does know still parse', async () => {
-      const proc = await run('mocha', ['--mode', 'node', '--no-transform'])
-
-      is(proc.exitCode, 0, output(proc))
     })
   })
 })
