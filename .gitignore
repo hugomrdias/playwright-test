@@ -18,3 +18,4 @@ dist
 mocks/tmp-*
 playwright-test-trace-*.zip
 .wrangler
+.amp/portals/*

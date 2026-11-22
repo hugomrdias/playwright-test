@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Amp orb setup: installs dependencies and the Playwright browsers the tests use.
+# Runs on fresh and stale snapshots, so every step must be idempotent.
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+step() {
+	local start=$SECONDS
+	echo "==> $*"
+	"$@"
+	echo "<== $* ($((SECONDS - start))s)"
+}
+
+# pnpm (packageManager) is preinstalled in orbs; it fetches the Node.js from devEngines itself.
+step pnpm install --frozen-lockfile
+
+# Same browsers as CI, so tests don't download them against their timeouts.
+browsers=(chromium firefox webkit)
+
+# The dry run exits non-zero and lists the packages when any are missing; skip apt otherwise.
+if ! pnpm exec playwright-core install-deps --dry-run "${browsers[@]}"; then
+	step pnpm exec playwright-core install-deps "${browsers[@]}"
+fi
+
+step pnpm exec playwright-core install "${browsers[@]}"
