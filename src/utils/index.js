@@ -732,8 +732,6 @@ await import(${JSON.stringify(
     platform: 'browser',
     format: 'esm',
     plugins: [envPlugin, wasmLoader()],
-    // The files to watch, a plugin would wait on this thread for each one
-    metafile: true,
     outfile: outPath,
     inject: [path.join(__dirname, 'inject-process.js')],
     alias: polyfillAliases,
@@ -743,6 +741,9 @@ await import(${JSON.stringify(
     },
   }
   const options = merge(defaultOptions, config, runner.options.buildConfig)
+  // The files to watch, whatever the config says. A plugin would wait on this
+  // thread for each one.
+  options.metafile = true
   const { metafile } = await esbuild.build(options)
 
   const cwd = options.absWorkingDir ?? process.cwd()

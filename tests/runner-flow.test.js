@@ -157,6 +157,21 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
       ok(proc.stdout.includes('controlled:false'), proc.stdout)
     })
 
+    it('has the files to watch with metafile off in the build config', async () => {
+      const { Runner } = await import('../src/runner.js')
+      const test = path.resolve(FLOW, 'pass.js')
+      const runner = new Runner(
+        { runner: 'none', buildConfig: { metafile: false } },
+        [test]
+      )
+      try {
+        const { files } = await runner.compiler()
+        ok(files.has(test), [...files].join('\n'))
+      } finally {
+        runner.removeFiles()
+      }
+    })
+
     describe('env in the browser', { concurrency: false }, () => {
       const env = { FLOW_ENV: 'flow-env-value' }
 
