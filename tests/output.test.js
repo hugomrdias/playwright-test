@@ -73,6 +73,31 @@ describe('process in the browser', { concurrency: TEST_CONCURRENCY }, () => {
       is(proc.exitCode, 0, proc.stderr)
       ok(proc.stdout.includes('imports are fine'), 'stdout')
     })
+
+    for (const [exitCase, expectedCode] of [
+      ['set-no-arg', 1],
+      ['set-undefined', 0],
+      ['set-zero', 0],
+      ['unset-no-arg', 0],
+    ]) {
+      it(`uses process.exitCode for process.exit (${exitCase}) with mode:${mode}`, async () => {
+        const proc = await runCli(
+          [
+            'mocks/none/process-exit-code.test.js',
+            '--runner',
+            'none',
+            '--mode',
+            mode,
+          ],
+          {
+            env: { PW_TEST_EXIT_CASE: /** @type {string} */ (exitCase) },
+            reject: false,
+          }
+        )
+
+        is(proc.exitCode, expectedCode, proc.stderr)
+      })
+    }
   }
 })
 
