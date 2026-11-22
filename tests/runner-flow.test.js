@@ -157,16 +157,19 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
       ok(proc.stdout.includes('controlled:false'), proc.stdout)
     })
 
-    it('has the files to watch with metafile off in the build config', async () => {
+    it('has the files to watch in watch mode', async () => {
       const { Runner } = await import('../src/runner.js')
-      const test = path.resolve(FLOW, 'pass.js')
+      const test = path.resolve(FLOW, 'imports-suffix.js')
       const runner = new Runner(
         { runner: 'none', buildConfig: { metafile: false } },
         [test]
       )
+      runner.watching = true
       try {
         const { files } = await runner.compiler()
         ok(files.has(test), [...files].join('\n'))
+        // Not with the suffix of the import
+        ok(files.has(path.resolve(FLOW, 'pass.js')), [...files].join('\n'))
       } finally {
         runner.removeFiles()
       }

@@ -716,10 +716,7 @@ export class Runner extends BaseRunner {
     let page
     /** @type {string[]} */
     let files
-    /** @type {Promise<import('./types.js').CompilerOutput> | undefined} */
-    let compiled
     try {
-      compiled = this.#compileEarly()
       // Setup the context
       const context = await this.setupContext()
       await this.runBeforeTests()
@@ -729,7 +726,8 @@ export class Runner extends BaseRunner {
         await this.setupBeforePage(context)
       }
 
-      compiled ??= this.#compile()
+      // Not before the browser starts, the watcher would miss changes until then
+      const compiled = this.#compile()
 
       // Setup page
       page = await this.setupPage(context)
@@ -1119,7 +1117,7 @@ export class Runner extends BaseRunner {
 
   /**
    * Bundle while the browser starts, the env it needs comes later in
-   * `ENV_FILE`. Not with a `beforeTests` hook, it could make files the tests import.
+   * `envFile`. Not with a `beforeTests` hook, it could make files the tests import.
    */
   #compileEarly() {
     return this.options.beforeTests === defaultOptions.beforeTests

@@ -654,21 +654,23 @@ w.onmessage = function(e) {
 /**
  * The file with the env of the run, next to the bundles. It's written once the
  * env is complete, so bundling doesn't have to wait for the server and the
- * `beforeTests` hook.
+ * `beforeTests` hook. Named after the run so it can't hide a file of `--assets`.
+ *
+ * @param {string} dir - Runner directory
  */
-export const ENV_FILE = 'pw-env.js'
+export const envFile = (dir) => `pw-env-${path.basename(dir)}.js`
 
 const ENV_MODULE = 'playwright-test:env'
 
 /**
- * Write the env the bundles import from {@link ENV_FILE}.
+ * Write the env the bundles import from {@link envFile}.
  *
  * @param {string} dir - Runner directory
  * @param {Record<string, unknown>} env
  */
 export function writeEnv(dir, env) {
   return fs.promises.writeFile(
-    path.join(dir, ENV_FILE),
+    path.join(dir, envFile(dir)),
     `export default ${JSON.stringify(env)}\n`
   )
 }
@@ -715,9 +717,24 @@ await import(${JSON.stringify(
     setup(build) {
       // Next to the bundle in the page, the worker and the extension
       build.onResolve({ filter: new RegExp(`^${ENV_MODULE}$`) }, () => ({
-        path: `./${ENV_FILE}`,
+        path: `./${envFile(runner.dir)}`,
         external: true,
       }))
+    },
+  }
+  /** @type {Set<string>} */
+  const files = new Set()
+  /**
+   * Only watch mode needs the files, esbuild waits on this thread for each one.
+   *
+   * @type {ESBuildPlugin}
+   */
+  const watchPlugin = {
+    name: 'watcher',
+    setup(build) {
+      build.onLoad({ filter: /.*/, namespace: 'file' }, (args) => {
+        files.add(args.path)
+      })
     },
   }
   /** @type {ESBuildOptions} */
@@ -731,7 +748,11 @@ await import(${JSON.stringify(
     sourcemap: 'inline',
     platform: 'browser',
     format: 'esm',
-    plugins: [envPlugin, wasmLoader()],
+    plugins: [
+      envPlugin,
+      ...(runner.watching ? [watchPlugin] : []),
+      wasmLoader(),
+    ],
     outfile: outPath,
     inject: [path.join(__dirname, 'inject-process.js')],
     alias: polyfillAliases,
@@ -740,21 +761,7 @@ await import(${JSON.stringify(
       global: 'globalThis',
     },
   }
-  const options = merge(defaultOptions, config, runner.options.buildConfig)
-  // The files to watch, whatever the config says. A plugin would wait on this
-  // thread for each one.
-  options.metafile = true
-  const { metafile } = await esbuild.build(options)
-
-  const cwd = options.absWorkingDir ?? process.cwd()
-  /** @type {Set<string>} */
-  const files = new Set()
-  for (const input of Object.keys(metafile?.inputs ?? {})) {
-    // Not `<stdin>` or the ones of other namespaces, like `wasm-stub:file.wasm`
-    if (!input.startsWith('<') && !/^[\w-]{2,}:/.test(input)) {
-      files.add(path.resolve(cwd, input))
-    }
-  }
+  await esbuild.build(merge(defaultOptions, config, runner.options.buildConfig))
 
   return { outName, files }
 }
