@@ -174,12 +174,12 @@ const builtinsPlugin = {
   setup(build) {
     const alias = build.initialOptions.alias ?? {}
     build.onResolve({ filter: /^(node:)?[a-z0-9_/]+$/ }, (args) => {
-      // Plugins come before aliases, like the node:test shim
-      if (Object.hasOwn(alias, args.path)) {
-        return { path: alias[args.path] }
-      }
       const name = args.path.replace(/^node:/, '')
       if (!args.path.startsWith('node:') && !BUILTINS.has(name)) {
+        return
+      }
+      // Plugins come before aliases, let esbuild resolve aliased built-ins like node:test
+      if (Object.hasOwn(alias, args.path)) {
         return
       }
       const id = `node:${name}`

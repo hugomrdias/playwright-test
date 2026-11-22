@@ -42,6 +42,17 @@ describe('workerd mode', () => {
     ok(proc.stdout.includes('pass 1'), proc.stdout)
   })
 
+  it('preserves esbuild alias resolution for non-built-ins containing digits', async () => {
+    const proc = await runWorkerd([
+      '--config',
+      'mocks/workerd/alias.config.mjs',
+      'test/alias.test.js',
+    ])
+
+    is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
+    ok(proc.stdout.includes('pass 1'), proc.stdout)
+  })
+
   it('keeps configured vars over the env of this process', async () => {
     const proc = await runCli(
       [
