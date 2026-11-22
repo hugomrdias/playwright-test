@@ -292,25 +292,23 @@ function assertNoInternals(output) {
   }
 }
 
-const REPORTERS = {
-  'our node:test': [
-    'mocks/source-maps/node-test-fails.test.js',
-    '--runner',
-    'node-test',
-  ],
-}
+const NODE_TEST = [
+  'mocks/source-maps/node-test-fails.test.js',
+  '--runner',
+  'node-test',
+]
 
 describe('stack traces in node mode', () => {
-  for (const [name, args] of Object.entries(REPORTERS)) {
-    it(`${name} has no frames of the runner`, async () => {
-      const proc = await runCli([...args, '--mode', 'node'], { reject: false })
-      const output = `${proc.stdout}${proc.stderr}`
-
-      is(proc.exitCode, 1, output)
-      ok(/fails\.(test\.)?js:5:/.test(output), output)
-      assertNoInternals(output)
+  it('node:test has no frames of the runner', async () => {
+    const proc = await runCli([...NODE_TEST, '--mode', 'node'], {
+      reject: false,
     })
-  }
+    const output = `${proc.stdout}${proc.stderr}`
+
+    is(proc.exitCode, 1, output)
+    ok(output.includes('node-test-fails.test.js:5:'), output)
+    assertNoInternals(output)
+  })
 
   it('keeps frames that only look internal', () => {
     const error = new Error('x')
@@ -345,50 +343,37 @@ for (const browser of ['chromium', 'firefox', 'webkit']) {
   }, () => {
     const flags = ['--browser', browser]
 
-    it('mocha points at the source without its own frames', async () => {
-      const proc = await runCli(
-        ['mocks/runner-options/mocha-fails.js', '--runner', 'mocha', ...flags],
-        { reject: false }
-      )
+    for (const mode of ['main', 'worker']) {
+      it(`mocha points at the source without its own frames in ${mode}`, async () => {
+        const proc = await runCli(
+          [
+            'mocks/runner-options/mocha-fails.js',
+            '--runner',
+            'mocha',
+            '--mode',
+            mode,
+            ...flags,
+          ],
+          { reject: false }
+        )
 
-      is(proc.exitCode, 1, 'exit code')
-      ok(proc.stdout.includes('mocha-fails.js:4:'), proc.stdout)
-      ok(!proc.stdout.includes('bundle-out.js'), proc.stdout)
-      ok(!INTERNAL_MOCHA.test(proc.stdout), proc.stdout)
-    })
+        is(proc.exitCode, 1, 'exit code')
+        ok(proc.stdout.includes('mocha-fails.js:4:'), proc.stdout)
+        ok(!proc.stdout.includes('bundle-out.js'), proc.stdout)
+        ok(!INTERNAL_MOCHA.test(proc.stdout), proc.stdout)
+      })
 
-    it('mocha in a worker', async () => {
-      const proc = await runCli(
-        [
-          'mocks/runner-options/mocha-fails.js',
-          '--runner',
-          'mocha',
-          '--mode',
-          'worker',
-          ...flags,
-        ],
-        { reject: false }
-      )
-
-      is(proc.exitCode, 1, 'exit code')
-      ok(proc.stdout.includes('mocha-fails.js:4:'), proc.stdout)
-      ok(!proc.stdout.includes('bundle-out.js'), proc.stdout)
-    })
-
-    for (const [name, args] of Object.entries(REPORTERS)) {
-      for (const mode of ['main', 'worker']) {
-        it(`${name} has no frames of the runner in ${mode}`, async () => {
-          const proc = await runCli([...args, '--mode', mode, ...flags], {
-            reject: false,
-          })
-          const output = `${proc.stdout}${proc.stderr}`
-
-          is(proc.exitCode, 1, output)
-          ok(/fails\.(test\.)?js:5:/.test(output), output)
-          ok(/fails\.(test\.)?js:(9|10):/.test(output), output)
-          assertNoInternals(output)
+      it(`node:test has no frames of the runner in ${mode}`, async () => {
+        const proc = await runCli([...NODE_TEST, '--mode', mode, ...flags], {
+          reject: false,
         })
-      }
+        const output = `${proc.stdout}${proc.stderr}`
+
+        is(proc.exitCode, 1, output)
+        ok(output.includes('node-test-fails.test.js:5:'), output)
+        ok(/node-test-fails\.test\.js:(9|10):/.test(output), output)
+        assertNoInternals(output)
+      })
     }
 
     it('typescript written to stdout', async () => {

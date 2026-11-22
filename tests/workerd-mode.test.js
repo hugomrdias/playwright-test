@@ -6,10 +6,12 @@ import { runCli } from './helpers.js'
 
 /**
  * @param {string[]} args
+ * @param {{ env?: Record<string, string>, timeout?: number }} [options]
  */
-function runWorkerd(args) {
+function runWorkerd(args, options) {
   return runCli(['--mode', 'workerd', '--cwd', 'mocks/workerd', ...args], {
     reject: false,
+    ...options,
   })
 }
 
@@ -54,19 +56,9 @@ describe('workerd mode', () => {
   })
 
   it('keeps configured vars over the env of this process', async () => {
-    const proc = await runCli(
-      [
-        '--mode',
-        'workerd',
-        '--cwd',
-        'mocks/workerd',
-        'test/configured.test.js',
-      ],
-      {
-        env: { CONFIGURED: 'from this process', NODE_TEST_CONTEXT: undefined },
-        reject: false,
-      }
-    )
+    const proc = await runWorkerd(['test/configured.test.js'], {
+      env: { CONFIGURED: 'from this process' },
+    })
 
     is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
     ok(proc.stdout.includes('pass 1'), proc.stdout)
@@ -131,19 +123,10 @@ describe('workerd mode', () => {
   })
 
   it('passes the environment as the mode of cloudflare.config.ts', async () => {
-    const proc = await runCli(
-      [
-        '--mode',
-        'workerd',
-        '--cwd',
-        'mocks/workerd',
-        '--config',
-        'mocks/workerd/staging.config.mjs',
-        'test/mode.test.js',
-      ],
+    const proc = await runWorkerd(
+      ['--config', 'mocks/workerd/staging.config.mjs', 'test/mode.test.js'],
       {
-        env: { EXPECTED_MODE: 'staging', NODE_TEST_CONTEXT: undefined },
-        reject: false,
+        env: { EXPECTED_MODE: 'staging' },
       }
     )
 
@@ -152,19 +135,14 @@ describe('workerd mode', () => {
   })
 
   it('merges Miniflare options over the config', async () => {
-    const proc = await runCli(
+    const proc = await runWorkerd(
       [
-        '--mode',
-        'workerd',
-        '--cwd',
-        'mocks/workerd',
         '--config',
         'mocks/workerd/override.config.mjs',
         'test/greeting.test.js',
       ],
       {
-        env: { EXPECTED_GREETING: 'overridden', NODE_TEST_CONTEXT: undefined },
-        reject: false,
+        env: { EXPECTED_GREETING: 'overridden' },
       }
     )
 
@@ -202,12 +180,8 @@ describe('workerd mode', () => {
   })
 
   it('does not stall shutdown when an asset server request stays active', async () => {
-    const proc = await runCli(
+    const proc = await runWorkerd(
       [
-        '--mode',
-        'workerd',
-        '--cwd',
-        'mocks/workerd',
         '--config',
         'mocks/workerd/open-connection.config.mjs',
         'test/env.test.js',
@@ -215,9 +189,7 @@ describe('workerd mode', () => {
       {
         env: {
           PW_TEST_AFTER_TESTS_TIMEOUT: '15000',
-          NODE_TEST_CONTEXT: undefined,
         },
-        reject: false,
         timeout: 12_000,
       }
     )

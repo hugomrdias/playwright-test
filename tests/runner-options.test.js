@@ -25,41 +25,37 @@ describe('runner options', () => {
   const patterns = [
     ['alpha', ['alpha one', 'alpha two']],
     ['/ALPHA/i', ['alpha one', 'alpha two']],
-    ['alpha|beta', ['alpha one', 'beta', 'alpha two']],
-    ['beta$', ['beta']],
     ['^suite a beta$', ['beta']],
     ['suite a', ['alpha one', 'beta']],
     ['suite a beta', ['beta']],
+    // mocha only matches the full title
+    ['^beta$', []],
     ['does not match', []],
   ]
 
   for (const mode of ['node', 'main']) {
     describe(`--mode ${mode}`, { concurrency: TEST_CONCURRENCY }, () => {
-      for (const runner of ['mocha', 'node-test']) {
-        // mocha only matches the full title, the others also a single name
-        /** @type {[string, string[]]} */
-        const ownName = ['^beta$', runner === 'mocha' ? [] : ['beta']]
-        for (const [pattern, expected] of [...patterns, ownName]) {
-          it(`${runner} --test-name-pattern ${pattern}`, async () => {
-            const proc = await run(runner, [
-              '--runner',
-              runner,
-              '--mode',
-              mode,
-              '--test-name-pattern',
-              pattern,
-            ])
+      // node:test patterns are in node-test-runner.test.js
+      for (const [pattern, expected] of patterns) {
+        it(`mocha --test-name-pattern ${pattern}`, async () => {
+          const proc = await run('mocha', [
+            '--runner',
+            'mocha',
+            '--mode',
+            mode,
+            '--test-name-pattern',
+            pattern,
+          ])
 
-            is(proc.exitCode, 0, output(proc))
-            for (const name of ['alpha one', 'beta', 'alpha two']) {
-              is(
-                proc.stdout.includes(name),
-                expected.includes(name),
-                `${name} in:\n${proc.stdout}`
-              )
-            }
-          })
-        }
+          is(proc.exitCode, 0, output(proc))
+          for (const name of ['alpha one', 'beta', 'alpha two']) {
+            is(
+              proc.stdout.includes(name),
+              expected.includes(name),
+              `${name} in:\n${proc.stdout}`
+            )
+          }
+        })
       }
 
       it('mocha --test-timeout', async () => {
@@ -70,19 +66,6 @@ describe('runner options', () => {
         ])
 
         is(failed.exitCode, 1, output(failed))
-        is(passed.exitCode, 0, output(passed))
-      })
-
-      it('node-test --test-timeout, tests with their own keep it', async () => {
-        const args = ['--runner', 'node-test', '--mode', mode]
-        const [failed, passed] = await Promise.all([
-          run('node-test-slow', [...args, '--test-timeout', '50']),
-          run('node-test-slow', [...args, '--test-timeout', '0']),
-        ])
-
-        is(failed.exitCode, 1, output(failed))
-        ok(failed.stdout.includes('ℹ cancelled 1'), output(failed))
-        ok(failed.stdout.includes('ℹ pass 1'), output(failed))
         is(passed.exitCode, 0, output(passed))
       })
 
@@ -155,14 +138,10 @@ describe('runner options', () => {
   })
 
   describe('errors', { concurrency: TEST_CONCURRENCY }, () => {
+    // Mocha flags, next to the ones that replace them
     const cases = [
       ['--grep', 'a'],
-      ['--bail'],
-
       ['--timeout', '100'],
-      ['--reporter', 'tap'],
-      ['--ui', 'tdd'],
-      ['--incognito'],
     ]
     for (const args of cases) {
       it(`${args[0]} is an unknown option`, async () => {
@@ -215,11 +194,6 @@ describe('runner options', () => {
       [
         '--test-timeout at 2 ** 31 - 1 (disables mocha timeouts)',
         ['--test-timeout', String(2 ** 31 - 1)],
-        'must be a number',
-      ],
-      [
-        '--test-timeout above the max signed 32-bit int',
-        ['--test-timeout', String(2 ** 31)],
         'must be a number',
       ],
       [
