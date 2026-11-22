@@ -1,7 +1,6 @@
 import os from 'node:os'
 import { mock } from 'node:test'
 import { execa as baseExeca, execaSync as baseExecaSync } from 'execa'
-import { resolveOptions } from '../src/cli-options.js'
 
 // Bounded in-file concurrency: paired with `--test-concurrency=3` in package.json,
 // this keeps total concurrent browsers safe on 4-vCPU CI runners (3x2 = 6) while
@@ -47,6 +46,9 @@ export function runCli(args, cliOptions) {
  * @param {string[]} args
  */
 export async function resolveCli(args) {
+  // Not at the top, std-env reads the agent variables when it loads and they
+  // have to be gone by then, see below
+  const { resolveOptions } = await import('../src/cli-options.js')
   /** @type {string[]} */
   const logs = []
   const record = (/** @type {unknown[]} */ ...parts) => {
