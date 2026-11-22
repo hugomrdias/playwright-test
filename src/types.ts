@@ -16,7 +16,6 @@ export interface RunnerOptions {
   mode: 'main' | 'worker' | 'node' | 'workerd'
   extension: boolean
   assets: string
-  before?: string
   sw?: string
   /**
    * Options for the workerd mode.
@@ -139,7 +138,6 @@ export interface CliOptions {
   debug: boolean
   extension: boolean
   watch?: boolean
-  before?: string
   sw?: string
   assets?: string
   cwd: string

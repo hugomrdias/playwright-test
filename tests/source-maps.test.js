@@ -243,11 +243,16 @@ globalThis.out = [fromMocha, fromSource]
   })
 
   it('reads source maps next to the bundle', async () => {
-    await bundle('before-out.js', { sourcemap: 'linked' })
-    const { map } = createStackMapper(dir)
-    const at = positionIn('before-out.js', 'new Error("fromSource")')
+    await bundle('sw-out.js', { sourcemap: 'linked' })
+    try {
+      const { map } = createStackMapper(dir)
+      const at = positionIn('sw-out.js', 'new Error("fromSource")')
 
-    is(map(`at fn (before-out.js:${at})`), `at fn (${sourceFile()}:3:33)`)
+      is(map(`at fn (sw-out.js:${at})`), `at fn (${sourceFile()}:3:33)`)
+    } finally {
+      // The other tests of sw-out.js use inline maps
+      rmSync(path.join(dir, 'sw-out.js.map'), { force: true })
+    }
   })
 
   it('reset reads the bundles again', async () => {

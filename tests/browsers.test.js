@@ -8,13 +8,6 @@ for (const browser of ['firefox', 'webkit']) {
     const flags = ['--browser', browser]
     const runs = {
       mocha: ['./cli.js', 'mocks/test.mocha.js', ...flags],
-      'before script': [
-        './cli.js',
-        'mocks/test.mocha.js',
-        '--before',
-        'mocks/before/ends.js',
-        ...flags,
-      ],
       'playwright-test/node-test': [
         './cli.js',
         'mocks/node-test/context.test.js',

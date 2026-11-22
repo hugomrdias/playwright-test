@@ -1,3 +1,3 @@
 setTimeout(() => {
-  location.href = '/before.html'
+  location.href = '/popup.html'
 }, 50)

@@ -57,13 +57,6 @@ const extra = `
       '$ playwright-test "test/**/*.spec.js" --browser webkit --mode worker --debug'
     )}
 
-    ${colors.dim(
-      '$ playwright-test "test/**/*.spec.js" --debug --before ./mocks/before.js'
-    )}
-    ${colors.gray(
-      '# Run a script in a separate tab. Check ./mocks/before.js for an example.\n    # Important: You need to call `self.PW_TEST.beforeEnd()` to start the main script.'
-    )}
-
   ${colors.bold('Runner Options')}
     Everything else a runner takes goes in the config file, under \`testRunner.options\`.
     Check https://github.com/hugomrdias/playwright-test#runner-options
@@ -146,7 +139,6 @@ const KNOWN_FLAGS = new Set([
   '_',
   'assets',
   'b',
-  'before',
   'browser',
   'config',
   'cwd',
@@ -317,10 +309,6 @@ sade2
     '-e, --extension',
     `Use extension background_page to run tests.  (default ${cliDefaults.extension})`
   )
-  .option(
-    '--before',
-    'Path to a script to be loaded on a separate tab before the main script.'
-  )
   .option('--sw', 'Path to a script to be loaded in a service worker.')
   .option(
     '--assets',
@@ -380,7 +368,6 @@ sade2
         debug: opts.debug,
         mode: opts.mode,
         extension: opts.extension,
-        before: opts.before,
         sw: opts.sw,
         extensions: opts.extensions,
         transform: opts.transform,

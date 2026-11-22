@@ -219,31 +219,6 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
           )
         })
       }
-
-      it('has the env in the before page', async () => {
-        const proc = await runFlow(
-          'env.js',
-          [
-            '--config',
-            `${FLOW}/env.config.mjs`,
-            '--before',
-            `${FLOW}/env-before.js`,
-          ],
-          { env }
-        )
-
-        is(proc.exitCode, 0, proc.stderr)
-        ok(
-          proc.stdout.includes(
-            'before-env:flow-env-value:from-before-tests:true'
-          ),
-          proc.stdout
-        )
-        ok(
-          proc.stdout.includes('env:flow-env-value:from-before-tests:true'),
-          proc.stdout
-        )
-      })
     })
 
     it('has the env, the console and stdout in the service worker', async () => {
@@ -266,32 +241,6 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
       ])
 
       is(proc.exitCode, 0, proc.stderr)
-    })
-  })
-
-  describe('--before', { concurrency: false }, () => {
-    for (const browser of ['chromium', 'firefox', 'webkit']) {
-      it(`keeps what the script stored in ${browser}`, async () => {
-        const proc = await runFlow('before-storage.test.js', [
-          '--before',
-          `${FLOW}/before-storage.js`,
-          '--browser',
-          browser,
-        ])
-
-        is(proc.exitCode, 0, proc.stderr)
-        ok(proc.stdout.includes('storage:1:fromBefore=1'), proc.stdout)
-      })
-    }
-
-    it('works with an absolute path', async () => {
-      const proc = await runFlow('pass.js', [
-        '--before',
-        path.resolve(FLOW, 'before-storage.js'),
-      ])
-
-      is(proc.exitCode, 0, proc.stderr)
-      ok(proc.stdout.includes('flow-pass'), proc.stdout)
     })
   })
 
