@@ -605,7 +605,7 @@ describe('playwright-test/node-test', () => {
       })
 
       it(`keeps the spec output without an agent in ${mode} mode`, async () => {
-        const { proc } = await runApi('minimal', mode)
+        const proc = await run(mode, { FORCE_COLOR: undefined })
         const output = lines(proc.stdout)
         ok(output.some((l) => l.startsWith('    ✔ nested hidden')))
         ok(output.some((l) => l.startsWith('    ﹣ skipped hidden')))
