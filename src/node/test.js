@@ -826,7 +826,7 @@ class Test {
 
     if (parent === root && rootFinished) {
       throw new Error(
-        `Test "${typeof name === 'string' ? name : '<anonymous>'}" was created after the tests finished running. With top level await, await it before the run ends or call hold() and exec().`
+        `Test "${typeof name === 'string' ? name : '<anonymous>'}" was created after the tests finished running. Declare tests before the run ends, or await them when using top-level await.`
       )
     }
 
