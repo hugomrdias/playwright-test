@@ -28,8 +28,7 @@ describe('colors', () => {
   })
 
   describe('supportsColor', () => {
-    it('enables colors for TTY when no disable env is set', () => {
-      is(supportsColor({ env: { TERM: 'xterm-256color' }, isTTY: true }), true)
+    it('enables colors for a TTY, also without TERM', () => {
       is(supportsColor({ env: {}, isTTY: true }), true)
     })
 
@@ -42,109 +41,24 @@ describe('colors', () => {
     })
 
     for (const value of ['', '1', '2', '3', 'true']) {
-      it(`enables colors for FORCE_COLOR=${JSON.stringify(value)} even when non-TTY or TERM=dumb`, () => {
-        is(supportsColor({ env: { FORCE_COLOR: value }, isTTY: false }), true)
-        is(
-          supportsColor({
-            env: { FORCE_COLOR: value, TERM: 'dumb' },
-            isTTY: false,
-          }),
-          true
-        )
-        is(
-          supportsColor({
-            env: { FORCE_COLOR: value, NO_COLOR: '1' },
-            isTTY: false,
-          }),
-          true
-        )
-        is(
-          supportsColor({
-            env: { FORCE_COLOR: value, NODE_DISABLE_COLORS: '1' },
-            isTTY: false,
-          }),
-          true
-        )
+      it(`enables colors for FORCE_COLOR=${JSON.stringify(value)} even when non-TTY`, () => {
+        for (const env of [
+          {},
+          { TERM: 'dumb' },
+          { NO_COLOR: '1' },
+          { NODE_DISABLE_COLORS: '1' },
+        ]) {
+          is(
+            supportsColor({
+              env: { ...env, FORCE_COLOR: value },
+              isTTY: false,
+            }),
+            true,
+            JSON.stringify(env)
+          )
+        }
       })
     }
-
-    for (const value of ['0', 'false', 'invalid']) {
-      it(`disables colors for FORCE_COLOR=${JSON.stringify(value)} even on a TTY`, () => {
-        is(
-          supportsColor({
-            env: { FORCE_COLOR: value, TERM: 'xterm-256color' },
-            isTTY: true,
-          }),
-          false
-        )
-      })
-    }
-
-    it('disables colors for non-empty NO_COLOR and ignores empty NO_COLOR', () => {
-      is(
-        supportsColor({
-          env: { NO_COLOR: '1', TERM: 'xterm-256color' },
-          isTTY: true,
-        }),
-        false
-      )
-      is(
-        supportsColor({
-          env: { NO_COLOR: '0', TERM: 'xterm-256color' },
-          isTTY: true,
-        }),
-        false
-      )
-      is(
-        supportsColor({
-          env: { NO_COLOR: '', TERM: 'xterm-256color' },
-          isTTY: true,
-        }),
-        true
-      )
-    })
-
-    it('disables colors for non-empty NODE_DISABLE_COLORS and ignores empty value', () => {
-      is(
-        supportsColor({
-          env: { NODE_DISABLE_COLORS: '1', TERM: 'xterm-256color' },
-          isTTY: true,
-        }),
-        false
-      )
-      is(
-        supportsColor({
-          env: { NODE_DISABLE_COLORS: '0', TERM: 'xterm-256color' },
-          isTTY: true,
-        }),
-        false
-      )
-      is(
-        supportsColor({
-          env: { NODE_DISABLE_COLORS: '', TERM: 'xterm-256color' },
-          isTTY: true,
-        }),
-        true
-      )
-    })
-
-    it('disables colors for TERM=dumb unless overridden by FORCE_COLOR', () => {
-      is(supportsColor({ env: { TERM: 'dumb' }, isTTY: true }), false)
-      is(
-        supportsColor({
-          env: { TERM: 'dumb', FORCE_COLOR: '1' },
-          isTTY: false,
-        }),
-        true
-      )
-      is(
-        supportsColor({
-          env: { TERM: 'dumb', FORCE_COLOR: '0' },
-          isTTY: true,
-        }),
-        false
-      )
-    })
 
     it('disables colors in minimal / AI agent mode unless FORCE_COLOR enables them', () => {
       is(
@@ -233,12 +147,15 @@ describe('colors', () => {
         { TERM: 'dumb' },
         { TERM: 'dumb', FORCE_COLOR: '1' },
         { TERM: 'xterm-256color', NO_COLOR: '1' },
+        { TERM: 'xterm-256color', NO_COLOR: '0' },
         { TERM: 'xterm-256color', NO_COLOR: '' },
         { TERM: 'xterm-256color', NODE_DISABLE_COLORS: '1' },
+        { TERM: 'xterm-256color', NODE_DISABLE_COLORS: '0' },
         { TERM: 'xterm-256color', NODE_DISABLE_COLORS: '' },
         { TERM: 'xterm-256color', FORCE_COLOR: '0' },
         { TERM: 'xterm-256color', FORCE_COLOR: 'false' },
         { TERM: 'xterm-256color', FORCE_COLOR: 'invalid' },
+        { TERM: 'dumb', FORCE_COLOR: '0' },
         { FORCE_COLOR: '1' },
         { FORCE_COLOR: '2' },
         { FORCE_COLOR: '3' },
@@ -454,67 +371,31 @@ describe('colors', () => {
     })
 
     it('supports #RGB and #RRGGBB hex colors matching Node.js util.styleText', () => {
-      const hasNativeHex = (() => {
-        try {
-          styleText(/** @type {any} */ ('#f80'), 'x', { validateStream: false })
-          return true
-        } catch {
-          return false
-        }
-      })()
-
-      /** @type {Array<[string, string]>} */
-      const cases = [
-        ['#f80', '\u001B[38;2;255;136;0mx\u001B[39m'],
-        ['#F80', '\u001B[38;2;255;136;0mx\u001B[39m'],
-        ['#ff8800', '\u001B[38;2;255;136;0mx\u001B[39m'],
-        ['#000', '\u001B[38;2;0;0;0mx\u001B[39m'],
-        ['#ffffff', '\u001B[38;2;255;255;255mx\u001B[39m'],
-      ]
-      for (const [hex, expected] of cases) {
-        const actual = polyfillStyleText(hex, 'x', { validateStream: false })
-        is(actual, expected, hex)
-        if (hasNativeHex) {
-          is(
-            actual,
-            styleText(/** @type {any} */ (hex), 'x', { validateStream: false }),
-            hex
-          )
-        }
-      }
-
-      const boldHex = polyfillStyleText(['bold', '#f80'], 'x', {
-        validateStream: false,
-      })
-      is(boldHex, '\u001B[1m\u001B[38;2;255;136;0mx\u001B[39m\u001B[22m')
-      if (hasNativeHex) {
+      /**
+       * @param {any} format
+       * @param {string} text
+       */
+      const both = (format, text) => {
+        const actual = polyfillStyleText(format, text, {
+          validateStream: false,
+        })
         is(
-          boldHex,
-          styleText(/** @type {any} */ (['bold', '#f80']), 'x', {
-            validateStream: false,
-          })
+          actual,
+          styleText(format, text, { validateStream: false }),
+          String(format)
         )
+        return actual
       }
 
-      const nestedHex = polyfillStyleText(
+      for (const hex of ['#f80', '#F80', '#ff8800', '#000', '#ffffff']) {
+        both(hex, 'x')
+      }
+      is(both('#f80', 'x'), '\u001B[38;2;255;136;0mx\u001B[39m')
+      both(['bold', '#f80'], 'x')
+      both(
         '#f80',
-        `a ${polyfillStyleText('red', 'b', { validateStream: false })} c`,
-        { validateStream: false }
+        `a ${polyfillStyleText('red', 'b', { validateStream: false })} c`
       )
-      is(
-        nestedHex,
-        '\u001B[38;2;255;136;0ma \u001B[31mb\u001B[38;2;255;136;0m c\u001B[39m'
-      )
-      if (hasNativeHex) {
-        is(
-          nestedHex,
-          styleText(
-            /** @type {any} */ ('#f80'),
-            `a ${styleText('red', 'b', { validateStream: false })} c`,
-            { validateStream: false }
-          )
-        )
-      }
 
       for (const invalid of ['#1234', '#ggg', '#', '#1234567']) {
         throws(

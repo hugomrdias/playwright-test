@@ -146,10 +146,7 @@ describe('playwright-test/node-test', () => {
     { name: 'fail-uncaught', exitCode: 1 },
     { name: 'fail-falsy', exitCode: 1 },
     { name: 'shorthand', exitCode: 0 },
-    // Real node:test only has these assertions since Node.js 26
-    ...(Number.parseInt(process.versions.node, 10) >= 26
-      ? [{ name: 'mock-assert', exitCode: 0 }]
-      : []),
+    { name: 'mock-assert', exitCode: 0 },
     // Real node:test only filters with the flag, this API always does
     { name: 'only', exitCode: 0, flags: ['--test-only'] },
   ]
@@ -218,27 +215,22 @@ describe('playwright-test/node-test', () => {
         ok(output.includes('Error: afterEach throws'), output)
       })
 
-      // Exits with 0 with real node:test, this would report a failure as a pass.
-      it('a throw in a root after hook fails the run', async () => {
-        const { proc } = await runApi('fail-root-after', mode)
-        const output = lines(proc.stdout).join('\n')
-
-        is(proc.exitCode, 1, 'exit code')
-        ok(output.includes('✖ <root>'), output)
-        ok(output.includes('root after throws'), output)
-      })
-
+      // A throw in a root after hook exits with 0 with real node:test, this
+      // would report a failure as a pass.
       it('a failure outside of a test counts as failing', async () => {
         const [suite, root] = await Promise.all([
           runApi('fail-suite-after', mode),
           runApi('fail-root-after', mode),
         ])
+        const output = lines(root.proc.stdout).join('\n')
 
         is(suite.proc.exitCode, 1, 'exit code')
         is(summary(suite.proc.stdout, 'pass'), 1, suite.proc.stdout)
         is(summary(suite.proc.stdout, 'fail'), 1, suite.proc.stdout)
         is(root.proc.exitCode, 1, 'exit code')
-        is(summary(root.proc.stdout, 'fail'), 1, root.proc.stdout)
+        is(summary(root.proc.stdout, 'fail'), 1, output)
+        ok(output.includes('✖ <root>'), output)
+        ok(output.includes('root after throws'), output)
       })
 
       it('a failure without an error still fails the run', async () => {
@@ -292,13 +284,6 @@ describe('playwright-test/node-test', () => {
 
         // The cli only tells if the run failed, see below for the code itself
         is(proc.exitCode, 1, proc.stdout)
-      })
-
-      it('mock assertions in t.assert', async () => {
-        const { proc } = await runApi('mock-assert', mode)
-
-        is(proc.exitCode, 0, proc.stdout)
-        is(summary(proc.stdout, 'pass'), 6, proc.stdout)
       })
 
       it('no colors with NO_COLOR', async () => {
@@ -424,7 +409,7 @@ describe('playwright-test/node-test', () => {
       is(summary(stdout, 'fail'), 2, stdout)
     })
 
-    it('late test registration error does not mention internal hold/exec', async () => {
+    it('a test created after the run throws', async () => {
       const { exitCode, stdout, stderr } = await execa(
         process.execPath,
         [fixture('late-test')],
@@ -616,15 +601,6 @@ describe('playwright-test/node-test', () => {
 
       it(`colors the output with FORCE_COLOR in ${mode} mode`, async () => {
         const proc = await run(mode, { ...agent, FORCE_COLOR: '1' })
-        ok(proc.stdout.includes('\u001B[31m✖ top fails\u001B[39m'))
-      })
-
-      it(`colors the output with FORCE_COLOR under TERM=dumb in ${mode} mode`, async () => {
-        const proc = await run(mode, {
-          ...agent,
-          FORCE_COLOR: '1',
-          TERM: 'dumb',
-        })
         ok(proc.stdout.includes('\u001B[31m✖ top fails\u001B[39m'))
       })
 

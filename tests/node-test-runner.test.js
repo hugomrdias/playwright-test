@@ -77,14 +77,49 @@ describe('node:test runner', () => {
         ok(proc.stdout.includes('must fail on the entrypoint'), output(proc))
       })
 
+      it('--test-timeout applies to tests in a suite, 0 is no timeout', async () => {
+        const args = ['--runner', 'node-test', '--test-timeout']
+        const [failed, passed] = await Promise.all([
+          run('timeout', mode, [...args, '50']),
+          run('timeout', mode, [...args, '0']),
+        ])
+
+        is(failed.exitCode, 1, output(failed))
+        ok(failed.stdout.includes('is too slow'), output(failed))
+        is(passed.exitCode, 0, output(passed))
+      })
+    })
+  }
+
+  // In node mode the shim gets the options from PW_OPTIONS, not from node flags
+  it('--test-name-pattern and --test-timeout reach the shim in node mode', async () => {
+    const args = ['--runner', 'node-test']
+    const [filtered, timedOut] = await Promise.all([
+      run('shim', 'node', [...args, '--test-name-pattern', 'alpha']),
+      run('shim', 'node', [...args, '--test-timeout', '50']),
+    ])
+
+    is(filtered.exitCode, 0, output(filtered))
+    ok(filtered.stdout.includes('ℹ pass 1'), output(filtered))
+    ok(!filtered.stdout.includes('is too slow'), output(filtered))
+    is(timedOut.exitCode, 1, output(timedOut))
+    ok(timedOut.stdout.includes('ℹ cancelled 1'), output(timedOut))
+    ok(timedOut.stdout.includes('ℹ pass 2'), output(timedOut))
+  })
+
+  // The real node:test in node mode, the shim in browsers, the same in main and worker
+  for (const mode of ['node', 'main']) {
+    describe(`--test-name-pattern with --mode ${mode}`, {
+      concurrency: TEST_CONCURRENCY,
+    }, () => {
       /** @type {Array<[string, string[]]>} */
       const patterns = [
         ['alpha', ['alpha one', 'alpha two', 'alpha top']],
         ['/ALPHA/i', ['alpha one', 'alpha two', 'alpha top']],
         // its own name, an ancestor and all the names joined
-        ['beta', ['beta']],
+        ['^beta$', ['beta']],
         ['suite a', ['alpha one', 'beta']],
-        ['suite a beta', ['beta']],
+        ['^suite a beta$', ['beta']],
         // the full name of an ancestor, not only of the test
         ['^outer inner$', ['leaf']],
         ['does not match', []],
@@ -102,7 +137,7 @@ describe('node:test runner', () => {
       ]
 
       for (const [pattern, expected] of patterns) {
-        it(`--test-name-pattern ${pattern}`, async () => {
+        it(pattern, async () => {
           const proc = await run('grep', mode, [
             '--runner',
             'node-test',
@@ -120,29 +155,6 @@ describe('node:test runner', () => {
           }
         })
       }
-
-      it('--test-timeout applies to tests in a suite', async () => {
-        const proc = await run('timeout', mode, [
-          '--runner',
-          'node-test',
-          '--test-timeout',
-          '50',
-        ])
-
-        is(proc.exitCode, 1, output(proc))
-        ok(proc.stdout.includes('is too slow'), output(proc))
-      })
-
-      it('--test-timeout 0 is no timeout', async () => {
-        const proc = await run('timeout', mode, [
-          '--runner',
-          'node-test',
-          '--test-timeout',
-          '0',
-        ])
-
-        is(proc.exitCode, 0, output(proc))
-      })
     })
   }
 
@@ -195,6 +207,11 @@ describe('node:test runner', () => {
         0,
       ],
       [
+        'a test with its own timeout',
+        `test('a', { timeout: 2000 }, ${slow})`,
+        0,
+      ],
+      [
         'a fast hook',
         `describe('s', () => { before(${fast}); it('a', ${fast}) })`,
         0,
@@ -221,7 +238,7 @@ describe('node:test runner', () => {
     })
 
     let count = 0
-    for (const mode of modes) {
+    for (const mode of ['node', 'main']) {
       for (const [name, source, exitCode] of cases) {
         it(`${mode} ${name}`, async () => {
           const file = `${dir}/${count++}.test.js`

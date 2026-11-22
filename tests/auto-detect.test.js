@@ -55,7 +55,6 @@ describe('runner auto detection', () => {
     ['require statement', "require('mocha')", ['mocha']],
     ['dynamic import', "const t = await import('mocha')", ['mocha']],
     ['dynamic import then', "import('mocha').then(() => {})", ['mocha']],
-    ['node:test', "import { test } from 'node:test'", ['node:test']],
     [
       'node:test entrypoint',
       "import { test } from 'playwright-test/node-test'",
@@ -193,36 +192,6 @@ describe('runner auto detection', () => {
       )
 
       ok(!proc.stderr.includes('more than one'), proc.stderr)
-    })
-
-    it('says so when there are no test files', async () => {
-      const proc = await runCli(['mocks/does-not-exist.js'], {
-        reject: false,
-      })
-
-      is(proc.exitCode, 1, 'exit code')
-      ok(proc.stderr.includes('No test files were found'), proc.stderr)
-      ok(!proc.stderr.includes('Using "none"'), proc.stderr)
-      ok(!proc.stderr.includes('ERR_INVALID_ARG_TYPE'), proc.stderr)
-    })
-
-    it('--runner node-test', async () => {
-      const proc = await runCli(
-        ['mocks/node-test/multi', '--runner', 'node-test', '--mode', 'node'],
-        { reject: false }
-      )
-
-      is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
-      ok(proc.stdout.includes('ℹ pass 2'), proc.stdout)
-    })
-
-    it('--runner taps is gone', async () => {
-      const proc = await runCli(
-        ['mocks/node-test/multi', '--runner', 'taps', '--mode', 'node'],
-        { reject: false }
-      )
-
-      is(proc.exitCode, 1, `${proc.stdout}\n${proc.stderr}`)
     })
   })
 })

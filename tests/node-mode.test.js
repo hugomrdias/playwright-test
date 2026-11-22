@@ -18,9 +18,7 @@ describe('node mode localStorage with mocha', {
     ok(!proc.stderr.includes('localStorage'), proc.stderr)
   })
 
-  it('leaves it for tests with a file for it', {
-    skip: Number.parseInt(process.versions.node, 10) < 25,
-  }, async () => {
+  it('leaves it for tests with a file for it', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-test-'))
     try {
       const proc = await runCli(['mocks/web-storage/mocha.test.js', ...args], {

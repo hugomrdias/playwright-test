@@ -3,47 +3,34 @@ import { describe, it } from 'node:test'
 import { runCli, TEST_CONCURRENCY } from './helpers.js'
 
 describe('stdout / stderr', { concurrency: TEST_CONCURRENCY }, () => {
-  it('does not add line breaks', async () => {
-    const proc = await runCli(['mocks/none/stdout.test.js', '--runner', 'none'])
+  for (const mode of ['main', 'worker']) {
+    it(`does not add line breaks with mode:${mode}`, async () => {
+      const proc = await runCli([
+        'mocks/none/stdout.test.js',
+        '--runner',
+        'none',
+        '--mode',
+        mode,
+      ])
 
-    is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('hello world!'), 'process stdout')
-  })
+      is(proc.exitCode, 0, 'exit code')
+      ok(proc.stdout.includes('hello world!'), proc.stdout)
+    })
 
-  it('works in worker', async () => {
-    const proc = await runCli([
-      'mocks/none/stdout.test.js',
-      '--runner',
-      'none',
-      '--mode',
-      'worker',
-    ])
+    it(`prints to stderr with mode:${mode}`, async () => {
+      const proc = await runCli([
+        'mocks/none/stderr.test.js',
+        '--runner',
+        'none',
+        '--mode',
+        mode,
+      ])
 
-    is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('hello world!'), 'process stdout')
-  })
-
-  it('prints to stderr', async () => {
-    const proc = await runCli(['mocks/none/stderr.test.js', '--runner', 'none'])
-
-    is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('hello '), 'process stdout')
-    ok(proc.stderr.includes('world!'), 'process stdout')
-  })
-
-  it('prints to stderr in worker', async () => {
-    const proc = await runCli([
-      'mocks/none/stderr.test.js',
-      '--runner',
-      'none',
-      '--mode',
-      'worker',
-    ])
-
-    is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('hello '), 'process stdout')
-    ok(proc.stderr.includes('world!'), 'process stdout')
-  })
+      is(proc.exitCode, 0, 'exit code')
+      ok(proc.stdout.includes('hello '), proc.stdout)
+      ok(proc.stderr.includes('world!'), proc.stderr)
+    })
+  }
 })
 
 describe('process in the browser', { concurrency: TEST_CONCURRENCY }, () => {

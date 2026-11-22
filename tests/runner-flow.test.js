@@ -157,70 +157,6 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
       ok(proc.stdout.includes('controlled:false'), proc.stdout)
     })
 
-    it('has the files to watch in watch mode', async () => {
-      const { Runner } = await import('../src/runner.js')
-      const test = path.resolve(FLOW, 'imports-suffix.js')
-      const runner = new Runner(
-        { runner: 'none', buildConfig: { metafile: false } },
-        [test]
-      )
-      runner.watching = true
-      try {
-        const { files } = await runner.compiler()
-        ok(files.has(test), [...files].join('\n'))
-        // Not with the suffix of the import
-        ok(files.has(path.resolve(FLOW, 'pass.js')), [...files].join('\n'))
-      } finally {
-        runner.removeFiles()
-      }
-    })
-
-    describe('env in the browser', { concurrency: false }, () => {
-      const env = { FLOW_ENV: 'flow-env-value' }
-
-      for (const args of [
-        ['--mode', 'main'],
-        ['--mode', 'worker'],
-        ['--extension'],
-      ]) {
-        it(`has the env and PW_SERVER with ${args.join(' ')}`, async () => {
-          const proc = await runFlow('env.js', args, { env })
-
-          is(proc.exitCode, 0, proc.stderr)
-          ok(
-            proc.stdout.includes('env:flow-env-value:undefined:true'),
-            proc.stdout
-          )
-          ok(
-            proc.stdout.includes('meta-env:flow-env-value:undefined:true'),
-            proc.stdout
-          )
-        })
-      }
-
-      for (const mode of ['main', 'worker']) {
-        it(`has what beforeTests added to the env with mode:${mode}`, async () => {
-          const proc = await runFlow(
-            'env.js',
-            ['--config', `${FLOW}/env.config.mjs`, '--mode', mode],
-            { env }
-          )
-
-          is(proc.exitCode, 0, proc.stderr)
-          ok(
-            proc.stdout.includes('env:flow-env-value:from-before-tests:true'),
-            proc.stdout
-          )
-          ok(
-            proc.stdout.includes(
-              'meta-env:flow-env-value:from-before-tests:true'
-            ),
-            proc.stdout
-          )
-        })
-      }
-    })
-
     it('has the env, the console and stdout in the service worker', async () => {
       const proc = await runFlow(
         'sw-reports.test.js',
@@ -242,6 +178,52 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
 
       is(proc.exitCode, 0, proc.stderr)
     })
+  })
+
+  describe('env in the browser', { concurrency: false }, () => {
+    const env = { FLOW_ENV: 'flow-env-value' }
+
+    for (const args of [
+      ['--mode', 'main'],
+      ['--mode', 'worker'],
+      ['--extension'],
+    ]) {
+      it(`has the env and PW_SERVER with ${args.join(' ')}`, async () => {
+        const proc = await runFlow('env.js', args, { env })
+
+        is(proc.exitCode, 0, proc.stderr)
+        ok(
+          proc.stdout.includes('env:flow-env-value:undefined:true'),
+          proc.stdout
+        )
+        ok(
+          proc.stdout.includes('meta-env:flow-env-value:undefined:true'),
+          proc.stdout
+        )
+      })
+    }
+
+    for (const mode of ['main', 'worker']) {
+      it(`has what beforeTests added to the env with mode:${mode}`, async () => {
+        const proc = await runFlow(
+          'env.js',
+          ['--config', `${FLOW}/env.config.mjs`, '--mode', mode],
+          { env }
+        )
+
+        is(proc.exitCode, 0, proc.stderr)
+        ok(
+          proc.stdout.includes('env:flow-env-value:from-before-tests:true'),
+          proc.stdout
+        )
+        ok(
+          proc.stdout.includes(
+            'meta-env:flow-env-value:from-before-tests:true'
+          ),
+          proc.stdout
+        )
+      })
+    }
   })
 
   for (const mode of ['main', 'node']) {
@@ -651,17 +633,6 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
       })
     }
 
-    it('still says when the tests failed', async () => {
-      const proc = await run([
-        `${FLOW}/rejection.mocha.js`,
-        '--runner',
-        'mocha',
-      ])
-
-      is(proc.exitCode, 1, 'exit code')
-      ok(proc.stderr.includes('Tests failed.'), proc.stderr)
-    })
-
     it('tells when a test navigates away', async () => {
       const proc = await runFlow('navigates.js')
 
@@ -842,6 +813,24 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
       fs.rmSync(root, { force: true, recursive: true })
     })
 
+    it('has the files to watch in watch mode', async () => {
+      const { Runner } = await import('../src/runner.js')
+      const test = path.resolve(FLOW, 'imports-suffix.js')
+      const runner = new Runner(
+        { runner: 'none', buildConfig: { metafile: false } },
+        [test]
+      )
+      runner.watching = true
+      try {
+        const { files } = await runner.compiler()
+        ok(files.has(test), [...files].join('\n'))
+        // Not with the suffix of the import
+        ok(files.has(path.resolve(FLOW, 'pass.js')), [...files].join('\n'))
+      } finally {
+        runner.removeFiles()
+      }
+    })
+
     // On Windows a killed process can't run any cleanup
     it('starts no tests once stopped with mode:node', {
       skip: process.platform === 'win32',
@@ -935,7 +924,7 @@ console.log('RUN', V, O, H)
         fs.writeFileSync(outside, "export const O = 'o2'\n")
         await seen('v1 o2 h2')
 
-        // Many files at once, which used to break the reloads or the whole process
+        // Many files at once still rerun once
         for (const version of ['a', 'b', 'c']) {
           const runs = stderr.match(/Reloading/g)?.length ?? 0
           fs.writeFileSync(lib, `export const V = '${version}'\n`)

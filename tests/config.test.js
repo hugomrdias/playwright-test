@@ -145,15 +145,10 @@ export default function config(cli) {
 `
       )
 
+      // Each message is in runner-options.test.js and run-timeout.test.js
       /** @type {Array<[string[], string]>} */
       const cases = [
-        [['--test-timeout=soon'], 'must be a number'],
         [['--test-timeout'], 'must be a number'],
-        [['--test-timeout', String(2 ** 31 - 1)], 'must be a number'],
-        [
-          ['--test-name-pattern', 'a', '--test-name-pattern', 'b'],
-          'only be set once',
-        ],
         [['--test-name-pattern'], 'non-empty pattern'],
         [['--run-timeout=soon'], 'Invalid run timeout'],
       ]
