@@ -193,13 +193,10 @@ describe('cli', () => {
   /** @type {string} */
   let dir
   /** @type {string} */
-  let empty
-  /** @type {string} */
   let file
 
   before(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-find-cli-'))
-    empty = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-find-empty-'))
     file = path.join(dir, 'abs.test.js')
     // The none runner has to end the run in browsers
     fs.writeFileSync(
@@ -210,7 +207,6 @@ describe('cli', () => {
 
   after(() => {
     fs.rmSync(dir, { recursive: true })
-    fs.rmSync(empty, { recursive: true })
   })
 
   /** @param {string[]} args */
@@ -233,28 +229,14 @@ describe('cli', () => {
         ok(!proc.stderr.includes('No test files'), proc.stderr)
       })
 
-      /** @type {Array<[string, string[]]>} */
-      const none = [
-        ['a path that does not exist', ['mocks/does-not-exist.js']],
-        ['a glob without matches', ['mocks/does-not-exist/**/*.js']],
-      ]
-
-      for (const [name, args] of none) {
-        it(`exits with 1 for ${name}`, async () => {
-          const proc = await cli([...args, '--mode', mode])
-
-          exited(proc, 1)
-          ok(proc.stderr.includes('No test files were found'), proc.stderr)
-          // Before runner auto detection
-          ok(!proc.stderr.includes('Using "none"'), proc.stderr)
-        })
-      }
-
-      it('exits with 1 without files in the project', async () => {
-        const proc = await cli(['--cwd', empty, '--mode', mode])
+      // The other ways to find nothing are in findTests above
+      it('exits with 1 for a path that does not exist', async () => {
+        const proc = await cli(['mocks/does-not-exist.js', '--mode', mode])
 
         exited(proc, 1)
         ok(proc.stderr.includes('No test files were found'), proc.stderr)
+        // Before runner auto detection
+        ok(!proc.stderr.includes('Using "none"'), proc.stderr)
       })
 
       it('exits with 1 with --debug too', async () => {

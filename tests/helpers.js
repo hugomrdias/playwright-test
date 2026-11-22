@@ -1,5 +1,7 @@
 import os from 'node:os'
+import { mock } from 'node:test'
 import { execa as baseExeca, execaSync as baseExecaSync } from 'execa'
+import { resolveOptions } from '../src/cli-options.js'
 
 // Bounded in-file concurrency: paired with `--test-concurrency=3` in package.json,
 // this keeps total concurrent browsers safe on 4-vCPU CI runners (3x2 = 6) while
@@ -35,6 +37,33 @@ export const execaSync = baseExecaSync(options)
  */
 export function runCli(args, cliOptions) {
   return /** @type {any} */ (execa('./cli.js', args, cliOptions ?? {}))
+}
+
+/**
+ * Resolve the options of the CLI in this process, for tests of the flags and the
+ * config file that don't need a run. Not for tests that run concurrently, it
+ * takes over the console to return what was logged.
+ *
+ * @param {string[]} args
+ */
+export async function resolveCli(args) {
+  /** @type {string[]} */
+  const logs = []
+  const record = (/** @type {unknown[]} */ ...parts) => {
+    logs.push(parts.join(' '))
+  }
+  const error = mock.method(console, 'error', record)
+  const warn = mock.method(console, 'warn', record)
+  try {
+    const resolved = await resolveOptions(args)
+    if (!resolved) {
+      throw new Error(`Nothing to run with ${args.join(' ')}`)
+    }
+    return { ...resolved, logs: logs.join('\n') }
+  } finally {
+    error.mock.restore()
+    warn.mock.restore()
+  }
 }
 
 // Runs started from an AI agent must report like any other, tests opt in with `AI_AGENT`.

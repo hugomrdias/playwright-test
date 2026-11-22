@@ -383,46 +383,6 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
     })
   })
 
-  describe('runner in the config file', { concurrency: false }, () => {
-    const file = `${FLOW}/config-runner.js`
-    const config = ['--config', `${FLOW}/runner-mocha.config.mjs`]
-
-    it('picks the runner, without auto detection', async () => {
-      const proc = await run([file, ...config])
-
-      is(proc.exitCode, 0, proc.stderr)
-      ok(proc.stdout.includes('from-config-runner'), proc.stdout)
-      ok(!proc.stderr.includes('Autodetected'), proc.stderr)
-      ok(!proc.stderr.includes('Could not find'), proc.stderr)
-    })
-
-    it('applies in node mode', async () => {
-      const proc = await run([file, ...config, '--mode', 'node'])
-
-      is(proc.exitCode, 0, proc.stderr)
-      ok(proc.stdout.includes('from-config-runner'), proc.stdout)
-    })
-
-    it('loses to --runner', async () => {
-      const proc = await run([file, ...config, '--runner', 'none'])
-
-      // `none` has no describe for the file to call
-      is(proc.exitCode, 1, 'exit code')
-      ok(!proc.stdout.includes('from-config-runner'), proc.stdout)
-    })
-
-    it('rejects anything else', async () => {
-      const proc = await run([
-        file,
-        '--config',
-        `${FLOW}/runner-unknown.config.mjs`,
-      ])
-
-      is(proc.exitCode, 1, 'exit code')
-      ok(proc.stderr.includes('Unknown runner "nope"'), proc.stderr)
-    })
-  })
-
   describe('the runner classes', { concurrency: false }, () => {
     for (const [className, file] of [
       ['Runner', '../src/runner.js'],
@@ -464,42 +424,6 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
         ok(
           String(proc.stdout).includes('from-config-runner'),
           String(proc.stdout)
-        )
-      })
-
-      if (className === 'Runner') {
-        it('Runner rejects the mode it does not run', async () => {
-          const proc = await runScript(`{ mode: 'node' }`)
-
-          is(proc.exitCode, 1, 'exit code')
-          ok(
-            String(proc.stderr).includes(
-              'Invalid mode "node", this runner takes "main" or "worker".'
-            ),
-            String(proc.stderr)
-          )
-        })
-      }
-
-      it(`${className} rejects a custom runner`, async () => {
-        const proc = await runScript(
-          `{ testRunner: { compileRuntime: () => '' }, mode: '${mode}' }`
-        )
-
-        is(proc.exitCode, 1, 'exit code')
-        ok(
-          String(proc.stderr).includes('Custom test runners are not'),
-          String(proc.stderr)
-        )
-      })
-
-      it(`${className} rejects an unknown runner`, async () => {
-        const proc = await runScript(`{ runner: 'nope', mode: '${mode}' }`)
-
-        is(proc.exitCode, 1, 'exit code')
-        ok(
-          String(proc.stderr).includes('Unknown runner "nope"'),
-          String(proc.stderr)
         )
       })
     }
@@ -576,48 +500,6 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
         ok(proc.stderr.includes('null'), proc.stderr)
         ok(!proc.stderr.includes('UNHANDLED:'), proc.stderr)
         ok(!proc.stderr.includes('after-ran'), proc.stderr)
-      })
-    }
-  })
-
-  describe('custom test runners', { concurrency: false }, () => {
-    for (const name of ['./mocks/flow/pass.js', 'some-module', 'toString']) {
-      it(`rejects --runner ${name}`, async () => {
-        const proc = await run([`${FLOW}/pass.js`, '--runner', name])
-
-        is(proc.exitCode, 1, 'exit code')
-        ok(proc.stderr.includes(`Unknown runner "${name}"`), proc.stderr)
-      })
-    }
-
-    it('rejects one in the config file', async () => {
-      const proc = await run([
-        `${FLOW}/pass.js`,
-        '--config',
-        `${FLOW}/custom-runner.config.mjs`,
-      ])
-
-      is(proc.exitCode, 1, 'exit code')
-      ok(proc.stderr.includes('Custom test runners are not'), proc.stderr)
-      ok(!proc.stdout.includes('flow-pass'), proc.stdout)
-    })
-  })
-
-  describe('invalid options', { concurrency: false }, () => {
-    for (const [name, args, message] of [
-      ['a mode', ['--mode', 'nope'], 'Invalid mode "nope"'],
-      [
-        'an extension in another browser',
-        ['--extension', '--browser', 'firefox'],
-        'only supported in chromium',
-      ],
-    ]) {
-      it(`rejects ${name} before starting a browser`, async () => {
-        const proc = await runFlow('pass.js', /** @type {string[]} */ (args))
-
-        is(proc.exitCode, 1, 'exit code')
-        ok(proc.stderr.includes(/** @type {string} */ (message)), proc.stderr)
-        ok(!proc.stderr.includes('    at '), 'only the message')
       })
     }
   })

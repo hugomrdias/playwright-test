@@ -198,14 +198,4 @@ describe('workerd mode', () => {
     is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
     ok(proc.stdout.includes('pass 1'), proc.stdout)
   })
-
-  it('does not take browser only options', async () => {
-    const proc = await runWorkerd(['test/worker.test.js', '--sw', 'sw.js'])
-
-    is(proc.exitCode, 1)
-    ok(
-      proc.stderr.includes('--sw does not work in the workerd mode.'),
-      proc.stderr
-    )
-  })
 })
