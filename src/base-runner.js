@@ -20,6 +20,12 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
 
+const COLOR_SWITCHES = new Set([
+  'FORCE_COLOR',
+  'NO_COLOR',
+  'NODE_DISABLE_COLORS',
+])
+
 /**
  * Whether the streams of this process are TTYs and the colors their terminal
  * has, for the `process.stdout` and `process.stderr` of browsers. The color
@@ -29,10 +35,12 @@ const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
  * @param {NodeJS.ProcessEnv} testEnv
  */
 function stdio(testEnv) {
-  const env = { ...testEnv }
-  delete env.FORCE_COLOR
-  delete env.NO_COLOR
-  delete env.NODE_DISABLE_COLORS
+  // Undefined values never reach the tests, Node.js checks keys like `CI` with `in`
+  const env = Object.fromEntries(
+    Object.entries(testEnv).filter(
+      ([key, value]) => value !== undefined && !COLOR_SWITCHES.has(key)
+    )
+  )
   const colorDepth = WriteStream.prototype.getColorDepth(env)
   return {
     stdout: { isTTY: Boolean(process.stdout.isTTY), colorDepth },
