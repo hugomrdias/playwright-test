@@ -423,6 +423,16 @@ describe('playwright-test/node-test', () => {
       is(exitCode, 1, 'exit code')
       is(summary(stdout, 'fail'), 2, stdout)
     })
+
+    it('late test registration error does not mention internal hold/exec', async () => {
+      const { exitCode, stdout, stderr } = await execa(
+        process.execPath,
+        [fixture('late-test')],
+        { reject: false }
+      )
+
+      is(exitCode, 0, `${stdout}\n${stderr}`)
+    })
   })
 
   describe('same output as the spec reporter of node:test', {

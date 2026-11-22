@@ -146,7 +146,7 @@ describe('node:test runner', () => {
     })
   }
 
-  describe('--test-timeout on hooks, the same on the real node:test', {
+  describe('--test-timeout on hooks and subtests, the same on the real node:test', {
     concurrency: TEST_CONCURRENCY,
   }, () => {
     const slow = '() => new Promise((resolve) => setTimeout(resolve, 150))'
@@ -197,6 +197,16 @@ describe('node:test runner', () => {
       [
         'a fast hook',
         `describe('s', () => { before(${fast}); it('a', ${fast}) })`,
+        0,
+      ],
+      [
+        'a subtest of a test with a longer timeout',
+        `test('a', { timeout: 2000 }, async (t) => { await t.test('b', ${slow}) })`,
+        1,
+      ],
+      [
+        'a subtest with an Infinity timeout of a test with a longer timeout',
+        `test('a', { timeout: 2000 }, async (t) => { await t.test('b', { timeout: Infinity }, ${slow}) })`,
         0,
       ],
     ]

@@ -721,7 +721,7 @@ class Test {
     /** Where it shows in the output, the tests at the top are `0`. */
     this.nesting = parent ? parent.nesting + 1 : -1
     this.only = only
-    this.timeout = parent?.timeout ?? (config.timeout || null)
+    this.timeout = parent?.timeout ?? null
     /** @type {string[]} */
     this.tags = [...(parent?.tags ?? []), ...(tags ?? [])]
 
@@ -751,6 +751,9 @@ class Test {
     if (timeout != null && timeout !== Number.POSITIVE_INFINITY) {
       validateTimeout(timeout, 'options.timeout')
       this.timeout = timeout
+    } else if (timeout == null && config.timeout) {
+      // Like `node:test`, `--test-timeout` wins over the parent's timeout
+      this.timeout = config.timeout
     }
 
     if (skip) {
@@ -826,7 +829,7 @@ class Test {
 
     if (parent === root && rootFinished) {
       throw new Error(
-        `Test "${typeof name === 'string' ? name : '<anonymous>'}" was created after the tests finished running. With top level await, await it before the run ends or call hold() and exec().`
+        `Test "${typeof name === 'string' ? name : '<anonymous>'}" was created after the tests finished running. Declare tests before the run ends, or await them when using top-level await.`
       )
     }
 
