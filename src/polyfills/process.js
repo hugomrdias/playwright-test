@@ -130,6 +130,7 @@ const p = {
   browser: true,
   env: {},
   argv: [],
+  exitCode: undefined,
   version: '', // empty string to avoid regexp issues
   versions: {},
   on: noop,
@@ -159,24 +160,19 @@ const p = {
       startTimer(drainTicks, 0)
     }
   },
-  exit: (code = 0) => {
-    const options = JSON.parse(process.env.PW_OPTIONS)
-    if (code === 0) {
-      if (options.mode === 'worker') {
-        postMessage({
-          pwRunEnded: true,
-          pwRunFailed: false,
-        })
-      } else {
-        globalThis.PW_TEST.end(false)
-      }
-    } else if (options.mode === 'worker') {
+  /** @param {[code?: number]} args */
+  exit: (...args) => {
+    // Like Node, only an omitted argument falls back to process.exitCode.
+    const exitCode = args.length === 0 ? p.exitCode : args[0]
+    const options = JSON.parse(p.env.PW_OPTIONS)
+    const failed = Number(exitCode ?? 0) !== 0
+    if (options.mode === 'worker') {
       postMessage({
         pwRunEnded: true,
-        pwRunFailed: true,
+        pwRunFailed: failed,
       })
     } else {
-      globalThis.PW_TEST.end(true)
+      globalThis.PW_TEST.end(failed)
     }
   },
   stdout: createStream('PW_TEST_STDOUT_WRITE', 'pwStdout', 'log'),

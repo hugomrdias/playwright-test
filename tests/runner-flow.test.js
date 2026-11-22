@@ -215,7 +215,8 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
 
         is(proc.exitCode, 1, 'exit code')
         ok(proc.stderr.includes('after-boom'), proc.stderr)
-        ok(Date.now() - start < 5000, 'it waited for the exit')
+        // Far below the 60s afterTests wait, with room for slow CI browser startup
+        ok(Date.now() - start < 20_000, 'it waited for the exit')
       })
 
       it('gets the time it needs', async () => {
