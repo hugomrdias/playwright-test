@@ -14,6 +14,12 @@ import { execa, runCli, TEST_CONCURRENCY } from './helpers.js'
 
 const FLOW = 'mocks/flow'
 
+// An afterTests hook that outlasts the wait for the exit, 1s in node mode,
+// without taking the 5.5s it needs for the default wait of the browsers
+const SLOW_HOOK = {
+  env: { FLOW_AFTER_DELAY: '1500', PW_TEST_EXIT_WAIT: '1000' },
+}
+
 /**
  * @typedef {{ all?: boolean, env?: Record<string, string | undefined>, timeout?: number }} RunOptions
  */
@@ -250,7 +256,7 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
       })
 
       it('gets the time it needs', async () => {
-        const proc = await runHook('after-slow')
+        const proc = await runHook('after-slow', SLOW_HOOK)
 
         is(proc.exitCode, 0, proc.stderr)
         ok(proc.stderr.includes('after-finished'), proc.stderr)
@@ -289,10 +295,11 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
     it('gets the time it needs when stopped', {
       skip: process.platform === 'win32',
     }, async () => {
-      const running = runFlow('never-ends.js', [
-        '--config',
-        `${FLOW}/after-slow.config.mjs`,
-      ])
+      const running = runFlow(
+        'never-ends.js',
+        ['--config', `${FLOW}/after-slow.config.mjs`],
+        SLOW_HOOK
+      )
       await once(running.stdout, 'data')
       running.kill('SIGINT')
       const proc = await running
