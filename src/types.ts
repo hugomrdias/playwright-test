@@ -128,6 +128,8 @@ export interface WorkerdOptions {
 export interface RunnerEnv extends NodeJS.ProcessEnv {
   PW_SERVER: string
   PW_OPTIONS: string
+  /** JSON of whether the runner's stdout and stderr are TTYs and their color depth. */
+  PW_STDIO: string
   NODE_ENV: 'test'
 }
 

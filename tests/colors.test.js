@@ -370,6 +370,79 @@ describe('colors', () => {
       }
     })
 
+    it('browser streams follow the runner streams in PW_STDIO', () => {
+      // The util polyfill reads FORCE_COLOR from the global process, Node's here
+      const savedForce = process.env.FORCE_COLOR
+      const savedBrowserEnv = { ...browserProcess.env }
+      const resetBrowserEnv = (/** @type {Record<string, string>} */ next) => {
+        for (const k of Object.keys(browserProcess.env)) {
+          delete browserProcess.env[k]
+        }
+        Object.assign(browserProcess.env, next)
+      }
+      const stdio = (
+        /** @type {boolean} */ isTTY,
+        /** @type {number} */ colorDepth
+      ) =>
+        JSON.stringify({
+          stdout: { isTTY, colorDepth },
+          stderr: { isTTY: !isTTY, colorDepth },
+        })
+      const red = '\u001B[31mx\u001B[39m'
+      const style = (/** @type {any} */ stream) =>
+        polyfillStyleText('red', 'x', { stream })
+      try {
+        delete process.env.FORCE_COLOR
+        resetBrowserEnv({ PW_STDIO: stdio(false, 8) })
+        is(browserProcess.stdout.isTTY, false)
+        is(browserProcess.stderr.isTTY, true)
+        is(style(browserProcess.stdout), 'x')
+        is(style(browserProcess.stderr), red)
+        is(
+          supportsColor({
+            env: browserProcess.env,
+            stream: browserProcess.stdout,
+          }),
+          false
+        )
+
+        process.env.FORCE_COLOR = '1'
+        resetBrowserEnv({ PW_STDIO: stdio(false, 8), FORCE_COLOR: '1' })
+        is(style(browserProcess.stdout), red)
+        is(
+          supportsColor({
+            env: browserProcess.env,
+            stream: browserProcess.stdout,
+          }),
+          true
+        )
+
+        delete process.env.FORCE_COLOR
+        resetBrowserEnv({ PW_STDIO: stdio(true, 24) })
+        is(browserProcess.stdout.isTTY, true)
+        is(browserProcess.stdout.getColorDepth(), 24)
+        is(style(browserProcess.stdout), red)
+
+        resetBrowserEnv({ PW_STDIO: stdio(true, 1) })
+        is(style(browserProcess.stdout), 'x')
+
+        resetBrowserEnv({ PW_STDIO: stdio(true, 24), NO_COLOR: '1' })
+        is(browserProcess.stdout.getColorDepth(), 1)
+        is(style(browserProcess.stdout), 'x')
+
+        resetBrowserEnv({})
+        is(browserProcess.stdout.isTTY, true)
+        is(browserProcess.stdout.getColorDepth(), 8)
+      } finally {
+        if (savedForce === undefined) {
+          delete process.env.FORCE_COLOR
+        } else {
+          process.env.FORCE_COLOR = savedForce
+        }
+        resetBrowserEnv(savedBrowserEnv)
+      }
+    })
+
     it('supports #RGB and #RRGGBB hex colors matching Node.js util.styleText', () => {
       /**
        * @param {any} format

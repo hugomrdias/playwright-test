@@ -1,3 +1,4 @@
+import { WriteStream } from 'node:tty'
 import { fileURLToPath } from 'node:url'
 import { gracefulExit } from 'exit-hook'
 import { mkdirSync } from 'fs'
@@ -18,6 +19,24 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
+
+/**
+ * Whether the streams of this process are TTYs and the colors their terminal
+ * has, for the `process.stdout` and `process.stderr` of browsers. The color
+ * depth leaves out the variables that turn colors on or off, browsers check
+ * those in their own env like Node.js does.
+ */
+function stdio() {
+  const env = { ...process.env }
+  delete env.FORCE_COLOR
+  delete env.NO_COLOR
+  delete env.NODE_DISABLE_COLORS
+  const colorDepth = WriteStream.prototype.getColorDepth(env)
+  return {
+    stdout: { isTTY: Boolean(process.stdout.isTTY), colorDepth },
+    stderr: { isTTY: Boolean(process.stderr.isTTY), colorDepth },
+  }
+}
 
 /**
  * What running the tests takes in a browser and in node.
@@ -49,6 +68,7 @@ export class BaseRunner {
     /** @type {import('./types.js').RunnerEnv} */
     this.env = merge(JSON.parse(JSON.stringify(process.env)), {
       PW_OPTIONS: JSON.stringify(this.options),
+      PW_STDIO: JSON.stringify(stdio()),
       NODE_ENV: 'test',
     })
     this.tests =
