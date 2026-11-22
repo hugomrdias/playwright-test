@@ -101,6 +101,31 @@ describe('process in the browser', { concurrency: TEST_CONCURRENCY }, () => {
   }
 })
 
+describe('util.debuglog in the browser', () => {
+  for (const mode of ['main', 'worker']) {
+    it(`matches NODE_DEBUG wildcards case-insensitively with mode:${mode}`, async () => {
+      const proc = await runCli(
+        [
+          'mocks/none/util-debuglog.test.js',
+          '--runner',
+          'none',
+          '--mode',
+          mode,
+        ],
+        {
+          env: { NODE_DEBUG: 'app*,a.b' },
+          reject: false,
+        }
+      )
+
+      is(proc.exitCode, 0, proc.stderr)
+      ok(proc.stdout.includes('debuglog is fine'), 'stdout')
+      ok(proc.stderr.includes('APP-HTTP: hello 1'), proc.stderr)
+      ok(!proc.stderr.includes('should not print'), proc.stderr)
+    })
+  }
+})
+
 describe('path in the browser', { concurrency: TEST_CONCURRENCY }, () => {
   for (const mode of ['main', 'worker']) {
     it(`resolves every import to the same module with mode:${mode}`, async () => {

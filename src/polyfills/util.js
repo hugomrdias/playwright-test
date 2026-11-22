@@ -257,10 +257,18 @@ export function deprecate(fn, message) {
  * @param {string} section
  */
 export function debuglog(section) {
-  const enabled = new RegExp(
-    `(^|,)${section.replaceAll(/[|\\{}()[\]^$+?.]/g, '\\$&').replaceAll('*', '.*')}($|,)`,
-    'i'
-  ).test(globalThis.process?.env?.NODE_DEBUG ?? '')
+  const nodeDebug =
+    typeof process === 'undefined' ? '' : (process.env?.NODE_DEBUG ?? '')
+  const enabled =
+    nodeDebug !== '' &&
+    nodeDebug
+      .split(',')
+      .some((pattern) =>
+        new RegExp(
+          `^${pattern.replaceAll(/[|\\{}()[\]^$+?.]/g, '\\$&').replaceAll('*', '.*')}$`,
+          'i'
+        ).test(section)
+      )
   const log = (...args) => {
     if (enabled) {
       console.error(`${section.toUpperCase()}: ${format(...args)}`)
