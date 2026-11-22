@@ -173,13 +173,13 @@ const builtinsPlugin = {
   name: 'workerd-builtins',
   setup(build) {
     const alias = build.initialOptions.alias ?? {}
-    build.onResolve({ filter: /^(node:)?[a-z_/]+$/ }, (args) => {
-      // Plugins come before aliases, like the node:test shim
-      if (Object.hasOwn(alias, args.path)) {
-        return { path: alias[args.path] }
-      }
+    build.onResolve({ filter: /^(node:)?[a-z0-9_/]+$/ }, (args) => {
       const name = args.path.replace(/^node:/, '')
       if (!args.path.startsWith('node:') && !BUILTINS.has(name)) {
+        return
+      }
+      // Plugins come before aliases, let esbuild resolve aliased built-ins like node:test
+      if (Object.hasOwn(alias, args.path)) {
         return
       }
       const id = `node:${name}`
@@ -295,6 +295,11 @@ export class WorkerdRunner extends BaseRunner {
   }
 
   assertOptions() {
+    if (this.options.trace !== 'off') {
+      throw new UsageError(
+        'Tracing records the browser, it does not work with --mode workerd.'
+      )
+    }
     for (const option of /** @type {const} */ (['before', 'sw', 'extension'])) {
       if (this.options[option]) {
         throw new UsageError(`--${option} does not work in the workerd mode.`)
@@ -703,13 +708,22 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
     })
     await this.runAfterTests()
     this.removeFiles()
-    await new Promise((resolve) => {
-      if (this.server) {
-        this.server.close(() => resolve(true))
-      } else {
-        resolve(true)
-      }
-    })
+
+    /** @type {NodeJS.Timeout | undefined} */
+    let timer
+    await Promise.race([
+      new Promise((resolve) => {
+        if (this.server) {
+          this.server.close(() => resolve(true))
+        } else {
+          resolve(true)
+        }
+      }),
+      new Promise((resolve) => {
+        timer = setTimeout(resolve, EXIT_WAIT)
+      }),
+    ])
+    clearTimeout(timer)
   }
 
   /**
