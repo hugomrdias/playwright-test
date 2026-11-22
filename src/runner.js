@@ -29,8 +29,9 @@ const noop = () => undefined
 const CONSOLE_FLUSH_TIMEOUT =
   Number(process.env.PW_TEST_CONSOLE_FLUSH_TIMEOUT) || 5000
 // Firefox on GitHub's Windows runners can take close to 3s to close, and the
-// browser profile can't be deleted until it does
-const EXIT_WAIT = 5000
+// browser profile can't be deleted until it does. Tests of slow afterTests
+// hooks lower it, to outlast it in less time.
+const EXIT_WAIT = Number(process.env.PW_TEST_EXIT_WAIT) || 5000
 // Saving many files at once changes them within the poll of the watcher
 const WATCH_DEBOUNCE = 200
 // Tests of workers that never claim the page lower it
