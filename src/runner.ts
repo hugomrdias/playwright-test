@@ -177,7 +177,6 @@ export class Runner extends BaseRunner {
     // Only Chromium reports service workers, the others keep their output.
     // Extension service workers can already be running before tracing starts.
     const trackedWorkers: WeakSet<Worker> = new WeakSet()
-    /** / */
     const trackServiceWorker = (worker: Worker) => {
       if (trackedWorkers.has(worker)) {
         return
@@ -516,7 +515,6 @@ export class Runner extends BaseRunner {
         reject(new Error('Target page, context or browser has been closed'))
       })
     }
-    /** / */
     const onFrameNavigated = (frame: Frame) => {
       if (frame !== page.mainFrame() || state.ended) {
         return

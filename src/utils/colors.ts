@@ -27,13 +27,9 @@ export interface Colors {
 
 const NO_VALIDATE = { validateStream: false }
 
-const makeStyle =
-  (style: ColorName) =>
-  /** / */
-  (text: string) =>
-    styleText(style, String(text), NO_VALIDATE)
+const makeStyle = (style: ColorName) => (text: string) =>
+  styleText(style, String(text), NO_VALIDATE)
 
-/** / */
 const identity = (text: string) => String(text)
 
 const styled = {

@@ -53,7 +53,6 @@ describe('findTests', () => {
     fs.rmSync(outside, { recursive: true })
   })
 
-  /** / */
   const inCwd = (...files: string[]) =>
     files.map((f) => path.join(cwd, f)).sort()
 
@@ -199,7 +198,6 @@ describe('cli', () => {
     fs.rmSync(dir, { recursive: true })
   })
 
-  /** / */
   const cli = (args: string[]) => runCli(args, { reject: false })
 
   const exited = (proc: Result, code: number) =>

@@ -312,7 +312,6 @@ describe('playwright-test/node-test', () => {
       })
 
       it('styleText follows the pipe and FORCE_COLOR', async () => {
-        /** / */
         const styled = async (env: Record<string, string | undefined>) => {
           const proc = await runCli(
             [fixture('style-text'), ...runner, '--mode', mode],
