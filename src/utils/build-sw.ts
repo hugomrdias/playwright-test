@@ -33,7 +33,7 @@ export async function compileSw(
 ) {
   const files = new Set<string>()
   const outName = 'sw-out.js'
-  const outPath = path.join(runner.dir, outName)
+  const outPath = path.join(runner.files, outName)
   // Imports run first and service workers can't wait for a dynamic one, so the
   // env has to be an import to be set when the entry runs.
   const content = `

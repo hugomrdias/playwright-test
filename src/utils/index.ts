@@ -12,6 +12,7 @@ import type { Server } from 'http'
 // @ts-expect-error
 import mergeOptions from 'merge-options'
 import { createRequire } from 'module'
+import os from 'os'
 import path from 'path'
 import type { BrowserType, ConsoleMessage, JSHandle } from 'playwright-core'
 import polka from 'polka'
@@ -104,6 +105,13 @@ export function assertBrowserOptions({
   assertTrace(trace)
   if (extension && browser !== 'chromium') {
     throw new UsageError('Extension testing is only supported in chromium.')
+  }
+  // Chromium splits the paths of its extension flags at commas, with no way
+  // to escape one. The extension is in the files of the run, in there.
+  if (extension && os.tmpdir().includes(',')) {
+    throw new UsageError(
+      `Extension testing can't load the extension from the temp folder ${os.tmpdir()}, Chromium doesn't take paths with a comma. Set TMPDIR (TEMP on Windows) to a folder without one.`
+    )
   }
 }
 
@@ -628,13 +636,11 @@ export const envFile = (dir: string) => `pw-env-${path.basename(dir)}.js`
 const ENV_MODULE = 'playwright-test:env'
 
 /**
- * Write the env the bundles import from {@link envFile}.
- *
- * @param dir - Runner directory
+ * Write the env the bundles import from {@link envFile}, next to them.
  */
-export function writeEnv(dir: string, env: Record<string, unknown>) {
+export function writeEnv(runner: Runner, env: Record<string, unknown>) {
   return fs.promises.writeFile(
-    path.join(dir, envFile(dir)),
+    path.join(runner.files, envFile(runner.dir)),
     `export default ${JSON.stringify(env)}\n`
   )
 }
@@ -650,7 +656,7 @@ export async function build(
   tmpl: string = ''
 ) {
   const outName = 'bundle-out.js'
-  const outPath = path.join(runner.dir, outName)
+  const outPath = path.join(runner.files, outName)
 
   // Imports run first, so the env is there before anything the template imports
   const infileContent = `
@@ -688,7 +694,6 @@ ${tmpl}
       contents: infileContent,
       resolveDir: runner.options.cwd,
     },
-    // sourceRoot: runner.dir,
     bundle: true,
     sourcemap: 'inline',
     platform: 'browser',

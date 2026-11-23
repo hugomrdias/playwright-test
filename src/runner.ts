@@ -3,6 +3,7 @@
 import { fileURLToPath } from 'node:url'
 import { watch } from 'chokidar'
 import { asyncExitHook } from 'exit-hook'
+import { mkdirSync } from 'fs'
 import { cp } from 'fs/promises'
 import path from 'path'
 import type {
@@ -88,7 +89,7 @@ export class Runner extends BaseRunner {
 
   constructor(options: Config, testFiles?: string[]) {
     super(options, testFiles)
-    this.stackMapper = createStackMapper(this.dir)
+    this.stackMapper = createStackMapper(this.files)
     this.url = ''
     this.pageErrored = false
     /** If the test page crashed */
@@ -103,6 +104,9 @@ export class Runner extends BaseRunner {
 
     if (!this.stopped) {
       process.env.DEBUG = [process.env.DEBUG, '-pw:*'].filter(Boolean).join(',')
+      // Before the bundles, the copy of the static files and a build started
+      // early would both make it
+      mkdirSync(this.files, { recursive: true })
     }
   }
 
@@ -121,7 +125,7 @@ export class Runner extends BaseRunner {
     // Assign server immediately on listen so cleanup still closes it if another
     // parallel setup step (like invalid browser validation) rejects.
     const serverPromise = createPolka(
-      this.dir,
+      this.files,
       this.options.cwd,
       this.options.assets
     ).then(({ server, url }) => {
@@ -151,8 +155,8 @@ export class Runner extends BaseRunner {
       args: [
         ...(this.options.extension
           ? [
-              `--disable-extensions-except=${this.dir}`,
-              `--load-extension=${this.dir}`,
+              `--disable-extensions-except=${this.#extension()}`,
+              `--load-extension=${this.#extension()}`,
             ]
           : []),
         ...(this.options.browser === 'chromium' && this.options.debug
@@ -164,8 +168,7 @@ export class Runner extends BaseRunner {
 
     this.#handleInterrupt()
 
-    // Next to the files of the run, deleted with them once the browser is gone.
-    // Not in them, the extension and the server would get it.
+    // Deleted with the files of the run once the browser is gone
     this.#launching = pw.launchPersistentContext(this.#profile(), {
       ...pwOptions,
       ...this.options.browserContextOptions,
@@ -291,7 +294,7 @@ export class Runner extends BaseRunner {
 
       const extensionId = serviceWorker.url().split('/')[2]
       this.page = context.pages()[0]
-      await this.page.goto(`chrome-extension://${extensionId}/popup.html`)
+      await this.page.goto(`chrome-extension://${extensionId}/tests/popup.html`)
 
       if (this.options.debug) {
         // Open the devtools of the extension service worker. It's only a
@@ -364,7 +367,7 @@ export class Runner extends BaseRunner {
     const [{ outName, files: mainFiles }, swOutput] = await Promise.all([
       compiled,
       swBuild,
-      writeEnv(this.dir, this.env),
+      writeEnv(this, this.env),
       page.addScriptTag({ url: 'setup.js' }),
       page.evaluate((value) => {
         localStorage.debug = value
@@ -903,15 +906,25 @@ export class Runner extends BaseRunner {
   }
 
   /**
-   * The browser profile, next to the files of the run
+   * The folder Chromium loads as an extension with `--extension`
    */
-  #profile() {
-    return `${this.dir}-profile`
+  #extension() {
+    return path.join(this.dir, 'extension')
   }
 
-  removeFiles() {
-    super.removeFiles()
-    removeFolder(this.#profile())
+  /**
+   * The files of the tests, the bundles and the env. Served, and in the
+   * extension for its page to load them.
+   */
+  get files() {
+    return path.join(this.#extension(), 'tests')
+  }
+
+  /**
+   * Deleted with the files of the run, see `#clean`
+   */
+  #profile() {
+    return path.join(this.dir, 'profile')
   }
 
   /**

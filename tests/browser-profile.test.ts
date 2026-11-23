@@ -42,6 +42,19 @@ async function withTempDir(
   }
 }
 
+/**
+ * The runs in `temp` with a browser profile, it's in the folder of the run
+ */
+function withProfile(temp: string) {
+  return fs
+    .readdirSync(temp)
+    .filter(
+      (name) =>
+        name.startsWith('playwright-test-') &&
+        fs.existsSync(path.join(temp, name, 'profile'))
+    )
+}
+
 describe('browser profile', { concurrency: TEST_CONCURRENCY }, () => {
   for (const browser of ['chromium', 'firefox', 'webkit']) {
     it(`is deleted after a run in ${browser}`, {
@@ -80,7 +93,7 @@ describe('browser profile', { concurrency: TEST_CONCURRENCY }, () => {
         { env, reject: false, timeout: 40_000 }
       )
       // Playwright fills the profile before it starts the browser
-      while (!fs.readdirSync(temp).some((name) => name.includes('profile'))) {
+      while (withProfile(temp).length === 0) {
         await new Promise((resolve) => setTimeout(resolve, 50))
       }
       running.kill('SIGINT')
@@ -94,7 +107,7 @@ describe('browser profile', { concurrency: TEST_CONCURRENCY }, () => {
   it('is deleted when interrupted while the build never ends', {
     skip: process.platform === 'win32' && 'no SIGINT',
   }, async () => {
-    await withTempDir(async ({ env, leftovers }) => {
+    await withTempDir(async ({ temp, env }) => {
       const running = runCli(
         [
           'mocks/none/stdout.test.js',
@@ -124,10 +137,7 @@ describe('browser profile', { concurrency: TEST_CONCURRENCY }, () => {
       const proc = await running
       is(proc.exitCode, 130, 'exit code')
       // The files of the run stay, the build could still be writing them
-      equal(
-        leftovers().filter((name) => name.endsWith('-profile')),
-        []
-      )
+      equal(withProfile(temp), [])
     })
   })
 
@@ -149,14 +159,11 @@ describe('browser profile', { concurrency: TEST_CONCURRENCY }, () => {
       )
       // Says the browser is ready
       await once(running.stderr, 'data')
-      const profiles = fs.readdirSync(temp)
+      const profiles = withProfile(temp)
 
       const proc = await running
       is(proc.exitCode, 1, 'exit code')
-      ok(
-        profiles.some((name) => name.includes('profile')),
-        `a profile while running, found: ${profiles}`
-      )
+      ok(profiles.length > 0, `a profile while running, found: ${profiles}`)
       equal(leftovers(), [])
     })
   })

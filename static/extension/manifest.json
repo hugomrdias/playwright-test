@@ -9,7 +9,7 @@
   "permissions": ["developerPrivate", "management"],
   "action": {
     "default_title": "Make this page red",
-    "default_popup": "popup.html"
+    "default_popup": "tests/popup.html"
   },
   "manifest_version": 3,
   "content_security_policy": {

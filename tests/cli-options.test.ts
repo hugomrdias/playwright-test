@@ -5,6 +5,8 @@ import {
   rejects,
   throws,
 } from 'node:assert/strict'
+import os from 'node:os'
+import path from 'node:path'
 import { describe, it } from 'node:test'
 import { NodeRunner } from '../src/node/runner.ts'
 import { Runner } from '../src/runner.ts'
@@ -261,6 +263,31 @@ describe('options the runners reject', () => {
       ],
       'only supported in chromium'
     )
+  })
+
+  it('an extension with a comma in the temp folder', async () => {
+    // Which one os.tmpdir() reads depends on the platform
+    const names = ['TMPDIR', 'TMP', 'TEMP']
+    const previous = names.map((name) => process.env[name])
+    const temp = path.join(os.tmpdir(), 'a,b')
+    for (const name of names) {
+      process.env[name] = temp
+    }
+    try {
+      await rejectsRunner(
+        [`${FLOW}/pass.js`, '--runner', 'none', '--extension'],
+        "Chromium doesn't take paths with a comma"
+      )
+    } finally {
+      names.forEach((name, index) => {
+        const value = previous[index]
+        if (value === undefined) {
+          delete process.env[name]
+        } else {
+          process.env[name] = value
+        }
+      })
+    }
   })
 
   it('browser only options in workerd mode', async () => {
