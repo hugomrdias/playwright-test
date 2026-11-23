@@ -1,5 +1,15 @@
-import { strictEqual as is, ok } from 'node:assert/strict'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import {
+  deepStrictEqual as equal,
+  strictEqual as is,
+  ok,
+} from 'node:assert/strict'
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, it } from 'node:test'
@@ -26,6 +36,12 @@ function assertTrace() {
   ok(zip.length > 0, 'not empty')
   is(zip.subarray(0, 4).toString('hex'), '504b0304', 'is a zip')
   ok(zip.includes('trace.trace'), 'has the trace')
+  // Copied next to it, then renamed
+  equal(
+    readdirSync(cwd).filter((name) => name.endsWith('.tmp')),
+    [],
+    'no copy left'
+  )
 }
 
 describe('--trace', () => {

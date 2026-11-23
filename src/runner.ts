@@ -778,17 +778,23 @@ export class Runner extends BaseRunner {
       this.options.cwd,
       `playwright-test-trace-${this.options.browser}.zip`
     )
-    // Not a rename, the temp folder can be on another drive. With its own
-    // wait, where it goes can be slow.
+    // Not a rename, the temp folder can be on another drive. Copied next to
+    // it first, a copy that doesn't finish can't replace the trace of another
+    // run. With its own wait, where it goes can be slow.
+    const copy = `${file}.${process.pid}.tmp`
     let timer: NodeJS.Timeout | undefined
     const copied = await Promise.race([
-      fs.promises.copyFile(trace.file, file).then(
-        () => true,
-        (error: Error) => {
-          log.warn(`Could not save the trace: ${error.message}`)
-          return undefined
-        }
-      ),
+      fs.promises
+        .copyFile(trace.file, copy)
+        .then(() => fs.promises.rename(copy, file))
+        .then(
+          () => true,
+          (error: Error) => {
+            fs.promises.rm(copy, { force: true }).catch(noop)
+            log.warn(`Could not save the trace: ${error.message}`)
+            return undefined
+          }
+        ),
       new Promise((resolve) => {
         timer = setTimeout(resolve, TRACE_WAIT, false)
       }),
