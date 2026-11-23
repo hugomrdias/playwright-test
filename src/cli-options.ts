@@ -2,8 +2,6 @@
 
 import fs from 'fs'
 import { lilconfig } from 'lilconfig'
-// @ts-expect-error
-import mergeOptions from 'merge-options'
 import path from 'path'
 import sade from 'sade'
 import { isAgent } from 'std-env'
@@ -19,11 +17,12 @@ import {
   TRACE_VALUES,
   UsageError,
 } from './utils/index.ts'
+import { createMerge } from './utils/merge.ts'
 import { toRegExp } from './utils/name-pattern.ts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-const merge = mergeOptions.bind({ ignoreUndefined: true })
+const merge = createMerge({ ignoreUndefined: true })
 
 const loadEsm = async (filepath: string) => {
   const res: { default?: unknown } = await import(

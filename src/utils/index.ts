@@ -9,8 +9,6 @@ import esbuild from 'esbuild'
 import { wasmLoader } from 'esbuild-plugin-wasm'
 import fs from 'fs'
 import type { Server } from 'http'
-// @ts-expect-error
-import mergeOptions from 'merge-options'
 import { createRequire } from 'module'
 import path from 'path'
 import type { BrowserType, ConsoleMessage, JSHandle } from 'playwright-core'
@@ -20,15 +18,13 @@ import type { Runner } from '../runner.ts'
 import * as DefaultRunners from '../test-runners.ts'
 import type { RunnerEnv, RunnerOptions, TestRunner } from '../types.ts'
 import { colors } from './colors.ts'
+import { createMerge } from './merge.ts'
 import { polyfillAliases } from './polyfill-aliases.ts'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-const merge = mergeOptions.bind({
-  ignoreUndefined: true,
-  concatArrays: true,
-})
+const merge = createMerge({ ignoreUndefined: true, concatArrays: true })
 
 /** A hung test shouldn't hang the run forever, long enough for any real suite. */
 export const DEFAULT_RUN_TIMEOUT = 30 * 60 * 1000
@@ -737,7 +733,9 @@ ${tmpl}
       global: 'globalThis',
     },
   }
-  await esbuild.build(merge(defaultOptions, config, runner.options.buildConfig))
+  await esbuild.build(
+    merge<ESBuildOptions>(defaultOptions, config, runner.options.buildConfig)
+  )
 
   return { outName, files }
 }

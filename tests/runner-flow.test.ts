@@ -756,7 +756,7 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
         // Not with the suffix of the import
         ok(files.has(path.resolve(FLOW, 'pass.js')), [...files].join('\n'))
       } finally {
-        runner.removeFiles()
+        await runner.removeFiles()
       }
     })
 

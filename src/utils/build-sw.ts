@@ -3,18 +3,14 @@ import type {
   Plugin as ESBuildPlugin,
 } from 'esbuild'
 import { build } from 'esbuild'
-// @ts-expect-error
-import mergeOptions from 'merge-options'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import type { Runner } from '../runner.ts'
 import { EXT } from './ext.ts'
+import { createMerge } from './merge.ts'
 import { polyfillAliases } from './polyfill-aliases.ts'
 
-const merge = mergeOptions.bind({
-  ignoreUndefined: true,
-  concatArrays: true,
-})
+const merge = createMerge({ ignoreUndefined: true, concatArrays: true })
 
 const ENV_MODULE = 'playwright-test:env'
 
@@ -91,7 +87,9 @@ self.addEventListener('activate', (event) => {
       global: 'globalThis',
     },
   }
-  await build(merge(defaultOptions, runner.options.buildSWConfig))
+  await build(
+    merge<ESBuildOptions>(defaultOptions, runner.options.buildSWConfig)
+  )
 
   return { files, outName }
 }
