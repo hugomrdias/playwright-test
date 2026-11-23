@@ -2,6 +2,7 @@ import { strictEqual as is, ok } from 'node:assert/strict'
 import { after, before, describe, it } from 'node:test'
 import type { Result } from 'execa'
 import fs from 'fs'
+import { isRunning } from '../src/utils/process.ts'
 import { runCli, TEST_CONCURRENCY } from './helpers.ts'
 
 describe('node:test runner', () => {
@@ -86,6 +87,210 @@ describe('node:test runner', () => {
       })
     })
   }
+
+  describe('--test-isolation in node mode', {
+    concurrency: TEST_CONCURRENCY,
+  }, () => {
+    const files = [
+      'mocks/node-test-runner/isolation/a.test.js',
+      'mocks/node-test-runner/isolation/b.test.js',
+    ]
+    const isolation = (args: string[]) =>
+      runCli([...files, '--runner', 'node-test', '--mode', 'node', ...args], {
+        reject: false,
+      })
+
+    it('process, the default, runs each file on its own', async () => {
+      const [byDefault, process1] = await Promise.all([
+        isolation([]),
+        isolation(['--test-isolation', 'process', '--test-concurrency', '1']),
+      ])
+
+      for (const proc of [byDefault, process1]) {
+        is(proc.exitCode, 0, output(proc))
+        ok(proc.stdout.includes('ℹ pass 2'), output(proc))
+      }
+    })
+
+    it('none runs the files together, they share globals', async () => {
+      const proc = await isolation(['--test-isolation', 'none'])
+
+      is(proc.exitCode, 1, output(proc))
+      ok(proc.stdout.includes('ℹ fail 1'), output(proc))
+    })
+
+    it('runs the files as they are, without glob patterns', async () => {
+      // Biome wants kebab-case names in the repo, and Windows has no `*`
+      const dir = fs.mkdtempSync('mocks/tmp-glob-')
+      const write = (name: string, body: string) =>
+        fs.writeFileSync(
+          `${dir}/${name}`,
+          `import { test } from 'node:test'\ntest('${name}', () => { ${body} })\n`
+        )
+      write('[case]{a,b}(c).test.js', "throw new Error('fails')")
+      write('left{.test.js', '')
+      // What a pattern for left{ could match too
+      write('leftz.test.js', "throw new Error('not selected')")
+      try {
+        const [glob, sibling] = await Promise.all(
+          ['[case]{a,b}(c).test.js', 'left{.test.js'].map((name) =>
+            runCli(
+              [`${dir}/${name}`, '--runner', 'node-test', '--mode', 'node'],
+              {
+                reject: false,
+              }
+            )
+          )
+        )
+
+        is(glob.exitCode, 1, output(glob))
+        ok(glob.stdout.includes('ℹ fail 1'), output(glob))
+        is(sibling.exitCode, 0, output(sibling))
+        ok(sibling.stdout.includes('ℹ tests 1'), output(sibling))
+      } finally {
+        fs.rmSync(dir, { recursive: true })
+      }
+    })
+
+    it('runs from a test of node:test', async () => {
+      const proc = await runCli(
+        [fixture('fail'), '--runner', 'node-test', '--mode', 'node'],
+        { reject: false, env: { NODE_TEST_CONTEXT: 'child-v8' } }
+      )
+
+      is(proc.exitCode, 1, output(proc))
+      ok(proc.stdout.includes('ℹ fail 1'), output(proc))
+    })
+
+    it('playwright-test/node-test is the real node:test, tests can come after a top-level await', async () => {
+      const proc = await runCli(
+        [
+          'mocks/node-test-runner/isolation-late/late.test.js',
+          '--runner',
+          'node-test',
+          '--mode',
+          'node',
+        ],
+        { reject: false }
+      )
+
+      is(proc.exitCode, 0, output(proc))
+      ok(!output(proc).includes('created after'), output(proc))
+    })
+
+    it('a reporter comes from the project, with the conditions of import', async () => {
+      const dir = fs.mkdtempSync('mocks/tmp-reporter-')
+      const pkg = `${dir}/node_modules/only-import-reporter`
+      fs.mkdirSync(pkg, { recursive: true })
+      fs.writeFileSync(
+        `${pkg}/package.json`,
+        JSON.stringify({
+          name: 'only-import-reporter',
+          type: 'module',
+          exports: { import: './index.js' },
+        })
+      )
+      fs.writeFileSync(
+        `${pkg}/index.js`,
+        "export default async function* (source) { for await (const event of source) { if (event.type === 'test:pass') yield 'REPORTED ' + event.data.name + '\\n' } }\n"
+      )
+      fs.writeFileSync(
+        `${dir}/broken-reporter.js`,
+        "await new Promise((resolve) => setTimeout(resolve, 100))\nthrow new Error('reporter-boom')\n"
+      )
+      fs.writeFileSync(
+        `${dir}/marker.test.js`,
+        "import fs from 'node:fs'\nimport { test } from 'node:test'\ntest('writes', () => { fs.writeFileSync('marker.txt', '') })\n"
+      )
+      const config = (reporter: string) =>
+        fs.writeFileSync(
+          `${dir}/${reporter.replace(/\W/g, '')}.config.js`,
+          `export default { testRunner: { options: { reporter: '${reporter}' } } }\n`
+        )
+      config('only-import-reporter')
+      config('./broken-reporter.js')
+      const cli = (reporter: string) =>
+        runCli(
+          [
+            'marker.test.js',
+            '--runner',
+            'node-test',
+            '--mode',
+            'node',
+            '--cwd',
+            dir,
+            '--config',
+            `${dir}/${reporter.replace(/\W/g, '')}.config.js`,
+          ],
+          { reject: false }
+        )
+      try {
+        const broken = await cli('./broken-reporter.js')
+        is(broken.exitCode, 1, output(broken))
+        ok(output(broken).includes('reporter-boom'), output(broken))
+        is(fs.existsSync(`${dir}/marker.txt`), false, 'a file ran')
+
+        const proc = await cli('only-import-reporter')
+        is(proc.exitCode, 0, output(proc))
+        ok(proc.stdout.includes('REPORTED writes'), output(proc))
+      } finally {
+        fs.rmSync(dir, { recursive: true })
+      }
+    })
+
+    it('a run timeout also ends a file that blocks and ignores SIGTERM', async () => {
+      const dir = fs.mkdtempSync('mocks/tmp-blocked-')
+      const file = `${dir}/pid.txt`
+      try {
+        const proc = await runCli(
+          [
+            'mocks/node-test-runner/isolation-kill/blocked.test.js',
+            '--runner',
+            'node-test',
+            '--mode',
+            'node',
+            '--run-timeout',
+            '1000',
+          ],
+          { reject: false, env: { STUBBORN_FILE: file } }
+        )
+        is(proc.exitCode, 1, output(proc))
+        const pid = Number(fs.readFileSync(file, 'utf8'))
+        is(isRunning(pid), false, `${pid} is still running`)
+      } finally {
+        fs.rmSync(dir, { recursive: true })
+      }
+    })
+
+    it('a run timeout also ends the files that ignore SIGTERM', async () => {
+      const dir = fs.mkdtempSync('mocks/tmp-stubborn-')
+      const file = `${dir}/out.txt`
+      try {
+        const proc = await runCli(
+          [
+            'mocks/node-test-runner/isolation-kill/stubborn.test.js',
+            '--runner',
+            'node-test',
+            '--mode',
+            'node',
+            '--run-timeout',
+            '1000',
+          ],
+          { reject: false, env: { STUBBORN_FILE: file } }
+        )
+        is(proc.exitCode, 1, output(proc))
+        // A file notices within 100ms that node --test is gone, it can write
+        // once more in that time
+        const wait = () => new Promise((resolve) => setTimeout(resolve, 500))
+        await wait()
+        const lines = fs.readFileSync(file, 'utf8')
+        await wait()
+        is(fs.readFileSync(file, 'utf8'), lines, 'it kept running')
+      } finally {
+        fs.rmSync(dir, { recursive: true })
+      }
+    })
+  })
 
   // In node mode the shim gets the options from PW_OPTIONS, not from node flags
   it('--test-name-pattern and --test-timeout reach the shim in node mode', async () => {

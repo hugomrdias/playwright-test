@@ -39,6 +39,8 @@ Description
     --run-timeout          Fail the run after this many milliseconds, 0 turns it off. Not used with --debug or --watch.  (default 1800000)
     --test-name-pattern    Only run tests whose name matches this regular expression or /expression/flags. Repeat it to run tests matching any of them.
     --test-timeout         Timeout in milliseconds for tests without their own, 0 for none.
+    --test-isolation       How test files are isolated: process runs each file on its own, none runs them together. Only node-test in --mode node supports process for now.  (default process)
+    --test-concurrency     How many test files run at once with --test-isolation process.  (default os.availableParallelism() - 1)
     --trace                Save a Playwright trace to playwright-test-trace-<browser>.zip in --cwd, open it with `npx playwright show-trace`. Alone it only keeps the trace of a failed run, `--trace on` always keeps it. Values other than `off` fail with --mode node or workerd; ignored with --debug and --watch.  (default off)
     --config               Path to the config file
     -v, --version          Displays current version
@@ -169,7 +171,7 @@ playwright-test "test/**/*.test.js" --runner node-test --mode node
 Files can import `node:test` instead, and they don't need to change to run anywhere:
 
 - In browsers `node:test` resolves to `playwright-test/node-test`, and `node:assert` to [our own](#nodeassert-api).
-- In node mode `node:test` is the real one, with all of its API and reporters, and everything under [what's different](#whats-different-from-nodetest) doesn't apply. A file that imports `playwright-test/node-test` keeps using that one, so it gets the same behaviour everywhere.
+- In node mode `node:test` is the real one, with all of its API and reporters, and everything under [what's different](#whats-different-from-nodetest) doesn't apply. A file that imports `playwright-test/node-test` keeps using that one with `--test-isolation none`, so it gets the same behaviour everywhere. With `--test-isolation process`, the default, it's the real `node:test` too, so APIs that your Node.js version doesn't have yet aren't there, like the `t.assert` helpers for mocks on Node.js 24.
 
 `--test-name-pattern` and `--test-timeout` work the same with both. To use a `node:test` reporter in node mode set `testRunner.options.reporter` in the [config file](#runner-options), the output of `playwright-test/node-test` and of browsers is always the format of the `spec` reporter.
 
@@ -183,7 +185,7 @@ The types are the ones from `node:test`, which come from `@types/node`.
 - `test(name?, options?, fn?)`, which returns a promise, and `.skip`, `.todo` and `.only` on all of them.
 - The options `skip`, `todo`, `only`, `timeout`, `plan`, `signal`, `tags` and `concurrency`. There's no default timeout.
 - Suites to any depth, async suites and hooks scoped to their suite. Everything runs in declaration order.
-- The test context: `t.test`, `t.name`, `t.fullName`, `t.skip`, `t.todo`, `t.diagnostic`, `t.log`, `t.plan`, `t.assert` (with `called`, `callCount`, `lastCalledWith` and `nthCalledWith` in any Node.js version), `t.signal`, `t.mock`, `t.waitFor`, `t.runOnly`, `t.error`, `t.passed`, `t.tags`, `t.before`, `t.after`, `t.beforeEach`, `t.afterEach` and `(t, done)` callbacks, also in hooks.
+- The test context: `t.test`, `t.name`, `t.fullName`, `t.skip`, `t.todo`, `t.diagnostic`, `t.log`, `t.plan`, `t.assert` (with `called`, `callCount`, `lastCalledWith` and `nthCalledWith` in any Node.js version, in node mode only with `--test-isolation none`), `t.signal`, `t.mock`, `t.waitFor`, `t.runOnly`, `t.error`, `t.passed`, `t.tags`, `t.before`, `t.after`, `t.beforeEach`, `t.afterEach` and `(t, done)` callbacks, also in hooks.
 - `mock.fn`, `mock.method`, `mock.getter`, `mock.setter`, `mock.property`, `mock.reset` and `mock.restoreAll`. `t.mock` is restored when the test ends.
 - `mock.timers` with `enable`, `tick`, `runAll`, `setTime`, `reset` and `Symbol.dispose`. It mocks the globals `setTimeout`, `setInterval`, `setImmediate` (added when the browser has none), `Date` and `AbortSignal.timeout`. `t.mock.timers` is reset when the test ends.
 
@@ -206,7 +208,7 @@ These aren't implemented and throw an error that names them, they never silently
 - A throw in a root `after` hook fails the run, it exits with 0 in `node:test`.
 - A root `after` hook runs when the whole run ends, `node:test` can run it earlier when using top level `await`.
 - There's no async context in browsers, so a running test is what's used to find out where things belong. A global `test()` call while a test is running creates a subtest of that test, and an uncaught error fails the running test even when an earlier test caused it. Only one async `describe` body runs at a time, the others wait for it.
-- All the files of a run share the root hooks, like `--test-isolation=none`.
+- In browsers, web workers and workerd all the files of a run share the root hooks, like `--test-isolation=none`.
 - A top level `await test()` runs before anything else, so an `.only` declared later doesn't filter it. A test declared after the run ended throws.
 - Awaiting `t.test()` on a test that already finished resolves and the subtest fails, it hangs in `node:test`.
 - `t.assert` always counts for `t.plan()`, in `node:test` it doesn't if it was read before calling `t.plan()`.
@@ -393,6 +395,17 @@ playwright-test test.js --test-timeout 10000
 - `--test-timeout` is in milliseconds, `0` means no timeout. It's different from `--run-timeout`, which is for the whole run.
 
 Both can also be set as `testNamePattern` and `testTimeout` in the config file.
+
+### Test isolation
+
+Like `node:test`, `--test-isolation process` runs each test file on its own, with its own globals and root hooks, and `--test-concurrency` sets how many files run at once. `--test-isolation none` runs all the files together in one place, where they share globals and root hooks, and `--test-concurrency` is ignored.
+
+```shell
+playwright-test "test/**" --runner node-test --mode node --test-concurrency 2
+playwright-test "test/**" --test-isolation none
+```
+
+`process` is the default. For now only `node-test` in node mode supports it: the files run with `run()` of `node:test`, like `node --test --test-isolation=process`, and `playwright-test/node-test` is the real `node:test` in them, so the output is the one of `node --test`. The other runners and modes run the files together like `none`, and warn when `process` is set explicitly. Both can also be set as `testIsolation` and `testConcurrency` in the config file.
 
 ### AI agents
 

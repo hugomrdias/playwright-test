@@ -1,21 +1,82 @@
 import type { ChildProcess } from 'node:child_process'
 import { spawn } from 'node:child_process'
+import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
 import { watch } from 'chokidar'
 import { BaseRunner } from '../base-runner.ts'
 import type { Config } from '../types.ts'
+import { EXT } from '../utils/ext.ts'
 import { createPolka, log, UsageError, withTimeout } from '../utils/index.ts'
+import { toPatterns } from '../utils/name-pattern.ts'
 import {
   FORCE_KILL_DELAY,
   forceKill,
+  isRunning,
   killTree,
   withLocalBins,
 } from '../utils/process.ts'
 
 // What a killed subprocess gets after its forced kill, to end
 const EXIT_WAIT = 1000
+
+const isolatedFile = fileURLToPath(
+  new URL(`./isolated-file${EXT}`, import.meta.url)
+)
+const isolatedRun = fileURLToPath(
+  new URL(`./isolated-run${EXT}`, import.meta.url)
+)
+
+/**
+ * The processes of the files with `--test-isolation process`. Each one writes
+ * its pid in `dir`, and removes it when it exits.
+ */
+interface Tests {
+  child: ChildProcess
+  finished: Promise<boolean>
+  stop: () => Promise<void>
+  workers?: Workers
+}
+
+class Workers {
+  readonly dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-workers-'))
+
+  #pids() {
+    try {
+      return fs.readdirSync(this.dir).map(Number).filter(isRunning)
+    } catch {
+      // Removed already
+      return []
+    }
+  }
+
+  signal(name: NodeJS.Signals) {
+    for (const pid of this.#pids()) {
+      try {
+        process.kill(pid, name)
+      } catch {
+        // Gone
+      }
+    }
+  }
+
+  /** Ask them to end, and force the ones that don't in time */
+  async end() {
+    const deadline = Date.now() + FORCE_KILL_DELAY
+    this.signal('SIGTERM')
+    while (this.#pids().length > 0 && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+    this.kill()
+  }
+
+  kill() {
+    this.signal('SIGKILL')
+    fs.rmSync(this.dir, { recursive: true, force: true })
+  }
+}
 
 /**
  * Preserve the stack for Error instances and turn any other thrown value into
@@ -40,8 +101,7 @@ function formatError(error: unknown): Error | string {
  */
 export class NodeRunner extends BaseRunner {
   declare child: ChildProcess | undefined
-  /** If `child` ended, it never rejects */
-  #finished: Promise<boolean> | undefined
+  #tests: Tests | undefined
 
   constructor(options: Config, testFiles?: string[]) {
     super(options, testFiles)
@@ -88,12 +148,47 @@ export class NodeRunner extends BaseRunner {
   /**
    * Run the tests in a node subprocess, with the same node running this one.
    *
-   * @returns `finished` tells if the tests passed, it never rejects
+   * @returns `finished` tells if the tests passed, it never rejects. `stop`
+   * ends them, and waits until they ended.
    */
-  runTests(): {
-    child: ChildProcess
-    finished: Promise<boolean>
-  } {
+  runTests(): Tests {
+    const workers = this.#isolated() ? new Workers() : undefined
+    const child = workers ? this.#spawnIsolated(workers) : this.#spawnTogether()
+    this.child = child
+
+    const finished = new Promise<boolean>((resolve) => {
+      child.once('error', (error) => {
+        log.error(`Could not start tests: ${error.message}`)
+        resolve(false)
+      })
+      child.once('close', (code) => resolve(code === 0))
+    })
+    const stop = async () => {
+      killTree(child)
+      await Promise.all([
+        withTimeout(finished, FORCE_KILL_DELAY + EXIT_WAIT),
+        workers?.end(),
+      ])
+    }
+    // The files are gone once it ends by itself
+    finished.then(() => workers?.kill())
+    this.#tests = { child, finished, stop, workers }
+    return this.#tests
+  }
+
+  /**
+   * `run()` of `node:test` isolates the files itself, the other runners don't
+   * have it yet.
+   */
+  #isolated() {
+    const { testIsolation = 'process', testRunner } = this.options
+    return testIsolation === 'process' && testRunner.name === 'node-test'
+  }
+
+  /**
+   * All the files in one process, from an entry module on stdin.
+   */
+  #spawnTogether() {
     const nodeArgs = [
       '--enable-source-maps',
       '--input-type=module',
@@ -105,22 +200,53 @@ export class NodeRunner extends BaseRunner {
       env: withLocalBins(this.env, this.options.cwd),
       stdio: ['pipe', 'inherit', 'inherit'],
     })
-    this.child = child
     // It's gone when it ends or fails to start before reading all of the entry
     child.stdin.on('error', () => {
       // noop
     })
     child.stdin.end(this.#entry())
+    return child
+  }
 
-    const finished = new Promise<boolean>((resolve) => {
-      child.once('error', (error) => {
-        log.error(`Could not start tests: ${error.message}`)
-        resolve(false)
-      })
-      child.once('close', (code) => resolve(code === 0))
+  /**
+   * Each file in its own process, with `run()` of `node:test`.
+   */
+  #spawnIsolated(workers: Workers) {
+    const { testConcurrency, testNamePattern, testRunner, testTimeout } =
+      this.options
+    const { reporter } = (testRunner.options ?? {}) as {
+      reporter?: string | string[]
+    }
+    const env = withLocalBins(this.env, this.options.cwd)
+    // From a test of node:test it would think it's one of its workers, and
+    // skip the files as a recursive run
+    delete env.NODE_TEST_CONTEXT
+    env.PW_WORKER_PIDS = workers.dir
+
+    const child = spawn(
+      process.execPath,
+      ['--enable-source-maps', isolatedRun],
+      {
+        cwd: this.options.cwd,
+        env,
+        stdio: ['pipe', 'inherit', 'inherit'],
+      }
+    )
+    child.stdin.on('error', () => {
+      // noop
     })
-    this.#finished = finished
-    return { child, finished }
+    child.stdin.end(
+      JSON.stringify({
+        files: this.tests.map((t) => path.resolve(this.options.cwd, t)),
+        imports: [pathToFileURL(isolatedFile).href],
+        concurrency: testConcurrency,
+        testNamePatterns: toPatterns(testNamePattern),
+        // 0 is no timeout, for node that's a test that always times out
+        timeout: testTimeout || undefined,
+        reporters: [reporter ?? []].flat(),
+      })
+    )
+    return child
   }
 
   async run() {
@@ -146,7 +272,7 @@ export class NodeRunner extends BaseRunner {
   async watch() {
     this.handleExit()
 
-    let tests: { child: ChildProcess; finished: Promise<boolean> }
+    let tests: Tests
     try {
       await this.#setupServer()
       await this.runBeforeTests()
@@ -180,8 +306,7 @@ export class NodeRunner extends BaseRunner {
       do {
         pending = false
         log.info('Reloading tests...')
-        killTree(tests.child)
-        await tests.finished
+        await tests.stop()
         // Stopped in the meantime, nothing would stop the tests started now
         if (this.stopped) {
           return
@@ -223,12 +348,10 @@ export class NodeRunner extends BaseRunner {
     if (this.child) {
       forceKill(this.child)
     }
+    this.#tests?.workers?.kill()
   }
 
   async stopTests() {
-    if (this.child && this.#finished) {
-      killTree(this.child)
-      await withTimeout(this.#finished, FORCE_KILL_DELAY + EXIT_WAIT)
-    }
+    await this.#tests?.stop()
   }
 }

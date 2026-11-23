@@ -78,6 +78,8 @@ const KNOWN_FLAGS = new Set([
   'run-timeout',
   'runner',
   'sw',
+  'test-concurrency',
+  'test-isolation',
   'test-name-pattern',
   'test-timeout',
   'trace',
@@ -100,6 +102,10 @@ function checkUnknownFlags(opts: Record<string, unknown>) {
   }
 }
 
+// The most `node --test` takes
+const MAX_TEST_CONCURRENCY = 2 ** 32 - 1
+const TEST_ISOLATION = ['process', 'none'] as const
+
 // Mocha treats 2 ** 31 - 1 as 0 (disables timeouts), so cap one below it.
 const MAX_TEST_TIMEOUT = 2 ** 31 - 2
 
@@ -111,11 +117,33 @@ function validateTestOptions({
   testNamePattern,
   testTimeout,
   runTimeout,
+  testIsolation,
+  testConcurrency,
 }: {
   testNamePattern?: unknown
   testTimeout?: unknown
   runTimeout?: unknown
+  testIsolation?: unknown
+  testConcurrency?: unknown
 }) {
+  if (
+    testIsolation != null &&
+    !TEST_ISOLATION.includes(testIsolation as never)
+  ) {
+    throw new UsageError(
+      `Invalid --test-isolation "${testIsolation}", expected "process" or "none".`
+    )
+  }
+  if (
+    testConcurrency != null &&
+    (!Number.isInteger(testConcurrency) ||
+      (testConcurrency as number) < 1 ||
+      (testConcurrency as number) > MAX_TEST_CONCURRENCY)
+  ) {
+    throw new UsageError(
+      `--test-concurrency must be a whole number of files, from 1 to ${MAX_TEST_CONCURRENCY}.`
+    )
+  }
   // Like `node:test`, it can be set more than once to run what matches any of them
   for (const pattern of testNamePattern == null
     ? []
@@ -164,6 +192,21 @@ function validateOptions(options: RunnerOptions) {
     )
   }
   validateTestOptions(options)
+}
+
+/**
+ * Only node-test in node mode runs each file on its own so far, the rest runs
+ * the files together. Said only when asked for, it's also the default.
+ */
+function warnUnsupportedIsolation(
+  { mode, runner }: RunnerOptions,
+  requested: unknown
+) {
+  if (requested === 'process' && !(mode === 'node' && runner === 'node-test')) {
+    log.warn(
+      `--test-isolation process isn't supported by the "${runner}" runner in --mode ${mode} yet, the files run together like --test-isolation none.`
+    )
+  }
 }
 
 function warnUnsupportedTestOptions({
@@ -290,6 +333,14 @@ function program() {
       'Timeout in milliseconds for tests without their own, 0 for none.'
     )
     .option(
+      '--test-isolation',
+      'How test files are isolated: process runs each file on its own, none runs them together. Only node-test in --mode node supports process for now.  (default process)'
+    )
+    .option(
+      '--test-concurrency',
+      'How many test files run at once with --test-isolation process.  (default os.availableParallelism() - 1)'
+    )
+    .option(
       '--trace',
       'Save a Playwright trace to playwright-test-trace-<browser>.zip in --cwd, open it with `npx playwright show-trace`. Alone it only keeps the trace of a failed run, `--trace on` always keeps it. Values other than `off` fail with --mode node or workerd; ignored with --debug and --watch.  (default off)'
     )
@@ -349,6 +400,7 @@ export async function resolveOptions(
       'cwd',
       'extensions',
       'mode',
+      'test-isolation',
       'test-name-pattern',
       'trace',
     ],
@@ -374,6 +426,8 @@ export async function resolveOptions(
     runTimeout: opts['run-timeout'],
     testNamePattern: opts['test-name-pattern'],
     testTimeout: opts['test-timeout'],
+    testIsolation: opts['test-isolation'],
+    testConcurrency: opts['test-concurrency'],
   }
   validateTestOptions(cliFlags)
 
@@ -415,6 +469,8 @@ export async function resolveOptions(
 
   options.runner ??= autoDetectTestRunner(testFiles)
   warnUnsupportedTestOptions(options)
+  warnUnsupportedIsolation(options, options.testIsolation)
+  options.testIsolation ??= 'process'
 
   return { options, testFiles, watch: Boolean(opts.watch) }
 }
