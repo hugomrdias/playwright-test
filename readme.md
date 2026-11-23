@@ -406,7 +406,7 @@ playwright-test "test/**" --runner node-test --mode node --test-concurrency 2
 playwright-test "test/**" --test-isolation none
 ```
 
-`process` is the default. For now only `node-test` in node mode supports it: the files run with `node --test --test-isolation=process`. The other runners and modes run the files together like `none`, and warn when `process` is set explicitly. Both can also be set as `testIsolation` and `testConcurrency` in the config file.
+`process` is the default. For now only `node-test` in node mode supports it: the files run with `node --test --test-isolation=process`, and `playwright-test/node-test` is the real `node:test` in them, so the output is the one of `node --test`. The other runners and modes run the files together like `none`, and warn when `process` is set explicitly. Both can also be set as `testIsolation` and `testConcurrency` in the config file.
 
 ### AI agents
 

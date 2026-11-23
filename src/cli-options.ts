@@ -104,6 +104,8 @@ function checkUnknownFlags(opts: Record<string, unknown>) {
   }
 }
 
+// The most `node --test` takes
+const MAX_TEST_CONCURRENCY = 2 ** 32 - 1
 const TEST_ISOLATION = ['process', 'none'] as const
 
 // Mocha treats 2 ** 31 - 1 as 0 (disables timeouts), so cap one below it.
@@ -136,10 +138,12 @@ function validateTestOptions({
   }
   if (
     testConcurrency != null &&
-    (!Number.isInteger(testConcurrency) || (testConcurrency as number) < 1)
+    (!Number.isInteger(testConcurrency) ||
+      (testConcurrency as number) < 1 ||
+      (testConcurrency as number) > MAX_TEST_CONCURRENCY)
   ) {
     throw new UsageError(
-      '--test-concurrency must be a whole number of files, 1 or more.'
+      `--test-concurrency must be a whole number of files, from 1 to ${MAX_TEST_CONCURRENCY}.`
     )
   }
   // Like `node:test`, it can be set more than once to run what matches any of them

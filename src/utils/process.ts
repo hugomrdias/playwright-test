@@ -40,41 +40,6 @@ function ended(child: ChildProcess) {
   )
 }
 
-/** Subprocesses spawned with `detached: true`, they lead their own process group. */
-const groups = new WeakSet<ChildProcess>()
-
-/**
- * Options to spawn a subprocess in its own process group, so that killing it
- * also kills what it started, like the workers of `node --test`. Not on
- * Windows, where `taskkill /T` already does that.
- */
-export function groupOptions() {
-  return { detached: process.platform !== 'win32' }
-}
-
-/**
- * Remember that a subprocess spawned with {@link groupOptions} leads a group.
- */
-export function trackGroup(child: ChildProcess) {
-  if (process.platform !== 'win32') {
-    groups.add(child)
-  }
-  return child
-}
-
-/** Signal the subprocess, or its whole group. It's fine if it's gone. */
-function signal(child: ChildProcess, name: NodeJS.Signals) {
-  if (!groups.has(child) || child.pid === undefined) {
-    child.kill(name)
-    return
-  }
-  try {
-    process.kill(-child.pid, name)
-  } catch {
-    // The group is gone
-  }
-}
-
 /**
  * End a subprocess that won't end by itself. On Windows killing it doesn't reach
  * its children.
@@ -89,16 +54,10 @@ export function killTree(child: ChildProcess) {
     }).once('error', () => child.kill())
     return
   }
-  signal(child, 'SIGTERM')
-  const force = setTimeout(() => signal(child, 'SIGKILL'), FORCE_KILL_DELAY)
+  child.kill()
+  const force = setTimeout(() => child.kill('SIGKILL'), FORCE_KILL_DELAY)
   force.unref()
-  child.once('close', () => {
-    clearTimeout(force)
-    // What it started and didn't end with it, nothing will wait for it
-    if (groups.has(child)) {
-      signal(child, 'SIGKILL')
-    }
-  })
+  child.once('close', () => clearTimeout(force))
 }
 
 /**
@@ -115,5 +74,5 @@ export function forceKill(child: ChildProcess) {
     })
     return
   }
-  signal(child, 'SIGKILL')
+  child.kill('SIGKILL')
 }

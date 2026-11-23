@@ -11,17 +11,24 @@ import { createPolka, log, UsageError, withTimeout } from '../utils/index.ts'
 import {
   FORCE_KILL_DELAY,
   forceKill,
-  groupOptions,
   killTree,
-  trackGroup,
   withLocalBins,
 } from '../utils/process.ts'
 
 // What a killed subprocess gets after its forced kill, to end
 const EXIT_WAIT = 1000
 
-const configureEnvFile = fileURLToPath(
-  new URL(`./configure-env${EXT}`, import.meta.url)
+/**
+ * `node --test` takes glob patterns, the files are already found. Each
+ * character a glob gives a meaning goes in a class of its own. Brace expansion
+ * doesn't know about classes, `{` is the class from `z` to `|` that has it.
+ */
+export function literalGlob(file: string) {
+  return file.replace(/[*?[(){]/g, (c) => (c === '{' ? '[z-|]' : `[${c}]`))
+}
+
+const isolatedFile = fileURLToPath(
+  new URL(`./isolated-file${EXT}`, import.meta.url)
 )
 
 /**
@@ -160,19 +167,19 @@ export class NodeRunner extends BaseRunner {
       ...(testConcurrency ? [`--test-concurrency=${testConcurrency}`] : []),
       ...(this.options.testRunner.nodeArgs?.(this.options) ?? []),
       '--import',
-      pathToFileURL(configureEnvFile).href,
-      ...this.tests.map((t) => path.resolve(this.options.cwd, t)),
+      pathToFileURL(isolatedFile).href,
+      ...this.tests.map((t) => literalGlob(path.resolve(this.options.cwd, t))),
     ]
+    const env = withLocalBins(this.env, this.options.cwd)
+    // From a test of node:test it would think it's one of its workers, and
+    // skip the files as a recursive run
+    delete env.NODE_TEST_CONTEXT
 
-    // In its own group, killing it has to reach the workers too
-    return trackGroup(
-      spawn(process.execPath, nodeArgs, {
-        ...groupOptions(),
-        cwd: this.options.cwd,
-        env: withLocalBins(this.env, this.options.cwd),
-        stdio: ['ignore', 'inherit', 'inherit'],
-      })
-    )
+    return spawn(process.execPath, nodeArgs, {
+      cwd: this.options.cwd,
+      env,
+      stdio: ['ignore', 'inherit', 'inherit'],
+    })
   }
 
   async run() {

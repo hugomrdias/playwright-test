@@ -8,7 +8,9 @@ import { pathToFileURL } from 'url'
 import { execa, runCli, TEST_CONCURRENCY } from './helpers.ts'
 
 describe('playwright-test/node-test', () => {
-  const runner = ['--runner', 'node-test']
+  // With process isolation node mode runs the real node:test, the files here
+  // test playwright-test/node-test
+  const runner = ['--runner', 'node-test', '--test-isolation', 'none']
   const modes = ['node', 'browser', 'web-worker']
 
   /** A test in the output: its symbol, name and what's after `#`. */

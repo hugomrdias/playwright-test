@@ -250,7 +250,7 @@ describe('cli usage errors', () => {
       ['--test-isolation'],
       'Invalid --test-isolation ""',
     ],
-    ...['0', '-1', '1.5', 'many'].map(
+    ...['0', '-1', '1.5', 'many', '4294967296'].map(
       (value) =>
         [
           `--test-concurrency ${value}`,

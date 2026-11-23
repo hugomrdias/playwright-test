@@ -118,6 +118,53 @@ describe('node:test runner', () => {
       ok(proc.stdout.includes('ℹ fail 1'), output(proc))
     })
 
+    it('runs the files as they are, without glob patterns', async () => {
+      // Biome wants kebab-case names in the repo
+      const dir = fs.mkdtempSync('mocks/tmp-glob-')
+      const file = `${dir}/[case]{a,b}(c)*.test.js`
+      fs.writeFileSync(
+        file,
+        "import { test } from 'node:test'\ntest('fails', () => { throw new Error('fails') })\n"
+      )
+      try {
+        const proc = await runCli(
+          [file, '--runner', 'node-test', '--mode', 'node'],
+          { reject: false }
+        )
+
+        is(proc.exitCode, 1, output(proc))
+        ok(proc.stdout.includes('ℹ fail 1'), output(proc))
+      } finally {
+        fs.rmSync(dir, { recursive: true })
+      }
+    })
+
+    it('runs from a test of node:test', async () => {
+      const proc = await runCli(
+        [fixture('fail'), '--runner', 'node-test', '--mode', 'node'],
+        { reject: false, env: { NODE_TEST_CONTEXT: 'child-v8' } }
+      )
+
+      is(proc.exitCode, 1, output(proc))
+      ok(proc.stdout.includes('ℹ fail 1'), output(proc))
+    })
+
+    it('playwright-test/node-test is the real node:test, tests can come after a top-level await', async () => {
+      const proc = await runCli(
+        [
+          'mocks/node-test-runner/isolation-late/late.test.js',
+          '--runner',
+          'node-test',
+          '--mode',
+          'node',
+        ],
+        { reject: false }
+      )
+
+      is(proc.exitCode, 0, output(proc))
+      ok(!output(proc).includes('created after'), output(proc))
+    })
+
     it('a run timeout also ends the files that ignore SIGTERM', async () => {
       const dir = fs.mkdtempSync('mocks/tmp-stubborn-')
       const file = `${dir}/out.txt`
