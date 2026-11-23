@@ -59,11 +59,14 @@ export function runEachFile(options: EachFile): EachFileRun {
 
   // The files in order, as far as they are done
   const print = () => {
-    while (printed < files.length && results[printed]) {
-      for (const [stream, chunk] of results[printed]?.output ?? []) {
+    let result = results[printed]
+    while (result) {
+      for (const [stream, chunk] of result.output) {
         process[stream].write(chunk)
       }
-      printed++
+      // Only the summary needs the file after this
+      result.output = []
+      result = results[++printed]
     }
   }
 

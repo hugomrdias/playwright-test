@@ -1,4 +1,5 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
+import path from 'node:path'
 import { describe, it } from 'node:test'
 import type { Result } from 'execa'
 import { runCli, TEST_CONCURRENCY } from './helpers.ts'
@@ -74,8 +75,9 @@ describe('--test-isolation process in node mode', {
     is(proc.exitCode, 1, output(proc))
     ok(proc.stdout.includes('ℹ fail 1'), output(proc))
     ok(
+      // In the separators of the platform, like the files node:test names
       proc.stdout.includes(
-        '✖ failing files:\n  mocks/isolation/mocha-fails.test.js'
+        `✖ failing files:\n  ${path.join(dir, 'mocha-fails.test.js')}`
       ),
       output(proc)
     )
