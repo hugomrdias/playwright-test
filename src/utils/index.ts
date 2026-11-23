@@ -192,9 +192,14 @@ export async function runAfterTests(
   }
 }
 
-export function runTimeoutMessage(ms: number) {
-  return `Run timed out after ${ms}ms, use --run-timeout to change it.`
+export function runTimeoutMessage(ms: number, runningTest?: string) {
+  const running =
+    runningTest === undefined ? '' : ` while running "${runningTest}"`
+  return `Run timed out after ${ms}ms${running}, use --run-timeout to change it.`
 }
+
+/** How long the runner waits to find out which test is running, a busy page never answers */
+export const RUNNING_TEST_TIMEOUT = 1000
 
 export const defaultOptions: Omit<RunnerOptions, 'testRunner'> = {
   cwd: process.cwd(),

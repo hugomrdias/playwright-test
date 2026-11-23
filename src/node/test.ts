@@ -14,6 +14,7 @@
  */
 
 import type { TestContext as NodeTestContext } from 'node:test'
+import { RUNNING_TEST_KEY } from '../utils/running-test.ts'
 import { legacy as nodeAssert } from './assert.ts'
 import {
   config,
@@ -1610,6 +1611,12 @@ async function runRoot() {
 }
 
 registerRun(runRoot)
+
+// For the runner to name the test that was running when --run-timeout ends the run
+Object.defineProperty(globalThis, Symbol.for(RUNNING_TEST_KEY), {
+  configurable: true,
+  value: () => (current === root ? undefined : getFullName(current)),
+})
 
 // Without a runner, that's `node file.js`, `node --test` or the `none` runner.
 // Runners call `hold()` before they load the test files.

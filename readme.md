@@ -202,7 +202,7 @@ These aren't implemented and throw an error that names them, they never silently
 
 - Tests run serially, `concurrency` is accepted and ignored.
 - `.only` always filters, there's no `--test-only` flag to pass.
-- A test that never settles fails in node mode, where `node:test` hangs. A browser can't tell it will never settle and also waits forever, so use the `timeout` option.
+- A test that never settles fails in node mode, where `node:test` hangs. A browser can't tell it will never settle and also waits forever, so use the `timeout` option. When `--run-timeout` ends the run, the error names the test that was running.
 - A throw in a root `after` hook fails the run, it exits with 0 in `node:test`.
 - A root `after` hook runs when the whole run ends, `node:test` can run it earlier when using top level `await`.
 - There's no async context in browsers, so a running test is what's used to find out where things belong. A global `test()` call while a test is running creates a subtest of that test, and an uncaught error fails the running test even when an earlier test caused it. Only one async `describe` body runs at a time, the others wait for it.

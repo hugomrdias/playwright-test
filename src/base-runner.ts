@@ -15,6 +15,7 @@ import {
   defaultOptions,
   findTests,
   log,
+  RUNNING_TEST_TIMEOUT,
   resolveTestRunner,
   runAfterTests,
   runTimeoutMessage,
@@ -159,8 +160,21 @@ export class BaseRunner {
   startRunTimeout() {
     const ms = this.options.runTimeout
     if (ms > 0 && !this.options.debug) {
-      setTimeout(() => this.stop(true, runTimeoutMessage(ms)), ms).unref()
+      setTimeout(async () => {
+        const runningTest = await withTimeout(
+          this.runningTest().catch(() => undefined),
+          RUNNING_TEST_TIMEOUT
+        )
+        await this.stop(true, runTimeoutMessage(ms, runningTest))
+      }, ms).unref()
     }
+  }
+
+  /**
+   * The full name of the test that's running, when the mode can tell.
+   */
+  runningTest(): Promise<string | undefined> {
+    return Promise.resolve(undefined)
   }
 
   async runBeforeTests() {

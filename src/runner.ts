@@ -30,6 +30,7 @@ import {
   withTimeout,
   writeEnv,
 } from './utils/index.ts'
+import { RUNNING_TEST_KEY } from './utils/running-test.ts'
 import { createStackMapper } from './utils/stack-map.ts'
 
 export type { BrowserContext as Context, Page } from 'playwright-core'
@@ -951,6 +952,29 @@ export class Runner extends BaseRunner {
    * Writing the trace and copying it where it's kept, and the waits of a
    * browser starting and closing.
    */
+  /**
+   * Ask `playwright-test/node-test` in the page, or in the worker that runs the
+   * tests, which test is running. Other runners don't say, so it's `undefined`.
+   */
+  async runningTest() {
+    const page = this.page
+    if (!page || page.isClosed()) {
+      return undefined
+    }
+    const read = (key: string) => {
+      const get = (globalThis as Record<symbol, unknown>)[Symbol.for(key)]
+      return typeof get === 'function' ? (get() as unknown) : undefined
+    }
+    const name =
+      this.options.mode === 'web-worker'
+        ? await page
+            .workers()
+            .find((worker) => worker.url().includes('load.js'))
+            ?.evaluate(read, RUNNING_TEST_KEY)
+        : await page.evaluate(read, RUNNING_TEST_KEY)
+    return typeof name === 'string' ? name : undefined
+  }
+
   cleanupWait() {
     const tracing = !(
       this.options.trace === 'off' ||

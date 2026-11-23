@@ -32,6 +32,35 @@ describe('run timeout', { concurrency: TEST_CONCURRENCY }, () => {
     })
   }
 
+  for (const mode of ['browser', 'web-worker']) {
+    it(`names the node:test test that hung with mode:${mode}`, async () => {
+      const proc = await runCli(
+        [
+          'mocks/node-test-runner/hangs.test.js',
+          '--runner',
+          'node-test',
+          '--mode',
+          mode,
+          '--run-timeout',
+          '1000',
+        ],
+        {
+          env: { PW_TEST_CONSOLE_FLUSH_TIMEOUT: '500' },
+          reject: false,
+          timeout: 40_000,
+        }
+      )
+
+      is(proc.exitCode, 1, 'exit code')
+      ok(
+        proc.stderr.includes(
+          'Run timed out after 1000ms while running "a suite > never settles"'
+        ),
+        proc.stderr
+      )
+    })
+  }
+
   it('closes the browser before the afterTests hook', {
     skip: process.platform === 'win32',
   }, async () => {
