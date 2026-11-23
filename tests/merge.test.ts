@@ -69,6 +69,22 @@ describe('merge', () => {
     })
   })
 
+  it('drops the holes of sparse arrays when concatenating, keeps them when copying', () => {
+    // biome-ignore lint/suspicious/noSparseArray: the case under test
+    const sparse = [1, , 3]
+    const result = concatArrays<{ a: unknown[] }>(
+      // biome-ignore lint/suspicious/noSparseArray: the case under test
+      { a: [0, , 2] },
+      { a: sparse }
+    )
+    equal(result.a, [0, 2, 1, 3])
+    ok(result.a.every((value: unknown) => value !== undefined))
+
+    const copy = merge<{ a: unknown[] }>({ a: sparse }).a
+    is(copy.length, 3)
+    ok(!Object.hasOwn(copy, 1))
+  })
+
   it('replaces a value of another kind', () => {
     equal(concatArrays({ a: [1] }, { a: { b: 1 } }), { a: { b: 1 } })
     equal(concatArrays({ a: { b: 1 } }, { a: [1] }), { a: [1] })

@@ -58,6 +58,23 @@ function clone(value: unknown): unknown {
 }
 
 /**
+ * `target` then `source`, without the holes of sparse arrays. Spreading would
+ * turn them into `undefined`, and esbuild rejects an `undefined` plugin.
+ */
+function concat(target: unknown[], source: unknown[]) {
+  const result: unknown[] = []
+  for (const array of [target, source]) {
+    for (let index = 0; index < array.length; index++) {
+      if (Object.hasOwn(array, index)) {
+        // `target` is already a copy
+        result.push(array === target ? array[index] : clone(array[index]))
+      }
+    }
+  }
+  return result
+}
+
+/**
  * Merge `source` into `target`, which is already a copy and can be changed.
  */
 function mergeInto(
@@ -66,7 +83,7 @@ function mergeInto(
   config: MergeConfig
 ): unknown {
   if (config.concatArrays && Array.isArray(target) && Array.isArray(source)) {
-    return [...target, ...source.map(clone)]
+    return concat(target, source)
   }
   if (!isPlainObject(target) || !isPlainObject(source)) {
     return clone(source)
