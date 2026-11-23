@@ -15,11 +15,11 @@ import {
 /**
  * A request with the path as it is, `fetch` would normalize `..` away.
  */
-function raw(url: string, rawPath: string) {
+function raw(url: string, rawPath: string, method = 'GET') {
   return new Promise<{ status: number; body: string }>((resolve, reject) => {
     const { hostname, port } = new URL(url)
     http
-      .get({ hostname, port, path: rawPath }, (res) => {
+      .request({ hostname, port, path: rawPath, method }, (res) => {
         let body = ''
         res.setEncoding('utf8')
         res.on('data', (chunk) => {
@@ -28,6 +28,7 @@ function raw(url: string, rawPath: string) {
         res.on('end', () => resolve({ status: res.statusCode ?? 0, body }))
       })
       .once('error', reject)
+      .end()
   })
 }
 
@@ -85,7 +86,7 @@ describe('http server', () => {
 
   it('serves scripts as JavaScript', async () => {
     const rsp = await fetch(new URL('bundle-out.js', url))
-    is(rsp.headers.get('content-type'), 'text/javascript; charset=utf-8')
+    is(rsp.headers.get('content-type'), 'text/javascript')
     is(await rsp.text(), 'export {}')
   })
 
@@ -179,7 +180,8 @@ describe('http server', () => {
 
   it('serves xhtml as xhtml', async () => {
     const rsp = await fetch(new URL('page.xhtml', url))
-    is(rsp.headers.get('content-type'), 'application/xhtml+xml; charset=utf-8')
+    // No charset, the XML declaration of the file has it
+    is(rsp.headers.get('content-type'), 'application/xhtml+xml')
   })
 
   it('only clears site data on the index of the run, not of --assets', async () => {
@@ -214,6 +216,12 @@ describe('http server', () => {
     }
   })
 
+  it('400s for a target that is not a path, like OPTIONS *', async () => {
+    const { status, body } = await raw(url, '*', 'OPTIONS')
+    is(status, 400)
+    is(body.includes('run'), false)
+  })
+
   it('400s for malformed paths', async () => {
     is((await raw(url, '/%E0%A4%A')).status, 400)
     is((await raw(url, '/a%00.txt')).status, 400)
@@ -241,12 +249,13 @@ describe('parseRange', () => {
 })
 
 describe('requestPath', () => {
-  const cases: [string | undefined, string][] = [
+  const cases: [string | undefined, string | undefined][] = [
     [undefined, '/'],
     ['/a/b.js?x=1#y', '/a/b.js'],
     ['//a/b.js', '//a/b.js'],
     ['http://127.0.0.1:1/a.js?x', '/a.js'],
-    ['*', '/'],
+    ['*', undefined],
+    ['mailto:a@b.c', undefined],
   ]
   for (const [target, expected] of cases) {
     it(String(target), () => {
@@ -257,7 +266,7 @@ describe('requestPath', () => {
 
 describe('contentType', () => {
   it('is case insensitive and unknown for no extension', () => {
-    is(contentType('A.MJS'), 'text/javascript; charset=utf-8')
+    is(contentType('A.MJS'), 'text/javascript')
     is(contentType('Makefile'), undefined)
   })
 })

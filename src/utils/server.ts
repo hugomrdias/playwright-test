@@ -16,26 +16,26 @@ import path from 'node:path'
 const TYPES: Record<string, string> = {
   html: 'text/html; charset=utf-8',
   htm: 'text/html; charset=utf-8',
-  xhtml: 'application/xhtml+xml; charset=utf-8',
-  js: 'text/javascript; charset=utf-8',
-  mjs: 'text/javascript; charset=utf-8',
-  cjs: 'text/javascript; charset=utf-8',
-  jsx: 'text/javascript; charset=utf-8',
-  css: 'text/css; charset=utf-8',
-  json: 'application/json; charset=utf-8',
-  map: 'application/json; charset=utf-8',
-  webmanifest: 'application/manifest+json; charset=utf-8',
-  jsonld: 'application/ld+json; charset=utf-8',
-  txt: 'text/plain; charset=utf-8',
-  md: 'text/markdown; charset=utf-8',
-  csv: 'text/csv; charset=utf-8',
-  xml: 'text/xml; charset=utf-8',
-  yaml: 'text/yaml; charset=utf-8',
-  yml: 'text/yaml; charset=utf-8',
-  xsl: 'application/xml; charset=utf-8',
-  vtt: 'text/vtt; charset=utf-8',
-  ics: 'text/calendar; charset=utf-8',
-  rtf: 'text/rtf; charset=utf-8',
+  xhtml: 'application/xhtml+xml',
+  js: 'text/javascript',
+  mjs: 'text/javascript',
+  cjs: 'text/javascript',
+  jsx: 'text/javascript',
+  css: 'text/css',
+  json: 'application/json',
+  map: 'application/json',
+  webmanifest: 'application/manifest+json',
+  jsonld: 'application/ld+json',
+  txt: 'text/plain',
+  md: 'text/markdown',
+  csv: 'text/csv',
+  xml: 'text/xml',
+  yaml: 'text/yaml',
+  yml: 'text/yaml',
+  xsl: 'application/xml',
+  vtt: 'text/vtt',
+  ics: 'text/calendar',
+  rtf: 'text/rtf',
   m3u8: 'application/vnd.apple.mpegurl',
   mpd: 'application/dash+xml',
   epub: 'application/epub+zip',
@@ -161,19 +161,18 @@ async function find(roots: string[], pathname: string) {
 }
 
 /**
- * The path of a request target, without its query. Not with `new URL()`, it
+ * The path of a request target, without its query, `undefined` for a target
+ * that isn't a path, like the `*` of `OPTIONS *`. Not with `new URL()`, it
  * reads a path that starts with `//` as a host, like `${PW_SERVER}/file`.
  */
-export function requestPath(target = '/') {
-  if (!target.startsWith('/')) {
-    // The absolute form, `http://host/path`
-    try {
-      return new URL(target).pathname
-    } catch {
-      return '/'
-    }
+export function requestPath(target = '/'): string | undefined {
+  if (target.startsWith('/')) {
+    return target.replace(/[?#].*$/s, '')
   }
-  return target.replace(/[?#].*$/s, '')
+  // The absolute form, `http://host/path`
+  if (URL.canParse(target) && /^https?:/i.test(target)) {
+    return new URL(target).pathname
+  }
 }
 
 function end(res: ServerResponse, status: number, body: string) {
@@ -189,9 +188,13 @@ async function handle(
   req: IncomingMessage,
   res: ServerResponse
 ) {
+  const target = requestPath(req.url)
+  if (target === undefined) {
+    return end(res, 400, 'Bad Request')
+  }
   let pathname: string
   try {
-    pathname = decodeURIComponent(requestPath(req.url))
+    pathname = decodeURIComponent(target)
   } catch {
     return end(res, 400, 'Bad Request')
   }
