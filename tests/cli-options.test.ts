@@ -237,12 +237,20 @@ describe('options the runners reject', () => {
     })
   }
 
-  it('the removed extension option in the config file', async () => {
-    await rejectsRunner(
-      [`${FLOW}/pass.js`, '--config', `${FLOW}/extension.config.mjs`],
-      'The extension option was removed in v16'
-    )
-  })
+  for (const mode of ['browser', 'node', 'workerd']) {
+    it(`the removed extension option in the config file with --mode ${mode}`, async () => {
+      await rejectsRunner(
+        [
+          `${FLOW}/pass.js`,
+          '--config',
+          `${FLOW}/extension.config.mjs`,
+          '--mode',
+          mode,
+        ],
+        'The extension option was removed in v16'
+      )
+    })
+  }
 
   it('a custom runner in the config file', async () => {
     await rejectsRunner(

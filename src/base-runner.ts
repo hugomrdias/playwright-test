@@ -10,6 +10,7 @@ import path from 'path'
 import type { Config, RunnerEnv, RunnerOptions } from './types.ts'
 import {
   AFTER_TESTS_TIMEOUT,
+  assertNoExtension,
   assertRunTimeout,
   closeServer,
   defaultOptions,
@@ -89,6 +90,7 @@ export class BaseRunner {
       this.options as { runner: string }
     )
     assertRunTimeout(this.options.runTimeout)
+    assertNoExtension(this.options)
     this.assertOptions()
     this.options.cwd = path.resolve(this.options.cwd)
     this.server = undefined

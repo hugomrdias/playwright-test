@@ -90,15 +90,19 @@ export function resolveTestRunner({
 /**
  * Check what can't work before starting a browser for it.
  */
-export function assertBrowserOptions(options: RunnerOptions) {
-  const { mode, trace } = options
+export function assertBrowserOptions({ mode, trace }: RunnerOptions) {
   if (mode !== 'browser' && mode !== 'web-worker') {
     throw new UsageError(
       `Invalid mode "${mode}", this runner takes "browser" or "web-worker".`
     )
   }
   assertTrace(trace)
-  // Removed in v16, a config that still asks for it would pass in a plain page
+}
+
+/**
+ * Removed in v16, a config that still asks for it would pass without it.
+ */
+export function assertNoExtension(options: object) {
   if ((options as { extension?: unknown }).extension) {
     throw new UsageError(
       'The extension option was removed in v16, tests run in a normal page. Remove it from the config.'
