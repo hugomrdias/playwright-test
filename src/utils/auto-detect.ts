@@ -27,6 +27,46 @@ const LOADERS: Record<string, Loader> = {
   '.jsx': 'jsx',
 }
 
+const SOURCE_EXTENSIONS = [
+  '.tsx',
+  '.ts',
+  '.jsx',
+  '.js',
+  '.mjs',
+  '.mts',
+  '.cjs',
+  '.cts',
+]
+const TYPESCRIPT_EXTENSIONS: Record<string, string[]> = {
+  '.js': ['.ts', '.tsx'],
+  '.jsx': ['.tsx'],
+  '.mjs': ['.mts'],
+  '.cjs': ['.cts'],
+}
+
+/** Resolve relative source imports without loading packages or other assets. */
+function resolveSource(file: string, id: string) {
+  if (!id.startsWith('./') && !id.startsWith('../')) {
+    return
+  }
+
+  const target = path.resolve(path.dirname(file), id)
+  const extension = path.extname(target)
+  const candidates = SOURCE_EXTENSIONS.includes(extension) ? [target] : []
+  for (const substitute of TYPESCRIPT_EXTENSIONS[extension] ?? []) {
+    candidates.push(target.slice(0, -extension.length) + substitute)
+  }
+  if (!extension) {
+    candidates.push(...SOURCE_EXTENSIONS.map((suffix) => target + suffix))
+    candidates.push(
+      ...SOURCE_EXTENSIONS.map((suffix) => path.join(target, `index${suffix}`))
+    )
+  }
+  return candidates.find((candidate) =>
+    fs.statSync(candidate, { throwIfNoEntry: false })?.isFile()
+  )
+}
+
 /** What a file imports to ask for a runner. */
 const RUNNER_MODULES = new Map(
   [mocha, nodeTest].flatMap((runner) =>
@@ -185,7 +225,11 @@ function evidence(file: string): Set<string> {
           ? [node.expression]
           : []
     const modules = [
-      node.type === 'ImportDeclaration' ? literal(node.source) : undefined,
+      node.type === 'ImportDeclaration' ||
+      node.type === 'ExportNamedDeclaration' ||
+      node.type === 'ExportAllDeclaration'
+        ? literal(node.source)
+        : undefined,
       ...expressions.map(moduleOf),
     ]
     for (const id of modules) {
@@ -208,17 +252,31 @@ function evidence(file: string): Set<string> {
  * the module of a runner, exactly, or calls the mocha globals. Anything else
  * tells nothing about the runner, so the caller should fall back to `none`.
  *
- * All the files are read since the first one can be a helper.
+ * Entry files and their relative source dependencies are read.
  *
  * @returns each runner found and the first file asking for it
  */
 export function detectTestRunners(files: string[]): Map<TestRunner, string> {
   const found: Map<TestRunner, string> = new Map()
-  for (const file of files) {
-    for (const id of evidence(file)) {
+  const pending = [...files]
+  const visited = new Set<string>()
+  for (const file of pending) {
+    const realFile = fs.realpathSync(file)
+    if (visited.has(realFile)) {
+      continue
+    }
+    visited.add(realFile)
+    for (const id of evidence(realFile)) {
       const runner = RUNNER_MODULES.get(id)
-      if (runner && !found.has(runner)) {
-        found.set(runner, file)
+      if (runner) {
+        if (!found.has(runner)) {
+          found.set(runner, file)
+        }
+      } else {
+        const dependency = resolveSource(realFile, id)
+        if (dependency) {
+          pending.push(dependency)
+        }
       }
     }
   }

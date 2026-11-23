@@ -6,6 +6,7 @@ import {
 } from 'node:assert/strict'
 import { after, before, describe, it } from 'node:test'
 import fs from 'fs'
+import path from 'path'
 import { detectTestRunners } from '../src/utils/auto-detect.ts'
 import { UsageError } from '../src/utils/index.ts'
 import { resolveCli } from './helpers.ts'
@@ -147,7 +148,43 @@ describe('runner auto detection', () => {
     ])
   })
 
+  it('follows imported test files through cycles', () => {
+    const suite = write("import './entry.js'\ndescribe('suite', () => {})")
+    fs.writeFileSync(`${dir}/entry.js`, `import './${path.basename(suite)}'`)
+    equal(detect([`${dir}/entry.js`]), ['mocha'])
+  })
+
+  for (const statement of [
+    "import './suite.js'",
+    "export * from './suite.js'",
+    "require('./suite.js')",
+    "await import('./suite.js')",
+  ]) {
+    it(`follows ${statement}`, () => {
+      const suite = write("import 'node:test'")
+      const entry = write(statement.replace('suite.js', path.basename(suite)))
+      equal(detect([entry]), ['node:test'])
+    })
+  }
+
+  it('ignores unresolved imports and assets', () => {
+    const asset = write("import 'mocha'", 'svg')
+    equal(
+      detect([
+        write(`import './missing.js'\nimport './${path.basename(asset)}'`),
+      ]),
+      []
+    )
+  })
+
   describe('cli', () => {
+    it('selects the runner from an imported suite', async () => {
+      const suite = write("describe('suite', () => {})", 'ts')
+      const entry = write(`import './${path.basename(suite, '.ts')}.js'`, 'ts')
+      const { options } = await resolveCli([entry, '--mode', 'node'])
+      is(options.runner, 'mocha')
+    })
+
     it('falls back to none with a warning', async () => {
       const { options, logs } = await resolveCli([
         write('console.log("ran")'),
