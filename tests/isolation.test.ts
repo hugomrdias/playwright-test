@@ -6,7 +6,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
 import type { Result } from 'execa'
-import { runCli, TEST_CONCURRENCY } from './helpers.ts'
+import { execa, runCli, TEST_CONCURRENCY } from './helpers.ts'
 
 // --test-isolation process in node mode for the runners that don't have it,
 // node-test is in node-test-runner.test.ts
@@ -243,7 +243,14 @@ describe('--watch', () => {
       }, 1500)
       await stored(2).finally(() => clearInterval(change))
     } finally {
-      running.kill()
+      // On Windows a kill doesn't reach its children, which keep the output open
+      if (process.platform === 'win32') {
+        await execa('taskkill', ['/pid', String(running.pid), '/T', '/F'], {
+          reject: false,
+        })
+      } else {
+        running.kill()
+      }
       await running
       fs.rmSync(temp, { recursive: true, force: true })
     }
