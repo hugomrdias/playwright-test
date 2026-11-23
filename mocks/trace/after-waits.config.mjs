@@ -11,7 +11,7 @@ const folder = () =>
     .find((dir) => fs.existsSync(path.join(dir, 'trace.zip')))
 
 export default {
-  // Written while this hook runs, and kept because it fails the run
+  // Written before this hook runs, and kept because it fails the run
   async afterTests() {
     const start = Date.now()
     while (!folder() && Date.now() - start < 30_000) {

@@ -12,17 +12,14 @@ import { WorkerdRunner } from './workerd/runner.ts'
 
 colors.enabled = supportsColor({ minimal: isAgent })
 
-// Handle any uncaught errors
-process.once('uncaughtException', (err: Error, origin: string) => {
-  if (!origin || origin === 'uncaughtException') {
-    console.error(err)
-    gracefulExit(1)
-  }
-})
-process.once('unhandledRejection', (err) => {
+// Any error nothing handles fails the run, the exit hook still cleans up. Not
+// once, an error while it does would end this process before it's done.
+const fail = (err: unknown) => {
   console.error(err)
   gracefulExit(1)
-})
+}
+process.on('uncaughtException', fail)
+process.on('unhandledRejection', fail)
 
 function createRunner(options: RunnerOptions, testFiles: string[]) {
   if (options.mode === 'node') {

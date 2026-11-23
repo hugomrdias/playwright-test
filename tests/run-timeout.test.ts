@@ -32,6 +32,21 @@ describe('run timeout', { concurrency: TEST_CONCURRENCY }, () => {
     })
   }
 
+  it('closes the browser before the afterTests hook', {
+    skip: process.platform === 'win32',
+  }, async () => {
+    const proc = await run('never-ends', [
+      '--config',
+      'mocks/flow/after-browser.config.mjs',
+      '--run-timeout',
+      '1000',
+    ])
+
+    is(proc.exitCode, 1, proc.stderr)
+    ok(proc.stderr.includes('Run timed out after 1000ms'), proc.stderr)
+    ok(proc.stdout.includes('browser-closed'), proc.stdout)
+  })
+
   // On Windows a killed process can't run any cleanup
   it('stops the tests when it gets stopped', {
     skip: process.platform === 'win32',

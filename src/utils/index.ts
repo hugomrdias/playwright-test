@@ -126,6 +126,46 @@ export function assertTrace(trace: unknown) {
 }
 
 /**
+ * Wait for a promise, up to `ms`.
+ *
+ * @returns what it resolved to, or `fallback` when it took too long
+ */
+export async function withTimeout<T, F = undefined>(
+  promise: Promise<T>,
+  ms: number,
+  fallback?: F
+): Promise<T | F> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<F>((resolve) => {
+        timer = setTimeout(() => resolve(fallback as F), ms)
+      }),
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
+ * Close the server of the run, its open connections can make that wait.
+ */
+export function closeServer(server: Server | undefined, ms: number) {
+  if (!server) {
+    return Promise.resolve()
+  }
+  return withTimeout(
+    new Promise<void>((resolve) => {
+      server.close(() => resolve())
+    }),
+    ms
+  )
+}
+
+const TIMED_OUT = Symbol('timed out')
+
+/**
  * Run the after tests hook, it failing fails the run instead of the cleanup.
  *
  * @returns if it worked, it never rejects
@@ -135,25 +175,20 @@ export async function runAfterTests(
   env: RunnerEnv,
   beforeTestsOutput: unknown
 ): Promise<boolean> {
-  let timer: NodeJS.Timeout | undefined
   try {
-    await Promise.race([
-      afterTests(env, beforeTestsOutput),
-      new Promise((_resolve, reject) => {
-        timer = setTimeout(
-          reject,
-          AFTER_TESTS_TIMEOUT,
-          new Error(`It did not finish in ${AFTER_TESTS_TIMEOUT}ms.`)
-        )
-      }),
-    ])
+    const result = await withTimeout(
+      Promise.resolve(afterTests(env, beforeTestsOutput)),
+      AFTER_TESTS_TIMEOUT,
+      TIMED_OUT
+    )
+    if (result === TIMED_OUT) {
+      throw new Error(`It did not finish in ${AFTER_TESTS_TIMEOUT}ms.`)
+    }
     return true
   } catch (error) {
     const stack = (error as { stack?: string } | undefined)?.stack
     log.error(`The afterTests hook failed.\n${stack ?? error}`)
     return false
-  } finally {
-    clearTimeout(timer)
   }
 }
 

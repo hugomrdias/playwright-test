@@ -1,9 +1,9 @@
 import type { ChildProcess } from 'node:child_process'
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import path from 'node:path'
 
 /** How long a subprocess has to end after being asked to. */
-const FORCE_KILL_DELAY = 5000
+export const FORCE_KILL_DELAY = 5000
 
 /**
  * Add `node_modules/.bin` of `cwd` and its parents to `PATH`, tests can start
@@ -31,17 +31,21 @@ export function withLocalBins(
   return { ...env, [key]: dirs.join(path.delimiter) }
 }
 
+/** If it never started or is already gone */
+function ended(child: ChildProcess) {
+  return (
+    child.pid === undefined ||
+    child.exitCode !== null ||
+    child.signalCode !== null
+  )
+}
+
 /**
  * End a subprocess that won't end by itself. On Windows killing it doesn't reach
  * its children.
  */
 export function killTree(child: ChildProcess) {
-  // Never started or already gone
-  if (
-    child.pid === undefined ||
-    child.exitCode !== null ||
-    child.signalCode !== null
-  ) {
+  if (ended(child)) {
     return
   }
   if (process.platform === 'win32') {
@@ -54,4 +58,21 @@ export function killTree(child: ChildProcess) {
   const force = setTimeout(() => child.kill('SIGKILL'), FORCE_KILL_DELAY)
   force.unref()
   child.once('close', () => clearTimeout(force))
+}
+
+/**
+ * End a subprocess now, without giving it the chance to end by itself. For
+ * when this process is about to exit and can't wait for it.
+ */
+export function forceKill(child: ChildProcess) {
+  if (ended(child)) {
+    return
+  }
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
+      stdio: 'ignore',
+    })
+    return
+  }
+  child.kill('SIGKILL')
 }

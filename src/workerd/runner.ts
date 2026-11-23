@@ -5,18 +5,11 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { BuildOptions, Plugin as ESBuildPlugin } from 'esbuild'
 import esbuild from 'esbuild'
-import { asyncExitHook } from 'exit-hook'
 // @ts-expect-error
 import mergeOptions from 'merge-options'
 import { BaseRunner } from '../base-runner.ts'
 import type { Config } from '../types.ts'
-import {
-  AFTER_TESTS_TIMEOUT,
-  createPolka,
-  log,
-  runTimeoutMessage,
-  UsageError,
-} from '../utils/index.ts'
+import { createPolka, log, UsageError, withTimeout } from '../utils/index.ts'
 import { createStackMapper } from '../utils/stack-map.ts'
 
 const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
@@ -333,6 +326,7 @@ export default handler
 export class WorkerdRunner extends BaseRunner {
   declare stackMapper: { reset(): void; map<T>(value: T): T }
   declare mf: Miniflare | undefined
+  #disposing: Promise<void> | undefined
   declare workerName: string | undefined
   declare token: `${string}-${string}-${string}-${string}-${string}`
   declare outputDone: PromiseWithResolvers<void>
@@ -595,6 +589,11 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
       },
     }
 
+    // Stopped while it bundled, the exit hook found nothing to stop and
+    // nothing would stop it once it starts
+    if (this.stopped) {
+      return
+    }
     this.mf = new miniflare.Miniflare({
       log: new miniflare.Log(miniflare.LogLevel.WARN),
       handleStructuredLogs: this.#logHandler(),
@@ -695,14 +694,8 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
   }
 
   async run() {
-    if (this.stopped) {
-      return
-    }
-    asyncExitHook(this.#clean.bind(this), {
-      wait: AFTER_TESTS_TIMEOUT + EXIT_WAIT,
-    })
+    this.handleExit()
 
-    let timer: NodeJS.Timeout | undefined
     try {
       const { server, url } = await createPolka(
         this.dir,
@@ -711,18 +704,16 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
       )
       this.server = server
       this.env.PW_SERVER = url
+      this.startRunTimeout()
       await this.runBeforeTests()
       if (this.stopped) {
         return
       }
       await this.#startMiniflare()
-
-      const ms = this.options.runTimeout
-      if (ms > 0) {
-        timer = setTimeout(() => {
-          this.stop(true, runTimeoutMessage(ms))
-        }, ms)
+      if (this.stopped) {
+        return
       }
+
       const passed = await this.runTests()
       await this.stop(!passed, passed ? undefined : 'Tests failed.')
     } catch (error) {
@@ -742,8 +733,6 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
             ? (error as Error).message
             : error
       )
-    } finally {
-      clearTimeout(timer)
     }
   }
 
@@ -751,35 +740,17 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
     throw new UsageError('--watch does not work in the workerd mode yet.')
   }
 
-  async #clean() {
-    this.stopped = true
-    await this.mf?.dispose().catch(() => {
-      // Nothing left to stop
-    })
-    await this.runAfterTests()
-    this.removeFiles()
-
-    let timer: NodeJS.Timeout | undefined
-    await Promise.race([
-      new Promise((resolve) => {
-        if (this.server) {
-          this.server.close(() => resolve(true))
-        } else {
-          resolve(true)
-        }
-      }),
-      new Promise((resolve) => {
-        timer = setTimeout(resolve, EXIT_WAIT)
-      }),
-    ])
-    clearTimeout(timer)
+  cleanupWait() {
+    return EXIT_WAIT
   }
 
-  async stop(fail: boolean, msg?: unknown) {
-    if (this.stopped) {
-      return
-    }
-    this.stopped = true
-    await this.exit(fail, msg)
+  /**
+   * Stop workerd, the tests can still be running on a timeout or a signal.
+   */
+  async stopTests() {
+    this.#disposing ??= this.mf?.dispose().catch(() => {
+      // Nothing left to stop
+    })
+    await withTimeout(this.#disposing ?? Promise.resolve(), EXIT_WAIT)
   }
 }

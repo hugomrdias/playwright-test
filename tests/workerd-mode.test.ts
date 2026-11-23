@@ -6,7 +6,7 @@ import { runCli } from './helpers.ts'
 
 function runWorkerd(
   args: string[],
-  options?: { env?: Record<string, string>; timeout?: number }
+  options?: { all?: boolean; env?: Record<string, string>; timeout?: number }
 ) {
   return runCli(['--mode', 'workerd', '--cwd', 'mocks/workerd', ...args], {
     reject: false,
@@ -111,6 +111,59 @@ describe('workerd mode', () => {
 
     is(proc.exitCode, 1, `${proc.stdout}\n${proc.stderr}`)
     ok(proc.stderr.includes('had hung'), proc.stderr)
+  })
+
+  it('stops the worker before the afterTests hook on a run timeout', async () => {
+    const proc = await runWorkerd(
+      [
+        '--config',
+        'mocks/flow/after-waits.config.mjs',
+        '--runner',
+        'none',
+        '--run-timeout',
+        // The timeout includes starting Miniflare, slow on CI runners
+        '4000',
+        'test/ticks.test.js',
+      ],
+      { all: true }
+    )
+
+    const all = proc.all ?? ''
+    is(proc.exitCode, 1, all)
+    ok(all.includes('Run timed out after 4000ms'), all)
+    ok(all.includes('tick'), all)
+    const hook = all.slice(all.indexOf('after-started'))
+    ok(hook.includes('after-finished'), all)
+    ok(!/^tick$/m.test(hook), all)
+  })
+
+  it('sees workerd start without a timeout', async () => {
+    const proc = await runWorkerd([
+      '--config',
+      'mocks/workerd/slow-bundle.config.mjs',
+      'test/worker.test.js',
+    ])
+
+    is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
+    ok(proc.stdout.includes('workerd-started'), proc.stdout)
+  })
+
+  it('does not start workerd when stopped while bundling', {
+    skip: process.platform === 'win32',
+  }, async () => {
+    const proc = await runWorkerd([
+      '--config',
+      'mocks/workerd/slow-bundle.config.mjs',
+      '--runner',
+      'none',
+      '--run-timeout',
+      '500',
+      'test/ticks.test.js',
+    ])
+
+    is(proc.exitCode, 1, `${proc.stdout}\n${proc.stderr}`)
+    ok(proc.stderr.includes('Run timed out after 500ms'), proc.stderr)
+    ok(!proc.stdout.includes('workerd-started'), proc.stdout)
   })
 
   it('fails when the tests do not bundle', async () => {
