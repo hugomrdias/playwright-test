@@ -6,7 +6,6 @@ import { inspect } from 'node:util'
 import { watch } from 'chokidar'
 import { BaseRunner } from '../base-runner.ts'
 import type { Config } from '../types.ts'
-import { EXT } from '../utils/ext.ts'
 import { createPolka, log, UsageError, withTimeout } from '../utils/index.ts'
 import {
   FORCE_KILL_DELAY,
@@ -37,8 +36,7 @@ function formatError(error: unknown): Error | string {
  *
  * The test runner entry is piped to `node --input-type=module` through stdin so
  * imports resolve from `options.cwd`, just like a module living in the project.
- * Unless `options.transform` is off, `hooks.ts` is preloaded to transform project
- * files one by one.
+ * Files run as plain Node runs them, a loader goes in `NODE_OPTIONS`.
  */
 export class NodeRunner extends BaseRunner {
   declare child: ChildProcess | undefined
@@ -101,9 +99,6 @@ export class NodeRunner extends BaseRunner {
       '--input-type=module',
       ...(this.options.testRunner.nodeArgs?.(this.options) ?? []),
     ]
-    if (this.options.transform) {
-      nodeArgs.push('--import', new URL(`hooks${EXT}`, import.meta.url).href)
-    }
 
     const child = spawn(process.execPath, nodeArgs, {
       cwd: this.options.cwd,
