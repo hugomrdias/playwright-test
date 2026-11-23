@@ -1,6 +1,7 @@
 import {
   deepStrictEqual as equal,
   strictEqual as is,
+  match,
   ok,
 } from 'node:assert/strict'
 import { once } from 'node:events'
@@ -65,6 +66,25 @@ describe('browser profile', { concurrency: TEST_CONCURRENCY }, () => {
       })
     })
   }
+
+  it('is deleted while the afterTests hook runs', async () => {
+    await withTempDir(async ({ env, leftovers }) => {
+      const proc = await runCli(
+        [
+          'mocks/none/stdout.test.js',
+          '--runner',
+          'none',
+          '--config',
+          'mocks/profile/after-tests.config.js',
+        ],
+        { env, timeout: 60_000 }
+      )
+
+      is(proc.exitCode, 0, 'exit code')
+      match(proc.stdout, /profile deleted/)
+      equal(leftovers(), [])
+    })
+  })
 
   it('is deleted when deleting it takes longer than the exit waits', async () => {
     await withTempDir(async ({ env, leftovers }) => {

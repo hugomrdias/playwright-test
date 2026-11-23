@@ -84,6 +84,8 @@ export class Runner extends BaseRunner {
       }
     | undefined = undefined
   #compiling: Promise<CompilerOutput> | undefined = undefined
+  #closing: { traced: Promise<void>; closed: Promise<void> } | undefined =
+    undefined
 
   constructor(options: Config, testFiles?: string[]) {
     super(options, testFiles)
@@ -901,47 +903,71 @@ export class Runner extends BaseRunner {
     }
   }
 
+  /**
+   * Save the trace and close the browser, the tests are done. Before the close
+   * resolves Playwright deletes the profile it made, see `setupContext`.
+   */
+  #closeBrowser(exitCode: number) {
+    if (!this.#closing) {
+      const traced = this.#saveTrace(exitCode)
+      const closed = traced
+        .then(() => {
+          // A browser that's gone can't close it, and doesn't need to
+          if (this.context && this.#browserConnected()) {
+            return this.context.close()
+          }
+        })
+        .catch((error: Error) => {
+          log.warn(`Could not close the browser: ${error.message}`)
+        })
+      this.#closing = { traced, closed }
+    }
+    return this.#closing
+  }
+
+  /**
+   * The browser closes while the afterTests hook runs, it doesn't get it.
+   */
+  async exit(fail: boolean, msg?: unknown) {
+    this.#closeBrowser(fail ? 1 : 0)
+    await super.exit(fail, msg)
+  }
+
   async #clean(exitCode: number) {
     // Whatever is running fails from here on because of the browser closing
     this.stopped = true
 
+    // Already closing when the run ended, not when this process got a signal
+    const closing = this.#closeBrowser(exitCode)
     await this.runAfterTests()
-    // Before the close, it has its own wait
-    await this.#saveTrace(exitCode)
+    // It has its own wait
+    await closing.traced
 
-    // Before the server, its open connections could use up the wait for the exit
-    // A browser that's gone can't close it, and doesn't need to
-    const browserClosed =
-      this.context && this.#browserConnected()
-        ? this.context.close()
-        : undefined
-    const close = async () => {
-      await browserClosed
-      await new Promise((resolve, reject) => {
-        if (this.server) {
-          this.server.close((err) => (err ? reject(err) : resolve(true)))
-        } else {
-          resolve(true)
-        }
-      })
-    }
-    const warn = (error: Error) => {
-      log.warn(`Could not close the browser: ${error.message}`)
-    }
-
+    // After the browser, its open connections would use up the wait for the exit
+    const closed = closing.closed.then(
+      () =>
+        new Promise((resolve) => {
+          if (this.server) {
+            this.server.close(resolve)
+          } else {
+            resolve(undefined)
+          }
+        })
+    )
     let timer: NodeJS.Timeout | undefined
     const wait = (ms: number) =>
       new Promise((resolve) => {
         timer = setTimeout(resolve, ms)
       })
-    await Promise.race([close().catch(warn), wait(EXIT_WAIT)])
+    await Promise.race([closed, wait(EXIT_WAIT)])
     clearTimeout(timer)
-
     // Once the browser is gone, closing it is Playwright deleting its profile.
     // On Windows the files can stay locked for seconds after the browser exits,
     // and the delete retries until then. Exiting first would leave the profile.
-    if (browserClosed && !this.#browserConnected()) {
-      await Promise.race([browserClosed.catch(noop), wait(PROFILE_DELETE_WAIT)])
+    // A browser that's still there gets killed by Playwright at the exit, and
+    // its profile deleted.
+    if (!this.#browserConnected()) {
+      await Promise.race([closed, wait(PROFILE_DELETE_WAIT)])
       clearTimeout(timer)
     }
 
