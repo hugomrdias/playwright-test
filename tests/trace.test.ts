@@ -1,5 +1,6 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
-import { existsSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import { runCli } from './helpers.ts'
@@ -8,8 +9,12 @@ import { runCli } from './helpers.ts'
 const cwd = 'mocks/trace'
 const trace = path.join(cwd, 'playwright-test-trace-chromium.zip')
 
-function run(args: string[]) {
-  return runCli(['--cwd', cwd, ...args], { reject: false, timeout: 60_000 })
+function run(args: string[], env: Record<string, string> = {}) {
+  return runCli(['--cwd', cwd, ...args], {
+    reject: false,
+    timeout: 60_000,
+    env,
+  })
 }
 
 /**
@@ -58,6 +63,31 @@ describe('--trace', () => {
 
     is(proc.exitCode, 1, proc.stderr)
     assertTrace()
+  })
+
+  it('writes the trace while the afterTests hook runs', async () => {
+    // Its own, the hook looks for the trace of the run in it
+    const temp = mkdtempSync(
+      path.join(process.env.PW_TEST_CHILD_TEMP || tmpdir(), 'pw-trace-')
+    )
+    try {
+      const proc = await run(
+        [
+          'pass.mocha.js',
+          '--trace',
+          '--config',
+          `${cwd}/after-waits.config.mjs`,
+        ],
+        // Which one os.tmpdir() reads depends on the platform
+        { TMPDIR: temp, TMP: temp, TEMP: temp }
+      )
+
+      is(proc.exitCode, 1, proc.stderr)
+      ok(proc.stdout.includes('trace-written'), proc.stdout)
+      assertTrace()
+    } finally {
+      rmSync(temp, { recursive: true, force: true })
+    }
   })
 
   it('keeps the trace of a passing run with on', async () => {

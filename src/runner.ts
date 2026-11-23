@@ -3,7 +3,7 @@
 import { fileURLToPath } from 'node:url'
 import { watch } from 'chokidar'
 import { asyncExitHook } from 'exit-hook'
-import { mkdirSync } from 'fs'
+import { copyFileSync, mkdirSync } from 'fs'
 import { cp } from 'fs/promises'
 import path from 'path'
 import type {
@@ -60,6 +60,9 @@ const SW_CLAIM_TIMEOUT = Number(process.env.PW_TEST_SW_CLAIM_TIMEOUT) || 5000
 // Writing the screenshots and snapshots of a long run takes a while
 const TRACE_WAIT = 30_000
 
+/** The trace written into the folder of the run, or why it couldn't be */
+type Trace = { file: string } | { problem: string } | undefined
+
 export class Runner extends BaseRunner {
   declare stackMapper: { reset(): void; map<T>(value: T): T }
   declare url: string
@@ -84,7 +87,7 @@ export class Runner extends BaseRunner {
     | undefined = undefined
   #compiling: Promise<CompilerOutput> | undefined = undefined
   #launching: Promise<Context> | undefined = undefined
-  #closing: { traced: Promise<void>; closed: Promise<void> } | undefined =
+  #closing: { traced: Promise<Trace>; closed: Promise<void> } | undefined =
     undefined
 
   constructor(options: Config, testFiles?: string[]) {
@@ -720,46 +723,69 @@ export class Runner extends BaseRunner {
    * Save the trace, with `retain-on-failure` only when the run failed. Closing
    * the context throws the trace away.
    */
-  async #saveTrace(exitCode: number) {
-    if (!this.tracing || (this.options.trace !== 'on' && exitCode === 0)) {
-      return
+  /**
+   * Write the trace of the run into its folder, before the browser closes.
+   * Whether it's kept depends on how the run ends, see `#keepTrace`.
+   */
+  async #writeTrace(): Promise<Trace> {
+    if (!this.tracing) {
+      return undefined
     }
     this.tracing = false
     // The context can be gone before the browser process notices
     if (this.closed === 'browser' || !this.#browserConnected()) {
-      log.warn(
-        'Could not save the trace, the browser closed before the run ended.'
-      )
+      return {
+        problem:
+          'Could not save the trace, the browser closed before the run ended.',
+      }
+    }
+    const file = path.join(this.dir, 'trace.zip')
+
+    let timer: NodeJS.Timeout | undefined
+    const trace = await Promise.race([
+      (this.context as Context).tracing.stop({ path: file }).then(
+        () => ({ file }),
+        (error: Error) => ({
+          problem: `Could not save the trace: ${error.message}`,
+        })
+      ),
+      new Promise<Trace>((resolve) => {
+        timer = setTimeout(resolve, TRACE_WAIT, {
+          problem: `Timed out saving the trace after ${TRACE_WAIT}ms.`,
+        })
+      }),
+    ])
+    clearTimeout(timer)
+    return trace
+  }
+
+  /**
+   * Keep the trace in `cwd` with `on` or when the run failed, the afterTests
+   * hook included. Otherwise it goes with the files of the run.
+   */
+  #keepTrace(trace: Trace, exitCode: number) {
+    if (!trace || (this.options.trace !== 'on' && exitCode === 0)) {
+      return
+    }
+    if ('problem' in trace) {
+      log.warn(trace.problem)
       return
     }
     const file = path.join(
       this.options.cwd,
       `playwright-test-trace-${this.options.browser}.zip`
     )
-
-    let timer: NodeJS.Timeout | undefined
-    const saved = await Promise.race([
-      (this.context as Context).tracing.stop({ path: file }).then(
-        () => true,
-        (error: Error) => {
-          log.warn(`Could not save the trace: ${error.message}`)
-          return undefined
-        }
-      ),
-      new Promise((resolve) => {
-        timer = setTimeout(resolve, TRACE_WAIT, false)
-      }),
-    ])
-    clearTimeout(timer)
-
-    if (saved) {
-      const shown = path.relative(process.cwd(), file) || file
-      log.info(
-        `Saved the trace, open it with \`npx playwright show-trace ${shown}\`.`
-      )
-    } else if (saved === false) {
-      log.warn(`Timed out saving the trace after ${TRACE_WAIT}ms.`)
+    try {
+      // Not a rename, the temp folder can be on another drive
+      copyFileSync(trace.file, file)
+    } catch (error) {
+      log.warn(`Could not save the trace: ${(error as Error).message}`)
+      return
     }
+    const shown = path.relative(process.cwd(), file) || file
+    log.info(
+      `Saved the trace, open it with \`npx playwright show-trace ${shown}\`.`
+    )
   }
 
   /**
@@ -930,9 +956,9 @@ export class Runner extends BaseRunner {
   /**
    * Save the trace and close the browser, the tests are done.
    */
-  #closeBrowser(exitCode: number) {
+  #closeBrowser() {
     if (!this.#closing) {
-      const traced = this.#saveTrace(exitCode)
+      const traced = this.#writeTrace()
       const closed = traced
         .then(() => {
           // A browser that's gone can't close it, and doesn't need to
@@ -949,14 +975,10 @@ export class Runner extends BaseRunner {
   }
 
   /**
-   * The browser closes while the afterTests hook runs, it doesn't get it. Not
-   * when the trace is only kept for failures of a passing run, the hook
-   * failing would keep it.
+   * The browser closes while the afterTests hook runs, it doesn't get it
    */
   async exit(fail: boolean, msg?: unknown) {
-    if (fail || !this.tracing || this.options.trace === 'on') {
-      this.#closeBrowser(fail ? 1 : 0)
-    }
+    this.#closeBrowser()
     await super.exit(fail, msg)
   }
 
@@ -979,15 +1001,12 @@ export class Runner extends BaseRunner {
       clearTimeout(launchTimer)
     }
 
-    // Already closing when the run ended, or after the hook decided the exit
-    // code for the trace, see `exit`. On a signal while the tests run, now.
-    if (!this.afterTestsResult) {
-      this.#closeBrowser(exitCode)
-    }
+    // Already closing when the run ended, see `exit`, on a signal while the
+    // tests run from now
+    const closing = this.#closeBrowser()
     await this.runAfterTests()
-    const closing = this.#closeBrowser(exitCode)
-    // It has its own wait
-    await closing.traced
+    // It has its own wait. Kept by the exit code, the hook can fail the run.
+    this.#keepTrace(await closing.traced, exitCode)
 
     // After the browser, its open connections would use up the wait for the exit
     const closed = closing.closed.then(
