@@ -220,9 +220,14 @@ describe('--watch', () => {
     })
     let stdout = ''
     const stored = (count: number) =>
-      new Promise<void>((resolve) => {
+      new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          running.stdout?.off('data', onData)
+          reject(new Error(`Not ${count} runs in:\n${stdout}`))
+        }, 20_000)
         const check = () => {
           if (stdout.split('STORED ').length > count) {
+            clearTimeout(timer)
             running.stdout?.off('data', onData)
             resolve()
           }
