@@ -12,8 +12,10 @@ function unsupported(fn, feature) {
 }
 
 test('throws for what is not implemented', (t) => {
-  unsupported(() => mock.timers, 'mock.timers')
-  unsupported(() => t.mock.timers, 'mock.timers')
+  unsupported(
+    () => mock.timers.enable({ apis: ['scheduler.wait'] }),
+    'mock.timers scheduler.wait'
+  )
   unsupported(() => mock.module('foo', {}), 'mock.module()')
   unsupported(() => t.mock.module('foo', {}), 'mock.module()')
   unsupported(() => run(), 'run()')

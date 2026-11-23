@@ -129,6 +129,7 @@ describe('playwright-test/node-test', () => {
     { name: 'shorthand', exitCode: 0 },
     { name: 'mock-assert', exitCode: 0 },
     { name: 'tags', exitCode: 0 },
+    { name: 'mock-timers', exitCode: 0 },
     // Real node:test only filters with the flag, this API always does
     { name: 'only', exitCode: 0, flags: ['--test-only'] },
   ]
