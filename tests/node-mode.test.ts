@@ -121,82 +121,22 @@ console.log('BIN', process.env.PATH.split(${JSON.stringify(path.delimiter)})[0])
   })
 })
 
-describe('node mode transform', { concurrency: TEST_CONCURRENCY }, () => {
-  const node = ['--mode', 'node']
-  const mocha = ['--runner', 'mocha', ...node]
-  const none = ['--runner', 'none', ...node]
+describe('node mode passthrough', { concurrency: TEST_CONCURRENCY }, () => {
+  const none = ['--runner', 'none', '--mode', 'node']
 
-  it('full typescript', async () => {
-    const proc = await runCli(['mocks/transform/syntax.test.ts', ...mocha])
+  it('runs erasable typescript as plain node', async () => {
+    const proc = await runCli(['mocks/node-mode/plain.ts', ...none])
 
     is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('4 passing'), proc.stdout)
+    ok(proc.stdout.includes('plain import.meta.env: undefined'), proc.stdout)
   })
 
-  it('jsx, resolution, module formats and import.meta.env', async () => {
-    const proc = await runCli(['mocks/transform/imports.test.ts', ...mocha])
-
-    is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('13 passing'), proc.stdout)
-  })
-
-  it('buildConfig', async () => {
-    const proc = await runCli([
-      'mocks/transform/config.test.tsx',
-      '--config',
-      'mocks/transform/pw.config.js',
-      ...mocha,
-    ])
-
-    is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('6 passing'), proc.stdout)
-  })
-
-  it('stack traces point at the typescript source', async () => {
-    const proc = await runCli(['mocks/transform/stack.ts', ...none])
-
-    is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('stack.ts:11:11'), proc.stdout)
-    ok(proc.stdout.includes('stack.ts:16:26'), proc.stdout)
-  })
-
-  it('import.meta.env', async () => {
-    const proc = await runCli(['mocks/transform/plain.ts', ...none])
-
-    is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('import.meta.env: object'), proc.stdout)
-  })
-
-  it('--no-transform runs erasable typescript as plain node', async () => {
-    const proc = await runCli([
-      'mocks/transform/plain.ts',
-      '--no-transform',
-      ...none,
-    ])
-
-    is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('import.meta.env: undefined'), proc.stdout)
-  })
-
-  it('--no-transform rejects non-erasable typescript', async () => {
-    const proc = await runCli(
-      ['mocks/transform/syntax.test.ts', '--no-transform', ...mocha],
-      { reject: false }
-    )
+  it('rejects typescript plain node does not run', async () => {
+    const proc = await runCli(['mocks/node-mode/enum.ts', ...none], {
+      reject: false,
+    })
 
     is(proc.exitCode, 1, 'exit code')
     ok(proc.stderr.includes('ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'), proc.stderr)
-  })
-
-  it('transform: false in the config file', async () => {
-    const proc = await runCli([
-      'mocks/transform/plain.ts',
-      '--config',
-      'mocks/transform/no-transform.config.js',
-      ...none,
-    ])
-
-    is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('import.meta.env: undefined'), proc.stdout)
   })
 })

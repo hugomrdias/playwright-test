@@ -37,7 +37,6 @@ Description
     --assets               Folder with assets to be served by the http server.  (default process.cwd())
     --cwd                  Current directory.  (default process.cwd())
     --extensions           File extensions allowed in the bundle.  (default js,cjs,mjs,ts,tsx,jsx)
-    --no-transform         Node mode only. Run files as plain Node would, without the built-in esbuild transform.
     --run-timeout          Fail the run after this many milliseconds, 0 turns it off. Not used with --debug or --watch.  (default 1800000)
     --test-name-pattern    Only run tests whose name matches this regular expression or /expression/flags.
     --test-timeout         Timeout in milliseconds for tests without their own, 0 for none.
@@ -72,42 +71,18 @@ Description
 
 ## Node mode
 
-`--mode node` runs your tests directly in Node.js without bundling. Test files are imported from their real paths in the project `cwd`, so stack traces point at your source files.
+`--mode node` runs your tests directly in Node.js without bundling or transforming anything. Test files are imported from their real paths in the project `cwd` and run exactly as plain Node runs them, so stack traces point at your source files.
 
 ```shell
 playwright-test "test/**/*.spec.ts" --mode node
 ```
 
-Plain Node only understands [erasable TypeScript](https://nodejs.org/api/typescript.html#type-stripping) and strict ES module resolution, so a loader hook transforms project files one at a time with esbuild. Nothing under `node_modules` is transformed or re-resolved. The hook adds:
+`buildConfig` doesn't apply in node mode. In node mode `--watch` re-runs the tests when any file matching `--extensions` changes in `cwd` (ignoring `node_modules` and dot folders). In browsers it watches the files that end up in the bundle, also the ones outside of `cwd` like in a monorepo, ignoring dot folders.
 
-- Full TypeScript: `enum`, `namespace`, parameter properties and decorators.
-- `.tsx` and `.jsx`, using the [automatic JSX runtime](https://esbuild.github.io/api/#jsx) by default.
-- Extensionless relative imports (`./lib`), directory imports (`./lib` for `./lib/index.ts`) and `./lib.js` when the file is really `./lib.ts`.
-- `import.meta.env`, which is the same object as `process.env`.
-
-In node mode `--watch` re-runs the tests when any file matching `--extensions` changes in `cwd` (ignoring `node_modules` and dot folders). In browsers it watches the files that end up in the bundle, also the ones outside of `cwd` like in a monorepo, ignoring dot folders.
-
-### `buildConfig` in node mode
-
-Each file is transformed on its own, so only these `buildConfig` keys apply. Everything else, including `plugins`, `inject`, `external` and `bundle`, is ignored, and so is the test runner `buildConfig`.
-
-- `define`, which also applies to plain `.js` files that use one of its keys.
-- `loader`, for loaders that output JavaScript (`js`, `jsx`, `ts`, `tsx`, `json`, `text`, `base64`, `dataurl` and `binary`). For example `{ '.txt': 'text' }`.
-- `jsx`, `jsxDev`, `jsxFactory`, `jsxFragment`, `jsxImportSource` and `jsxSideEffects`.
-- `tsconfigRaw`.
-
-`tsconfig.json` is not read, so settings like `experimentalDecorators` have to go in `tsconfigRaw`, and `paths` is not supported. If you need `paths`, use your own loader as described below.
-
-### Use your own loader
-
-Turn the hook off with `--no-transform`, or `transform: false` in the config file, and the tests run as plain Node would. Do this when you preload another loader such as [tsx](https://tsx.is) or [`@nubjs/runner`](https://nubjs.com/docs/standalone) so files aren't transformed twice. `NODE_OPTIONS` is passed to the Node process that runs the tests. Install the loader in your project first, then:
+If you need more than plain Node supports, like full TypeScript, JSX or extensionless imports, preload [`@nubjs/runner`](https://nubjs.com/docs/standalone) through `NODE_OPTIONS`, which is passed to the Node process that runs the tests. Install it in your project first, then:
 
 ```shell
-NODE_OPTIONS="--import tsx" playwright-test "test/**/*.spec.ts" --mode node --no-transform
-```
-
-```shell
-NODE_OPTIONS="--import @nubjs/runner" playwright-test "test/**/*.spec.ts" --mode node --no-transform
+NODE_OPTIONS="--import @nubjs/runner" playwright-test "test/**/*.spec.ts" --mode node
 ```
 
 ## Workerd mode

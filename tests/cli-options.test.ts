@@ -67,17 +67,6 @@ describe('cli flags', () => {
     is(options.testNamePattern, '123')
   })
 
-  it('--no-transform', async () => {
-    const { options } = await resolveCli([
-      MOCHA,
-      '--mode',
-      'node',
-      '--no-transform',
-    ])
-
-    is(options.transform, false)
-  })
-
   it('--trace alone keeps the trace of failed runs', async () => {
     const { options } = await resolveCli([MOCHA, '--trace'])
 

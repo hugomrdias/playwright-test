@@ -207,7 +207,6 @@ export const defaultOptions: Omit<RunnerOptions, 'testRunner'> = {
   runner: 'none',
   sw: undefined,
   extensions: 'js,cjs,mjs,ts,tsx,jsx',
-  transform: true,
   runTimeout: DEFAULT_RUN_TIMEOUT,
   trace: 'off',
   buildConfig: {},

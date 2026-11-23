@@ -453,7 +453,7 @@ for (const browser of ['chromium', 'firefox', 'webkit']) {
 
     it('typescript written to stdout', async () => {
       const proc = await runCli([
-        'mocks/transform/stack.ts',
+        'mocks/source-maps/stack.ts',
         '--runner',
         'none',
         ...flags,

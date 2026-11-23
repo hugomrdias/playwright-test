@@ -22,14 +22,6 @@ export interface RunnerOptions {
    */
   workerd?: WorkerdOptions
   /**
-   * Transform project files with esbuild in node mode (full TypeScript, JSX,
-   * extensionless imports and `import.meta.env`). Turn it off to get plain Node
-   * behaviour, for example when preloading another loader through `NODE_OPTIONS`.
-   *
-   * @default true
-   */
-  transform: boolean
-  /**
    * Fail the run after this many milliseconds, a test can hang a run forever
    * otherwise. `0` turns it off. Ignored with `debug` and in watch mode.
    *
@@ -64,8 +56,8 @@ export interface RunnerOptions {
    */
   minimal?: boolean
   /**
-   * Esbuild config. In node mode only `define`, `loader`, the `jsx*` options and
-   * `tsconfigRaw` apply.
+   * Esbuild config for the bundle. Ignored in node mode, which runs files as
+   * plain Node does.
    */
   buildConfig: BuildOptions
   buildSWConfig: BuildOptions
@@ -145,7 +137,6 @@ export interface CliOptions {
   assets?: string
   cwd: string
   extensions: string
-  transform?: boolean
   runTimeout?: number
   /** `''` when the flag has no value */
   trace?: string

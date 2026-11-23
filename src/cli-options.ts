@@ -76,7 +76,6 @@ const KNOWN_FLAGS = new Set([
   'extensions',
   'm',
   'mode',
-  'no-transform',
   'r',
   'run-timeout',
   'runner',
@@ -84,14 +83,12 @@ const KNOWN_FLAGS = new Set([
   'test-name-pattern',
   'test-timeout',
   'trace',
-  'transform',
   'w',
   'watch',
 ])
 
 /**
  * Nothing is forwarded to the runners, ignoring a flag would run the wrong tests.
- * Not the `unknown` option of sade since it also rejects `--no-transform`.
  */
 function checkUnknownFlags(opts: Record<string, unknown>) {
   const unknown = Object.keys(opts).filter((flag) => !KNOWN_FLAGS.has(flag))
@@ -290,10 +287,6 @@ function program() {
       `File extensions allowed in the bundle.  (default ${cliDefaults.extensions})`
     )
     .option(
-      '--no-transform',
-      'Node mode only. Run files as plain Node would, without the built-in esbuild transform.'
-    )
-    .option(
       '--run-timeout',
       'Fail the run after this many milliseconds, 0 turns it off. Not used with --debug or --watch.  (default 1800000)'
     )
@@ -388,7 +381,6 @@ export async function resolveOptions(
     extension: opts.extension,
     sw: opts.sw,
     extensions: opts.extensions,
-    transform: opts.transform,
     runTimeout: opts['run-timeout'],
     testNamePattern: opts['test-name-pattern'],
     testTimeout: opts['test-timeout'],
