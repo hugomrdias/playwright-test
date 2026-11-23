@@ -13,7 +13,7 @@ import type {
   Page,
   Worker,
 } from 'playwright-core'
-import { BaseRunner, removeFolder } from './base-runner.ts'
+import { BaseRunner, REMOVE_WAIT, removeFolder } from './base-runner.ts'
 import type { Binding, ClientBindings } from './client/types.ts'
 import type { CompilerOutput, Config } from './types.ts'
 import { compileSw } from './utils/build-sw.ts'
@@ -891,8 +891,8 @@ export class Runner extends BaseRunner {
   }
 
   /**
-   * Writing the trace and copying it where it's kept, and the waits of a
-   * browser starting and closing.
+   * Writing the trace and copying it where it's kept, the waits of a browser
+   * starting and closing, and deleting its profile.
    */
   cleanupWait() {
     const tracing = !(
@@ -900,7 +900,7 @@ export class Runner extends BaseRunner {
       this.options.debug ||
       this.watching
     )
-    return 3 * EXIT_WAIT + (tracing ? 2 * TRACE_WAIT : 0)
+    return 3 * EXIT_WAIT + REMOVE_WAIT + (tracing ? 2 * TRACE_WAIT : 0)
   }
 
   /**

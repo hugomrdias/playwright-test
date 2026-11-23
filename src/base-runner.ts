@@ -28,6 +28,11 @@ const merge = createMerge({ ignoreUndefined: true, concatArrays: true })
 const SERVER_CLOSE_WAIT = 1000
 
 const REMOVE_OPTIONS = { recursive: true, force: true, maxRetries: 10 }
+/**
+ * The most deleting a folder waits for its files to be let go, the exit hook
+ * waits for it. Each try waits longer, and per file, so it has to have an end.
+ */
+export const REMOVE_WAIT = 3000
 
 /**
  * Delete a folder of the run, not being able to doesn't change how it went.
@@ -38,10 +43,17 @@ const REMOVE_OPTIONS = { recursive: true, force: true, maxRetries: 10 }
  * doesn't retry a file another process still has open.
  */
 export async function removeFolder(dir: string) {
-  try {
-    await rm(dir, REMOVE_OPTIONS)
-  } catch (error) {
-    log.warn(`Could not delete ${dir}: ${(error as Error).message}`)
+  const removing = rm(dir, REMOVE_OPTIONS).then(
+    () => undefined,
+    (error: Error) => error.message
+  )
+  const failure = await withTimeout(
+    removing,
+    REMOVE_WAIT,
+    `still in use after ${REMOVE_WAIT}ms`
+  )
+  if (failure !== undefined) {
+    log.warn(`Could not delete ${dir}: ${failure}`)
   }
 }
 
@@ -157,7 +169,11 @@ export class BaseRunner {
   handleExit() {
     asyncExitHook((exitCode) => this.#clean(exitCode), {
       // Waiting for a beforeTests hook still running, then the afterTests one
-      wait: 2 * AFTER_TESTS_TIMEOUT + SERVER_CLOSE_WAIT + this.cleanupWait(),
+      wait:
+        2 * AFTER_TESTS_TIMEOUT +
+        SERVER_CLOSE_WAIT +
+        REMOVE_WAIT +
+        this.cleanupWait(),
     })
     let interrupted = false
     process.on('SIGINT', () => {
