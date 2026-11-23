@@ -91,11 +91,6 @@ const KNOWN_FLAGS = new Set([
  * Nothing is forwarded to the runners, ignoring a flag would run the wrong tests.
  */
 function checkUnknownFlags(opts: Record<string, unknown>) {
-  if ('transform' in opts) {
-    throw new UsageError(
-      'The --no-transform option was removed, node mode always runs files as plain Node does. Preload a loader through NODE_OPTIONS instead, like NODE_OPTIONS="--import @nubjs/runner".'
-    )
-  }
   const unknown = Object.keys(opts).filter((flag) => !KNOWN_FLAGS.has(flag))
   if (unknown.length > 0) {
     const flags = unknown.map((flag) =>
