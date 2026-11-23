@@ -14,6 +14,7 @@
  */
 
 import type { TestContext as NodeTestContext } from 'node:test'
+import { inspect } from 'util'
 import { legacy as nodeAssert } from './assert.ts'
 import {
   config,
@@ -58,7 +59,7 @@ interface TestOptions {
   plan?: number
   signal?: AbortSignal
   skip?: boolean | string
-  tags?: string[]
+  tags?: unknown
   timeout?: number | null
   todo?: boolean | string
 }
@@ -199,6 +200,88 @@ function invoke(
     return Promise.resolve(ret)
   }
   return promise
+}
+
+/** Tags take part in the expressions of `--experimental-test-tag-filter`. */
+// Only ASCII whitespace, like Node.js
+const FORBIDDEN_TAG = /[\t\n\v\f\r &|!()*]/
+const RESERVED_TAGS = new Set(['and', 'or', 'not'])
+
+function invalidArg(code: string, message: string) {
+  return Object.assign(new TypeError(message), { code })
+}
+
+/** What `node:test` says it received, in the messages of `ERR_INVALID_ARG_TYPE`. */
+function describeReceived(value: unknown) {
+  if (value == null) {
+    return String(value)
+  }
+  if (typeof value === 'function') {
+    return value.name ? `function ${value.name}` : 'function'
+  }
+  if (typeof value === 'object') {
+    const name = (value as { constructor?: { name?: string } }).constructor
+      ?.name
+    return name ? `an instance of ${name}` : inspect(value, { depth: -1 })
+  }
+  let shown = value
+  if (typeof shown === 'string' && shown.length > 28) {
+    shown = `${shown.slice(0, 25)}...`
+  }
+  return `type ${typeof value} (${inspect(shown, { colors: false })})`
+}
+
+/**
+ * Validate the `tags` option, and normalize it like `node:test`: lowercase,
+ * without duplicates, the first time a tag shows up is where it stays.
+ */
+function normalizeTags(tags: unknown, inherited: readonly string[] = []) {
+  if (tags !== undefined && !Array.isArray(tags)) {
+    throw invalidArg(
+      'ERR_INVALID_ARG_TYPE',
+      `The "options.tags" property must be an instance of Array. Received ${describeReceived(tags)}`
+    )
+  }
+  const result = new Set(inherited)
+  const list = (tags ?? []) as unknown[]
+  // By index, holes are `undefined` and the array can have its own `entries`
+  for (let i = 0; i < list.length; i++) {
+    const tag = list[i]
+    const name = `options.tags[${i}]`
+    if (typeof tag !== 'string') {
+      throw invalidArg(
+        'ERR_INVALID_ARG_TYPE',
+        `The "${name}" property must be of type string. Received ${describeReceived(tag)}`
+      )
+    }
+    let inspected = inspect(tag, { colors: false })
+    if (inspected.length > 128) {
+      inspected = `${inspected.slice(0, 128)}...`
+    }
+    const received = `Received ${inspected}`
+    if (tag === '') {
+      throw invalidArg(
+        'ERR_INVALID_ARG_VALUE',
+        `The property '${name}' must not be empty. ${received}`
+      )
+    }
+    if (FORBIDDEN_TAG.test(tag)) {
+      throw invalidArg(
+        'ERR_INVALID_ARG_VALUE',
+        `The property '${name}' contains a forbidden character. Tags must not contain whitespace, operator characters (&, |, !, (, ), *), or be the reserved words 'and', 'or', or 'not'. ${received}`
+      )
+    }
+    const lowercase = tag.toLowerCase()
+    if (RESERVED_TAGS.has(lowercase)) {
+      throw invalidArg(
+        'ERR_INVALID_ARG_VALUE',
+        `The property '${name}' must not be the reserved word 'and', 'or', or 'not'. ${received}`
+      )
+    }
+    result.add(lowercase)
+  }
+  // Frozen like in Node.js, the tags of the children are made from them
+  return Object.freeze([...result])
 }
 
 function validateTimeout(
@@ -601,7 +684,7 @@ class Test {
   nesting: number
   only: boolean | undefined
   timeout: number | null
-  tags: string[]
+  tags: readonly string[]
   abortController: AbortController
   outerSignal: AbortSignal | undefined
   signal: AbortSignal
@@ -665,7 +748,7 @@ class Test {
     this.nesting = parent ? parent.nesting + 1 : -1
     this.only = only
     this.timeout = parent?.timeout ?? null
-    this.tags = [...(parent?.tags ?? []), ...(tags ?? [])]
+    this.tags = normalizeTags(tags, parent?.tags)
 
     if (only && parent) {
       // If filtering impacts the tests within a suite, then the suite only runs
