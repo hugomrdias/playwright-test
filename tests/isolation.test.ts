@@ -321,6 +321,20 @@ for (const mode of ['browser', 'web-worker']) {
       ok(Date.now() - started < 15_000, output(proc))
     })
 
+    it('mocha bail keeps what a cancelled file logged', async () => {
+      // Its thread is busy when bail ends it, the value is read after that
+      const proc = await runIn(
+        mode,
+        'mocha',
+        ['bail-fails-later', 'mocha-logs-busy'],
+        ['--test-concurrency', '2']
+      )
+
+      is(proc.exitCode, 1, output(proc))
+      ok(proc.stdout.includes('ℹ cancelled 1'), output(proc))
+      ok(proc.stdout.includes("detail: 'DEEP VALUE'"), output(proc))
+    })
+
     it('a run timeout ends every file, and prints what they held back', async () => {
       // The first file never ends, the second one waits for it to print
       const proc = await runIn(
