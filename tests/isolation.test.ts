@@ -405,38 +405,47 @@ for (const mode of ['browser', 'web-worker']) {
       ok(proc.stdout.includes('ℹ pass 2'), output(proc))
     })
 
-    it('mocha bail keeps what a cancelled file logged, and ends it', async () => {
-      // Its thread is busy when bail ends it, the value can't be read anymore.
-      // It calls the server after its busy loop, if it gets that far.
-      let calls = 0
-      const server = http.createServer((_, res) => {
-        calls++
-        res.end()
-      })
-      await new Promise<void>((resolve) =>
-        server.listen(0, '127.0.0.1', resolve)
-      )
-      const { port } = server.address() as AddressInfo
-      try {
-        const proc = await runIn(
-          mode,
-          'mocha',
-          ['bail-fails-later', 'mocha-logs-busy'],
-          ['--test-concurrency', '2'],
-          { PW_TEST_BEACON: `http://127.0.0.1:${port}/` }
+    // Firefox lets a navigation wait for the task the page runs
+    for (const browser of ['chromium', 'firefox']) {
+      it(`mocha bail keeps what a cancelled file logged, and ends it in ${browser}`, async () => {
+        // Its thread is busy when bail ends it, the value can't be read
+        // anymore. It calls the server after its busy loop, if it gets there.
+        let calls = 0
+        const server = http.createServer((_, res) => {
+          calls++
+          res.end()
+        })
+        await new Promise<void>((resolve) =>
+          server.listen(0, '127.0.0.1', resolve)
         )
+        const { port } = server.address() as AddressInfo
+        try {
+          const proc = await runIn(
+            mode,
+            'mocha',
+            ['bail-fails-later', 'mocha-logs-busy'],
+            ['--test-concurrency', '2', '--browser', browser],
+            { PW_TEST_BEACON: `http://127.0.0.1:${port}/` }
+          )
 
-        is(proc.exitCode, 1, output(proc))
-        ok(proc.stdout.includes('ℹ cancelled 1'), output(proc))
-        ok(/\{\s*request: /.test(proc.stdout), output(proc))
-        ok(!proc.stdout.includes('LOGS BUSY FINISHED'), output(proc))
-        // What it sent before the browser closed got here by now
-        await new Promise((resolve) => setTimeout(resolve, 500))
-        is(calls, 0, output(proc))
-      } finally {
-        server.close()
-      }
-    })
+          is(proc.exitCode, 1, output(proc))
+          ok(proc.stdout.includes('ℹ cancelled 1'), output(proc))
+          // The preview of the value, Chromium's has its keys
+          ok(
+            proc.stdout.includes(
+              browser === 'chromium' ? 'request: ' : 'Object'
+            ),
+            output(proc)
+          )
+          ok(!proc.stdout.includes('LOGS BUSY FINISHED'), output(proc))
+          // What it sent before the browser closed got here by now
+          await new Promise((resolve) => setTimeout(resolve, 500))
+          is(calls, 0, output(proc))
+        } finally {
+          server.close()
+        }
+      })
+    }
 
     it('a run timeout ends every file, and prints what they held back', async () => {
       // The first file never ends, the second one waits for it to print
