@@ -182,8 +182,12 @@ describe('node:test runner', () => {
           { reject: false, env: { STUBBORN_FILE: file } }
         )
         is(proc.exitCode, 1, output(proc))
+        // A file notices within 100ms that node --test is gone, it can write
+        // once more in that time
+        const wait = () => new Promise((resolve) => setTimeout(resolve, 500))
+        await wait()
         const lines = fs.readFileSync(file, 'utf8')
-        await new Promise((resolve) => setTimeout(resolve, 500))
+        await wait()
         is(fs.readFileSync(file, 'utf8'), lines, 'it kept running')
       } finally {
         fs.rmSync(dir, { recursive: true })
