@@ -38,7 +38,7 @@ Description
     --cwd                  Current directory.  (default process.cwd())
     --extensions           File extensions allowed in the bundle.  (default js,cjs,mjs,ts,tsx,jsx)
     --run-timeout          Fail the run after this many milliseconds, 0 turns it off. Not used with --debug or --watch.  (default 1800000)
-    --test-name-pattern    Only run tests whose name matches this regular expression or /expression/flags.
+    --test-name-pattern    Only run tests whose name matches this regular expression or /expression/flags. Repeat it to run tests matching any of them.
     --test-timeout         Timeout in milliseconds for tests without their own, 0 for none.
     --trace                Save a Playwright trace to playwright-test-trace-<browser>.zip in --cwd, open it with `npx playwright show-trace`. Alone it only keeps the trace of a failed run, `--trace on` always keeps it. Values other than `off` fail with --mode node or workerd; ignored with --debug and --watch.  (default off)
     --config               Path to the config file
@@ -389,7 +389,7 @@ playwright-test test.js --test-timeout 10000
 | `node-test` with our API      | Filters the tests                    | Timeout of tests without their own |
 | `none`                        | Warns and is ignored                 | Warns and is ignored               |
 
-- `--test-name-pattern` is a regular expression, or `/expression/flags`. A test matches with its own name, the name of a suite it's in, or any of those joined by a space with the names above them. With `mocha` only the last one counts, so `^adds$` won't match a test inside a suite.
+- `--test-name-pattern` is a regular expression, or `/expression/flags`. A test matches with its own name, the name of a suite it's in, or any of those joined by a space with the names above them. With `mocha` only the last one counts, so `^adds$` won't match a test inside a suite. Set it more than once, or to an array in the config file, to run the tests that match any of the patterns.
 - `--test-timeout` is in milliseconds, `0` means no timeout. It's different from `--run-timeout`, which is for the whole run.
 
 Both can also be set as `testNamePattern` and `testTimeout` in the config file.

@@ -1293,7 +1293,7 @@ class Suite extends Test {
       parent.active = true
       await this.buildPromise
       if (
-        config.namePattern !== null &&
+        config.namePatterns !== null &&
         !this.error &&
         !(await hasNameMatch(this))
       ) {

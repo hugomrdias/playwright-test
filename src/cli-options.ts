@@ -118,17 +118,15 @@ function validateTestOptions({
   testTimeout?: unknown
   runTimeout?: unknown
 }) {
-  if (Array.isArray(testNamePattern)) {
-    throw new UsageError(
-      '--test-name-pattern can only be set once, use a regular expression like "a|b".'
-    )
-  }
-  if (testNamePattern != null) {
-    if (typeof testNamePattern !== 'string' || testNamePattern === '') {
+  // Like `node:test`, it can be set more than once to run what matches any of them
+  for (const pattern of testNamePattern == null
+    ? []
+    : [testNamePattern].flat()) {
+    if (typeof pattern !== 'string' || pattern === '') {
       throw new UsageError('--test-name-pattern requires a non-empty pattern.')
     }
     try {
-      toRegExp(testNamePattern)
+      toRegExp(pattern)
     } catch (error) {
       throw new UsageError(
         `Invalid --test-name-pattern: ${(error as Error).message}`
@@ -292,7 +290,7 @@ function program() {
     )
     .option(
       '--test-name-pattern',
-      'Only run tests whose name matches this regular expression or /expression/flags.'
+      'Only run tests whose name matches this regular expression or /expression/flags. Repeat it to run tests matching any of them.'
     )
     .option(
       '--test-timeout',

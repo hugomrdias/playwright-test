@@ -5,7 +5,7 @@
  */
 import { inspect, styleText } from 'util'
 import { supportsColor } from '../utils/colors.ts'
-import { toRegExp } from '../utils/name-pattern.ts'
+import { toPatterns, toRegExp } from '../utils/name-pattern.ts'
 import { isFrame, removeInternalFrames } from '../utils/stack-frames.ts'
 
 export interface RunResult {
@@ -89,12 +89,13 @@ export function cleanStack(text: string) {
 export const config: {
   colors: boolean
   minimal: boolean
-  namePattern: RegExp | null
+  /** `null` without `--test-name-pattern`, otherwise a test has to match one */
+  namePatterns: RegExp[] | null
   timeout: number | undefined
 } = {
   colors: supportsColor(),
   minimal: false,
-  namePattern: null,
+  namePatterns: null,
   timeout: undefined,
 }
 
@@ -115,7 +116,7 @@ function paint(
  * calls this with the `--test-name-pattern` and `--test-timeout` options, and
  * `minimal` when an AI agent drives the run.
  *
- * @param options.testNamePattern - Only run tests matching this regular expression or `/expression/flags`
+ * @param options.testNamePattern - Only run tests matching this regular expression or `/expression/flags`, or any of several
  * @param options.testTimeout - Timeout of tests without their own, `0` for none
  * @param options.minimal - Only print failures and the summary, without colors unless `FORCE_COLOR` is set
  */
@@ -124,31 +125,34 @@ export function configure({
   testNamePattern,
   testTimeout,
 }: {
-  testNamePattern?: string
+  testNamePattern?: string | string[]
   testTimeout?: number
   minimal?: boolean
 } = {}) {
   config.minimal = minimal
   config.colors = supportsColor({ minimal })
-  config.namePattern =
-    testNamePattern == null ? null : toRegExp(String(testNamePattern))
+  const patterns = toPatterns(testNamePattern)
+  config.namePatterns = patterns.length === 0 ? null : patterns.map(toRegExp)
   config.timeout = testTimeout
 }
 
 /**
- * Whether a test matches `--test-name-pattern`, with the name of the test or of
+ * Whether a test matches one of the `--test-name-pattern`, with the name of the test or of
  * any of its ancestors, on its own or joined by a space with its ancestors'.
  *
  * @param names - The name of the test and then of its ancestors
  */
 export function matchesNamePattern(names: string[]) {
-  const { namePattern } = config
-  return (
-    namePattern === null ||
-    [
-      ...names,
-      ...names.map((_, i) => names.slice(i).toReversed().join(' ')),
-    ].some((name) => name.search(namePattern) !== -1)
+  const { namePatterns } = config
+  if (namePatterns === null) {
+    return true
+  }
+  const candidates = [
+    ...names,
+    ...names.map((_, i) => names.slice(i).toReversed().join(' ')),
+  ]
+  return namePatterns.some((pattern) =>
+    candidates.some((name) => name.search(pattern) !== -1)
   )
 }
 
