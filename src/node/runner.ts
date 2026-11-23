@@ -6,13 +6,14 @@ import { inspect } from 'node:util'
 import { watch } from 'chokidar'
 import { BaseRunner } from '../base-runner.ts'
 import type { Config } from '../types.ts'
-import { createPolka, log, UsageError, withTimeout } from '../utils/index.ts'
+import { log, UsageError, withTimeout } from '../utils/index.ts'
 import {
   FORCE_KILL_DELAY,
   forceKill,
   killTree,
   withLocalBins,
 } from '../utils/process.ts'
+import { startServer } from '../utils/server.ts'
 
 // What a killed subprocess gets after its forced kill, to end
 const EXIT_WAIT = 1000
@@ -64,7 +65,7 @@ export class NodeRunner extends BaseRunner {
 
   async #setupServer() {
     // setup http server
-    const { server, url } = await createPolka(
+    const { server, url } = await startServer(
       this.dir,
       this.options.cwd,
       this.options.assets

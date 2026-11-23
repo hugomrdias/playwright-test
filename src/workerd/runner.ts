@@ -9,7 +9,8 @@ import esbuild from 'esbuild'
 import mergeOptions from 'merge-options'
 import { BaseRunner } from '../base-runner.ts'
 import type { Config } from '../types.ts'
-import { createPolka, log, UsageError, withTimeout } from '../utils/index.ts'
+import { log, UsageError, withTimeout } from '../utils/index.ts'
+import { startServer } from '../utils/server.ts'
 import { createStackMapper } from '../utils/stack-map.ts'
 
 const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
@@ -695,7 +696,7 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
     this.handleExit()
 
     try {
-      const { server, url } = await createPolka(
+      const { server, url } = await startServer(
         this.dir,
         this.options.cwd,
         this.options.assets
