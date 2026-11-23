@@ -6,7 +6,7 @@ import { runCli } from './helpers.ts'
 
 function runWorkerd(
   args: string[],
-  options?: { env?: Record<string, string>; timeout?: number }
+  options?: { all?: boolean; env?: Record<string, string>; timeout?: number }
 ) {
   return runCli(['--mode', 'workerd', '--cwd', 'mocks/workerd', ...args], {
     reject: false,
@@ -111,6 +111,29 @@ describe('workerd mode', () => {
 
     is(proc.exitCode, 1, `${proc.stdout}\n${proc.stderr}`)
     ok(proc.stderr.includes('had hung'), proc.stderr)
+  })
+
+  it('stops the worker before the afterTests hook on a run timeout', async () => {
+    const proc = await runWorkerd(
+      [
+        '--config',
+        'mocks/workerd/after-tests.config.mjs',
+        '--runner',
+        'none',
+        '--run-timeout',
+        '1000',
+        'test/ticks.test.js',
+      ],
+      { all: true }
+    )
+
+    const all = proc.all ?? ''
+    is(proc.exitCode, 1, all)
+    ok(all.includes('Run timed out after 1000ms'), all)
+    ok(all.includes('tick'), all)
+    const hook = all.slice(all.indexOf('after-started'))
+    ok(hook.includes('after-finished'), all)
+    ok(!hook.includes('tick'), all)
   })
 
   it('fails when the tests do not bundle', async () => {

@@ -87,7 +87,8 @@ export interface RunnerOptions {
    */
   beforeTests: (env: RunnerEnv) => Promise<unknown>
   /**
-   * After tests hook, it only runs when `beforeTests` finished.
+   * After tests hook, it only runs when `beforeTests` finished. A run that ends
+   * while `beforeTests` still runs waits up to 60 seconds for it.
    *
    * It failing fails the run, and so does it not finishing in 60 seconds.
    *

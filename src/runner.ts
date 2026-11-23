@@ -2,7 +2,6 @@
 
 import { fileURLToPath } from 'node:url'
 import { watch } from 'chokidar'
-import { asyncExitHook } from 'exit-hook'
 import fs, { mkdirSync } from 'fs'
 import { cp } from 'fs/promises'
 import path from 'path'
@@ -20,7 +19,6 @@ import type { CompilerOutput, Config } from './types.ts'
 import { compileSw } from './utils/build-sw.ts'
 import { colors } from './utils/colors.ts'
 import {
-  AFTER_TESTS_TIMEOUT,
   addWorker,
   assertBrowserOptions,
   build,
@@ -29,7 +27,7 @@ import {
   getPw,
   log,
   readConsole,
-  runTimeoutMessage,
+  withTimeout,
   writeEnv,
 } from './utils/index.ts'
 import { createStackMapper } from './utils/stack-map.ts'
@@ -105,12 +103,10 @@ export class Runner extends BaseRunner {
     this.tracing = false
     this.watching = false
 
-    if (!this.stopped) {
-      process.env.DEBUG = [process.env.DEBUG, '-pw:*'].filter(Boolean).join(',')
-      // Before the bundles, the copy of the static files and a build started
-      // early would both make it
-      mkdirSync(this.files, { recursive: true })
-    }
+    process.env.DEBUG = [process.env.DEBUG, '-pw:*'].filter(Boolean).join(',')
+    // Before the bundles, the copy of the static files and a build started
+    // early would both make it
+    mkdirSync(this.files, { recursive: true })
   }
 
   assertOptions() {
@@ -153,7 +149,7 @@ export class Runner extends BaseRunner {
       ...launchOptions,
       channel,
       headless,
-      // It ends this process once the browser closes, see #handleInterrupt
+      // It ends this process once the browser closes, see `handleExit`
       handleSIGINT: false,
       args: [
         ...(this.options.extension
@@ -168,8 +164,6 @@ export class Runner extends BaseRunner {
         ...(launchOptions.args ?? []),
       ],
     }
-
-    this.#handleInterrupt()
 
     // Deleted with the files of the run once the browser is gone
     this.#launching = pw.launchPersistentContext(this.#profile(), {
@@ -412,18 +406,7 @@ export class Runner extends BaseRunner {
   }
 
   async run() {
-    if (this.stopped) {
-      return
-    }
-    asyncExitHook(this.#clean.bind(this), {
-      wait:
-        AFTER_TESTS_TIMEOUT +
-        EXIT_WAIT +
-        // Writing it, and copying it where it's kept
-        (this.options.trace === 'off' || this.options.debug
-          ? 0
-          : 2 * TRACE_WAIT),
-    })
+    this.handleExit()
 
     let compiled: Promise<CompilerOutput> | undefined
     try {
@@ -431,7 +414,7 @@ export class Runner extends BaseRunner {
       // Setup the context
       const context = await this.setupContext()
       // After setupContext, downloading a browser doesn't count
-      this.#startRunTimeout()
+      this.startRunTimeout()
       await this.runBeforeTests()
 
       // In parallel with setting up the test page
@@ -601,13 +584,8 @@ export class Runner extends BaseRunner {
   }
 
   async watch() {
-    if (this.stopped) {
-      return
-    }
     this.watching = true
-    asyncExitHook(this.#clean.bind(this), {
-      wait: AFTER_TESTS_TIMEOUT + EXIT_WAIT,
-    })
+    this.handleExit()
 
     let page: Page
     let files: string[]
@@ -682,23 +660,6 @@ export class Runner extends BaseRunner {
   }
 
   /**
-   * Let the exit hook finish when this process gets interrupted. The listener of
-   * the hook only runs once and a library inside Playwright raises the signal again
-   * when no other listener is left, so there has to be one. A second interrupt
-   * stops waiting for the hook.
-   */
-  #handleInterrupt() {
-    let interrupted = false
-    process.on('SIGINT', () => {
-      if (interrupted) {
-        this.removeFiles()
-        process.exit(130)
-      }
-      interrupted = true
-    })
-  }
-
-  /**
    * Record a trace of the run. Not under --debug, the browser closing ends the
    * run there and takes the trace with it, and not in watch mode, which would
    * keep all of the reruns in memory.
@@ -723,10 +684,6 @@ export class Runner extends BaseRunner {
   }
 
   /**
-   * Save the trace, with `retain-on-failure` only when the run failed. Closing
-   * the context throws the trace away.
-   */
-  /**
    * Write the trace of the run into its folder, before the browser closes.
    * Whether it's kept depends on how the run ends, see `#keepTrace`.
    */
@@ -743,23 +700,17 @@ export class Runner extends BaseRunner {
       }
     }
     const file = path.join(this.dir, 'trace.zip')
-
-    let timer: NodeJS.Timeout | undefined
-    const trace = await Promise.race([
+    // Closing the context throws the trace away
+    return await withTimeout<Trace, Trace>(
       (this.context as Context).tracing.stop({ path: file }).then(
         () => ({ file }),
         (error: Error) => ({
           problem: `Could not save the trace: ${error.message}`,
         })
       ),
-      new Promise<Trace>((resolve) => {
-        timer = setTimeout(resolve, TRACE_WAIT, {
-          problem: `Timed out saving the trace after ${TRACE_WAIT}ms.`,
-        })
-      }),
-    ])
-    clearTimeout(timer)
-    return trace
+      TRACE_WAIT,
+      { problem: `Timed out saving the trace after ${TRACE_WAIT}ms.` }
+    )
   }
 
   /**
@@ -782,9 +733,8 @@ export class Runner extends BaseRunner {
     // it first, a copy that doesn't finish can't replace the trace of another
     // run. With its own wait, where it goes can be slow.
     const copy = `${file}.${process.pid}.tmp`
-    let timer: NodeJS.Timeout | undefined
     let timedOut = false
-    const copied = await Promise.race([
+    const copied = await withTimeout(
       fs.promises
         .copyFile(trace.file, copy)
         .then(() => {
@@ -794,26 +744,19 @@ export class Runner extends BaseRunner {
           }
           return fs.promises.rename(copy, file).then(() => true)
         })
-        .then(
-          (renamed) => renamed,
-          (error: Error) => {
-            fs.promises.rm(copy, { force: true }).catch(noop)
-            log.warn(`Could not save the trace: ${error.message}`)
-            return undefined
-          }
-        ),
-      new Promise<false>((resolve) => {
-        timer = setTimeout(() => {
-          timedOut = true
-          resolve(false)
-        }, TRACE_WAIT)
-      }),
-    ])
-    clearTimeout(timer)
-    if (copied === false) {
+        .catch((error: Error) => {
+          fs.promises.rm(copy, { force: true }).catch(noop)
+          log.warn(`Could not save the trace: ${error.message}`)
+          return false
+        }),
+      TRACE_WAIT,
+      'timed out'
+    )
+    if (copied === 'timed out') {
+      timedOut = true
       log.warn(`Timed out saving the trace after ${TRACE_WAIT}ms.`)
     }
-    if (!copied) {
+    if (copied !== true) {
       return
     }
     const shown = path.relative(process.cwd(), file) || file
@@ -885,17 +828,6 @@ export class Runner extends BaseRunner {
   }
 
   /**
-   * Fail the run when it takes too long. Nothing in the page can be trusted to
-   * end it, a test stuck in a loop blocks the thread it would report from.
-   */
-  #startRunTimeout() {
-    const ms = this.options.runTimeout
-    if (ms > 0 && !this.options.debug) {
-      setTimeout(() => this.stop(true, runTimeoutMessage(ms)), ms).unref()
-    }
-  }
-
-  /**
    * Print a console message and keep track of it until it's done
    */
   #onConsole = (msg: ConsoleMessage) => {
@@ -949,15 +881,7 @@ export class Runner extends BaseRunner {
       return true
     }
 
-    let timer: NodeJS.Timeout | undefined
-    const flushed = await Promise.race([
-      flush(),
-      new Promise((resolve) => {
-        timer = setTimeout(resolve, CONSOLE_FLUSH_TIMEOUT, false)
-      }),
-    ])
-    clearTimeout(timer)
-
+    const flushed = await withTimeout(flush(), CONSOLE_FLUSH_TIMEOUT, false)
     if (!flushed) {
       log.warn(
         'Timed out waiting for browser console output, some may be lost.'
@@ -981,7 +905,7 @@ export class Runner extends BaseRunner {
   }
 
   /**
-   * Deleted with the files of the run, see `#clean`
+   * Deleted after the browser closed, see `cleanUp`
    */
   #profile() {
     return path.join(this.dir, 'profile')
@@ -1009,63 +933,47 @@ export class Runner extends BaseRunner {
   }
 
   /**
-   * The browser closes while the afterTests hook runs, it doesn't get it
+   * Writing the trace and copying it where it's kept, and the waits of a
+   * browser starting and closing.
    */
-  async exit(fail: boolean, msg?: unknown) {
-    this.#closeBrowser()
-    await super.exit(fail, msg)
+  cleanupWait() {
+    const tracing = !(
+      this.options.trace === 'off' ||
+      this.options.debug ||
+      this.watching
+    )
+    return 2 * EXIT_WAIT + (tracing ? 2 * TRACE_WAIT : 0)
   }
 
-  async #clean(exitCode: number) {
-    // Whatever is running fails from here on because of the browser closing
-    this.stopped = true
-
+  /**
+   * Start closing the browser, it closes while the afterTests hook runs. The
+   * hook doesn't get it, the tests are done.
+   */
+  async stopTests() {
     // A browser that's still starting would keep using the profile, or make it
     // again after it got deleted
     if (this.#launching && !this.context) {
-      let launchTimer: NodeJS.Timeout | undefined
-      await Promise.race([
+      await withTimeout(
         this.#launching.then((context) => {
           this.context = context
         }, noop),
-        new Promise((resolve) => {
-          launchTimer = setTimeout(resolve, EXIT_WAIT)
-        }),
-      ])
-      clearTimeout(launchTimer)
+        EXIT_WAIT
+      )
     }
+    this.#closeBrowser()
+  }
 
-    // Already closing when the run ended, see `exit`, on a signal while the
-    // tests run from now
+  async cleanUp(exitCode: number) {
     const closing = this.#closeBrowser()
-    await this.runAfterTests()
     // It has its own wait. Kept by the exit code, the hook can fail the run.
     await this.#keepTrace(await closing.traced, exitCode)
-
-    // After the browser, its open connections would use up the wait for the exit
-    const closed = closing.closed.then(
-      () =>
-        new Promise((resolve) => {
-          if (this.server) {
-            this.server.close(resolve)
-          } else {
-            resolve(undefined)
-          }
-        })
-    )
-    let timer: NodeJS.Timeout | undefined
-    const wait = (ms: number) =>
-      new Promise((resolve) => {
-        timer = setTimeout(resolve, ms)
-      })
-    await Promise.race([closed, wait(EXIT_WAIT)])
-    clearTimeout(timer)
+    // Before the server, the open connections of the browser would keep it open
+    await withTimeout(closing.closed, EXIT_WAIT)
     // The bundles don't go there, a build that never ends can't keep it
     removeFolder(this.#profile())
     // After the browser closed, it can still be using them. A bundle started
     // early may still be writing when the setup failed.
     await this.#compiling?.then(noop, noop)
-    this.removeFiles()
   }
 
   /**

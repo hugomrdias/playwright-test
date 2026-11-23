@@ -1,6 +1,6 @@
 import type { Server } from 'node:http'
 import { WriteStream } from 'node:tty'
-import { gracefulExit } from 'exit-hook'
+import { asyncExitHook, gracefulExit } from 'exit-hook'
 import { mkdirSync, rmSync } from 'fs'
 // @ts-expect-error
 import mergeOptions from 'merge-options'
@@ -9,15 +9,22 @@ import os from 'os'
 import path from 'path'
 import type { Config, RunnerEnv, RunnerOptions } from './types.ts'
 import {
+  AFTER_TESTS_TIMEOUT,
   assertRunTimeout,
+  closeServer,
   defaultOptions,
   findTests,
   log,
   resolveTestRunner,
   runAfterTests,
+  runTimeoutMessage,
+  UsageError,
+  withTimeout,
 } from './utils/index.ts'
 
 const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
+// The browser or the tests are gone by then, nothing should hold it open
+const SERVER_CLOSE_WAIT = 1000
 
 /**
  * Delete a folder of the run, not being able to doesn't change how it went.
@@ -60,17 +67,21 @@ function stdio(testEnv: NodeJS.ProcessEnv) {
 
 /**
  * What running the tests takes in a browser and in node.
+ *
+ * Every run ends in `exit`, through `stop`, or in the exit hook when this
+ * process gets stopped. Both stop the tests first, then run the afterTests
+ * hook, then the hook deletes what the run made, see `#clean`.
  */
 export class BaseRunner {
   options: RunnerOptions
   server: Server | undefined
   dir: string
   stopped: boolean
-  beforeTestsFinished: boolean
   beforeTestsOutput: unknown
   afterTestsResult: Promise<boolean> | undefined
   env: RunnerEnv
   tests: string[]
+  #beforeTests: Promise<unknown> | undefined
 
   constructor(options: Config, testFiles?: string[]) {
     this.options = merge(defaultOptions, options)
@@ -83,7 +94,6 @@ export class BaseRunner {
     this.server = undefined
     this.dir = path.join(os.tmpdir(), `playwright-test-${nanoid()}`)
     this.stopped = false
-    this.beforeTestsFinished = false
     this.beforeTestsOutput = undefined
     this.afterTestsResult = undefined
     this.env = merge(JSON.parse(JSON.stringify(process.env)), {
@@ -100,11 +110,7 @@ export class BaseRunner {
       })
 
     if (this.tests.length === 0) {
-      // Not with `stop`, under --debug it would wait with nothing to debug
-      this.stopped = true
-      log.error('No test files were found.')
-      gracefulExit(1)
-      return
+      throw new UsageError('No test files were found.')
     }
 
     // Only for the user, the temp folder is shared and the run has the
@@ -122,23 +128,110 @@ export class BaseRunner {
     // Nothing to check by default
   }
 
-  async runBeforeTests() {
-    this.beforeTestsOutput = await this.options.beforeTests(this.env)
-    // The hook can change the env, like TERM, and with it the color depth
-    this.env.PW_STDIO = JSON.stringify(stdio(this.env))
-    this.beforeTestsFinished = true
+  /**
+   * Clean up when this process ends, however it does, see `#clean`. First thing
+   * in `run` and `watch`.
+   *
+   * The exit hook only runs once, and Playwright raises an interrupt again
+   * when no other listener is left, so there's one more. A second interrupt
+   * stops waiting for the hook.
+   */
+  handleExit() {
+    asyncExitHook((exitCode) => this.#clean(exitCode), {
+      // Waiting for a beforeTests hook still running, then the afterTests one
+      wait: 2 * AFTER_TESTS_TIMEOUT + SERVER_CLOSE_WAIT + this.cleanupWait(),
+    })
+    let interrupted = false
+    process.on('SIGINT', () => {
+      if (interrupted) {
+        this.removeFiles()
+        process.exit(130)
+      }
+      interrupted = true
+    })
   }
 
   /**
-   * Run the after tests hook once, `stop` needs its result for the exit code and
-   * when this process gets stopped only the exit hook gets to run it. It's the
-   * other half of `beforeTests`, so not without one that finished.
+   * Fail the run when it takes too long, from the beforeTests hook on. What
+   * the mode needs before that doesn't count, like downloading a browser.
+   */
+  startRunTimeout() {
+    const ms = this.options.runTimeout
+    if (ms > 0 && !this.options.debug) {
+      setTimeout(() => this.stop(true, runTimeoutMessage(ms)), ms).unref()
+    }
+  }
+
+  async runBeforeTests() {
+    this.#beforeTests = this.options.beforeTests(this.env)
+    this.beforeTestsOutput = await this.#beforeTests
+    // The hook can change the env, like TERM, and with it the color depth
+    this.env.PW_STDIO = JSON.stringify(stdio(this.env))
+  }
+
+  /**
+   * Run the after tests hook once, `exit` needs its result for the exit code
+   * and when this process gets stopped only the exit hook gets to run it.
    */
   runAfterTests() {
-    this.afterTestsResult ??= this.beforeTestsFinished
-      ? runAfterTests(this.options.afterTests, this.env, this.beforeTestsOutput)
-      : Promise.resolve(true)
+    this.afterTestsResult ??= this.#afterTests()
     return this.afterTestsResult
+  }
+
+  /**
+   * It's the other half of `beforeTests`, so not without one that finished.
+   * The run can end while that one still runs, what it starts still needs
+   * the afterTests hook.
+   */
+  async #afterTests() {
+    if (!this.#beforeTests) {
+      return true
+    }
+    const finished = await withTimeout(
+      this.#beforeTests.then(
+        () => true,
+        () => false
+      ),
+      AFTER_TESTS_TIMEOUT,
+      'timed out'
+    )
+    if (finished === 'timed out') {
+      log.warn(
+        `The beforeTests hook did not finish in ${AFTER_TESTS_TIMEOUT}ms, not running the afterTests hook.`
+      )
+    }
+    if (finished !== true) {
+      return true
+    }
+    return runAfterTests(
+      this.options.afterTests,
+      this.env,
+      this.beforeTestsOutput
+    )
+  }
+
+  /**
+   * Stop what runs the tests, before the afterTests hook: it can stop what
+   * they use. It can be called more than once and has to end in time, see
+   * `cleanupWait`.
+   */
+  async stopTests() {
+    // Nothing runs them by default
+  }
+
+  /**
+   * Delete or keep what else the run made, after the afterTests hook, it can
+   * decide how the run ends. The server and the files of the run come after.
+   */
+  async cleanUp(_exitCode: number) {
+    // Nothing else by default
+  }
+
+  /**
+   * The most `stopTests` and `cleanUp` take together, the exit hook waits for it.
+   */
+  cleanupWait() {
+    return 0
   }
 
   /**
@@ -148,6 +241,27 @@ export class BaseRunner {
     removeFolder(this.dir)
   }
 
+  async #clean(exitCode: number) {
+    // Whatever is still running fails from here on, it can't stop the run again
+    this.stopped = true
+    await this.stopTests()
+    await this.runAfterTests()
+    await this.cleanUp(exitCode)
+    await closeServer(this.server, SERVER_CLOSE_WAIT)
+    this.removeFiles()
+  }
+
+  /**
+   * End the run once, whatever ends it first.
+   */
+  async stop(fail: boolean, msg?: unknown) {
+    if (this.stopped) {
+      return
+    }
+    this.stopped = true
+    await this.exit(fail, msg)
+  }
+
   /**
    * End the process, the after tests hook failing also fails the run.
    */
@@ -155,7 +269,7 @@ export class BaseRunner {
     if (fail && msg) {
       log.error(msg)
     }
-
+    await this.stopTests()
     const afterTestsPassed = await this.runAfterTests()
     gracefulExit(fail || !afterTestsPassed ? 1 : 0)
   }

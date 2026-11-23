@@ -4,19 +4,13 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
 import { watch } from 'chokidar'
-import { asyncExitHook } from 'exit-hook'
 import { BaseRunner } from '../base-runner.ts'
 import type { Config } from '../types.ts'
 import { EXT } from '../utils/ext.ts'
-import {
-  AFTER_TESTS_TIMEOUT,
-  createPolka,
-  log,
-  runTimeoutMessage,
-  UsageError,
-} from '../utils/index.ts'
-import { killTree, withLocalBins } from '../utils/process.ts'
+import { createPolka, log, UsageError, withTimeout } from '../utils/index.ts'
+import { FORCE_KILL_DELAY, killTree, withLocalBins } from '../utils/process.ts'
 
+// What a killed subprocess gets after its forced kill, to end
 const EXIT_WAIT = 1000
 
 /**
@@ -43,6 +37,8 @@ function formatError(error: unknown): Error | string {
  */
 export class NodeRunner extends BaseRunner {
   declare child: ChildProcess | undefined
+  /** If `child` ended, it never rejects */
+  #finished: Promise<boolean> | undefined
 
   constructor(options: Config, testFiles?: string[]) {
     super(options, testFiles)
@@ -123,59 +119,32 @@ export class NodeRunner extends BaseRunner {
       })
       child.once('close', (code) => resolve(code === 0))
     })
+    this.#finished = finished
     return { child, finished }
   }
 
   async run() {
-    if (this.stopped) {
-      return
-    }
-    asyncExitHook(this.#clean.bind(this), {
-      wait: AFTER_TESTS_TIMEOUT + EXIT_WAIT,
-    })
+    this.handleExit()
 
-    let timer: NodeJS.Timeout | undefined
     try {
       await this.#setupServer()
+      this.startRunTimeout()
       await this.runBeforeTests()
       // Stopped during the hook, nothing would stop the tests started now
       if (this.stopped) {
         return
       }
 
-      const { child, finished } = this.runTests()
-      const ms = this.options.runTimeout
-      let timedOut = false
-      if (ms > 0 && !this.options.debug) {
-        timer = setTimeout(() => {
-          timedOut = true
-          killTree(child)
-        }, ms)
-      }
-
-      const passed = await finished
-      if (!passed) {
-        await this.stop(
-          true,
-          timedOut ? runTimeoutMessage(ms) : 'Tests failed.'
-        )
-        return
-      }
-      await this.stop(false)
+      const passed = await this.runTests().finished
+      // A timeout or a signal stopping them already ended the run
+      await this.stop(!passed, passed ? undefined : 'Tests failed.')
     } catch (error) {
       await this.stop(true, formatError(error))
-    } finally {
-      clearTimeout(timer)
     }
   }
 
   async watch() {
-    if (this.stopped) {
-      return
-    }
-    asyncExitHook(this.#clean.bind(this), {
-      wait: AFTER_TESTS_TIMEOUT + EXIT_WAIT,
-    })
+    this.handleExit()
 
     let tests: { child: ChildProcess; finished: Promise<boolean> }
     try {
@@ -242,39 +211,18 @@ export class NodeRunner extends BaseRunner {
     }).on('change', restart)
   }
 
-  async #clean() {
-    this.stopped = true
-
-    // Don't leave the tests running when this process gets stopped
-    if (this.child) {
-      killTree(this.child)
-    }
-    await this.runAfterTests()
-    this.removeFiles()
-
-    let timer: NodeJS.Timeout | undefined
-    await Promise.race([
-      new Promise((resolve) => {
-        if (this.server) {
-          this.server.close(() => resolve(true))
-        } else {
-          resolve(true)
-        }
-      }),
-      new Promise((resolve) => {
-        timer = setTimeout(resolve, EXIT_WAIT)
-      }),
-    ])
-    clearTimeout(timer)
+  cleanupWait() {
+    return FORCE_KILL_DELAY + EXIT_WAIT
   }
 
-  async stop(fail: boolean, msg?: unknown) {
-    // Also with --debug, there's no browser to keep open
-    if (this.stopped) {
-      return
+  /**
+   * Don't leave the tests running, also when this process gets stopped. The
+   * forced kill comes too late once this process is gone.
+   */
+  async stopTests() {
+    if (this.child && this.#finished) {
+      killTree(this.child)
+      await withTimeout(this.#finished, FORCE_KILL_DELAY + EXIT_WAIT)
     }
-    this.stopped = true
-
-    await this.exit(fail, msg)
   }
 }

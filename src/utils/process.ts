@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import path from 'node:path'
 
 /** How long a subprocess has to end after being asked to. */
-const FORCE_KILL_DELAY = 5000
+export const FORCE_KILL_DELAY = 5000
 
 /**
  * Add `node_modules/.bin` of `cwd` and its parents to `PATH`, tests can start

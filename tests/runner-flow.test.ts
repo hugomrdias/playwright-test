@@ -22,6 +22,7 @@ const SLOW_HOOK = {
 
 interface RunOptions {
   all?: boolean
+  forceKillAfterDelay?: false
   env?: Record<string, string | undefined>
   timeout?: number
 }
@@ -277,6 +278,71 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
   }
 
   describe('afterTests when stopped', { concurrency: false }, () => {
+    for (const mode of ['main', 'node']) {
+      it(`waits for a beforeTests hook still running with mode:${mode}`, {
+        skip: process.platform === 'win32',
+      }, async () => {
+        const running = runFlow('pass.js', [
+          '--config',
+          `${FLOW}/before-slow.config.mjs`,
+          '--mode',
+          mode,
+        ])
+        await once(running.stdout, 'data')
+        running.kill('SIGINT')
+        const proc = await running
+
+        is(proc.exitCode, 130, proc.stderr)
+        ok(proc.stderr.includes('before-finished'), proc.stderr)
+        ok(proc.stderr.includes('after-ran'), proc.stderr)
+      })
+    }
+
+    it('stops waiting when stopped twice with mode:node', {
+      skip: process.platform === 'win32',
+    }, async () => {
+      const running = runFlow('never-ends.js', [
+        '--config',
+        `${FLOW}/after-slow.config.mjs`,
+        '--mode',
+        'node',
+      ])
+      await once(running.stdout, 'data')
+      running.kill('SIGINT')
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      running.kill('SIGINT')
+      const proc = await running
+
+      is(proc.exitCode, 130, proc.stderr)
+      ok(!proc.stderr.includes('after-finished'), proc.stderr)
+    })
+
+    it('kills tests that ignore being stopped with mode:node', {
+      skip: process.platform === 'win32',
+    }, async () => {
+      const running = runFlow('ignores-sigterm.js', ['--mode', 'node'], {
+        // It takes the 5s of the forced kill, execa would kill this run first
+        forceKillAfterDelay: false,
+      })
+      const [data] = await once(running.stdout, 'data')
+      const pid = Number(String(data).match(/pid:(\d+)/)?.[1])
+      running.kill('SIGTERM')
+      const proc = await running
+
+      is(proc.timedOut, false, 'ended by itself')
+      is(proc.exitCode, 143, proc.stderr)
+      let alive = true
+      try {
+        process.kill(pid, 0)
+      } catch {
+        alive = false
+      }
+      if (alive) {
+        process.kill(pid, 'SIGKILL')
+      }
+      is(alive, false, 'the tests were still running')
+    })
+
     // On Windows a killed process can't run any cleanup
     it('gets the time it needs when stopped', {
       skip: process.platform === 'win32',
@@ -345,23 +411,36 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
       ['browsers', 'Runner', '../src/runner.ts'],
       ['node mode', 'NodeRunner', '../src/node/runner.ts'],
     ]) {
-      it(`does not create a folder without test files in ${name}`, async () => {
+      it(`throws without test files, before making a folder, in ${name}`, async () => {
+        const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-no-tests-'))
         const script = `
-        import fs from 'node:fs'
         const { ${className}: Runner } = await import(${JSON.stringify(
           new URL(file, import.meta.url).href
         )})
-        const runner = new Runner({}, [])
-        await runner.run()
-        console.log('folder:' + fs.existsSync(runner.dir))
+        const { UsageError } = await import(${JSON.stringify(
+          new URL('../src/utils/index.ts', import.meta.url).href
+        )})
+        try {
+          new Runner({}, [])
+        } catch (error) {
+          console.log('usage:' + (error instanceof UsageError) + ':' + error.message)
+        }
       `
-        const proc = await execa(
-          process.execPath,
-          ['--input-type=module', '-e', script],
-          { reject: false }
-        )
+        try {
+          const proc = await execa(
+            process.execPath,
+            ['--input-type=module', '-e', script],
+            { reject: false, env: { TMPDIR: temp, TEMP: temp, TMP: temp } }
+          )
 
-        ok(proc.stdout.includes('folder:false'), proc.stdout + proc.stderr)
+          ok(
+            proc.stdout.includes('usage:true:No test files were found.'),
+            proc.stdout + proc.stderr
+          )
+          equal(fs.readdirSync(temp), [], 'made a folder')
+        } finally {
+          fs.rmSync(temp, { recursive: true, force: true })
+        }
       })
     }
   })
