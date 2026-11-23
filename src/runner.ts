@@ -134,16 +134,14 @@ export class Runner extends BaseRunner {
       return { server, url }
     })
 
-    // copy files, start http server, and resolve/download playwright in parallel
-    const [, , pw] = await Promise.all([
-      cp(path.join(__dirname, './../static'), this.dir, { recursive: true }),
-      serverPromise,
-      getPw(this.options.browser, {
-        headless,
-        channel,
-        executablePath: launchOptions.executablePath,
-      }),
-    ])
+    const copied = cp(path.join(__dirname, './../static'), this.dir, {
+      recursive: true,
+    })
+    const pwPromise = getPw(this.options.browser, {
+      headless,
+      channel,
+      executablePath: launchOptions.executablePath,
+    })
 
     const pwOptions: LaunchOptions = {
       ...launchOptions,
@@ -165,12 +163,29 @@ export class Runner extends BaseRunner {
       ],
     }
 
-    // Deleted with the files of the run once the browser is gone
-    this.#launching = pw.launchPersistentContext(this.#profile(), {
-      ...pwOptions,
-      ...this.options.browserContextOptions,
+    // The browser starts while the files get copied and the server starts,
+    // only the extension it loads has to be copied first. Not once the run
+    // stopped, another step can fail while Playwright is still getting ready.
+    // `stopTests` waits for a browser that's already starting.
+    // Deleted with the files of the run once the browser is gone.
+    const launching = Promise.all([
+      pwPromise,
+      this.options.extension ? copied : undefined,
+    ]).then(([pw]) => {
+      if (this.stopped) {
+        throw new Error('The run stopped before the browser started')
+      }
+      this.#launching = pw.launchPersistentContext(this.#profile(), {
+        ...pwOptions,
+        ...this.options.browserContextOptions,
+      })
+      return this.#launching
     })
-    this.context = await this.#launching
+    // Avoid unhandled rejection when another step fails first
+    launching.catch(noop)
+
+    await Promise.all([copied, serverPromise, launching])
+    this.context = await launching
 
     // Also when it crashes or gets killed, and when --debug users close it. It
     // fires when this process closes it too, which is after `stopped`.
