@@ -387,6 +387,21 @@ for (const mode of ['browser', 'web-worker']) {
       ok(proc.stdout.includes('ℹ pass 2'), output(proc))
     })
 
+    it('a service worker of the tests still answers for their iframes', {
+      skip: mode === 'web-worker',
+    }, async () => {
+      // Workers have no iframes. The second file loads with the worker there.
+      const proc = await runIn(
+        mode,
+        'mocha',
+        ['mocha-a', 'sw-iframe'],
+        ['--test-concurrency', '1', '--sw', `${dir}/sw-app-shell.js`]
+      )
+
+      is(proc.exitCode, 0, output(proc))
+      ok(proc.stdout.includes('ℹ pass 2'), output(proc))
+    })
+
     it('mocha bail keeps what a cancelled file logged, and ends it', async () => {
       // Its thread is busy when bail ends it, the value can't be read anymore
       const proc = await runIn(

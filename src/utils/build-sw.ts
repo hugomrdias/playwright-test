@@ -25,6 +25,8 @@ const pages = new Set(['/', ${JSON.stringify(CLEAR_SITE_DATA_PATH)}])
 self.addEventListener('fetch', (event) => {
   if (
     event.request.mode === 'navigate' &&
+    // Not an iframe of the tests, the runner's pages are the tabs
+    event.request.destination === 'document' &&
     pages.has(new URL(event.request.url).pathname)
   ) {
     event.stopImmediatePropagation()
