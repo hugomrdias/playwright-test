@@ -105,7 +105,7 @@ export function assertBrowserOptions({ mode, trace }: RunnerOptions) {
 export function assertNoExtension(options: object) {
   if ((options as { extension?: unknown }).extension) {
     throw new UsageError(
-      'The extension option was removed in v16, tests run in a normal page. Remove it from the config.'
+      'The extension option was removed in v16, remove it from the config.'
     )
   }
 }
