@@ -103,7 +103,7 @@
     "esbuild": "0.28.2",
     "esbuild-plugin-wasm": "^1.1.0",
     "exit-hook": "^5.1.0",
-    "lilconfig": "^3.1.4",
+    "lilconfig": "^3.1.5",
     "nanoid": "^6.0.2",
     "path-browserify": "^1.0.1",
     "playwright-core": "1.65.0",
