@@ -2,8 +2,6 @@ import type { Server } from 'node:http'
 import { WriteStream } from 'node:tty'
 import { asyncExitHook, gracefulExit } from 'exit-hook'
 import { mkdirSync, rmSync } from 'fs'
-// @ts-expect-error
-import mergeOptions from 'merge-options'
 import { nanoid } from 'nanoid'
 import os from 'os'
 import path from 'path'
@@ -22,8 +20,9 @@ import {
   UsageError,
   withTimeout,
 } from './utils/index.ts'
+import { createMerge } from './utils/merge.ts'
 
-const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
+const merge = createMerge({ ignoreUndefined: true, concatArrays: true })
 // The browser or the tests are gone by then, nothing should hold it open
 const SERVER_CLOSE_WAIT = 1000
 

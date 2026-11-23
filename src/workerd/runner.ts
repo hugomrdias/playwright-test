@@ -5,14 +5,13 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { BuildOptions, Plugin as ESBuildPlugin } from 'esbuild'
 import esbuild from 'esbuild'
-// @ts-expect-error
-import mergeOptions from 'merge-options'
 import { BaseRunner } from '../base-runner.ts'
 import type { Config } from '../types.ts'
 import { createPolka, log, UsageError, withTimeout } from '../utils/index.ts'
+import { createMerge } from '../utils/merge.ts'
 import { createStackMapper } from '../utils/stack-map.ts'
 
-const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
+const merge = createMerge({ ignoreUndefined: true, concatArrays: true })
 
 const EXIT_WAIT = 1000
 /** How long to wait for the last of the worker's output after the run. */
@@ -501,7 +500,7 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
       logLevel: 'error',
     }
     await esbuild.build(
-      merge(
+      merge<BuildOptions>(
         defaults,
         this.options.testRunner.buildConfig?.(this.options),
         this.options.buildConfig
