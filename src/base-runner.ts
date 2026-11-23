@@ -161,11 +161,16 @@ export class BaseRunner {
     const ms = this.options.runTimeout
     if (ms > 0 && !this.options.debug) {
       setTimeout(async () => {
+        if (this.stopped) {
+          return
+        }
+        // Taken right away, a run that ends while asking for the test is still over time
+        this.stopped = true
         const runningTest = await withTimeout(
           this.runningTest().catch(() => undefined),
           RUNNING_TEST_TIMEOUT
         )
-        await this.stop(true, runTimeoutMessage(ms, runningTest))
+        await this.exit(true, runTimeoutMessage(ms, runningTest))
       }, ms).unref()
     }
   }
