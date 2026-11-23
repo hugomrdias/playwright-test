@@ -1,10 +1,12 @@
+import { createRequire } from 'node:module'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { parse } from 'acorn-loose'
 import type { Loader } from 'esbuild'
-import { transformSync } from 'esbuild'
+import { build, transformSync } from 'esbuild'
 import fs from 'fs'
 import path from 'path'
 import { mocha, nodeTest } from '../test-runners.ts'
-import type { TestRunner } from '../types.ts'
+import type { RunnerOptions, TestRunner } from '../types.ts'
 
 // acorn's types, `acorn` itself is only a dependency of `acorn-loose`
 type Program = ReturnType<typeof parse>
@@ -37,34 +39,27 @@ const SOURCE_EXTENSIONS = [
   '.cjs',
   '.cts',
 ]
-const TYPESCRIPT_EXTENSIONS: Record<string, string[]> = {
-  '.js': ['.ts', '.tsx'],
-  '.jsx': ['.tsx'],
-  '.mjs': ['.mts'],
-  '.cjs': ['.cts'],
+type Dependency = {
+  id: string
+  kind: 'import-statement' | 'dynamic-import' | 'require-call'
 }
+type ResolveSource = (
+  file: string,
+  dependency: Dependency
+) => string | undefined | Promise<string | undefined>
 
-/** Resolve relative source imports without loading packages or other assets. */
-function resolveSource(file: string, id: string) {
-  if (!id.startsWith('./') && !id.startsWith('../')) {
-    return
+function resolveNodeSource(file: string, { id, kind }: Dependency) {
+  try {
+    if (kind === 'require-call') {
+      return createRequire(file).resolve(id)
+    }
+    const target = fileURLToPath(new URL(id, pathToFileURL(file)))
+    return fs.statSync(target, { throwIfNoEntry: false })?.isFile()
+      ? target
+      : undefined
+  } catch {
+    return undefined
   }
-
-  const target = path.resolve(path.dirname(file), id)
-  const extension = path.extname(target)
-  const candidates = SOURCE_EXTENSIONS.includes(extension) ? [target] : []
-  for (const substitute of TYPESCRIPT_EXTENSIONS[extension] ?? []) {
-    candidates.push(target.slice(0, -extension.length) + substitute)
-  }
-  if (!extension) {
-    candidates.push(...SOURCE_EXTENSIONS.map((suffix) => target + suffix))
-    candidates.push(
-      ...SOURCE_EXTENSIONS.map((suffix) => path.join(target, `index${suffix}`))
-    )
-  }
-  return candidates.find((candidate) =>
-    fs.statSync(candidate, { throwIfNoEntry: false })?.isFile()
-  )
 }
 
 /** What a file imports to ask for a runner. */
@@ -100,19 +95,21 @@ function readSource(file: string) {
  * The module an expression gets its value from: `require('a')`, `require('a').b`,
  * `await import('a')` and `import('a').then(fn)` are all from `a`.
  */
-function moduleOf(node: ExpressionLike | null | undefined): string | undefined {
+function moduleOf(
+  node: ExpressionLike | null | undefined
+): Dependency | undefined {
   while (node) {
     if (node.type === 'AwaitExpression') {
       node = node.argument
     } else if (node.type === 'MemberExpression') {
       node = node.object
     } else if (node.type === 'ImportExpression') {
-      return literal(node.source)
+      const id = literal(node.source)
+      return id ? { id, kind: 'dynamic-import' } : undefined
     } else if (node.type === 'CallExpression') {
       if (node.callee.type === 'Identifier') {
-        return node.callee.name === 'require'
-          ? literal(node.arguments[0])
-          : undefined
+        const id = node.callee.name === 'require' && literal(node.arguments[0])
+        return id ? { id, kind: 'require-call' } : undefined
       }
       node = node.callee
     } else {
@@ -209,42 +206,48 @@ function calledGlobal(node: Statement) {
 /**
  * The modules a file imports, and `mocha` if it calls its globals.
  */
-function evidence(file: string): Set<string> {
+function evidence(file: string): Dependency[] {
   const { body } = parse(readSource(file), {
     ecmaVersion: 'latest',
     sourceType: 'module',
   })
   const declared = new Set(body.flatMap(declaredNames))
-  const ids: Set<string> = new Set()
+  const dependencies: Dependency[] = []
 
   for (const node of body) {
+    const expression =
+      node.type === 'ExpressionStatement' ? node.expression : undefined
     const expressions =
       node.type === 'VariableDeclaration'
         ? node.declarations.map((d) => d.init)
-        : node.type === 'ExpressionStatement'
-          ? [node.expression]
-          : []
-    const modules = [
+        : [
+            expression?.type === 'AssignmentExpression'
+              ? expression.right
+              : expression,
+          ]
+    const imported =
       node.type === 'ImportDeclaration' ||
       node.type === 'ExportNamedDeclaration' ||
       node.type === 'ExportAllDeclaration'
         ? literal(node.source)
-        : undefined,
-      ...expressions.map(moduleOf),
-    ]
-    for (const id of modules) {
-      if (id) {
-        ids.add(id)
+        : undefined
+    if (imported) {
+      dependencies.push({ id: imported, kind: 'import-statement' })
+    }
+    for (const expression of expressions) {
+      const dependency = moduleOf(expression)
+      if (dependency) {
+        dependencies.push(dependency)
       }
     }
 
     // `describe` that comes from anywhere else isn't mocha, see `declared`
     const name = calledGlobal(node)
     if (name && MOCHA_GLOBALS.has(name) && !declared.has(name)) {
-      ids.add('mocha')
+      dependencies.push({ id: 'mocha', kind: 'import-statement' })
     }
   }
-  return ids
+  return dependencies
 }
 
 /**
@@ -256,7 +259,76 @@ function evidence(file: string): Set<string> {
  *
  * @returns each runner found and the first file asking for it
  */
-export function detectTestRunners(files: string[]): Map<TestRunner, string> {
+export async function detectTestRunners(
+  files: string[],
+  options: Pick<RunnerOptions, 'mode' | 'cwd'> &
+    Partial<Pick<RunnerOptions, 'buildConfig'>>
+): Promise<Map<TestRunner, string>> {
+  if (options.mode === 'node' || files.length === 0) {
+    return scanTestRunners(files, resolveNodeSource)
+  }
+
+  const workerd = options.mode === 'workerd'
+  const config = options.buildConfig
+  let found: Map<TestRunner, string> = new Map()
+  await build({
+    absWorkingDir: config?.absWorkingDir ?? options.cwd,
+    stdin: { contents: 'import "runner-autodetection"' },
+    bundle: true,
+    write: false,
+    logLevel: 'silent',
+    platform: config?.platform ?? (workerd ? 'neutral' : 'browser'),
+    mainFields:
+      config?.mainFields ??
+      (workerd ? ['browser', 'module', 'main'] : undefined),
+    conditions:
+      config?.conditions ??
+      (workerd ? ['workerd', 'worker', 'browser'] : undefined),
+    resolveExtensions: config?.resolveExtensions,
+    tsconfig: config?.tsconfig,
+    tsconfigRaw: config?.tsconfigRaw,
+    preserveSymlinks: config?.preserveSymlinks,
+    external: config?.external,
+    plugins: [
+      {
+        name: 'runner-autodetection',
+        setup(build) {
+          build.onResolve({ filter: /^runner-autodetection$/ }, () => ({
+            path: 'runner-autodetection',
+            namespace: 'runner-autodetection',
+          }))
+          build.onLoad(
+            { filter: /.*/, namespace: 'runner-autodetection' },
+            async () => {
+              found = await scanTestRunners(
+                files,
+                async (file, { id, kind }) => {
+                  const result = await build.resolve(id, {
+                    importer: file,
+                    resolveDir: path.dirname(file),
+                    namespace: 'file',
+                    kind,
+                  })
+                  if (
+                    !result.external &&
+                    result.namespace === 'file' &&
+                    !result.suffix
+                  ) {
+                    return result.path
+                  }
+                }
+              )
+              return { contents: '' }
+            }
+          )
+        },
+      },
+    ],
+  })
+  return found
+}
+
+async function scanTestRunners(files: string[], resolveSource: ResolveSource) {
   const found: Map<TestRunner, string> = new Map()
   const pending = [...files]
   const visited = new Set<string>()
@@ -266,16 +338,22 @@ export function detectTestRunners(files: string[]): Map<TestRunner, string> {
       continue
     }
     visited.add(realFile)
-    for (const id of evidence(realFile)) {
+    for (const dependency of evidence(realFile)) {
+      const { id } = dependency
       const runner = RUNNER_MODULES.get(id)
       if (runner) {
         if (!found.has(runner)) {
           found.set(runner, file)
         }
-      } else {
-        const dependency = resolveSource(realFile, id)
-        if (dependency) {
-          pending.push(dependency)
+      } else if (
+        id.startsWith('./') ||
+        id.startsWith('../') ||
+        id === '.' ||
+        id === '..'
+      ) {
+        const resolved = await resolveSource(realFile, dependency)
+        if (resolved && SOURCE_EXTENSIONS.includes(path.extname(resolved))) {
+          pending.push(resolved)
         }
       }
     }

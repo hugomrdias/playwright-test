@@ -39,8 +39,11 @@ const loadEsm = async (filepath: string) => {
 /**
  * Pick the test runner from what the test files use, or `none`.
  */
-function autoDetectTestRunner(testFiles: string[]): RunnerOptions['runner'] {
-  const found = detectTestRunners(testFiles)
+async function autoDetectTestRunner(
+  testFiles: string[],
+  options: RunnerOptions
+): Promise<RunnerOptions['runner']> {
+  const found = await detectTestRunners(testFiles, options)
 
   if (found.size > 1) {
     const list = [...found].map(
@@ -413,7 +416,7 @@ export async function resolveOptions(
 
   validateOptions(options)
 
-  options.runner ??= autoDetectTestRunner(testFiles)
+  options.runner ??= await autoDetectTestRunner(testFiles, options)
   warnUnsupportedTestOptions(options)
 
   return { options, testFiles, watch: Boolean(opts.watch) }

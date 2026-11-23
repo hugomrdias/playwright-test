@@ -9,7 +9,7 @@ import fs from 'fs'
 import path from 'path'
 import { detectTestRunners } from '../src/utils/auto-detect.ts'
 import { UsageError } from '../src/utils/index.ts'
-import { resolveCli } from './helpers.ts'
+import { resolveCli, runCli } from './helpers.ts'
 
 describe('runner auto detection', () => {
   let dir: string
@@ -28,8 +28,12 @@ describe('runner auto detection', () => {
     return file
   }
 
-  const detect = (files: string[]) =>
-    [...detectTestRunners(files).keys()].map((r) => r.moduleId)
+  const detect = async (files: string[]) =>
+    [
+      ...(
+        await detectTestRunners(files, { mode: 'browser', cwd: process.cwd() })
+      ).keys(),
+    ].map((r) => r.moduleId)
 
   const cases: [string, string, string[], string?][] = [
     ['import', "import test from 'node:test'", ['node:test']],
@@ -55,7 +59,7 @@ describe('runner auto detection', () => {
       ['node:test'],
     ],
     ['mocha describe', "describe('a', () => {})", ['mocha']],
-    ['mocha it', "it('a', () => {})", ['mocha']],
+    ['mocha it', "it('a', async () => {})", ['mocha']],
     ['mocha only', "describe.only('a', () => {})", ['mocha']],
     ['mocha skip', "it.skip('a', () => {})", ['mocha']],
     [
@@ -73,7 +77,7 @@ describe('runner auto detection', () => {
     ['similar name', "import 'mocha-promise'", []],
     [
       'describe from elsewhere',
-      "import { describe, it } from 'vitest'\ndescribe('a', () => {})\nit('a', () => {})",
+      "import { describe, it } from 'vitest'\ndescribe('a', () => {})\nit('a', async () => {})",
       [],
     ],
     ['describe declared', "function describe() {}\ndescribe('a')", []],
@@ -130,28 +134,29 @@ describe('runner auto detection', () => {
   ]
 
   for (const [name, source, expected, ext] of cases) {
-    it(name, () => {
-      equal(detect([write(source, ext)]), expected)
+    it(name, async () => {
+      equal(await detect([write(source, ext)]), expected)
     })
   }
 
-  it('looks past a first file that says nothing', () => {
-    equal(detect([write('export const a = 1'), write("import 'node:test'")]), [
-      'node:test',
-    ])
+  it('looks past a first file that says nothing', async () => {
+    equal(
+      await detect([write('export const a = 1'), write("import 'node:test'")]),
+      ['node:test']
+    )
   })
 
-  it('reports every runner it finds', () => {
-    equal(detect([write("import 'node:test'"), write("describe('a')")]), [
+  it('reports every runner it finds', async () => {
+    equal(await detect([write("import 'node:test'"), write("describe('a')")]), [
       'node:test',
       'mocha',
     ])
   })
 
-  it('follows imported test files through cycles', () => {
+  it('follows imported test files through cycles', async () => {
     const suite = write("import './entry.js'\ndescribe('suite', () => {})")
     fs.writeFileSync(`${dir}/entry.js`, `import './${path.basename(suite)}'`)
-    equal(detect([`${dir}/entry.js`]), ['mocha'])
+    equal(await detect([`${dir}/entry.js`]), ['mocha'])
   })
 
   for (const statement of [
@@ -160,17 +165,17 @@ describe('runner auto detection', () => {
     "require('./suite.js')",
     "await import('./suite.js')",
   ]) {
-    it(`follows ${statement}`, () => {
+    it(`follows ${statement}`, async () => {
       const suite = write("import 'node:test'")
       const entry = write(statement.replace('suite.js', path.basename(suite)))
-      equal(detect([entry]), ['node:test'])
+      equal(await detect([entry]), ['node:test'])
     })
   }
 
-  it('ignores unresolved imports and assets', () => {
+  it('ignores unresolved imports and assets', async () => {
     const asset = write("import 'mocha'", 'svg')
     equal(
-      detect([
+      await detect([
         write(`import './missing.js'\nimport './${path.basename(asset)}'`),
       ]),
       []
@@ -181,7 +186,45 @@ describe('runner auto detection', () => {
     it('selects the runner from an imported suite', async () => {
       const suite = write("describe('suite', () => {})", 'ts')
       const entry = write(`import './${path.basename(suite, '.ts')}.js'`, 'ts')
-      const { options } = await resolveCli([entry, '--mode', 'node'])
+      const { options } = await resolveCli([entry, '--mode', 'browser'])
+      is(options.runner, 'mocha')
+    })
+
+    it('uses the browser package entry instead of an unused index', async () => {
+      const suite = fs.mkdtempSync(path.join(dir, 'suite-'))
+      fs.writeFileSync(path.join(suite, 'package.json'), '{"main":"other.js"}')
+      fs.writeFileSync(path.join(suite, 'index.js'), "import 'node:test'")
+      fs.writeFileSync(
+        path.join(suite, 'other.js'),
+        "describe('suite', () => {})"
+      )
+      const entry = write(
+        `import './${path.basename(suite)}'\ndescribe('entry', () => {})`
+      )
+      const { options } = await resolveCli([entry, '--mode', 'browser'])
+      is(options.runner, 'mocha')
+    })
+
+    it('runs a suite forwarded by a CommonJS entry', async () => {
+      const suite = write(
+        "describe('forwarded suite', () => it('runs', async () => {}))",
+        'cjs'
+      )
+      const entry = write(
+        `module.exports = require('./${path.basename(suite)}')`,
+        'cjs'
+      )
+      const result = await runCli([entry, '--mode', 'node'])
+      ok(result.stdout.includes('1 passing'), result.stdout)
+    })
+
+    it('resolves dotted extensionless imports when bundling', async () => {
+      fs.writeFileSync(
+        path.join(dir, 'suite.test.ts'),
+        "describe('suite', () => {})"
+      )
+      const entry = write("import './suite.test'")
+      const { options } = await resolveCli([entry, '--mode', 'browser'])
       is(options.runner, 'mocha')
     })
 
