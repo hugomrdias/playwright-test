@@ -108,6 +108,8 @@ export class Runner extends BaseRunner {
   /** The files whose page had an uncaught error */
   #erroredFiles: Set<number> = new Set()
   #output: FileOutput | undefined = undefined
+  /** How the files of an isolated run ended, printed by `stop` */
+  #summary: (() => void) | undefined = undefined
   #compiling: Promise<CompilerOutput> | undefined = undefined
   #launching: Promise<Context> | undefined = undefined
   #closing: { traced: Promise<Trace>; closed: Promise<void> } | undefined =
@@ -622,7 +624,9 @@ export class Runner extends BaseRunner {
       results[i] ??= { passed: false, cancelled: false }
     }
     if (bailed || next === files.length) {
-      summary({ cwd, files }, results as FileStatus[], next)
+      // After what the cancelled files printed, see `stop`
+      this.#summary = () =>
+        summary({ cwd, files }, results as FileStatus[], next)
     }
     const failed = results.some((result) => !result?.passed)
     await this.stop(failed, failed ? 'Tests failed.' : undefined)
@@ -638,25 +642,26 @@ export class Runner extends BaseRunner {
     cancels: Map<number, () => void>
   ): Promise<TestResult> {
     this.#pageFile.set(page, index)
-    // Bail can end it while the page loads, before there's a wait to end
-    let cancelled = false
-    let cancel = () => {
-      cancelled = true
-    }
-    cancels.set(index, () => cancel())
-    try {
+    // Bail ends it right away, even while the page is busy or still loading
+    const cancelled = Promise.withResolvers<TestResult>()
+    let isCancelled = false
+    cancels.set(index, () => {
+      isCancelled = true
+      cancelled.resolve({ failed: true, navigated: false, cancelled: true })
+    })
+    const run = async (): Promise<TestResult> => {
       await page.goto(this.url)
       const testWait = this.#createTestWait(page)
-      cancel = testWait.cancel
-      if (cancelled) {
-        cancel()
-      }
       try {
-        if (!cancelled) {
-          await this.#setupTestPage(page)
-          await this.#load(page, prepared, prepared.outNames[index] as string)
+        if (isCancelled) {
+          return await cancelled.promise
         }
-        const result = await testWait.wait()
+        await this.#setupTestPage(page)
+        if (isCancelled) {
+          return await cancelled.promise
+        }
+        await this.#load(page, prepared, prepared.outNames[index] as string)
+        const result = await Promise.race([testWait.wait(), cancelled.promise])
         if (result.navigated || result.cancelled) {
           return result
         }
@@ -673,13 +678,25 @@ export class Runner extends BaseRunner {
       } finally {
         testWait.dispose()
       }
+    }
+    const running = run()
+    let result: TestResult | undefined
+    try {
+      result = await Promise.race([running, cancelled.promise])
+      return result
     } finally {
       cancels.delete(index)
-      await this.#flushPage(page)
-      this.#output?.done(index)
-      // What the file left running can't print over the next ones
-      await page.goto('about:blank').catch(noop)
-      this.#pageFile.delete(page)
+      if (result?.cancelled) {
+        // The run is ending and the page isn't used again. What it prints
+        // until then still goes to its file, `stop` prints it in order.
+        running.catch(noop)
+      } else {
+        await this.#flushPage(page)
+        this.#output?.done(index)
+        // What the file left running can't print over the next ones
+        await page.goto('about:blank').catch(noop)
+        this.#pageFile.delete(page)
+      }
     }
   }
 
@@ -793,13 +810,6 @@ export class Runner extends BaseRunner {
           }
         }
         return promise
-      },
-      /** End the wait, the run doesn't need these tests anymore */
-      cancel: () => {
-        if (!state.ended) {
-          state.ended = true
-          resolve({ failed: true, navigated: false, cancelled: true })
-        }
       },
       dispose: () => {
         page.off('crash', onCrash)
@@ -1227,6 +1237,7 @@ export class Runner extends BaseRunner {
     }
     // What files that didn't end printed, before the reason the run ended
     this.#output?.flushAll()
+    this.#summary?.()
 
     await this.exit(fail, msg)
   }
