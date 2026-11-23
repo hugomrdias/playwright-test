@@ -1,14 +1,12 @@
 import type { Server } from 'node:http'
 import { WriteStream } from 'node:tty'
-import { fileURLToPath } from 'node:url'
 import { gracefulExit } from 'exit-hook'
-import { mkdirSync } from 'fs'
+import { mkdirSync, rmSync } from 'fs'
 // @ts-expect-error
 import mergeOptions from 'merge-options'
 import { nanoid } from 'nanoid'
+import os from 'os'
 import path from 'path'
-// @ts-expect-error
-import { premove } from 'premove/sync'
 import type { Config, RunnerEnv, RunnerOptions } from './types.ts'
 import {
   assertRunTimeout,
@@ -19,8 +17,20 @@ import {
   runAfterTests,
 } from './utils/index.ts'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const merge = mergeOptions.bind({ ignoreUndefined: true, concatArrays: true })
+
+/**
+ * Delete a folder of the run, not being able to doesn't change how it went.
+ * The processes of a browser can still hold its files for a while after it
+ * exits on Windows.
+ */
+export function removeFolder(dir: string) {
+  try {
+    rmSync(dir, { recursive: true, force: true, maxRetries: 10 })
+  } catch (error) {
+    log.warn(`Could not delete ${dir}: ${(error as Error).message}`)
+  }
+}
 
 const COLOR_SWITCHES = new Set([
   'FORCE_COLOR',
@@ -71,7 +81,7 @@ export class BaseRunner {
     this.assertOptions()
     this.options.cwd = path.resolve(this.options.cwd)
     this.server = undefined
-    this.dir = path.join(__dirname, '../.tmp', nanoid())
+    this.dir = path.join(os.tmpdir(), `playwright-test-${nanoid()}`)
     this.stopped = false
     this.beforeTestsFinished = false
     this.beforeTestsOutput = undefined
@@ -132,11 +142,7 @@ export class BaseRunner {
    * Delete the files of this run, not being able to doesn't change how it went.
    */
   removeFiles() {
-    try {
-      premove(this.dir)
-    } catch (error) {
-      log.warn(`Could not delete ${this.dir}: ${(error as Error).message}`)
-    }
+    removeFolder(this.dir)
   }
 
   /**

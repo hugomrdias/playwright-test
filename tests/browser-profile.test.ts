@@ -1,7 +1,6 @@
 import {
   deepStrictEqual as equal,
   strictEqual as is,
-  match,
   ok,
 } from 'node:assert/strict'
 import { once } from 'node:events'
@@ -9,7 +8,6 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
-import { pathToFileURL } from 'node:url'
 import { runCli, TEST_CONCURRENCY } from './helpers.ts'
 
 /**
@@ -67,46 +65,6 @@ describe('browser profile', { concurrency: TEST_CONCURRENCY }, () => {
     })
   }
 
-  it('is deleted while the afterTests hook runs', async () => {
-    await withTempDir(async ({ env, leftovers }) => {
-      const proc = await runCli(
-        [
-          'mocks/none/stdout.test.js',
-          '--runner',
-          'none',
-          '--config',
-          'mocks/profile/after-tests.config.js',
-        ],
-        // CI runners can take their time to close Chromium
-        { env, timeout: 90_000 }
-      )
-
-      is(proc.exitCode, 0, 'exit code')
-      match(proc.stdout, /profile deleted/)
-      equal(leftovers(), [])
-    })
-  })
-
-  it('is deleted when deleting it takes longer than the exit waits', async () => {
-    await withTempDir(async ({ env, leftovers }) => {
-      const preload = path.resolve('mocks/profile/slow-delete.js')
-      const proc = await runCli(
-        ['mocks/none/stdout.test.js', '--runner', 'none'],
-        {
-          env: {
-            ...env,
-            PW_TEST_EXIT_WAIT: '500',
-            NODE_OPTIONS: `--import ${pathToFileURL(preload).href}`,
-          },
-          timeout: 60_000,
-        }
-      )
-
-      is(proc.exitCode, 0, 'exit code')
-      equal(leftovers(), [])
-    })
-  })
-
   it('is deleted when interrupted while the browser starts', {
     skip: process.platform === 'win32' && 'no SIGINT or shell script browsers',
   }, async () => {
@@ -121,7 +79,7 @@ describe('browser profile', { concurrency: TEST_CONCURRENCY }, () => {
         ],
         { env, reject: false, timeout: 40_000 }
       )
-      // Playwright makes the profile before it starts the browser
+      // Playwright fills the profile before it starts the browser
       while (!fs.readdirSync(temp).some((name) => name.includes('profile'))) {
         await new Promise((resolve) => setTimeout(resolve, 50))
       }

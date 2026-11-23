@@ -91,7 +91,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prepack": "node scripts/prepack.ts && pnpm run build",
-    "clean": "rm -rf dist node_modules .tmp",
+    "clean": "rm -rf dist node_modules",
     "fix": "biome check --fix .",
     "lint": "tsc && biome check .",
     "test": "node --test --test-force-exit --test-timeout=50000 --test-concurrency=3 \"tests/*.test.ts\""

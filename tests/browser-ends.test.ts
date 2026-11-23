@@ -1,6 +1,8 @@
-import { strictEqual as is, ok } from 'node:assert/strict'
+import { deepStrictEqual, strictEqual as is, ok } from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { existsSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { describe, it } from 'node:test'
 import { execa, runCli, TEST_CONCURRENCY } from './helpers.ts'
 
@@ -39,11 +41,13 @@ function descendants(pid: number): Array<{ pid: number; command: string }> {
 async function killDuringRun(
   which: (command: string) => boolean,
   args: string[] = [],
-  file: string = 'mocks/flow/never-ends.js'
+  file: string = 'mocks/flow/never-ends.js',
+  env: Record<string, string> = {}
 ) {
   const proc = runCli([file, '--runner', 'none', ...args], {
     reject: false,
     timeout: 30_000,
+    env,
   })
   proc.stdout?.on('data', (data: Buffer) => {
     if (!data.toString().includes('flow-running')) {
@@ -101,6 +105,37 @@ describe('the browser ending the run', {
       ok(!proc.stderr.includes('Browser logs'), proc.stderr)
       ok(!proc.stderr.includes('Could not close the browser'), proc.stderr)
     })
+  }
+})
+
+it('the browser closing leaves no files of the run', {
+  skip: process.platform === 'win32' && 'needs pgrep',
+}, async () => {
+  const temp = mkdtempSync(
+    path.join(process.env.PW_TEST_CHILD_TEMP || os.tmpdir(), 'pw-ends-')
+  )
+  try {
+    const proc = await killDuringRun(
+      (command) => !command.includes('--type='),
+      [],
+      undefined,
+      // Which one os.tmpdir() reads depends on the platform
+      { TMPDIR: temp, TMP: temp, TEMP: temp }
+    )
+
+    is(proc.exitCode, 1, 'exit code')
+    // Playwright's own, for downloads, it deletes it in the background once
+    // the browser is gone, this process can exit first
+    deepStrictEqual(
+      readdirSync(temp).filter(
+        (name) =>
+          name !== 'node-compile-cache' &&
+          !name.startsWith('playwright-artifacts-')
+      ),
+      []
+    )
+  } finally {
+    rmSync(temp, { recursive: true, force: true })
   }
 })
 
