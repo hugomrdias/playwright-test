@@ -67,6 +67,20 @@ describe('cli flags', () => {
     is(options.testNamePattern, '123')
   })
 
+  it('--test-name-pattern can be set more than once, like node:test', async () => {
+    const { options } = await resolveCli([
+      MOCHA,
+      '--mode',
+      'node',
+      '--test-name-pattern',
+      'a',
+      '--test-name-pattern',
+      '/b/i',
+    ])
+
+    equal(options.testNamePattern, ['a', '/b/i'])
+  })
+
   it('--trace alone keeps the trace of failed runs', async () => {
     const { options } = await resolveCli([MOCHA, '--trace'])
 
@@ -117,9 +131,14 @@ describe('cli usage errors', () => {
       'Unknown option --timeout',
     ],
     [
-      '--test-name-pattern twice',
-      ['--test-name-pattern', 'a', '--test-name-pattern', 'b'],
-      'only be set once',
+      'an invalid --test-name-pattern after a valid one',
+      ['--test-name-pattern', 'a', '--test-name-pattern', '('],
+      'Invalid --test-name-pattern',
+    ],
+    [
+      'an empty --test-name-pattern after a valid one',
+      ['--test-name-pattern', 'a', '--test-name-pattern='],
+      'non-empty pattern',
     ],
     [
       '--test-name-pattern without a value',

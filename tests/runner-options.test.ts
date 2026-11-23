@@ -50,6 +50,32 @@ describe('runner options', () => {
         })
       }
 
+      it('mocha with --test-name-pattern twice runs what matches any', async () => {
+        const proc = await run('mocha', [
+          '--runner',
+          'mocha',
+          '--mode',
+          mode,
+          '--test-name-pattern',
+          'alpha one',
+          '--test-name-pattern',
+          '/ALPHA TWO/i',
+        ])
+
+        is(proc.exitCode, 0, output(proc))
+        for (const [name, expected] of [
+          ['alpha one', true],
+          ['beta', false],
+          ['alpha two', true],
+        ] as const) {
+          is(
+            proc.stdout.includes(name),
+            expected,
+            `${name} in:\n${proc.stdout}`
+          )
+        }
+      })
+
       it('mocha --test-timeout', async () => {
         const args = ['--runner', 'mocha', '--mode', mode]
         const [failed, passed] = await Promise.all([
