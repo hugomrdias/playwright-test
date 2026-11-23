@@ -4,6 +4,7 @@
  * Mirrors `MockTracker` from Node.js without any Node.js only dependency.
  */
 import { isDeepStrictEqual } from 'util'
+import { MockTimers } from '../vendor/node-mock-timers.js'
 import { AssertionError } from './assert.ts'
 
 /**
@@ -263,9 +264,11 @@ class MockPropertyContext {
 
 export class MockTracker {
   #mocks: (MockFunctionContext | MockPropertyContext)[] = []
+  #timers: MockTimers | undefined
 
   get timers() {
-    return unsupported('mock.timers')
+    this.#timers ??= new MockTimers()
+    return this.#timers
   }
 
   module(_specifier: string, _options?: object): never {
@@ -433,6 +436,7 @@ export class MockTracker {
 
   reset() {
     this.restoreAll()
+    this.#timers?.reset()
     this.#mocks = []
   }
 

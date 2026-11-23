@@ -186,6 +186,7 @@ The types are the ones from `node:test`, which come from `@types/node`.
 - Suites to any depth, async suites and hooks scoped to their suite. Everything runs in declaration order.
 - The test context: `t.test`, `t.name`, `t.fullName`, `t.skip`, `t.todo`, `t.diagnostic`, `t.log`, `t.plan`, `t.assert` (with `called`, `callCount`, `lastCalledWith` and `nthCalledWith` in any Node.js version), `t.signal`, `t.mock`, `t.waitFor`, `t.runOnly`, `t.error`, `t.passed`, `t.tags`, `t.before`, `t.after`, `t.beforeEach`, `t.afterEach` and `(t, done)` callbacks, also in hooks.
 - `mock.fn`, `mock.method`, `mock.getter`, `mock.setter`, `mock.property`, `mock.reset` and `mock.restoreAll`. `t.mock` is restored when the test ends.
+- `mock.timers` with `enable`, `tick`, `runAll`, `setTime`, `reset` and `Symbol.dispose`. It mocks the globals `setTimeout`, `setInterval`, `setImmediate` (added when the browser has none), `Date` and `AbortSignal.timeout`. `t.mock.timers` is reset when the test ends.
 
 `tests/node-test.test.ts` runs its fixtures with this API and with the real `node:test`, and compares execution order, per test results and exit codes.
 
@@ -193,7 +194,7 @@ The types are the ones from `node:test`, which come from `@types/node`.
 
 These aren't implemented and throw an error that names them, they never silently do nothing:
 
-- `mock.timers` and `mock.module()`
+- `mock.module()`, and `scheduler.wait` in `mock.timers.enable({ apis })`, browsers have no `node:timers/promises`
 - `t.assert.snapshot()`, `t.assert.fileSnapshot()` and `snapshot.setDefaultSnapshotSerializers()`, `snapshot.setResolveSnapshotPath()`
 - `run()`
 - `expectFailure()`, `test.expectFailure()` and the `expectFailure` option

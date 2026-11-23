@@ -78,6 +78,9 @@ const kUnhandledRejection = 'unhandledRejection'
 
 const TIMEOUT_MAX = 2 ** 31 - 1
 
+// Kept from before tests can replace them with `mock.timers`
+const { setTimeout, clearTimeout } = globalThis
+
 const noop = () => {
   // noop
 }

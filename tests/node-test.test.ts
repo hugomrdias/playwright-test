@@ -129,6 +129,7 @@ describe('playwright-test/node-test', () => {
     { name: 'shorthand', exitCode: 0 },
     { name: 'mock-assert', exitCode: 0 },
     { name: 'tags', exitCode: 0 },
+    { name: 'mock-timers', exitCode: 0 },
     // Real node:test only filters with the flag, this API always does
     { name: 'only', exitCode: 0, flags: ['--test-only'] },
   ]
@@ -335,6 +336,18 @@ describe('playwright-test/node-test', () => {
 
         is(proc.exitCode, 0, 'exit code')
         equal(order, ['ORDER first', 'ORDER second', 'ORDER root after'])
+      })
+
+      it('mock.timers removes what it added', async () => {
+        const { proc, order } = await runApi('mock-timers-absent', mode)
+
+        is(proc.exitCode, 0, proc.stdout)
+        equal(order, [
+          'ORDER immediate',
+          'ORDER aborted true',
+          'ORDER timeout removed true',
+          'ORDER setImmediate removed true',
+        ])
       })
 
       it('what is not implemented throws', async () => {
