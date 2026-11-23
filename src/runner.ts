@@ -11,6 +11,7 @@ import type {
   Frame,
   LaunchOptions,
   Page,
+  Worker,
 } from 'playwright-core'
 import { BaseRunner, removeFolder } from './base-runner.ts'
 import type { Binding, ClientBindings } from './client/types.ts'
@@ -180,9 +181,19 @@ export class Runner extends BaseRunner {
     })
 
     // Only Chromium reports service workers, the others keep their output.
-    this.context.on('serviceworker', (worker) => {
-      worker.on('console', this.#onConsole)
-    })
+    // The ones of an extension loaded with `launchOptions.args` can already be
+    // running, and get reported again with the event.
+    const trackedWorkers: WeakSet<Worker> = new WeakSet()
+    const trackServiceWorker = (worker: Worker) => {
+      if (!trackedWorkers.has(worker)) {
+        trackedWorkers.add(worker)
+        worker.on('console', this.#onConsole)
+      }
+    }
+    this.context.on('serviceworker', trackServiceWorker)
+    for (const worker of this.context.serviceWorkers()) {
+      trackServiceWorker(worker)
+    }
 
     await this.#startTracing(this.context)
 
