@@ -1,4 +1,4 @@
-import { after, describe, it } from '../../src/node/test.js'
+import { after, describe, it } from '../../src/node/test.ts'
 
 describe('suite', () => {
   after(() => {

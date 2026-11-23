@@ -1,5 +1,5 @@
 import { strictEqual } from 'assert'
-import { after, describe, it, test } from '../../src/node/test.js'
+import { after, describe, it, test } from '../../src/node/test.ts'
 
 describe('suite a', () => {
   it('passes', (t) => {

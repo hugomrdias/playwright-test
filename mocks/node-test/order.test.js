@@ -9,7 +9,7 @@ import {
   it,
   suite,
   test,
-} from '../../src/node/test.js'
+} from '../../src/node/test.ts'
 
 const log = (/** @type {string} */ msg) => console.log(`ORDER ${msg}`)
 

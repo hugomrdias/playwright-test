@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert'
-import { mock, run, snapshot, test } from '../../src/node/test.js'
+import { mock, run, snapshot, test } from '../../src/node/test.ts'
 
 /**
  * @param {() => unknown} fn

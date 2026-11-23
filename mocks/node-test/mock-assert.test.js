@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert'
-import { test } from '../../src/node/test.js'
+import { test } from '../../src/node/test.ts'
 
 /**
  * @param {() => void} fn

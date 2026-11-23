@@ -1,5 +1,5 @@
 import { strictEqual as is } from 'node:assert/strict'
-import { describe, it } from '../../src/node/test.js'
+import { describe, it } from '../../src/node/test.ts'
 
 function helper() {
   throw new Error('boom')

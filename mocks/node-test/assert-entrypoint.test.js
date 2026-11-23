@@ -1,7 +1,7 @@
 /** biome-ignore-all lint/suspicious/noConsole: the output is what's tested */
 // The bare specifiers and the package entrypoint in a browser bundle. See assert-compare.js.
 import util from 'util'
-import { legacy } from '../../src/node/assert.js'
+import { legacy } from '../../src/node/assert.ts'
 import { assert } from '../../src/polyfills/assert.js'
 import { run } from './assert-cases.js'
 import { runUtil } from './util-cases.js'

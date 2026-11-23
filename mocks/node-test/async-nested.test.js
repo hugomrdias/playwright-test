@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/suspicious/noConsole: the output is what's tested */
-import { describe, it, test } from '../../src/node/test.js'
+import { describe, it, test } from '../../src/node/test.ts'
 
 const log = (/** @type {string} */ msg) => console.log(`ORDER ${msg}`)
 const tick = () => new Promise((resolve) => setTimeout(resolve, 1))

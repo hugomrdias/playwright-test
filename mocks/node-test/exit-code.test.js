@@ -1,4 +1,4 @@
-import { test } from '../../src/node/test.js'
+import { test } from '../../src/node/test.ts'
 
 process.exitCode = 3
 

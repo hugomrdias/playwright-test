@@ -1,10 +1,11 @@
 {
   "extends": "@hugomrdias/configs/tsconfig",
-  "include": ["src", "tests", "cli.js", "package.json"],
+  "include": ["src", "tests", "scripts"],
   "exclude": ["src/vendor"],
   "compilerOptions": {
-    "emitDeclarationOnly": true,
-    "outDir": "dist",
+    "composite": false,
+    "incremental": false,
+    "noEmit": true,
     "types": ["polka"]
   }
 }

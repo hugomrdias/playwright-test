@@ -212,7 +212,7 @@ The types are the ones from `node:test`, which come from `@types/node`.
 - The test context: `t.test`, `t.name`, `t.fullName`, `t.skip`, `t.todo`, `t.diagnostic`, `t.log`, `t.plan`, `t.assert` (with `called`, `callCount`, `lastCalledWith` and `nthCalledWith` in any Node.js version), `t.signal`, `t.mock`, `t.waitFor`, `t.runOnly`, `t.error`, `t.passed`, `t.tags`, `t.before`, `t.after`, `t.beforeEach`, `t.afterEach` and `(t, done)` callbacks, also in hooks.
 - `mock.fn`, `mock.method`, `mock.getter`, `mock.setter`, `mock.property`, `mock.reset` and `mock.restoreAll`. `t.mock` is restored when the test ends.
 
-`tests/node-test.test.js` runs its fixtures with this API and with the real `node:test`, and compares execution order, per test results and exit codes.
+`tests/node-test.test.ts` runs its fixtures with this API and with the real `node:test`, and compares execution order, per test results and exit codes.
 
 ### What throws
 
@@ -274,7 +274,7 @@ test('compares', () => {
 
 It's a separate entrypoint because `node:test` has its own `assert` export, with `assert.register()`. The exports are the ones from `node:assert/strict`: `ok`, `equal`, `notEqual`, `deepEqual`, `notDeepEqual`, `strictEqual`, `notStrictEqual`, `deepStrictEqual`, `notDeepStrictEqual`, `partialDeepStrictEqual`, `throws`, `doesNotThrow`, `rejects`, `doesNotReject`, `match`, `doesNotMatch`, `ifError`, `fail`, `AssertionError`, `Assert`, `CallTracker` and `strict`. The default export is `strict`, and `legacy` is the same thing with the shape of `node:assert`.
 
-`tests/node-test.test.js` runs the same cases in chromium and with the real `node:assert`, comparing the result, message, `name`, `code`, `operator`, `generatedMessage`, `diff` and own keys of each one. The only messages it allows to differ are the ones listed below and those with a stack trace, whose paths depend on the engine. CI also runs them in firefox and webkit.
+`tests/node-test.test.ts` runs the same cases in chromium and with the real `node:assert`, comparing the result, message, `name`, `code`, `operator`, `generatedMessage`, `diff` and own keys of each one. The only messages it allows to differ are the ones listed below and those with a stack trace, whose paths depend on the engine. CI also runs them in firefox and webkit.
 
 In browsers:
 

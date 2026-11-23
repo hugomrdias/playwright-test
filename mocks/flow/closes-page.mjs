@@ -1,6 +1,6 @@
 // Closes the test page once the tests run, like --debug users closing the tab.
 // Browsers don't let the tests close it themselves.
-import { Runner } from '../../src/runner.js'
+import { Runner } from '../../src/runner.ts'
 
 const runner = new Runner({
   runner: 'none',

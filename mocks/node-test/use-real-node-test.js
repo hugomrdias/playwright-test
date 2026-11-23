@@ -6,7 +6,7 @@ import { registerHooks } from 'node:module'
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
-    if (specifier.endsWith('src/node/test.js')) {
+    if (specifier.endsWith('src/node/test.ts')) {
       return { url: 'node:test', shortCircuit: true }
     }
     return nextResolve(specifier, context)

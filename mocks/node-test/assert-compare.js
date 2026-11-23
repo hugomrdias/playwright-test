@@ -26,7 +26,7 @@ const { FORCE_COLOR, ...env } = process.env
  * @param {string[]} [flags]
  */
 async function collect(file, flags = []) {
-  const args = flags.length > 0 ? ['cli.js', file, ...flags] : [file]
+  const args = flags.length > 0 ? ['src/bin.ts', file, ...flags] : [file]
   const proc = await execa(process.execPath, args, {
     cwd,
     env,

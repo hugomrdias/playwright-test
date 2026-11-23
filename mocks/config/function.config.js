@@ -1,5 +1,5 @@
 /**
- * @param {import('../../src/types.js').CliOptions} cli
+ * @param {import('../../src/types.ts').CliOptions} cli
  */
 export default function config(cli) {
   // The cli defaults are there even without any flags
