@@ -56,8 +56,8 @@ export interface RunnerOptions {
    */
   minimal?: boolean
   /**
-   * Esbuild config. In node mode only `define`, `loader`, the `jsx*` options and
-   * `tsconfigRaw` apply.
+   * Esbuild config for the bundle. Ignored in node mode, which runs files as
+   * plain Node does.
    */
   buildConfig: BuildOptions
   buildSWConfig: BuildOptions
