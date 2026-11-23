@@ -6,6 +6,7 @@ import { inspect } from 'node:util'
 import { watch } from 'chokidar'
 import { BaseRunner } from '../base-runner.ts'
 import type { Config } from '../types.ts'
+import { EXT } from '../utils/ext.ts'
 import { createPolka, log, UsageError, withTimeout } from '../utils/index.ts'
 import {
   FORCE_KILL_DELAY,
@@ -16,6 +17,10 @@ import {
 
 // What a killed subprocess gets after its forced kill, to end
 const EXIT_WAIT = 1000
+
+const configureEnvFile = fileURLToPath(
+  new URL(`./configure-env${EXT}`, import.meta.url)
+)
 
 /**
  * Preserve the stack for Error instances and turn any other thrown value into
@@ -94,6 +99,34 @@ export class NodeRunner extends BaseRunner {
     child: ChildProcess
     finished: Promise<boolean>
   } {
+    const child = this.#isolated()
+      ? this.#spawnIsolated()
+      : this.#spawnTogether()
+    this.child = child
+
+    const finished = new Promise<boolean>((resolve) => {
+      child.once('error', (error) => {
+        log.error(`Could not start tests: ${error.message}`)
+        resolve(false)
+      })
+      child.once('close', (code) => resolve(code === 0))
+    })
+    this.#finished = finished
+    return { child, finished }
+  }
+
+  /**
+   * `node --test` isolates the files itself, the other runners don't have it yet.
+   */
+  #isolated() {
+    const { testIsolation = 'process', testRunner } = this.options
+    return testIsolation === 'process' && testRunner.name === 'node-test'
+  }
+
+  /**
+   * All the files in one process, from an entry module on stdin.
+   */
+  #spawnTogether() {
     const nodeArgs = [
       '--enable-source-maps',
       '--input-type=module',
@@ -105,22 +138,35 @@ export class NodeRunner extends BaseRunner {
       env: withLocalBins(this.env, this.options.cwd),
       stdio: ['pipe', 'inherit', 'inherit'],
     })
-    this.child = child
     // It's gone when it ends or fails to start before reading all of the entry
     child.stdin.on('error', () => {
       // noop
     })
     child.stdin.end(this.#entry())
+    return child
+  }
 
-    const finished = new Promise<boolean>((resolve) => {
-      child.once('error', (error) => {
-        log.error(`Could not start tests: ${error.message}`)
-        resolve(false)
-      })
-      child.once('close', (code) => resolve(code === 0))
+  /**
+   * Each file in its own process, with `node --test --test-isolation=process`.
+   */
+  #spawnIsolated() {
+    const { testConcurrency } = this.options
+    const nodeArgs = [
+      '--enable-source-maps',
+      '--test',
+      '--test-isolation=process',
+      ...(testConcurrency ? [`--test-concurrency=${testConcurrency}`] : []),
+      ...(this.options.testRunner.nodeArgs?.(this.options) ?? []),
+      '--import',
+      pathToFileURL(configureEnvFile).href,
+      ...this.tests.map((t) => path.resolve(this.options.cwd, t)),
+    ]
+
+    return spawn(process.execPath, nodeArgs, {
+      cwd: this.options.cwd,
+      env: withLocalBins(this.env, this.options.cwd),
+      stdio: ['ignore', 'inherit', 'inherit'],
     })
-    this.#finished = finished
-    return { child, finished }
   }
 
   async run() {

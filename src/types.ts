@@ -52,6 +52,22 @@ export interface RunnerOptions {
    */
   testTimeout?: number
   /**
+   * How test files are isolated, like `--test-isolation` of `node:test`.
+   * `process` runs each file on its own, `none` runs all of them together and
+   * they share globals and root hooks. Only node-test in node mode supports
+   * `process` for now, everything else runs as `none`.
+   *
+   * @default 'process'
+   */
+  testIsolation?: 'process' | 'none'
+  /**
+   * How many test files run at once with `testIsolation: 'process'`, like
+   * `--test-concurrency` of `node:test`. Ignored with `none`.
+   *
+   * @default os.availableParallelism() - 1
+   */
+  testConcurrency?: number
+  /**
    * Set by the CLI when an AI agent drives the run. The `node:test` API then
    * only prints failures and the summary.
    */
@@ -143,6 +159,8 @@ export interface CliOptions {
   trace?: string
   testNamePattern?: string | string[]
   testTimeout?: number
+  testIsolation?: 'process' | 'none'
+  testConcurrency?: number
   config?: string
 }
 

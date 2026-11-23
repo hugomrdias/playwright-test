@@ -87,6 +87,38 @@ describe('node:test runner', () => {
     })
   }
 
+  describe('--test-isolation in node mode', {
+    concurrency: TEST_CONCURRENCY,
+  }, () => {
+    const files = [
+      'mocks/node-test-runner/isolation/a.test.js',
+      'mocks/node-test-runner/isolation/b.test.js',
+    ]
+    const isolation = (args: string[]) =>
+      runCli([...files, '--runner', 'node-test', '--mode', 'node', ...args], {
+        reject: false,
+      })
+
+    it('process, the default, runs each file on its own', async () => {
+      const [byDefault, process1] = await Promise.all([
+        isolation([]),
+        isolation(['--test-isolation', 'process', '--test-concurrency', '1']),
+      ])
+
+      for (const proc of [byDefault, process1]) {
+        is(proc.exitCode, 0, output(proc))
+        ok(proc.stdout.includes('ℹ pass 2'), output(proc))
+      }
+    })
+
+    it('none runs the files together, they share globals', async () => {
+      const proc = await isolation(['--test-isolation', 'none'])
+
+      is(proc.exitCode, 1, output(proc))
+      ok(proc.stdout.includes('ℹ fail 1'), output(proc))
+    })
+  })
+
   // In node mode the shim gets the options from PW_OPTIONS, not from node flags
   it('--test-name-pattern and --test-timeout reach the shim in node mode', async () => {
     const args = ['--runner', 'node-test']

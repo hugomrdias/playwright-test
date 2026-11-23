@@ -92,6 +92,55 @@ describe('cli flags', () => {
     is((await resolveCli([MOCHA, '--watch'])).watch, true)
   })
 
+  it('--test-isolation is process by default, like node:test', async () => {
+    const { options, logs } = await resolveCli([MOCHA, '--mode', 'node'])
+
+    is(options.testIsolation, 'process')
+    is(options.testConcurrency, undefined)
+    ok(!logs.includes('--test-isolation'), logs)
+  })
+
+  it('--test-isolation and --test-concurrency', async () => {
+    const { options } = await resolveCli([
+      MOCHA,
+      '--test-isolation',
+      'none',
+      '--test-concurrency',
+      '3',
+    ])
+
+    is(options.testIsolation, 'none')
+    is(options.testConcurrency, 3)
+  })
+
+  it('warns when --test-isolation process is asked for and not supported', async () => {
+    // One at a time, each one mocks console to read the logs
+    const mocha = await resolveCli([
+      MOCHA,
+      '--mode',
+      'node',
+      '--test-isolation',
+      'process',
+    ])
+    const nodeTest = await resolveCli([
+      'mocks/node-test-runner/pass.test.js',
+      '--runner',
+      'node-test',
+      '--mode',
+      'node',
+      '--test-isolation',
+      'process',
+    ])
+
+    ok(
+      mocha.logs.includes(
+        `--test-isolation process isn't supported by the "mocha" runner in --mode node yet`
+      ),
+      mocha.logs
+    )
+    ok(!nodeTest.logs.includes('--test-isolation'), nodeTest.logs)
+  })
+
   it('none warns the test options are ignored', async () => {
     const { logs } = await resolveCli([
       'mocks/none/stdout.test.js',
@@ -191,6 +240,29 @@ describe('cli usage errors', () => {
       '--trace records the browser, it does not work with --mode node.',
     ],
     ['a mode', ['--mode', 'nope'], 'Invalid mode "nope"'],
+    [
+      'an unknown --test-isolation',
+      ['--test-isolation', 'thread'],
+      'Invalid --test-isolation "thread"',
+    ],
+    [
+      '--test-isolation without a value',
+      ['--test-isolation'],
+      'Invalid --test-isolation ""',
+    ],
+    ...['0', '-1', '1.5', 'many'].map(
+      (value) =>
+        [
+          `--test-concurrency ${value}`,
+          [`--test-concurrency=${value}`],
+          '--test-concurrency must be a whole number',
+        ] as [string, string[], string]
+    ),
+    [
+      '--test-concurrency without a value',
+      ['--test-concurrency'],
+      '--test-concurrency must be a whole number',
+    ],
   ]
 
   for (const [name, args, message] of invalid) {
