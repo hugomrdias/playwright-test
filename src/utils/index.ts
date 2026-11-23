@@ -778,9 +778,16 @@ ${template}
       global: 'globalThis',
     },
   }
-  await esbuild.build(
-    merge<ESBuildOptions>(defaultOptions, config, runner.options.buildConfig)
+  const options = merge<ESBuildOptions>(
+    defaultOptions,
+    config,
+    runner.options.buildConfig
   )
+  // It prefixes the imports of the chunks too, they're not served there
+  if (templates && options.publicPath) {
+    options.splitting = false
+  }
+  await esbuild.build(options)
 
   return {
     outNames: templates

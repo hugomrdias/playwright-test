@@ -277,6 +277,32 @@ for (const mode of ['browser', 'web-worker']) {
       ok(!proc.stdout.includes('SLOW FINISHED'), output(proc))
     })
 
+    // Workers have no localStorage
+    it('files share the storage of the run, like files share the disk', {
+      skip: mode === 'web-worker',
+    }, async () => {
+      const proc = await runIn(
+        mode,
+        'mocha',
+        ['storage-1', 'storage-2'],
+        ['--test-concurrency', '1']
+      )
+
+      is(proc.exitCode, 0, output(proc))
+    })
+
+    it('runs with a publicPath in buildConfig', async () => {
+      const proc = await runIn(
+        mode,
+        'mocha',
+        ['mocha-a', 'mocha-b'],
+        ['--config', `${dir}/public-path.config.js`]
+      )
+
+      is(proc.exitCode, 0, output(proc))
+      ok(proc.stdout.includes('ℹ pass 2'), output(proc))
+    })
+
     it('mocha bail ends a file that keeps its thread busy', async () => {
       // It blocks for 20s, the run ends after the console flush gives up on it
       const started = Date.now()

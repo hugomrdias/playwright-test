@@ -566,7 +566,14 @@ export class Runner extends BaseRunner {
     const bails = testRunner.name === 'mocha' && bail
     this.#output = new FileOutput(files.length)
 
-    const first = context.pages()[0] ?? context.newPage()
+    // The index of the run clears the storage of earlier runs. Once, the files
+    // load it from `/index.html`, they'd clear what the others are using.
+    const first = Promise.resolve(context.pages()[0] ?? context.newPage()).then(
+      async (page) => {
+        await page.goto(this.url)
+        return page
+      }
+    )
     const [prepared, ...pages] = await Promise.all([
       this.#prepare(compiled),
       first,
@@ -650,7 +657,7 @@ export class Runner extends BaseRunner {
       cancelled.resolve({ failed: true, navigated: false, cancelled: true })
     })
     const run = async (): Promise<TestResult> => {
-      await page.goto(this.url)
+      await page.goto(new URL('index.html', this.url).href)
       const testWait = this.#createTestWait(page)
       try {
         if (isCancelled) {
