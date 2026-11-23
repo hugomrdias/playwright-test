@@ -330,6 +330,66 @@ describe('runner auto detection', () => {
       }
     })
 
+    it('requires an explicit runner when a resolver can depend on onStart', async () => {
+      fs.writeFileSync(path.join(dir, 'stateful.js'), "import 'node:test'")
+      const suite = write("describe('redirected by onStart', () => {})")
+      const entry = write("import './stateful.js'\ndescribe('entry', () => {})")
+      const calls = path.resolve(dir, 'resolver-calls.log')
+      const config = write(`
+      import fs from 'node:fs'
+      export default {
+        buildConfig: { plugins: [{
+          name: 'stateful-redirect',
+          setup(build) {
+            const redirects = new Map()
+            build.onStart(() => {
+              redirects.set('./stateful.js', ${JSON.stringify(path.resolve(suite))})
+            })
+            build.onResolve({ filter: /stateful[.]js$/ }, ({ path }) => {
+              fs.appendFileSync(${JSON.stringify(calls)}, 'resolve\\n')
+              const target = redirects.get(path)
+              return target ? { path: target } : undefined
+            })
+          },
+        }] },
+      }`)
+      for (const input of [entry, write("import './stateful.js'")]) {
+        await rejects(
+          resolveCli([input, '--config', config]),
+          (error: Error) =>
+            error instanceof UsageError &&
+            error.message.includes('stateful-redirect') &&
+            error.message.includes('--runner')
+        )
+      }
+
+      const helper = write("describe('unrelated suite', () => {})")
+      const unrelated = write(`import './${path.basename(helper)}'`)
+      const { options: detected } = await resolveCli([
+        unrelated,
+        '--config',
+        config,
+      ])
+      is(detected.runner, 'mocha')
+      is(fs.existsSync(calls), false)
+
+      const args = [entry, '--config', config]
+      const { options, testFiles } = await resolveCli([
+        ...args,
+        '--runner',
+        'mocha',
+      ])
+      const runner = new Runner(options, testFiles)
+      try {
+        const { outName } = await runner.compiler()
+        const bundle = fs.readFileSync(path.join(runner.files, outName), 'utf8')
+        ok(bundle.includes('redirected by onStart'))
+        is(fs.readFileSync(calls, 'utf8'), 'resolve\n')
+      } finally {
+        fs.rmSync(runner.dir, { recursive: true, force: true })
+      }
+    })
+
     it('resolves each symlink from its own directory when preserving symlinks', async (t) => {
       const target = fs.mkdtempSync(path.join(dir, 'target-'))
       const wrapper = path.join(target, 'wrapper.js')

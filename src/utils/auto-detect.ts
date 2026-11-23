@@ -8,6 +8,8 @@ import path from 'path'
 import { mocha, nodeTest } from '../test-runners.ts'
 import type { RunnerOptions, TestRunner } from '../types.ts'
 
+import { UsageError } from './index.ts'
+
 // acorn's types, `acorn` itself is only a dependency of `acorn-loose`
 type Program = ReturnType<typeof parse>
 type Statement = Program['body'][number]
@@ -271,6 +273,8 @@ export async function detectTestRunners(
   const workerd = options.mode === 'workerd'
   const config = options.buildConfig
   let found: Map<TestRunner, string> = new Map()
+  let hasOnStart = false
+  let skippedResolver: string | undefined
   await build({
     absWorkingDir: config?.absWorkingDir,
     stdin: {
@@ -334,13 +338,30 @@ export async function detectTestRunners(
           // paired on the real build, where output is available to onEnd.
           return plugin.setup({
             ...build,
-            onStart: () => undefined,
+            onStart() {
+              hasOnStart = true
+            },
             onEnd: () => undefined,
+            onResolve(options, resolve) {
+              build.onResolve(options, (args) => {
+                // A matching resolver may need state from any plugin's onStart.
+                if (hasOnStart) {
+                  skippedResolver ??= plugin.name
+                  return { path: args.path, external: true }
+                }
+                return resolve(args)
+              })
+            },
           })
         },
       })),
     ],
   })
+  if (skippedResolver !== undefined) {
+    throw new UsageError(
+      `Cannot autodetect the test runner because esbuild plugin "${skippedResolver}" may depend on onStart hooks to resolve imports. Choose a runner with --runner or runner in the config file.`
+    )
+  }
   return found
 }
 
