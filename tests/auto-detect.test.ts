@@ -291,6 +291,45 @@ describe('runner auto detection', () => {
       }
     })
 
+    it('runs paired plugin lifecycle hooks only during real compilation', async () => {
+      const entry = write("describe('suite', () => {})")
+      const staging = path.resolve(dir, 'staging')
+      const outputLog = path.resolve(dir, 'lifecycle.log')
+      const config = write(`
+      import fs from 'node:fs'
+      export default {
+        buildConfig: { plugins: [{
+          name: 'stage-build',
+          setup(build) {
+            const staging = ${JSON.stringify(staging)}
+            const log = ${JSON.stringify(outputLog)}
+            build.onStart(() => {
+              fs.mkdirSync(staging)
+              fs.appendFileSync(log, 'start\\n')
+            })
+            build.onEnd(() => {
+              fs.rmSync(staging, { recursive: true })
+              fs.appendFileSync(log, 'end\\n')
+            })
+          },
+        }] },
+      }`)
+      const { options, testFiles } = await resolveCli([
+        entry,
+        '--config',
+        config,
+      ])
+      is(options.runner, 'mocha')
+      const runner = new Runner(options, testFiles)
+      try {
+        await runner.compiler()
+        is(fs.readFileSync(outputLog, 'utf8'), 'start\nend\n')
+        is(fs.existsSync(staging), false)
+      } finally {
+        fs.rmSync(runner.dir, { recursive: true, force: true })
+      }
+    })
+
     it('resolves each symlink from its own directory when preserving symlinks', async (t) => {
       const target = fs.mkdtempSync(path.join(dir, 'target-'))
       const wrapper = path.join(target, 'wrapper.js')

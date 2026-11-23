@@ -330,8 +330,13 @@ export async function detectTestRunners(
       ...(config?.plugins ?? []).map<Plugin>((plugin) => ({
         name: plugin.name,
         setup(build) {
-          // Detection has no output bundle for plugin hooks to consume.
-          return plugin.setup({ ...build, onEnd: () => undefined })
+          // Detection only resolves imports. Keep build setup and cleanup
+          // paired on the real build, where output is available to onEnd.
+          return plugin.setup({
+            ...build,
+            onStart: () => undefined,
+            onEnd: () => undefined,
+          })
         },
       })),
     ],
