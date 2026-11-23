@@ -18,6 +18,7 @@ import {
   killTree,
   withLocalBins,
 } from '../utils/process.ts'
+import { runEachFile } from './each-file.ts'
 
 // What a killed subprocess gets after its forced kill, to end
 const EXIT_WAIT = 1000
@@ -29,17 +30,19 @@ const isolatedRun = fileURLToPath(
   new URL(`./isolated-run${EXT}`, import.meta.url)
 )
 
+interface Tests {
+  /** If they passed, it never rejects */
+  finished: Promise<boolean>
+  /** End them, and wait until they ended */
+  stop: () => Promise<void>
+  /** End them now, this process is about to exit */
+  kill: () => void
+}
+
 /**
  * The processes of the files with `--test-isolation process`. Each one writes
  * its pid in `dir`, and removes it when it exits.
  */
-interface Tests {
-  child: ChildProcess
-  finished: Promise<boolean>
-  stop: () => Promise<void>
-  workers?: Workers
-}
-
 class Workers {
   readonly dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-workers-'))
 
@@ -100,12 +103,10 @@ function formatError(error: unknown): Error | string {
  * Files run as plain Node runs them, a loader goes in `NODE_OPTIONS`.
  */
 export class NodeRunner extends BaseRunner {
-  declare child: ChildProcess | undefined
   #tests: Tests | undefined
 
   constructor(options: Config, testFiles?: string[]) {
     super(options, testFiles)
-    this.child = undefined
     // For reporters to remove our frames from stack traces. A path with forward
     // slashes, frames have `/D:/src` or `D:/src` on Windows. And the path of the
     // file URL, frames with one have it encoded, like `#` as `%23`.
@@ -136,26 +137,37 @@ export class NodeRunner extends BaseRunner {
   /**
    * Compile the test runner entry module
    */
-  #entry() {
+  #entry(files: string[]) {
     return this.options.testRunner.compileRuntime(
       this.options,
-      this.tests.map(
-        (t) => pathToFileURL(path.resolve(this.options.cwd, t)).href
-      )
+      files.map((t) => pathToFileURL(path.resolve(this.options.cwd, t)).href)
     )
   }
 
   /**
-   * Run the tests in a node subprocess, with the same node running this one.
-   *
-   * @returns `finished` tells if the tests passed, it never rejects. `stop`
-   * ends them, and waits until they ended.
+   * Run the tests in node subprocesses, with the same node running this one.
    */
   runTests(): Tests {
-    const workers = this.#isolated() ? new Workers() : undefined
-    const child = workers ? this.#spawnIsolated(workers) : this.#spawnTogether()
-    this.child = child
+    const { testIsolation = 'process', testRunner } = this.options
+    let tests: Tests
+    if (testIsolation === 'none') {
+      tests = this.#track(this.#spawnTogether(this.tests))
+    } else if (testRunner.name === 'node-test') {
+      // `run()` of `node:test` isolates the files itself
+      const workers = new Workers()
+      tests = this.#track(this.#spawnIsolated(workers), workers)
+    } else {
+      tests = this.#runEachFile()
+    }
+    this.#tests = tests
+    return tests
+  }
 
+  /**
+   * One subprocess for all the files, and the files it started if they wrote
+   * their pids in `workers`.
+   */
+  #track(child: ChildProcess, workers?: Workers): Tests {
     const finished = new Promise<boolean>((resolve) => {
       child.once('error', (error) => {
         log.error(`Could not start tests: ${error.message}`)
@@ -163,32 +175,45 @@ export class NodeRunner extends BaseRunner {
       })
       child.once('close', (code) => resolve(code === 0))
     })
-    const stop = async () => {
-      killTree(child)
-      await Promise.all([
-        withTimeout(finished, FORCE_KILL_DELAY + EXIT_WAIT),
-        workers?.end(),
-      ])
-    }
     // The files are gone once it ends by itself
     finished.then(() => workers?.kill())
-    this.#tests = { child, finished, stop, workers }
-    return this.#tests
+    return {
+      finished,
+      async stop() {
+        killTree(child)
+        await Promise.all([
+          withTimeout(finished, FORCE_KILL_DELAY + EXIT_WAIT),
+          workers?.end(),
+        ])
+      },
+      kill() {
+        forceKill(child)
+        workers?.kill()
+      },
+    }
   }
 
   /**
-   * `run()` of `node:test` isolates the files itself, the other runners don't
-   * have it yet.
+   * Each file in a subprocess of its own, with the entry of the runner for
+   * only that file.
    */
-  #isolated() {
-    const { testIsolation = 'process', testRunner } = this.options
-    return testIsolation === 'process' && testRunner.name === 'node-test'
+  #runEachFile() {
+    const { testConcurrency, testRunner } = this.options
+    const { bail = false } = (testRunner.options ?? {}) as { bail?: boolean }
+    return runEachFile({
+      files: this.tests,
+      cwd: this.options.cwd,
+      concurrency:
+        testConcurrency ?? Math.max(os.availableParallelism() - 1, 1),
+      bail: testRunner.name === 'mocha' && bail,
+      spawn: (file, stdio) => this.#spawnTogether([file], stdio),
+    })
   }
 
   /**
-   * All the files in one process, from an entry module on stdin.
+   * The files in one process, from an entry module on stdin.
    */
-  #spawnTogether() {
+  #spawnTogether(files: string[], stdio: 'inherit' | 'pipe' = 'inherit') {
     const nodeArgs = [
       '--enable-source-maps',
       '--input-type=module',
@@ -198,13 +223,13 @@ export class NodeRunner extends BaseRunner {
     const child = spawn(process.execPath, nodeArgs, {
       cwd: this.options.cwd,
       env: withLocalBins(this.env, this.options.cwd),
-      stdio: ['pipe', 'inherit', 'inherit'],
+      stdio: ['pipe', stdio, stdio] as ['pipe', 'pipe', 'pipe'],
     })
     // It's gone when it ends or fails to start before reading all of the entry
     child.stdin.on('error', () => {
       // noop
     })
-    child.stdin.end(this.#entry())
+    child.stdin.end(this.#entry(files))
     return child
   }
 
@@ -345,10 +370,7 @@ export class NodeRunner extends BaseRunner {
    * forced kill comes too late once this process is gone.
    */
   killTests() {
-    if (this.child) {
-      forceKill(this.child)
-    }
-    this.#tests?.workers?.kill()
+    this.#tests?.kill()
   }
 
   async stopTests() {

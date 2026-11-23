@@ -405,7 +405,10 @@ playwright-test "test/**" --runner node-test --mode node --test-concurrency 2
 playwright-test "test/**" --test-isolation none
 ```
 
-`process` is the default. For now only `node-test` in node mode supports it: the files run with `run()` of `node:test`, like `node --test --test-isolation=process`, and `playwright-test/node-test` is the real `node:test` in them, so the output is the one of `node --test`. The other runners and modes run the files together like `none`, and warn when `process` is set explicitly. Both can also be set as `testIsolation` and `testConcurrency` in the config file.
+`process` is the default. For now only node mode supports it, browsers, web workers and workerd run the files together like `none`, and warn when `process` is set explicitly. Both can also be set as `testIsolation` and `testConcurrency` in the config file.
+
+- `node-test` runs the files with `run()` of `node:test`, like `node --test --test-isolation=process`. `playwright-test/node-test` is the real `node:test` in them, so the output is the one of `node --test`.
+- `mocha` and `none` run each file in a process of its own. With more than one at once, what a file prints waits until it ends, and the files come out in their order. After them a summary counts the files that passed, failed, were cancelled or didn't run, and names the ones that failed. Mocha's `bail`, on by default, ends the files still running when one fails and skips the rest.
 
 ### AI agents
 
