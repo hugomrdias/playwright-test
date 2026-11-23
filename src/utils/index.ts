@@ -12,8 +12,6 @@ import type { Server } from 'http'
 import { createRequire } from 'module'
 import path from 'path'
 import type { BrowserType, ConsoleMessage, JSHandle } from 'playwright-core'
-import polka from 'polka'
-import sirv from 'sirv'
 import { convertPathToPattern, globSync } from 'tinyglobby'
 import { fileURLToPath } from 'url'
 import type { Runner } from '../runner.ts'
@@ -740,68 +738,4 @@ ${tmpl}
   )
 
   return { outName, files }
-}
-
-/**
- * Create polka server
- *
- * @param dir - Runner directory
- * @param cwd - Current working directory
- * @param assets - Assets directory
- */
-export function createPolka(
-  dir: string,
-  cwd: string,
-  assets: string
-): Promise<{ url: string; server: Server }> {
-  const host = '127.0.0.1'
-  return new Promise((resolve, reject) => {
-    const app = polka()
-      .use(
-        sirv(dir, {
-          dev: true,
-          setHeaders: (
-            rsp: { setHeader: (arg0: string, arg1: string) => void },
-            pathname: string
-          ) => {
-            if (pathname === '/') {
-              rsp.setHeader('Clear-Site-Data', '"cache", "cookies", "storage"')
-              // rsp.setHeader('Clear-Site-Data', '"cache", "cookies", "storage", "executionContexts"');
-            }
-          },
-        })
-      )
-      .use(
-        sirv(path.resolve(cwd, assets), {
-          dev: true,
-          setHeaders: (
-            rsp: { setHeader: (arg0: string, arg1: string) => void },
-            pathname: string
-          ) => {
-            // workaround for https://github.com/lukeed/sirv/issues/158 - we
-            // can't unset the `Content-Encoding` header because sirv sets it
-            // after this function is invoked and will only set it if it's not
-            // already set, so we need to set it to a garbage value that will be
-            // ignored by browsers
-            if (pathname.endsWith('.gz')) {
-              rsp.setHeader('Content-Encoding', 'unsupported-encoding')
-            }
-          },
-        })
-      )
-      .listen(0, host, () => {
-        const { server } = app
-        if (!server) {
-          return reject(new Error('No server'))
-        }
-        server.off('error', reject)
-        const address = server.address()
-        if (!address || typeof address === 'string') {
-          return reject(new Error('Could not read server port'))
-        }
-        resolve({ url: `http://${host}:${address.port}/`, server })
-      })
-
-    app.server?.once('error', reject)
-  })
 }
