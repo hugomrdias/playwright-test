@@ -108,6 +108,8 @@ export class Runner extends BaseRunner {
   /** The files whose page had an uncaught error */
   #erroredFiles: Set<number> = new Set()
   #output: FileOutput | undefined = undefined
+  /** The pages of cancelled files, the run closes them */
+  #cancelledPages: WeakSet<Page> = new WeakSet()
   /** How the files of an isolated run ended, printed by `stop` */
   #summary: (() => void) | undefined = undefined
   #compiling: Promise<CompilerOutput> | undefined = undefined
@@ -330,7 +332,11 @@ export class Runner extends BaseRunner {
     page.on('crash', () => this.#pageCrashed())
     // Under --debug closing the tab leaves nothing to debug, and on macOS the
     // browser keeps running without windows
-    page.on('close', () => this.#browserEnded('test page'))
+    page.on('close', () => {
+      if (!this.#cancelledPages.has(page)) {
+        this.#browserEnded('test page')
+      }
+    })
     page.on('worker', (worker) => this.#workerPage.set(worker, page))
 
     // uncaught rejections
@@ -706,9 +712,11 @@ export class Runner extends BaseRunner {
         // The run is ending and the page isn't used again, what it printed
         // stays with its file and `stop` prints it in order.
         running.catch(noop)
-        // Right away, its tests can't go on. A value it logged that's still
-        // read from its threads prints as the preview of the browser.
-        page.goto('about:blank').catch(noop)
+        // Closed right away, a navigation would let a busy page finish what it
+        // runs. A value it logged that's still read from its threads prints as
+        // the preview of the browser.
+        this.#cancelledPages.add(page)
+        page.close().catch(noop)
       } else {
         await this.#flushPage(page)
         this.#output?.done(index)

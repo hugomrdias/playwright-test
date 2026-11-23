@@ -1,5 +1,7 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
 import fs from 'node:fs'
+import http from 'node:http'
+import type { AddressInfo } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
@@ -182,7 +184,8 @@ const runIn = (
   mode: string,
   runner: string,
   files: string[],
-  args: string[] = []
+  args: string[] = [],
+  env: Record<string, string> = {}
 ) =>
   runCli(
     [
@@ -193,7 +196,7 @@ const runIn = (
       mode,
       ...args,
     ],
-    { reject: false }
+    { reject: false, env }
   )
 
 describe('--watch', () => {
@@ -403,18 +406,36 @@ for (const mode of ['browser', 'web-worker']) {
     })
 
     it('mocha bail keeps what a cancelled file logged, and ends it', async () => {
-      // Its thread is busy when bail ends it, the value can't be read anymore
-      const proc = await runIn(
-        mode,
-        'mocha',
-        ['bail-fails-later', 'mocha-logs-busy'],
-        ['--test-concurrency', '2']
+      // Its thread is busy when bail ends it, the value can't be read anymore.
+      // It calls the server after its busy loop, if it gets that far.
+      let calls = 0
+      const server = http.createServer((_, res) => {
+        calls++
+        res.end()
+      })
+      await new Promise<void>((resolve) =>
+        server.listen(0, '127.0.0.1', resolve)
       )
+      const { port } = server.address() as AddressInfo
+      try {
+        const proc = await runIn(
+          mode,
+          'mocha',
+          ['bail-fails-later', 'mocha-logs-busy'],
+          ['--test-concurrency', '2'],
+          { PW_TEST_BEACON: `http://127.0.0.1:${port}/` }
+        )
 
-      is(proc.exitCode, 1, output(proc))
-      ok(proc.stdout.includes('ℹ cancelled 1'), output(proc))
-      ok(/\{\s*request: /.test(proc.stdout), output(proc))
-      ok(!proc.stdout.includes('LOGS BUSY FINISHED'), output(proc))
+        is(proc.exitCode, 1, output(proc))
+        ok(proc.stdout.includes('ℹ cancelled 1'), output(proc))
+        ok(/\{\s*request: /.test(proc.stdout), output(proc))
+        ok(!proc.stdout.includes('LOGS BUSY FINISHED'), output(proc))
+        // What it sent before the browser closed got here by now
+        await new Promise((resolve) => setTimeout(resolve, 500))
+        is(calls, 0, output(proc))
+      } finally {
+        server.close()
+      }
     })
 
     it('a run timeout ends every file, and prints what they held back', async () => {

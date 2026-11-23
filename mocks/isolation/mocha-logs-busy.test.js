@@ -8,6 +8,8 @@ describe('mocha logs busy', () => {
     while (Date.now() < end) {
       // busy
     }
+    // Seen by the test even if the console isn't
+    fetch(process.env.PW_TEST_BEACON, { mode: 'no-cors', keepalive: true })
     console.log('LOGS BUSY FINISHED')
   })
 })
