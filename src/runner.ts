@@ -1040,12 +1040,18 @@ export class Runner extends BaseRunner {
       return
     }
     this.stopped = true
+    await this.exit(fail, msg)
+  }
 
+  /**
+   * Print what the page logged before closing the browser, also when the run
+   * timeout ends the run.
+   */
+  async exit(fail: boolean, msg?: unknown) {
     if (this.context) {
       await this.#flushConsole()
     }
-
-    await this.exit(fail, msg)
+    await super.exit(fail, msg)
   }
 
   /**
