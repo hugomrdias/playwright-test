@@ -113,17 +113,15 @@ describe('cli flags', () => {
 
   it('warns when --test-isolation process is asked for and not supported', async () => {
     // One at a time, each one mocks console to read the logs
-    const mocha = await resolveCli([
+    const browser = await resolveCli([
       MOCHA,
       '--mode',
-      'node',
+      'browser',
       '--test-isolation',
       'process',
     ])
-    const nodeTest = await resolveCli([
-      'mocks/node-test-runner/pass.test.js',
-      '--runner',
-      'node-test',
+    const node = await resolveCli([
+      MOCHA,
       '--mode',
       'node',
       '--test-isolation',
@@ -131,12 +129,12 @@ describe('cli flags', () => {
     ])
 
     ok(
-      mocha.logs.includes(
-        `--test-isolation process isn't supported by the "mocha" runner in --mode node yet`
+      browser.logs.includes(
+        `--test-isolation process isn't supported in --mode browser yet`
       ),
-      mocha.logs
+      browser.logs
     )
-    ok(!nodeTest.logs.includes('--test-isolation'), nodeTest.logs)
+    ok(!node.logs.includes('--test-isolation'), node.logs)
   })
 
   it('none warns the test options are ignored', async () => {

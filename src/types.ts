@@ -53,7 +53,7 @@ export interface RunnerOptions {
   /**
    * How test files are isolated, like `--test-isolation` of `node:test`.
    * `process` runs each file on its own, `none` runs all of them together and
-   * they share globals and root hooks. Only node-test in node mode supports
+   * they share globals and root hooks. Only node mode supports
    * `process` for now, everything else runs as `none`.
    *
    * @default 'process'

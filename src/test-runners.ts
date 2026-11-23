@@ -40,6 +40,25 @@ function mochaGrep(testNamePattern: string | string[] | undefined) {
   return `{ test: (title) => [${patterns.join(', ')}].some((re) => re.test(title)) }`
 }
 
+/**
+ * `process.exit` once what was written got out. Writes to a full pipe wait in
+ * node and `process.exit` drops them, an empty write calls back after them.
+ */
+const exitAfterWrites = `
+function exitAfterWrites(code) {
+  // The result, also if a corked stream never calls back and node ends by itself
+  process.exitCode = code
+  let pending = 2
+  const done = () => {
+    if (--pending === 0) {
+      process.exit(code)
+    }
+  }
+  process.stdout.write('', done)
+  process.stderr.write('', done)
+}
+`
+
 export const mocha: TestRunner = {
   name: 'mocha',
   moduleId: 'mocha',
@@ -74,8 +93,9 @@ ${importAll(paths)}
 
   mocha
     .run((f) =>{
-      process.exit(f)
+      ${options.mode === 'node' ? 'exitAfterWrites(f)' : 'process.exit(f)'}
     })
+${options.mode === 'node' ? exitAfterWrites : ''}
 `
   },
 }

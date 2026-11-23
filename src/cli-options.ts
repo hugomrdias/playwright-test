@@ -197,13 +197,10 @@ function validateOptions(options: RunnerOptions) {
  * Only node-test in node mode runs each file on its own so far, the rest runs
  * the files together. Said only when asked for, it's also the default.
  */
-function warnUnsupportedIsolation(
-  { mode, runner }: RunnerOptions,
-  requested: unknown
-) {
-  if (requested === 'process' && !(mode === 'node' && runner === 'node-test')) {
+function warnUnsupportedIsolation({ mode }: RunnerOptions, requested: unknown) {
+  if (requested === 'process' && mode !== 'node') {
     log.warn(
-      `--test-isolation process isn't supported by the "${runner}" runner in --mode ${mode} yet, the files run together like --test-isolation none.`
+      `--test-isolation process isn't supported in --mode ${mode} yet, the files run together like --test-isolation none.`
     )
   }
 }
@@ -333,7 +330,7 @@ function program() {
     )
     .option(
       '--test-isolation',
-      'How test files are isolated: process runs each file on its own, none runs them together. Only node-test in --mode node supports process for now.  (default process)'
+      'How test files are isolated: process runs each file on its own, none runs them together. Only --mode node supports process for now.  (default process)'
     )
     .option(
       '--test-concurrency',

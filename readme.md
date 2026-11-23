@@ -39,7 +39,7 @@ Description
     --run-timeout          Fail the run after this many milliseconds, 0 turns it off. Not used with --debug or --watch.  (default 1800000)
     --test-name-pattern    Only run tests whose name matches this regular expression or /expression/flags. Repeat it to run tests matching any of them.
     --test-timeout         Timeout in milliseconds for tests without their own, 0 for none.
-    --test-isolation       How test files are isolated: process runs each file on its own, none runs them together. Only node-test in --mode node supports process for now.  (default process)
+    --test-isolation       How test files are isolated: process runs each file on its own, none runs them together. Only --mode node supports process for now.  (default process)
     --test-concurrency     How many test files run at once with --test-isolation process.  (default os.availableParallelism() - 1)
     --trace                Save a Playwright trace to playwright-test-trace-<browser>.zip in --cwd, open it with `npx playwright show-trace`. Alone it only keeps the trace of a failed run, `--trace on` always keeps it. Values other than `off` fail with --mode node or workerd; ignored with --debug and --watch.  (default off)
     --config               Path to the config file
@@ -405,7 +405,11 @@ playwright-test "test/**" --runner node-test --mode node --test-concurrency 2
 playwright-test "test/**" --test-isolation none
 ```
 
-`process` is the default. For now only `node-test` in node mode supports it: the files run with `run()` of `node:test`, like `node --test --test-isolation=process`, and `playwright-test/node-test` is the real `node:test` in them, so the output is the one of `node --test`. The other runners and modes run the files together like `none`, and warn when `process` is set explicitly. Both can also be set as `testIsolation` and `testConcurrency` in the config file.
+`process` is the default. For now only node mode supports it, browsers, web workers and workerd run the files together like `none`, and warn when `process` is set explicitly. Both can also be set as `testIsolation` and `testConcurrency` in the config file.
+
+- `node-test` runs the files with `run()` of `node:test`, like `node --test --test-isolation=process`. `playwright-test/node-test` is the real `node:test` in them, so the output is the one of `node --test`.
+- `mocha` and `none` run each file in a process of its own. With more than one at once, what a file prints waits until it ends, and the files come out in their order. After them a summary counts the files that passed, failed, were cancelled or didn't run, and names the ones that failed. Mocha's `bail`, on by default, ends the files still running when one fails and skips the rest.
+- Each file is a run of its own for `mocha`: `.only` only filters the file it's in, and a reporter prints a report for each file, so `json` gives one document per file followed by the summary. `--test-isolation none` keeps one run for all the files.
 
 ### AI agents
 
