@@ -589,16 +589,17 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
       },
     }
 
+    // Stopped while it bundled, the exit hook found nothing to stop and
+    // nothing would stop it once it starts
+    if (this.stopped) {
+      return
+    }
     this.mf = new miniflare.Miniflare({
       log: new miniflare.Log(miniflare.LogLevel.WARN),
       handleStructuredLogs: this.#logHandler(),
       workers: [worker],
     })
     this.workerName = worker.config.name
-    // Stopped while it started, the exit hook found nothing to stop
-    if (this.stopped) {
-      await this.stopTests()
-    }
     await this.mf.ready
   }
 
@@ -709,6 +710,9 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
         return
       }
       await this.#startMiniflare()
+      if (this.stopped) {
+        return
+      }
 
       const passed = await this.runTests()
       await this.stop(!passed, passed ? undefined : 'Tests failed.')

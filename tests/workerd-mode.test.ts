@@ -117,7 +117,7 @@ describe('workerd mode', () => {
     const proc = await runWorkerd(
       [
         '--config',
-        'mocks/workerd/after-tests.config.mjs',
+        'mocks/flow/after-waits.config.mjs',
         '--runner',
         'none',
         '--run-timeout',
@@ -133,7 +133,36 @@ describe('workerd mode', () => {
     ok(all.includes('tick'), all)
     const hook = all.slice(all.indexOf('after-started'))
     ok(hook.includes('after-finished'), all)
-    ok(!hook.includes('tick'), all)
+    ok(!/^tick$/m.test(hook), all)
+  })
+
+  it('sees workerd start without a timeout', async () => {
+    const proc = await runWorkerd([
+      '--config',
+      'mocks/workerd/slow-bundle.config.mjs',
+      'test/worker.test.js',
+    ])
+
+    is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
+    ok(proc.stdout.includes('workerd-started'), proc.stdout)
+  })
+
+  it('does not start workerd when stopped while bundling', {
+    skip: process.platform === 'win32',
+  }, async () => {
+    const proc = await runWorkerd([
+      '--config',
+      'mocks/workerd/slow-bundle.config.mjs',
+      '--runner',
+      'none',
+      '--run-timeout',
+      '500',
+      'test/ticks.test.js',
+    ])
+
+    is(proc.exitCode, 1, `${proc.stdout}\n${proc.stderr}`)
+    ok(proc.stderr.includes('Run timed out after 500ms'), proc.stderr)
+    ok(!proc.stdout.includes('workerd-started'), proc.stdout)
   })
 
   it('fails when the tests do not bundle', async () => {

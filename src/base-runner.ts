@@ -134,7 +134,7 @@ export class BaseRunner {
    *
    * The exit hook only runs once, and Playwright raises an interrupt again
    * when no other listener is left, so there's one more. A second interrupt
-   * stops waiting for the hook.
+   * stops waiting for the hook, and for the tests to end, see `killTests`.
    */
   handleExit() {
     asyncExitHook((exitCode) => this.#clean(exitCode), {
@@ -144,6 +144,7 @@ export class BaseRunner {
     let interrupted = false
     process.on('SIGINT', () => {
       if (interrupted) {
+        this.killTests()
         this.removeFiles()
         process.exit(130)
       }
@@ -163,7 +164,10 @@ export class BaseRunner {
   }
 
   async runBeforeTests() {
-    this.#beforeTests = this.options.beforeTests(this.env)
+    // A hook can return anything, and throw right away
+    this.#beforeTests = new Promise((resolve) => {
+      resolve(this.options.beforeTests(this.env))
+    })
     this.beforeTestsOutput = await this.#beforeTests
     // The hook can change the env, like TERM, and with it the color depth
     this.env.PW_STDIO = JSON.stringify(stdio(this.env))
@@ -216,6 +220,14 @@ export class BaseRunner {
    * `cleanupWait`.
    */
   async stopTests() {
+    // Nothing runs them by default
+  }
+
+  /**
+   * End what runs the tests right away, this process exits without waiting
+   * for anything.
+   */
+  killTests() {
     // Nothing runs them by default
   }
 

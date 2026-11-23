@@ -8,7 +8,12 @@ import { BaseRunner } from '../base-runner.ts'
 import type { Config } from '../types.ts'
 import { EXT } from '../utils/ext.ts'
 import { createPolka, log, UsageError, withTimeout } from '../utils/index.ts'
-import { FORCE_KILL_DELAY, killTree, withLocalBins } from '../utils/process.ts'
+import {
+  FORCE_KILL_DELAY,
+  forceKill,
+  killTree,
+  withLocalBins,
+} from '../utils/process.ts'
 
 // What a killed subprocess gets after its forced kill, to end
 const EXIT_WAIT = 1000
@@ -219,6 +224,12 @@ export class NodeRunner extends BaseRunner {
    * Don't leave the tests running, also when this process gets stopped. The
    * forced kill comes too late once this process is gone.
    */
+  killTests() {
+    if (this.child) {
+      forceKill(this.child)
+    }
+  }
+
   async stopTests() {
     if (this.child && this.#finished) {
       killTree(this.child)

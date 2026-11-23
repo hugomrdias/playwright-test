@@ -942,12 +942,12 @@ export class Runner extends BaseRunner {
       this.options.debug ||
       this.watching
     )
-    return 2 * EXIT_WAIT + (tracing ? 2 * TRACE_WAIT : 0)
+    return 3 * EXIT_WAIT + (tracing ? 2 * TRACE_WAIT : 0)
   }
 
   /**
-   * Start closing the browser, it closes while the afterTests hook runs. The
-   * hook doesn't get it, the tests are done.
+   * Close the browser, the tests in it can't use what the afterTests hook
+   * stops. The trace gets written first, it has its own wait.
    */
   async stopTests() {
     // A browser that's still starting would keep using the profile, or make it
@@ -960,14 +960,15 @@ export class Runner extends BaseRunner {
         EXIT_WAIT
       )
     }
-    this.#closeBrowser()
+    await withTimeout(this.#closeBrowser().closed, TRACE_WAIT + EXIT_WAIT)
   }
 
   async cleanUp(exitCode: number) {
     const closing = this.#closeBrowser()
     // It has its own wait. Kept by the exit code, the hook can fail the run.
     await this.#keepTrace(await closing.traced, exitCode)
-    // Before the server, the open connections of the browser would keep it open
+    // Still closing when the wait in `stopTests` ran out. Before the server,
+    // the open connections of the browser would keep it open.
     await withTimeout(closing.closed, EXIT_WAIT)
     // The bundles don't go there, a build that never ends can't keep it
     removeFolder(this.#profile())

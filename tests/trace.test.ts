@@ -81,7 +81,7 @@ describe('--trace', () => {
     assertTrace()
   })
 
-  it('writes the trace while the afterTests hook runs', async () => {
+  it('writes the trace before the afterTests hook runs', async () => {
     // Its own, the hook looks for the trace of the run in it
     const temp = mkdtempSync(
       path.join(process.env.PW_TEST_CHILD_TEMP || tmpdir(), 'pw-trace-')

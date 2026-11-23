@@ -259,6 +259,13 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
         ok(proc.stderr.includes('did not finish in 500ms'), proc.stderr)
       })
 
+      it('runs after a beforeTests that is not async', async () => {
+        const proc = await runHook('sync-hooks')
+
+        is(proc.exitCode, 0, proc.stderr)
+        ok(proc.stderr.includes('after-got:sync-before'), proc.stderr)
+      })
+
       it('gets the env and what beforeTests returned', async () => {
         const proc = await runHook('hooks-output')
 
@@ -315,6 +322,34 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
 
       is(proc.exitCode, 130, proc.stderr)
       ok(!proc.stderr.includes('after-finished'), proc.stderr)
+    })
+
+    it('kills tests that ignore being stopped when stopped twice with mode:node', {
+      skip: process.platform === 'win32',
+    }, async () => {
+      const running = runFlow('ignores-sigterm.js', ['--mode', 'node'])
+      const [data] = await once(running.stdout, 'data')
+      const pid = Number(String(data).match(/pid:(\d+)/)?.[1])
+      running.kill('SIGINT')
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      running.kill('SIGINT')
+      const proc = await running
+
+      is(proc.exitCode, 130, proc.stderr)
+      // A forced kill still takes a moment to land
+      let alive = true
+      for (let i = 0; i < 20 && alive; i++) {
+        try {
+          process.kill(pid, 0)
+          await new Promise((resolve) => setTimeout(resolve, 50))
+        } catch {
+          alive = false
+        }
+      }
+      if (alive) {
+        process.kill(pid, 'SIGKILL')
+      }
+      is(alive, false, 'the tests were still running')
     })
 
     it('kills tests that ignore being stopped with mode:node', {
