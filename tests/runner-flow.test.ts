@@ -199,7 +199,6 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
     for (const args of [
       ['--mode', 'browser'],
       ['--mode', 'web-worker'],
-      ['--extension'],
     ]) {
       it(`has the env and PW_SERVER with ${args.join(' ')}`, async () => {
         const proc = await runFlow('env.js', args, { env })
@@ -722,58 +721,6 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
       is(proc.exitCode, 0, all)
       ok(printed !== -1, all)
       ok(printed < all.indexOf('Timed out waiting'), all)
-    })
-
-    it('prints what the extension service worker logs once', async () => {
-      const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-test-ext-sw-'))
-      const script = `
-        const { Runner } = await import(${JSON.stringify(
-          new URL('../src/runner.ts', import.meta.url).href
-        )})
-        const test = ${JSON.stringify(path.resolve(FLOW, 'pass.js'))}
-        const runner = new Runner(
-          {
-            runner: 'none',
-            extension: true,
-            trace: 'on',
-            cwd: ${JSON.stringify(temp)},
-          },
-          [test]
-        )
-        const setupPage = runner.setupPage.bind(runner)
-        runner.setupPage = async (context) => {
-          let [worker] = context.serviceWorkers()
-          if (!worker) {
-            worker = await context.waitForEvent('serviceworker')
-          }
-          await worker.evaluate(() => console.log('ext-sw-before-page'))
-          const page = await setupPage(context)
-          await worker.evaluate(() => console.log('ext-sw-after-page'))
-          return page
-        }
-        await runner.run()
-      `
-      try {
-        const proc = await execa(
-          process.execPath,
-          ['--input-type=module', '-e', script],
-          { reject: false, timeout: 30_000 }
-        )
-
-        is(proc.exitCode, 0, proc.stderr)
-        is(
-          proc.stdout.match(/ext-sw-before-page/g)?.length,
-          1,
-          proc.stdout + proc.stderr
-        )
-        is(
-          proc.stdout.match(/ext-sw-after-page/g)?.length,
-          1,
-          proc.stdout + proc.stderr
-        )
-      } finally {
-        fs.rmSync(temp, { force: true, recursive: true })
-      }
     })
   })
 

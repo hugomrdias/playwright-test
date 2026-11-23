@@ -12,7 +12,6 @@ import type { Server } from 'http'
 // @ts-expect-error
 import mergeOptions from 'merge-options'
 import { createRequire } from 'module'
-import os from 'os'
 import path from 'path'
 import type { BrowserType, ConsoleMessage, JSHandle } from 'playwright-core'
 import polka from 'polka'
@@ -91,28 +90,13 @@ export function resolveTestRunner({
 /**
  * Check what can't work before starting a browser for it.
  */
-export function assertBrowserOptions({
-  browser,
-  extension,
-  mode,
-  trace,
-}: RunnerOptions) {
+export function assertBrowserOptions({ mode, trace }: RunnerOptions) {
   if (mode !== 'browser' && mode !== 'web-worker') {
     throw new UsageError(
       `Invalid mode "${mode}", this runner takes "browser" or "web-worker".`
     )
   }
   assertTrace(trace)
-  if (extension && browser !== 'chromium') {
-    throw new UsageError('Extension testing is only supported in chromium.')
-  }
-  // Chromium splits the paths of its extension flags at commas, with no way
-  // to escape one. The extension is in the files of the run, in there.
-  if (extension && os.tmpdir().includes(',')) {
-    throw new UsageError(
-      `Extension testing can't load the extension from the temp folder ${os.tmpdir()}, Chromium doesn't take paths with a comma. Set TMPDIR (TEMP on Windows) to a folder without one.`
-    )
-  }
 }
 
 export const TRACE_VALUES = ['off', 'on', 'retain-on-failure']
@@ -203,7 +187,6 @@ export const defaultOptions: Omit<RunnerOptions, 'testRunner'> = {
   debug: false,
   mode: 'browser', // or 'web-worker'
   input: undefined,
-  extension: false,
   runner: 'none',
   sw: undefined,
   extensions: 'js,cjs,mjs,ts,tsx,jsx',
@@ -704,7 +687,7 @@ ${tmpl}
   const envPlugin: ESBuildPlugin = {
     name: 'env',
     setup(build) {
-      // Next to the bundle in the page, the worker and the extension
+      // Next to the bundle in the page and the worker
       build.onResolve({ filter: new RegExp(`^${ENV_MODULE}$`) }, () => ({
         path: `./${envFile(runner.dir)}`,
         external: true,

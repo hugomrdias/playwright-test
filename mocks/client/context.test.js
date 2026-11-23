@@ -76,11 +76,7 @@ test('addCookies, cookies and clearCookies', async () => {
   assert.equal(a?.domain, new URL(Client.server).hostname)
   assert.equal(typeof a?.expires, 'number')
 
-  // Not in the popup of --extension, its origin is another
-  if (
-    globalThis.document &&
-    location.origin === new URL(Client.server).origin
-  ) {
+  if (globalThis.document) {
     assert.match(document.cookie, /pw-a=a/)
   }
 

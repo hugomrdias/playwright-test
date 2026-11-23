@@ -110,10 +110,6 @@ globalThis.out = [fromMocha, fromSource]
       `    at fn (${source}:3:33)`
     )
     is(map(`fn@http://127.0.0.1:1234/bundle-out.js:${at}`), `fn@${source}:3:33`)
-    is(
-      map(`    at chrome-extension://abc/tests/bundle-out.js:${at}`),
-      `    at ${source}:3:33`
-    )
     // Mocha removes the url of the page
     is(map(`    at fn (bundle-out.js:${at})`), `    at fn (${source}:3:33)`)
   })
@@ -125,9 +121,7 @@ globalThis.out = [fromMocha, fromSource]
     for (const text of [
       'nothing to see here',
       `http://127.0.0.1:1234/assets/bundle-out.js:${at}`,
-      // Only the extension has them in `tests`
       `http://127.0.0.1:1234/tests/bundle-out.js:${at}`,
-      `chrome-extension://abc/assets/bundle-out.js:${at}`,
       `my-bundle-out.js:${at}`,
       `    at fn (http://127.0.0.1:1234/other-out.js:${at})`,
       // No source map for this one
@@ -422,21 +416,6 @@ for (const browser of ['chromium', 'firefox', 'webkit']) {
         ok(!proc.stdout.includes('bundle-out.js'), proc.stdout)
         ok(!INTERNAL_MOCHA.test(proc.stdout), proc.stdout)
       })
-
-      // Extensions are chromium only
-      if (browser === 'chromium') {
-        it(`node:test has no frames of the runner in ${mode} with an extension`, async () => {
-          const proc = await runCli(
-            [...NODE_TEST, '--mode', mode, '--extension', ...flags],
-            { reject: false }
-          )
-          const output = `${proc.stdout}${proc.stderr}`
-
-          is(proc.exitCode, 1, output)
-          ok(output.includes('node-test-fails.test.js:5:'), output)
-          assertNoInternals(output)
-        })
-      }
 
       it(`node:test has no frames of the runner in ${mode}`, async () => {
         const proc = await runCli([...NODE_TEST, '--mode', mode, ...flags], {

@@ -71,8 +71,6 @@ const KNOWN_FLAGS = new Set([
   'cwd',
   'd',
   'debug',
-  'e',
-  'extension',
   'extensions',
   'm',
   'mode',
@@ -203,7 +201,6 @@ const cliDefaults = {
   browser: defaultOptions.browser,
   cwd: defaultOptions.cwd,
   debug: defaultOptions.debug,
-  extension: defaultOptions.extension,
   extensions: defaultOptions.extensions,
   mode: defaultOptions.mode,
   trace: defaultOptions.trace,
@@ -272,10 +269,6 @@ function program() {
       `Debug mode, keeps browser window open.  (default ${cliDefaults.debug})`
     )
     .option('-w, --watch', 'Watch files for changes and re-run tests.')
-    .option(
-      '-e, --extension',
-      `Use extension background_page to run tests.  (default ${cliDefaults.extension})`
-    )
     .option('--sw', 'Path to a script to be loaded in a service worker.')
     .option(
       '--assets',
@@ -351,7 +344,7 @@ export async function resolveOptions(
   const parsed = program().parse(['node', 'playwright-test', ...args], {
     lazy: true,
     // Without defaults to tell their types, `--debug test.js` would take the file
-    boolean: ['debug', 'extension', 'watch'],
+    boolean: ['debug', 'watch'],
     // `--trace` alone keeps only failed runs, so a value has to be a string
     string: [
       'browser',
@@ -378,7 +371,6 @@ export async function resolveOptions(
     browser: opts.browser,
     debug: opts.debug,
     mode: opts.mode,
-    extension: opts.extension,
     sw: opts.sw,
     extensions: opts.extensions,
     runTimeout: opts['run-timeout'],

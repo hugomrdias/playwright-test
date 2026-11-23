@@ -32,7 +32,6 @@ Description
     -m, --mode             Run mode. Options: browser, web-worker, node and workerd.  (default browser)
     -d, --debug            Debug mode, keeps browser window open.  (default false)
     -w, --watch            Watch files for changes and re-run tests.
-    -e, --extension        Use extension background_page to run tests.  (default false)
     --sw                   Path to a script to be loaded in a service worker.
     --assets               Folder with assets to be served by the http server.  (default process.cwd())
     --cwd                  Current directory.  (default process.cwd())
@@ -120,7 +119,7 @@ Without a config the tests run in an empty worker. The `workerd` key of the conf
 
 The http server of `--assets` runs as in the other modes, tests fetch its files from `process.env.PW_SERVER`.
 
-`--sw`, `--extension`, `--trace` and `--watch` don't work in this mode, and neither do the static assets of `cloudflare.config.ts`, it doesn't say where their files are. A test that never settles fails the run, workerd cancels the request it runs in.
+`--sw`, `--trace` and `--watch` don't work in this mode, and neither do the static assets of `cloudflare.config.ts`, it doesn't say where their files are. A test that never settles fails the run, workerd cancels the request it runs in.
 
 ## `node:test` API
 
@@ -305,7 +304,7 @@ This client package exposes the `playwright-test` options, some Playwright brows
 import * as Client from 'playwright-test/client'
 
 it('should setoffline', async () => {
-  if (Client.mode === 'browser' && Client.options.extension === false) {
+  if (Client.mode === 'browser') {
     globalThis.addEventListener('offline', () => {
       console.log('offlineee')
     })
@@ -369,7 +368,7 @@ it('counts as user activation', async () => {
 - `page.click(selector, options)`, Playwright's [`page.click`](https://playwright.dev/docs/api/class-page#page-click). It waits for the element to be visible and stable, up to the `timeout` option, 30 seconds by default. It takes the options of Playwright except `signal`, an `AbortSignal` can't be sent to the runner.
 - `page.keyboard.press(key, options)` and `page.keyboard.type(text, options)`, Playwright's [`keyboard`](https://playwright.dev/docs/api/class-keyboard). They go to the focused element.
 
-The input always goes to the test page, the popup with `--extension`. With `--mode web-worker` it still goes to the page that started the worker, so it can click what the page shows, but the worker can't see the events or get the user activation, workers have none. In `node` and `workerd` modes they reject.
+The input always goes to the test page. With `--mode web-worker` it still goes to the page that started the worker, so it can click what the page shows, but the worker can't see the events or get the user activation, workers have none. In `node` and `workerd` modes they reject.
 
 Only these are there, not the rest of Playwright's `Page`, like `mouse`, `touchscreen`, `fill` or locators. Tests run in the page and can do most of it themselves, what they can't is trusted input.
 
