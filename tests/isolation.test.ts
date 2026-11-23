@@ -304,18 +304,20 @@ for (const mode of ['browser', 'web-worker']) {
     })
 
     it('mocha bail ends a file that keeps its thread busy', async () => {
-      // It blocks for 20s, the run ends after the console flush gives up on it
+      // It blocks for 20s, the run ends after the console flush gives up on it.
+      // The slow file still answers, it ends right away.
       const started = Date.now()
       const proc = await runIn(
         mode,
         'mocha',
-        ['bail-fails-later', 'mocha-busy'],
-        ['--test-concurrency', '2']
+        ['bail-fails-later', 'mocha-busy', 'mocha-slow'],
+        ['--test-concurrency', '3']
       )
 
       is(proc.exitCode, 1, output(proc))
-      ok(proc.stdout.includes('ℹ cancelled 1'), output(proc))
+      ok(proc.stdout.includes('ℹ cancelled 2'), output(proc))
       ok(!proc.stdout.includes('BUSY FINISHED'), output(proc))
+      ok(!proc.stdout.includes('SLOW FINISHED'), output(proc))
       ok(Date.now() - started < 15_000, output(proc))
     })
 

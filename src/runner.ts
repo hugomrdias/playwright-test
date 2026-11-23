@@ -694,9 +694,11 @@ export class Runner extends BaseRunner {
     } finally {
       cancels.delete(index)
       if (result?.cancelled) {
-        // The run is ending and the page isn't used again. What it prints
-        // until then still goes to its file, `stop` prints it in order.
+        // Ends its tests without waiting on them, a busy page never answers.
+        // The run is ending and the page isn't used again, what it printed
+        // stays with its file and `stop` prints it in order.
         running.catch(noop)
+        page.goto('about:blank').catch(noop)
       } else {
         await this.#flushPage(page)
         this.#output?.done(index)
