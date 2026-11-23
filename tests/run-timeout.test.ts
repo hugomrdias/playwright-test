@@ -4,12 +4,12 @@ import { describe, it } from 'node:test'
 import { runCli, TEST_CONCURRENCY } from './helpers.ts'
 
 describe('run timeout', { concurrency: TEST_CONCURRENCY }, () => {
-  function run(fixture: string, args: string[]) {
+  function run(fixture: string, args: string[], env = {}) {
     return runCli(
       [`mocks/none/${fixture}.test.js`, '--runner', 'none', ...args],
       {
         // A page that never ends always uses up the whole wait for its console
-        env: { PW_TEST_CONSOLE_FLUSH_TIMEOUT: '500' },
+        env: { PW_TEST_CONSOLE_FLUSH_TIMEOUT: '500', ...env },
         // Fail here when the run timeout doesn't work, instead of hanging
         reject: false,
         timeout: 40_000,
@@ -35,12 +35,19 @@ describe('run timeout', { concurrency: TEST_CONCURRENCY }, () => {
   it('closes the browser before the afterTests hook', {
     skip: process.platform === 'win32',
   }, async () => {
-    const proc = await run('never-ends', [
-      '--config',
-      'mocks/flow/after-browser.config.mjs',
-      '--run-timeout',
-      '1000',
-    ])
+    const proc = await run(
+      'never-ends',
+      [
+        '--config',
+        'mocks/flow/after-browser.config.mjs',
+        '--run-timeout',
+        '1000',
+      ],
+      // The page that never ends keeps a core busy, and the other tests here
+      // run pages like it at the same time. On the macOS runners Chromium can
+      // then take longer than the default 5s to close.
+      { PW_TEST_EXIT_WAIT: '15000' }
+    )
 
     is(proc.exitCode, 1, proc.stderr)
     ok(proc.stderr.includes('Run timed out after 1000ms'), proc.stderr)
