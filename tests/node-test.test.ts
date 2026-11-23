@@ -338,6 +338,18 @@ describe('playwright-test/node-test', () => {
         equal(order, ['ORDER first', 'ORDER second', 'ORDER root after'])
       })
 
+      it('mock.timers removes what it added', async () => {
+        const { proc, order } = await runApi('mock-timers-absent', mode)
+
+        is(proc.exitCode, 0, proc.stdout)
+        equal(order, [
+          'ORDER immediate',
+          'ORDER aborted true',
+          'ORDER timeout removed true',
+          'ORDER setImmediate removed true',
+        ])
+      })
+
       it('what is not implemented throws', async () => {
         const { proc, results } = await runApi('unsupported', mode)
 

@@ -269,7 +269,7 @@ class Timeout {
   }
 }
 
-/** Put back a global as it was, or remove it when there was none. */
+/** Put back a global as it was, or remove it when there was none, like `setImmediate` in browsers. */
 function restoreGlobal(name, descriptor) {
   if (descriptor === undefined) {
     delete globalThis[name];
@@ -355,7 +355,11 @@ export class MockTimers {
   }
 
   #restoreOriginalAbortSignalTimeout() {
-    ObjectDefineProperty(AbortSignal, 'timeout', ObjectSetPrototypeOf(this.#realAbortSignalTimeout, null));
+    if (this.#realAbortSignalTimeout === undefined) {
+      delete AbortSignal.timeout;
+    } else {
+      ObjectDefineProperty(AbortSignal, 'timeout', ObjectSetPrototypeOf(this.#realAbortSignalTimeout, null));
+    }
   }
 
   #createTimer(isInterval, callback, delay, ...args) {

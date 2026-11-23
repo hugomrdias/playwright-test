@@ -94,7 +94,7 @@ test('AbortSignal.timeout', (t) => {
   t.mock.timers.tick(49)
   log(`aborted at 49 ${signal.aborted}`)
   t.mock.timers.tick(1)
-  log(`aborted at 50 ${signal.aborted}`)
+  log(`aborted at 50 ${signal.aborted} ${signal.reason.name}`)
   log(error(() => AbortSignal.timeout(-1)))
 })
 
