@@ -2,6 +2,7 @@ import { strictEqual as is, ok } from 'node:assert/strict'
 import { after, before, describe, it } from 'node:test'
 import type { Result } from 'execa'
 import fs from 'fs'
+import { isRunning } from '../src/utils/process.ts'
 import { runCli, TEST_CONCURRENCY } from './helpers.ts'
 
 describe('node:test runner', () => {
@@ -119,21 +120,33 @@ describe('node:test runner', () => {
     })
 
     it('runs the files as they are, without glob patterns', async () => {
-      // Biome wants kebab-case names in the repo
+      // Biome wants kebab-case names in the repo, and Windows has no `*`
       const dir = fs.mkdtempSync('mocks/tmp-glob-')
-      const file = `${dir}/[case]{a,b}(c)*.test.js`
-      fs.writeFileSync(
-        file,
-        "import { test } from 'node:test'\ntest('fails', () => { throw new Error('fails') })\n"
-      )
+      const write = (name: string, body: string) =>
+        fs.writeFileSync(
+          `${dir}/${name}`,
+          `import { test } from 'node:test'\ntest('${name}', () => { ${body} })\n`
+        )
+      write('[case]{a,b}(c).test.js', "throw new Error('fails')")
+      write('left{.test.js', '')
+      // What a pattern for left{ could match too
+      write('leftz.test.js', "throw new Error('not selected')")
       try {
-        const proc = await runCli(
-          [file, '--runner', 'node-test', '--mode', 'node'],
-          { reject: false }
+        const [glob, sibling] = await Promise.all(
+          ['[case]{a,b}(c).test.js', 'left{.test.js'].map((name) =>
+            runCli(
+              [`${dir}/${name}`, '--runner', 'node-test', '--mode', 'node'],
+              {
+                reject: false,
+              }
+            )
+          )
         )
 
-        is(proc.exitCode, 1, output(proc))
-        ok(proc.stdout.includes('ℹ fail 1'), output(proc))
+        is(glob.exitCode, 1, output(glob))
+        ok(glob.stdout.includes('ℹ fail 1'), output(glob))
+        is(sibling.exitCode, 0, output(sibling))
+        ok(sibling.stdout.includes('ℹ tests 1'), output(sibling))
       } finally {
         fs.rmSync(dir, { recursive: true })
       }
@@ -163,6 +176,30 @@ describe('node:test runner', () => {
 
       is(proc.exitCode, 0, output(proc))
       ok(!output(proc).includes('created after'), output(proc))
+    })
+
+    it('a run timeout also ends a file that blocks and ignores SIGTERM', async () => {
+      const dir = fs.mkdtempSync('mocks/tmp-blocked-')
+      const file = `${dir}/pid.txt`
+      try {
+        const proc = await runCli(
+          [
+            'mocks/node-test-runner/isolation-kill/blocked.test.js',
+            '--runner',
+            'node-test',
+            '--mode',
+            'node',
+            '--run-timeout',
+            '1000',
+          ],
+          { reject: false, env: { STUBBORN_FILE: file } }
+        )
+        is(proc.exitCode, 1, output(proc))
+        const pid = Number(fs.readFileSync(file, 'utf8'))
+        is(isRunning(pid), false, `${pid} is still running`)
+      } finally {
+        fs.rmSync(dir, { recursive: true })
+      }
     })
 
     it('a run timeout also ends the files that ignore SIGTERM', async () => {

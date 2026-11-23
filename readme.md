@@ -172,7 +172,7 @@ playwright-test "test/**/*.test.js" --runner node-test --mode node
 Files can import `node:test` instead, and they don't need to change to run anywhere:
 
 - In browsers `node:test` resolves to `playwright-test/node-test`, and `node:assert` to [our own](#nodeassert-api).
-- In node mode `node:test` is the real one, with all of its API and reporters, and everything under [what's different](#whats-different-from-nodetest) doesn't apply. A file that imports `playwright-test/node-test` keeps using that one, so it gets the same behaviour everywhere.
+- In node mode `node:test` is the real one, with all of its API and reporters, and everything under [what's different](#whats-different-from-nodetest) doesn't apply. A file that imports `playwright-test/node-test` keeps using that one with `--test-isolation none`, so it gets the same behaviour everywhere. With `--test-isolation process`, the default, it's the real `node:test` too, so APIs that your Node.js version doesn't have yet aren't there, like the `t.assert` helpers for mocks on Node.js 24.
 
 `--test-name-pattern` and `--test-timeout` work the same with both. To use a `node:test` reporter in node mode set `testRunner.options.reporter` in the [config file](#runner-options), the output of `playwright-test/node-test` and of browsers is always the format of the `spec` reporter.
 
@@ -186,7 +186,7 @@ The types are the ones from `node:test`, which come from `@types/node`.
 - `test(name?, options?, fn?)`, which returns a promise, and `.skip`, `.todo` and `.only` on all of them.
 - The options `skip`, `todo`, `only`, `timeout`, `plan`, `signal`, `tags` and `concurrency`. There's no default timeout.
 - Suites to any depth, async suites and hooks scoped to their suite. Everything runs in declaration order.
-- The test context: `t.test`, `t.name`, `t.fullName`, `t.skip`, `t.todo`, `t.diagnostic`, `t.log`, `t.plan`, `t.assert` (with `called`, `callCount`, `lastCalledWith` and `nthCalledWith` in any Node.js version), `t.signal`, `t.mock`, `t.waitFor`, `t.runOnly`, `t.error`, `t.passed`, `t.tags`, `t.before`, `t.after`, `t.beforeEach`, `t.afterEach` and `(t, done)` callbacks, also in hooks.
+- The test context: `t.test`, `t.name`, `t.fullName`, `t.skip`, `t.todo`, `t.diagnostic`, `t.log`, `t.plan`, `t.assert` (with `called`, `callCount`, `lastCalledWith` and `nthCalledWith` in any Node.js version, in node mode only with `--test-isolation none`), `t.signal`, `t.mock`, `t.waitFor`, `t.runOnly`, `t.error`, `t.passed`, `t.tags`, `t.before`, `t.after`, `t.beforeEach`, `t.afterEach` and `(t, done)` callbacks, also in hooks.
 - `mock.fn`, `mock.method`, `mock.getter`, `mock.setter`, `mock.property`, `mock.reset` and `mock.restoreAll`. `t.mock` is restored when the test ends.
 - `mock.timers` with `enable`, `tick`, `runAll`, `setTime`, `reset` and `Symbol.dispose`. It mocks the globals `setTimeout`, `setInterval`, `setImmediate` (added when the browser has none), `Date` and `AbortSignal.timeout`. `t.mock.timers` is reset when the test ends.
 
@@ -406,7 +406,7 @@ playwright-test "test/**" --runner node-test --mode node --test-concurrency 2
 playwright-test "test/**" --test-isolation none
 ```
 
-`process` is the default. For now only `node-test` in node mode supports it: the files run with `node --test --test-isolation=process`, and `playwright-test/node-test` is the real `node:test` in them, so the output is the one of `node --test`. The other runners and modes run the files together like `none`, and warn when `process` is set explicitly. Both can also be set as `testIsolation` and `testConcurrency` in the config file.
+`process` is the default. For now only `node-test` in node mode supports it: the files run with `run()` of `node:test`, like `node --test --test-isolation=process`, and `playwright-test/node-test` is the real `node:test` in them, so the output is the one of `node --test`. The other runners and modes run the files together like `none`, and warn when `process` is set explicitly. Both can also be set as `testIsolation` and `testConcurrency` in the config file.
 
 ### AI agents
 
