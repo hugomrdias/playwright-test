@@ -121,7 +121,8 @@ describe('workerd mode', () => {
         '--runner',
         'none',
         '--run-timeout',
-        '1000',
+        // The timeout includes starting Miniflare, slow on CI runners
+        '4000',
         'test/ticks.test.js',
       ],
       { all: true }
@@ -129,7 +130,7 @@ describe('workerd mode', () => {
 
     const all = proc.all ?? ''
     is(proc.exitCode, 1, all)
-    ok(all.includes('Run timed out after 1000ms'), all)
+    ok(all.includes('Run timed out after 4000ms'), all)
     ok(all.includes('tick'), all)
     const hook = all.slice(all.indexOf('after-started'))
     ok(hook.includes('after-finished'), all)
