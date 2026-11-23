@@ -48,10 +48,11 @@ export class NodeRunner extends BaseRunner {
     super(options, testFiles)
     this.child = undefined
     // For reporters to remove our frames from stack traces. A path with forward
-    // slashes, frames have `file:///D:/src`, `/D:/src` or `D:/src` on Windows.
-    this.env.PW_TEST_SRC = fileURLToPath(
-      new URL('../', import.meta.url)
-    ).replaceAll('\\', '/')
+    // slashes, frames have `/D:/src` or `D:/src` on Windows. And the path of the
+    // file URL, frames with one have it encoded, like `#` as `%23`.
+    const src = new URL('../', import.meta.url)
+    this.env.PW_TEST_SRC = fileURLToPath(src).replaceAll('\\', '/')
+    this.env.PW_TEST_SRC_URL = src.pathname
   }
 
   assertOptions() {

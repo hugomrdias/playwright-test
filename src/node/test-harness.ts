@@ -59,12 +59,13 @@ const IGNORE = /^\s*at.*[\s(](?:node:|internal\/[\w/]*)|^\s*at.*\[eval\d*\]/
  * bundle here, the runner removes them when mapping what the page prints.
  */
 function isInternalFrame(line: string) {
-  const src = process.env.PW_TEST_SRC
+  const { PW_TEST_SRC, PW_TEST_SRC_URL } = process.env
+  const frame = line.replaceAll('\\', '/')
   return (
     IGNORE.test(line) ||
-    (src !== undefined &&
-      // File URLs have the path encoded, like spaces as %20
-      [src, encodeURI(src)].some((s) => line.replaceAll('\\', '/').includes(s)))
+    [PW_TEST_SRC, PW_TEST_SRC_URL].some(
+      (src) => src !== undefined && src !== '' && frame.includes(src)
+    )
   )
 }
 

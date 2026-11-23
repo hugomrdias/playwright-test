@@ -26,6 +26,31 @@ function count(text: string, search: string) {
   return text.split(search).length - 1
 }
 
+/**
+ * Set the paths of the runner that `cleanStack` removes, for the length of `fn`.
+ */
+function withSrc(
+  paths: { PW_TEST_SRC: string; PW_TEST_SRC_URL: string },
+  fn: () => void
+) {
+  const previous = {
+    PW_TEST_SRC: process.env.PW_TEST_SRC,
+    PW_TEST_SRC_URL: process.env.PW_TEST_SRC_URL,
+  }
+  Object.assign(process.env, paths)
+  try {
+    fn()
+  } finally {
+    for (const [name, value] of Object.entries(previous)) {
+      if (value === undefined) {
+        delete process.env[name]
+      } else {
+        process.env[name] = value
+      }
+    }
+  }
+}
+
 describe('stack mapper', () => {
   let dir: string
 
@@ -315,20 +340,12 @@ describe('stack traces in node mode', () => {
       '    at node:internal/process/task_queues:1:1',
       '    at [eval1]:7:1',
     ].join('\n')
-    const previous = process.env.PW_TEST_SRC
-    process.env.PW_TEST_SRC = '/src/'
-    try {
+    withSrc({ PW_TEST_SRC: '/src/', PW_TEST_SRC_URL: '/src/' }, () => {
       is(
         cleanStack(error.stack as string),
         'Error: x\n    at nodeHelper (/project/node/helper.js:1:1)'
       )
-    } finally {
-      if (previous === undefined) {
-        delete process.env.PW_TEST_SRC
-      } else {
-        process.env.PW_TEST_SRC = previous
-      }
-    }
+    })
   })
 
   it('removes the frames of the runner in any form of a Windows path', () => {
@@ -340,20 +357,39 @@ describe('stack traces in node mode', () => {
       '    at start (file:///D:/my%20project/src/node/test.ts:1:1)',
       '    at drain (D:\\my project\\src\\node\\test.ts:1:1)',
     ].join('\n')
-    const previous = process.env.PW_TEST_SRC
-    process.env.PW_TEST_SRC = 'D:/my project/src/'
-    try {
-      is(
-        cleanStack(stack),
-        'Error: x\n    at helper (/D:/my project/test.js:1:1)'
-      )
-    } finally {
-      if (previous === undefined) {
-        delete process.env.PW_TEST_SRC
-      } else {
-        process.env.PW_TEST_SRC = previous
+    withSrc(
+      {
+        PW_TEST_SRC: 'D:/my project/src/',
+        PW_TEST_SRC_URL: '/D:/my%20project/src/',
+      },
+      () => {
+        is(
+          cleanStack(stack),
+          'Error: x\n    at helper (/D:/my project/test.js:1:1)'
+        )
       }
-    }
+    )
+  })
+
+  it('removes the frames of the runner in a file URL with escaped characters', () => {
+    const stack = [
+      'Error: x',
+      '    at helper (file:///project%231/test.js:1:1)',
+      '    at invoke (/project#1/dist/node/test.js:1:1)',
+      '    at run (file:///project%231/dist/node/test-harness.js:1:1)',
+    ].join('\n')
+    withSrc(
+      {
+        PW_TEST_SRC: '/project#1/dist/',
+        PW_TEST_SRC_URL: '/project%231/dist/',
+      },
+      () => {
+        is(
+          cleanStack(stack),
+          'Error: x\n    at helper (/project%231/test.js:1:1)'
+        )
+      }
+    )
   })
 })
 
