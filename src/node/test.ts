@@ -203,7 +203,8 @@ function invoke(
 }
 
 /** Tags take part in the expressions of `--experimental-test-tag-filter`. */
-const FORBIDDEN_TAG = /[\s&|!()*]/
+// Only ASCII whitespace, like Node.js
+const FORBIDDEN_TAG = /[\t\n\v\f\r &|!()*]/
 const RESERVED_TAGS = new Set(['and', 'or', 'not'])
 
 function invalidArg(code: string, message: string) {
@@ -223,11 +224,11 @@ function describeReceived(value: unknown) {
       ?.name
     return name ? `an instance of ${name}` : inspect(value, { depth: -1 })
   }
-  let shown = inspect(value, { colors: false })
-  if (shown.length > 28) {
+  let shown = value
+  if (typeof shown === 'string' && shown.length > 28) {
     shown = `${shown.slice(0, 25)}...`
   }
-  return `type ${typeof value} (${shown})`
+  return `type ${typeof value} (${inspect(shown, { colors: false })})`
 }
 
 /**
@@ -242,7 +243,10 @@ function normalizeTags(tags: unknown, inherited: readonly string[] = []) {
     )
   }
   const result = new Set(inherited)
-  for (const [i, tag] of (tags ?? []).entries()) {
+  const list = (tags ?? []) as unknown[]
+  // By index, holes are `undefined` and the array can have its own `entries`
+  for (let i = 0; i < list.length; i++) {
+    const tag = list[i]
     const name = `options.tags[${i}]`
     if (typeof tag !== 'string') {
       throw invalidArg(
@@ -250,7 +254,11 @@ function normalizeTags(tags: unknown, inherited: readonly string[] = []) {
         `The "${name}" property must be of type string. Received ${describeReceived(tag)}`
       )
     }
-    const received = `Received ${inspect(tag, { colors: false })}`
+    let inspected = inspect(tag, { colors: false })
+    if (inspected.length > 128) {
+      inspected = `${inspected.slice(0, 128)}...`
+    }
+    const received = `Received ${inspected}`
     if (tag === '') {
       throw invalidArg(
         'ERR_INVALID_ARG_VALUE',
@@ -272,7 +280,8 @@ function normalizeTags(tags: unknown, inherited: readonly string[] = []) {
     }
     result.add(lowercase)
   }
-  return [...result]
+  // Frozen like in Node.js, the tags of the children are made from them
+  return Object.freeze([...result])
 }
 
 function validateTimeout(
@@ -675,7 +684,7 @@ class Test {
   nesting: number
   only: boolean | undefined
   timeout: number | null
-  tags: string[]
+  tags: readonly string[]
   abortController: AbortController
   outerSignal: AbortSignal | undefined
   signal: AbortSignal
