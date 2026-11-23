@@ -6,7 +6,7 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
 import { watch } from 'chokidar'
-import { BaseRunner } from '../base-runner.ts'
+import { BaseRunner, removeFolder } from '../base-runner.ts'
 import type { Config } from '../types.ts'
 import { EXT } from '../utils/ext.ts'
 import { log, UsageError, withTimeout } from '../utils/index.ts'
@@ -75,7 +75,7 @@ class Workers {
 
   kill() {
     this.signal('SIGKILL')
-    fs.rmSync(this.dir, { recursive: true, force: true })
+    removeFolder(this.dir)
   }
 }
 
