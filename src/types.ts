@@ -13,7 +13,7 @@ export interface RunnerOptions {
   extensions: string
   browser: 'chromium' | 'firefox' | 'webkit'
   debug: boolean
-  mode: 'main' | 'worker' | 'node' | 'workerd'
+  mode: 'browser' | 'web-worker' | 'node' | 'workerd'
   extension: boolean
   assets: string
   sw?: string
@@ -137,7 +137,7 @@ export interface RunnerEnv extends NodeJS.ProcessEnv {
 export interface CliOptions {
   runner?: 'mocha' | 'none' | 'node-test'
   browser: 'chromium' | 'firefox' | 'webkit'
-  mode: 'main' | 'worker' | 'node' | 'workerd'
+  mode: 'browser' | 'web-worker' | 'node' | 'workerd'
   debug: boolean
   extension: boolean
   watch?: boolean

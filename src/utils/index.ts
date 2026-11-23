@@ -97,9 +97,9 @@ export function assertBrowserOptions({
   mode,
   trace,
 }: RunnerOptions) {
-  if (mode !== 'main' && mode !== 'worker') {
+  if (mode !== 'browser' && mode !== 'web-worker') {
     throw new UsageError(
-      `Invalid mode "${mode}", this runner takes "main" or "worker".`
+      `Invalid mode "${mode}", this runner takes "browser" or "web-worker".`
     )
   }
   assertTrace(trace)
@@ -201,7 +201,7 @@ export const defaultOptions: Omit<RunnerOptions, 'testRunner'> = {
   assets: '',
   browser: 'chromium',
   debug: false,
-  mode: 'main', // worker
+  mode: 'browser', // or 'web-worker'
   input: undefined,
   extension: false,
   runner: 'none',

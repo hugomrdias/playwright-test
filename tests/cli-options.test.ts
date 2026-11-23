@@ -206,7 +206,7 @@ describe('runner in the config file', () => {
   const config = ['--config', `${FLOW}/runner-mocha.config.mjs`]
 
   it('picks the runner, without auto detection', async () => {
-    for (const mode of ['main', 'node']) {
+    for (const mode of ['browser', 'node']) {
       const { options, logs } = await resolveCli([
         file,
         ...config,
@@ -310,7 +310,7 @@ describe('the runner classes', () => {
   const test = `${FLOW}/config-runner.js`
 
   for (const [name, RunnerClass, mode] of [
-    ['Runner', Runner, 'main'],
+    ['Runner', Runner, 'browser'],
     ['NodeRunner', NodeRunner, 'node'],
   ] as const) {
     it(`${name} rejects a custom runner`, () => {
@@ -337,7 +337,9 @@ describe('the runner classes', () => {
   it('Runner rejects the mode it does not run', () => {
     throws(
       () => new Runner({ mode: 'node' }, [test]),
-      usageError('Invalid mode "node", this runner takes "main" or "worker".')
+      usageError(
+        'Invalid mode "node", this runner takes "browser" or "web-worker".'
+      )
     )
   })
 })

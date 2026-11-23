@@ -65,8 +65,8 @@ describe('config file', () => {
     is((await resolve(config('firefox'))).browser, 'firefox')
   })
 
-  it('uses mode worker', async () => {
-    is((await resolve(config('worker'))).mode, 'worker')
+  it('uses mode web-worker', async () => {
+    is((await resolve(config('web-worker'))).mode, 'web-worker')
   })
 
   it('uses mode node', async () => {
@@ -78,7 +78,10 @@ describe('config file', () => {
       (await resolve([...config('firefox'), '--browser', 'chromium'])).browser,
       'chromium'
     )
-    is((await resolve([...config('node'), '--mode', 'main'])).mode, 'main')
+    is(
+      (await resolve([...config('node'), '--mode', 'browser'])).mode,
+      'browser'
+    )
   })
 
   it('gets the cli defaults in a function', async () => {
@@ -89,7 +92,7 @@ describe('config file', () => {
     const file = write(`export default function config(cli) {
   globalThis.receivedCliOptions = cli
   return {
-    mode: 'main',
+    mode: 'browser',
     testNamePattern: 'beta',
   }
 }

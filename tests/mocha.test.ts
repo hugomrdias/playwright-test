@@ -28,8 +28,8 @@ describe('mocha', { concurrency: TEST_CONCURRENCY }, () => {
     ok(proc.stdout.includes('app test pass'), 'debug output')
   })
 
-  it('mode:worker', async () => {
-    const proc = await runCli(['mocks/test.mocha.js', '--mode', 'worker'])
+  it('mode:web-worker', async () => {
+    const proc = await runCli(['mocks/test.mocha.js', '--mode', 'web-worker'])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('passing'), 'process stdout')

@@ -29,7 +29,7 @@ Description
   Options
     -r, --runner           Test runner. Options: mocha, node-test and none, which only loads the files and is for scripts like benchmarks. Autodetected by default, see [auto detection](#runner-auto-detection).
     -b, --browser          Browser to run tests. Options: chromium, firefox, webkit.  (default chromium)
-    -m, --mode             Run mode. Options: main, worker, node and workerd.  (default main)
+    -m, --mode             Run mode. Options: browser, web-worker, node and workerd.  (default browser)
     -d, --debug            Debug mode, keeps browser window open.  (default false)
     -w, --watch            Watch files for changes and re-run tests.
     -e, --extension        Use extension background_page to run tests.  (default false)
@@ -50,7 +50,7 @@ Description
   Examples
     $ playwright-test test.js --runner mocha
     $ playwright-test test --debug
-    $ playwright-test "test/**/*.spec.js" --browser webkit --mode worker --debug
+    $ playwright-test "test/**/*.spec.js" --browser webkit --mode web-worker --debug
 
   Runner Options
     Everything else a runner takes goes in the config file, under `testRunner.options`.
@@ -149,7 +149,7 @@ The http server of `--assets` runs as in the other modes, tests fetch its files 
 
 ## `node:test` API
 
-`playwright-test/node-test` is an implementation of the [`node:test`](https://nodejs.org/api/test.html) API, so the same test file runs in real browsers (main thread and worker modes) and in Node.
+`playwright-test/node-test` is an implementation of the [`node:test`](https://nodejs.org/api/test.html) API, so the same test file runs in real browsers (`browser` and `web-worker` modes) and in Node.
 
 ```js
 import { strict as assert } from 'assert'
@@ -188,7 +188,7 @@ Run it with the `node-test` runner, it's also autodetected from an import of `no
 
 ```shell
 playwright-test "test/**/*.test.js" --runner node-test
-playwright-test "test/**/*.test.js" --runner node-test --mode worker
+playwright-test "test/**/*.test.js" --runner node-test --mode web-worker
 playwright-test "test/**/*.test.js" --runner node-test --mode node
 ```
 
@@ -330,7 +330,7 @@ This client package exposes the `playwright-test` options, some Playwright brows
 import * as Client from 'playwright-test/client'
 
 it('should setoffline', async () => {
-  if (Client.mode === 'main' && Client.options.extension === false) {
+  if (Client.mode === 'browser' && Client.options.extension === false) {
     globalThis.addEventListener('offline', () => {
       console.log('offlineee')
     })
@@ -342,7 +342,7 @@ it('should setoffline', async () => {
 })
 
 it('should geolocation', async () => {
-  if (Client.mode === 'main') {
+  if (Client.mode === 'browser') {
     const deferred = pdefer()
     await Client.context.setGeolocation({
       latitude: 59.95,
@@ -368,7 +368,7 @@ it('should geolocation', async () => {
 - `setExtraHTTPHeaders`
 - `addCookies`, `cookies`, `clearCookies`
 
-They also work with `--mode worker`, the worker asks the page to call them. In `node` and `workerd` modes `setOffline` does nothing and the others reject, there's no browser to set or read anything in.
+They also work with `--mode web-worker`, the worker asks the page to call them. In `node` and `workerd` modes `setOffline` does nothing and the others reject, there's no browser to set or read anything in.
 
 ### Trusted input
 
@@ -394,7 +394,7 @@ it('counts as user activation', async () => {
 - `page.click(selector, options)`, Playwright's [`page.click`](https://playwright.dev/docs/api/class-page#page-click). It waits for the element to be visible and stable, up to the `timeout` option, 30 seconds by default. It takes the options of Playwright except `signal`, an `AbortSignal` can't be sent to the runner.
 - `page.keyboard.press(key, options)` and `page.keyboard.type(text, options)`, Playwright's [`keyboard`](https://playwright.dev/docs/api/class-keyboard). They go to the focused element.
 
-The input always goes to the test page, the popup with `--extension`. With `--mode worker` it still goes to the page that started the worker, so it can click what the page shows, but the worker can't see the events or get the user activation, workers have none. In `node` and `workerd` modes they reject.
+The input always goes to the test page, the popup with `--extension`. With `--mode web-worker` it still goes to the page that started the worker, so it can click what the page shows, but the worker can't see the events or get the user activation, workers have none. In `node` and `workerd` modes they reject.
 
 Only these are there, not the rest of Playwright's `Page`, like `mouse`, `touchscreen`, `fill` or locators. Tests run in the page and can do most of it themselves, what they can't is trusted input.
 
@@ -523,7 +523,7 @@ The config file can also export a function that receives the cli options as argu
 function buildConfig(cliOptions) {
   return {
     buildConfig: {
-      minify: cliOptions.mode === 'worker',
+      minify: cliOptions.mode === 'web-worker',
     },
   }
 }

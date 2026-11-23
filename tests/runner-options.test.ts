@@ -25,7 +25,7 @@ describe('runner options', () => {
     ['does not match', []],
   ]
 
-  for (const mode of ['node', 'main']) {
+  for (const mode of ['node', 'browser']) {
     describe(`--mode ${mode}`, { concurrency: TEST_CONCURRENCY }, () => {
       // node:test patterns are in node-test-runner.test.ts
       for (const [pattern, expected] of patterns) {

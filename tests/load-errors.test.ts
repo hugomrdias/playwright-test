@@ -16,7 +16,7 @@ describe('errors while the tests load', {
   const throws = 'mocks/load-errors/throws.test.js'
 
   for (const runner of ['mocha', 'node-test', 'none']) {
-    for (const mode of ['main', 'worker', 'node']) {
+    for (const mode of ['browser', 'web-worker', 'node']) {
       it(`fails the run with --runner ${runner} --mode ${mode}`, async () => {
         const proc = await run(throws, ['--runner', runner, '--mode', mode])
 
@@ -29,7 +29,7 @@ describe('errors while the tests load', {
   }
 
   for (const browser of ['firefox', 'webkit']) {
-    for (const mode of ['main', 'worker']) {
+    for (const mode of ['browser', 'web-worker']) {
       it(`fails the run with --browser ${browser} --mode ${mode}`, async () => {
         const proc = await run(throws, [
           '--runner',
@@ -58,7 +58,7 @@ describe('errors while the tests load', {
     ok(proc.stderr.includes('SyntaxError'), proc.stderr)
   })
 
-  for (const mode of ['main', 'worker']) {
+  for (const mode of ['browser', 'web-worker']) {
     it(`leaves uncaught errors after loading to the tests with --mode ${mode}`, async () => {
       const proc = await run('mocks/load-errors/after-load.test.js', [
         '--runner',
@@ -76,7 +76,7 @@ describe('errors while the tests load', {
 describe('projects with type commonjs', {
   concurrency: TEST_CONCURRENCY,
 }, () => {
-  for (const mode of ['main', 'worker']) {
+  for (const mode of ['browser', 'web-worker']) {
     it(`runs node-test with --mode ${mode}`, async () => {
       const proc = await run('mocks/commonjs/node-test.test.js', [
         '--runner',

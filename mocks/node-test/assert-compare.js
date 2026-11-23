@@ -148,7 +148,7 @@ if (flags.length === 0) {
   // The browser implementation running in Node.js, without a browser or a bundle.
   runs.push(collect(fixture('polyfill')).then((res) => ['node', res]))
 }
-for (const mode of ['main', 'worker']) {
+for (const mode of ['browser', 'web-worker']) {
   runs.push(
     collect(fixture('entrypoint'), [
       '--runner',

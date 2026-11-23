@@ -23,7 +23,7 @@ describe('playwright-test/client', { concurrency: TEST_CONCURRENCY }, () => {
   })
 
   // browsers.test.ts runs them in the other browsers
-  for (const mode of ['main', 'worker']) {
+  for (const mode of ['browser', 'web-worker']) {
     it(`calls the browser context with --mode ${mode}`, async () => {
       await run(['mocks/client/context.test.js', '--mode', mode])
     })
@@ -32,7 +32,7 @@ describe('playwright-test/client', { concurrency: TEST_CONCURRENCY }, () => {
       const proc = await run(['mocks/client/page.test.js', '--mode', mode])
 
       // The worker can't see the page, it only checks the calls make it there
-      is(proc.stdout.includes('skipped 2'), mode === 'worker', proc.stdout)
+      is(proc.stdout.includes('skipped 2'), mode === 'web-worker', proc.stdout)
     })
   }
 

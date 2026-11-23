@@ -155,9 +155,9 @@ function validateTestOptions({
 
 function validateOptions(options: RunnerOptions) {
   const { mode, trace } = options
-  if (!['main', 'worker', 'node', 'workerd'].includes(mode)) {
+  if (!['browser', 'web-worker', 'node', 'workerd'].includes(mode)) {
     throw new UsageError(
-      `Invalid mode "${mode}", expected "main", "worker", "node" or "workerd".`
+      `Invalid mode "${mode}", expected "browser", "web-worker", "node" or "workerd".`
     )
   }
   if (Array.isArray(trace) || !TRACE_VALUES.includes(trace)) {
@@ -225,7 +225,7 @@ function program() {
     ${colors.dim('$ playwright-test test.js --runner mocha')}
     ${colors.dim('$ playwright-test test --debug')}
     ${colors.dim(
-      '$ playwright-test "test/**/*.spec.js" --browser webkit --mode worker --debug'
+      '$ playwright-test "test/**/*.spec.js" --browser webkit --mode web-worker --debug'
     )}
 
   ${colors.bold('Runner Options')}
@@ -268,7 +268,7 @@ function program() {
     )
     .option(
       '-m, --mode',
-      `Run mode. Options: main, worker, node and workerd.  (default ${cliDefaults.mode})`
+      `Run mode. Options: browser, web-worker, node and workerd.  (default ${cliDefaults.mode})`
     )
     .option(
       '-d, --debug',

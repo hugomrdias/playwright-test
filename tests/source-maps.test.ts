@@ -403,7 +403,7 @@ for (const browser of ['chromium', 'firefox', 'webkit']) {
   }, () => {
     const flags = ['--browser', browser]
 
-    for (const mode of ['main', 'worker']) {
+    for (const mode of ['browser', 'web-worker']) {
       it(`mocha points at the source without its own frames in ${mode}`, async () => {
         const proc = await runCli(
           [
@@ -477,7 +477,7 @@ for (const browser of ['chromium', 'firefox', 'webkit']) {
       is(count(proc.stderr, 'console.js:3:'), 1, proc.stderr)
     })
 
-    for (const mode of ['main', 'worker']) {
+    for (const mode of ['browser', 'web-worker']) {
       it(`stack traces written as bytes in ${mode}`, async () => {
         const proc = await runCli([
           'mocks/source-maps/bytes.js',

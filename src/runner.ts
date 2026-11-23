@@ -396,7 +396,7 @@ export class Runner extends BaseRunner {
 
     // Choose the mode
     const loader = `load.js?entry=${outName}`
-    if (this.options.mode === 'worker') {
+    if (this.options.mode === 'web-worker') {
       await page.evaluate(addWorker(loader))
     } else {
       await page.addScriptTag({ url: loader, type: 'module' })

@@ -28,7 +28,7 @@ for (const browser of ['firefox', 'webkit']) {
         '--runner',
         'node-test',
         '--mode',
-        'worker',
+        'web-worker',
         ...flags,
       ],
       'client page input': [

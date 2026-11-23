@@ -23,7 +23,7 @@ export const server: string = env.PW_SERVER
 // The bindings only exist in pages, the worker running the tests asks the page
 // that started it, see `addWorker`
 const inTestWorker =
-  mode === 'worker' && 'DedicatedWorkerGlobalScope' in globalThis
+  mode === 'web-worker' && 'DedicatedWorkerGlobalScope' in globalThis
 
 /**
  * Call a binding of the runner, from the page or the worker running the tests.
@@ -135,7 +135,7 @@ export const context: Pick<
  * Playwright Test page
  *
  * Trusted input on the test page, what user activation needs. With `--mode
- * worker` it still goes to the page that started the worker.
+ * web-worker` it still goes to the page that started the worker.
  */
 export const page: ClientPage = {
   click(selector, options) {

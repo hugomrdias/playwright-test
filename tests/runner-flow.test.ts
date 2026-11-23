@@ -58,7 +58,7 @@ function runFlow(name: string, args: string[] = [], options: RunOptions = {}) {
 
 describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
   describe('uncaught errors in the page', { concurrency: false }, () => {
-    for (const mode of ['main', 'worker']) {
+    for (const mode of ['browser', 'web-worker']) {
       it(`fail a run where mocha passes with mode:${mode}`, async () => {
         const proc = await run([
           `${FLOW}/rejection.mocha.js`,
@@ -197,8 +197,8 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
     const env = { FLOW_ENV: 'flow-env-value' }
 
     for (const args of [
-      ['--mode', 'main'],
-      ['--mode', 'worker'],
+      ['--mode', 'browser'],
+      ['--mode', 'web-worker'],
       ['--extension'],
     ]) {
       it(`has the env and PW_SERVER with ${args.join(' ')}`, async () => {
@@ -216,7 +216,7 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
       })
     }
 
-    for (const mode of ['main', 'worker']) {
+    for (const mode of ['browser', 'web-worker']) {
       it(`has what beforeTests added to the env with mode:${mode}`, async () => {
         const proc = await runFlow(
           'env.js',
@@ -239,7 +239,7 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
     }
   })
 
-  for (const mode of ['main', 'node']) {
+  for (const mode of ['browser', 'node']) {
     describe(`afterTests with mode:${mode}`, { concurrency: false }, () => {
       const runHook = (config: string, options?: RunOptions) =>
         runFlow(
@@ -301,7 +301,7 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
   }
 
   describe('afterTests when stopped', { concurrency: false }, () => {
-    for (const mode of ['main', 'node']) {
+    for (const mode of ['browser', 'node']) {
       it(`waits for a beforeTests hook still running with mode:${mode}`, {
         skip: process.platform === 'win32',
       }, async () => {
@@ -522,7 +522,7 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
             timeout: 30_000,
           }
         )
-      const mode = className === 'Runner' ? 'main' : 'node'
+      const mode = className === 'Runner' ? 'browser' : 'node'
 
       it(`${className} takes the name of a runner`, async () => {
         const proc = await runScript(`{ runner: 'mocha', mode: '${mode}' }`)
@@ -612,7 +612,7 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
   })
 
   describe('messages', { concurrency: false }, () => {
-    for (const mode of ['main', 'worker', 'node']) {
+    for (const mode of ['browser', 'web-worker', 'node']) {
       it(`prints nothing of its own on a passing run with mode:${mode}`, async () => {
         const proc = await runFlow('pass.js', ['--mode', mode])
 
@@ -659,7 +659,7 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
   })
 
   describe('process.stdout.write', { concurrency: false }, () => {
-    for (const mode of ['main', 'worker']) {
+    for (const mode of ['browser', 'web-worker']) {
       it(`calls back and returns true with mode:${mode}`, async () => {
         const proc = await runFlow('stdout-callback.js', [
           '--mode',

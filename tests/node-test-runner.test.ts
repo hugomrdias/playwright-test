@@ -5,7 +5,7 @@ import fs from 'fs'
 import { runCli, TEST_CONCURRENCY } from './helpers.ts'
 
 describe('node:test runner', () => {
-  const modes = ['node', 'main', 'worker']
+  const modes = ['node', 'browser', 'web-worker']
   const fixture = (name: string) => `mocks/node-test-runner/${name}.test.js`
 
   const run = (
@@ -104,7 +104,7 @@ describe('node:test runner', () => {
   })
 
   // The real node:test in node mode, the shim in browsers, the same in main and worker
-  for (const mode of ['node', 'main']) {
+  for (const mode of ['node', 'browser']) {
     describe(`--test-name-pattern with --mode ${mode}`, {
       concurrency: TEST_CONCURRENCY,
     }, () => {
@@ -231,7 +231,7 @@ describe('node:test runner', () => {
     })
 
     let count = 0
-    for (const mode of ['node', 'main']) {
+    for (const mode of ['node', 'browser']) {
       for (const [name, source, exitCode] of cases) {
         it(`${mode} ${name}`, async () => {
           const file = `${dir}/${count++}.test.js`
@@ -268,7 +268,7 @@ describe('node:test runner', () => {
   })
 
   it('a reporter from the config file changes nothing in browsers', async () => {
-    const proc = await run('pass', 'main', [
+    const proc = await run('pass', 'browser', [
       '--runner',
       'node-test',
       '--config',
