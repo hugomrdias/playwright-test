@@ -50,7 +50,10 @@ export function runEachFile(options: EachFile): EachFileRun {
   // One at a time they can print as they go, and keep their TTY
   const stdio = Math.min(concurrency, files.length) > 1 ? 'pipe' : 'inherit'
   const running = new Set<ChildProcess>()
+  // Ended by the run, even if they exit with 0 on SIGTERM
   const ended = new WeakSet<ChildProcess>()
+  // Their tests are done, what they started may still hold their output
+  const exited = new WeakSet<ChildProcess>()
   const results: (FileResult | undefined)[] = []
   let next = 0
   let printed = 0
@@ -85,16 +88,19 @@ export function runEachFile(options: EachFile): EachFileRun {
       child.once('error', (error) => {
         log.error(`Could not start tests: ${error.message}`)
       })
+      child.once('exit', () => exited.add(child))
       child.once('close', (code) => {
         running.delete(child)
-        const passed = code === 0
-        resolve({ passed, cancelled: !passed && ended.has(child), output })
+        const cancelled = ended.has(child)
+        resolve({ passed: code === 0 && !cancelled, cancelled, output })
       })
     })
 
   const endAll = () => {
     for (const child of running) {
-      ended.add(child)
+      if (!exited.has(child)) {
+        ended.add(child)
+      }
       killTree(child)
     }
   }

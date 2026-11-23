@@ -331,7 +331,7 @@ function program() {
     )
     .option(
       '--test-isolation',
-      'How test files are isolated: process runs each file on its own, none runs them together. Only node-test in --mode node supports process for now.  (default process)'
+      'How test files are isolated: process runs each file on its own, none runs them together. Only --mode node supports process for now.  (default process)'
     )
     .option(
       '--test-concurrency',

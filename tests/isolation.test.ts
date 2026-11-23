@@ -103,6 +103,40 @@ describe('--test-isolation process in node mode', {
     ok(noBail.stdout.includes('ℹ cancelled 0'), output(noBail))
   })
 
+  it('a file ended by bail is cancelled, even if it exits with 0', async () => {
+    const proc = await run(
+      'mocha',
+      ['mocha-fails', 'mocha-sigterm'],
+      ['--test-concurrency', '2']
+    )
+
+    is(proc.exitCode, 1, output(proc))
+    ok(proc.stdout.includes('ℹ pass 0'), output(proc))
+    ok(proc.stdout.includes('ℹ cancelled 1'), output(proc))
+  })
+
+  it('mocha prints all of its output before it exits', async () => {
+    const proc = await run(
+      'mocha',
+      ['mocha-big', 'mocha-a'],
+      ['--test-concurrency', '2']
+    )
+
+    is(proc.exitCode, 0, output(proc))
+    ok(proc.stdout.includes('MOCHA BIG END'), proc.stdout.slice(-2000))
+  })
+
+  it('mocha .only filters its own file, all of them with none', async () => {
+    const files = ['mocha-only', 'mocha-fails']
+    const [isolated, together] = await Promise.all([
+      run('mocha', files),
+      run('mocha', files, ['--test-isolation', 'none']),
+    ])
+
+    is(isolated.exitCode, 1, output(isolated))
+    is(together.exitCode, 0, output(together))
+  })
+
   it('a run timeout ends every file', async () => {
     const proc = await run(
       'mocha',
