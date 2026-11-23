@@ -36,10 +36,6 @@ describe('playwright-test/client', { concurrency: TEST_CONCURRENCY }, () => {
     })
   }
 
-  it('sends trusted input to the popup with --extension', async () => {
-    await run(['mocks/client/page.test.js', '--extension'])
-  })
-
   it('rejects without a browser with --mode node', async () => {
     await run(['mocks/client/node.test.js', '--mode', 'node'])
   })

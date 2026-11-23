@@ -346,10 +346,8 @@ export class WorkerdRunner extends BaseRunner {
         'Tracing records the browser, it does not work with --mode workerd.'
       )
     }
-    for (const option of ['sw', 'extension'] as const) {
-      if (this.options[option]) {
-        throw new UsageError(`--${option} does not work in the workerd mode.`)
-      }
+    if (this.options.sw) {
+      throw new UsageError('--sw does not work in the workerd mode.')
     }
   }
 

@@ -35,12 +35,6 @@ describe('mocha', { concurrency: TEST_CONCURRENCY }, () => {
     ok(proc.stdout.includes('passing'), 'process stdout')
   })
 
-  it('mocha extension', async () => {
-    const proc = await runCli(['mocks/test.mocha.js', '--extension'])
-    is(proc.exitCode, 0, 'exit code')
-    ok(proc.stdout.includes('passing'), 'process stdout')
-  })
-
   // Function configs are in config.test.ts
   for (const config of ['sw.config.cjs', 'sw.promise.config.mjs']) {
     it(`--sw from ${config}`, async () => {

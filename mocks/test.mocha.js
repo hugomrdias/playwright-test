@@ -45,7 +45,7 @@ describe('Array', () => {
     })
 
     it('should setoffline', async () => {
-      if (Client.mode === 'browser' && Client.options.extension === false) {
+      if (Client.mode === 'browser') {
         globalThis.addEventListener('offline', () => {
           // biome-ignore lint/suspicious/noConsole: reason
           console.log('offlineee')

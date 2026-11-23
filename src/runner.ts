@@ -116,10 +116,7 @@ export class Runner extends BaseRunner {
   async setupContext() {
     const { launchOptions = {} } = this.options
     const headless = launchOptions.headless ?? !this.options.debug
-    // optin to new chromium headless for extension testing
-    // https://github.com/microsoft/playwright/issues/33566
-    const channel =
-      launchOptions.channel ?? (this.options.extension ? 'chromium' : undefined)
+    const { channel } = launchOptions
 
     // Assign server immediately on listen so cleanup still closes it if another
     // parallel setup step (like invalid browser validation) rejects.
@@ -134,7 +131,7 @@ export class Runner extends BaseRunner {
       return { server, url }
     })
 
-    const copied = cp(path.join(__dirname, './../static'), this.dir, {
+    const copied = cp(path.join(__dirname, './../static'), this.files, {
       recursive: true,
     })
     const pwPromise = getPw(this.options.browser, {
@@ -150,12 +147,6 @@ export class Runner extends BaseRunner {
       // It ends this process once the browser closes, see `handleExit`
       handleSIGINT: false,
       args: [
-        ...(this.options.extension
-          ? [
-              `--disable-extensions-except=${this.#extension()}`,
-              `--load-extension=${this.#extension()}`,
-            ]
-          : []),
         ...(this.options.browser === 'chromium' && this.options.debug
           ? ['--auto-open-devtools-for-tabs']
           : []),
@@ -163,15 +154,11 @@ export class Runner extends BaseRunner {
       ],
     }
 
-    // The browser starts while the files get copied and the server starts,
-    // only the extension it loads has to be copied first. Not once the run
-    // stopped, another step can fail while Playwright is still getting ready.
-    // `stopTests` waits for a browser that's already starting.
+    // The browser starts while the files get copied and the server starts. Not
+    // once the run stopped, another step can fail while Playwright is still
+    // getting ready. `stopTests` waits for a browser that's already starting.
     // Deleted with the files of the run once the browser is gone.
-    const launching = Promise.all([
-      pwPromise,
-      this.options.extension ? copied : undefined,
-    ]).then(([pw]) => {
+    const launching = pwPromise.then((pw) => {
       if (this.stopped) {
         throw new Error('The run stopped before the browser started')
       }
@@ -194,14 +181,14 @@ export class Runner extends BaseRunner {
     })
 
     // Only Chromium reports service workers, the others keep their output.
-    // Extension service workers can already be running before tracing starts.
+    // The ones of an extension loaded with `launchOptions.args` can already be
+    // running, and get reported again with the event.
     const trackedWorkers: WeakSet<Worker> = new WeakSet()
     const trackServiceWorker = (worker: Worker) => {
-      if (trackedWorkers.has(worker)) {
-        return
+      if (!trackedWorkers.has(worker)) {
+        trackedWorkers.add(worker)
+        worker.on('console', this.#onConsole)
       }
-      trackedWorkers.add(worker)
-      worker.on('console', this.#onConsole)
     }
     this.context.on('serviceworker', trackServiceWorker)
     for (const worker of this.context.serviceWorkers()) {
@@ -299,44 +286,8 @@ export class Runner extends BaseRunner {
    * Setup Page
    */
   async setupPage(context: Context) {
-    if (this.options.extension) {
-      let [serviceWorker] = context.serviceWorkers()
-      if (!serviceWorker)
-        serviceWorker = await context.waitForEvent('serviceworker')
-
-      const extensionId = serviceWorker.url().split('/')[2]
-      this.page = context.pages()[0]
-      await this.page.goto(`chrome-extension://${extensionId}/tests/popup.html`)
-
-      if (this.options.debug) {
-        // Open the devtools of the extension service worker. It's only a
-        // convenience, so when chrome://extensions changes it warns and goes on.
-        // Locators pierce the open shadow roots of that page.
-        const extPage = await context.newPage()
-        try {
-          await extPage.goto(`chrome://extensions/?id=${extensionId}`)
-          // The toggle is a switch or a button depending on the Chrome version
-          const devMode = extPage.locator('#devMode')
-          await devMode.waitFor({ timeout: 5000 })
-          const on =
-            (await devMode.getAttribute('aria-checked')) ??
-            (await devMode.getAttribute('aria-pressed'))
-          if (on !== 'true') {
-            await devMode.click({ timeout: 5000 })
-          }
-          await extPage
-            .getByRole('link', { name: /service worker/i })
-            .click({ timeout: 5000 })
-        } catch {
-          log.warn(
-            `Could not open the extension service worker devtools, open chrome://extensions/?id=${extensionId} and click "service worker" by hand.`
-          )
-        }
-      }
-    } else {
-      this.page = context.pages()[0]
-      await this.page.goto(this.url)
-    }
+    this.page = context.pages()[0]
+    await this.page.goto(this.url)
 
     // Setup page events
     this.page.on('console', this.#onConsole)
@@ -905,18 +856,10 @@ export class Runner extends BaseRunner {
   }
 
   /**
-   * The folder Chromium loads as an extension with `--extension`
-   */
-  #extension() {
-    return path.join(this.dir, 'extension')
-  }
-
-  /**
-   * The files of the tests, the bundles and the env. Served, and in the
-   * extension for its page to load them.
+   * The files of the tests, the bundles and the env, served to the page.
    */
   get files() {
-    return path.join(this.#extension(), 'tests')
+    return path.join(this.dir, 'tests')
   }
 
   /**

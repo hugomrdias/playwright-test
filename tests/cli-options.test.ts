@@ -5,8 +5,6 @@ import {
   rejects,
   throws,
 } from 'node:assert/strict'
-import os from 'node:os'
-import path from 'node:path'
 import { describe, it } from 'node:test'
 import { NodeRunner } from '../src/node/runner.ts'
 import { Runner } from '../src/runner.ts'
@@ -44,13 +42,13 @@ async function rejectsRunner(args: string[], message: string) {
 describe('cli flags', () => {
   it('keeps files after boolean flags', async () => {
     const { options, testFiles } = await resolveCli([
-      '--extension',
+      '--debug',
       'mocks/config/where.js',
       '--runner',
       'none',
     ])
 
-    is(options.extension, true)
+    is(options.debug, true)
     equal(options.input, ['mocks/config/where.js'])
     is(testFiles.length, 1)
   })
@@ -129,6 +127,12 @@ describe('cli usage errors', () => {
       '--timeout is an unknown option',
       ['--timeout', '100'],
       'Unknown option --timeout',
+    ],
+    // Removed in v16
+    [
+      '--extension is an unknown option',
+      ['--extension'],
+      'Unknown option --extension',
     ],
     [
       'an invalid --test-name-pattern after a valid one',
@@ -252,50 +256,26 @@ describe('options the runners reject', () => {
     })
   }
 
+  for (const mode of ['browser', 'node', 'workerd']) {
+    it(`the removed extension option in the config file with --mode ${mode}`, async () => {
+      await rejectsRunner(
+        [
+          `${FLOW}/pass.js`,
+          '--config',
+          `${FLOW}/extension.config.mjs`,
+          '--mode',
+          mode,
+        ],
+        'The extension option was removed in v16'
+      )
+    })
+  }
+
   it('a custom runner in the config file', async () => {
     await rejectsRunner(
       [`${FLOW}/pass.js`, '--config', `${FLOW}/custom-runner.config.mjs`],
       'Custom test runners are not'
     )
-  })
-
-  it('an extension in another browser', async () => {
-    await rejectsRunner(
-      [
-        `${FLOW}/pass.js`,
-        '--runner',
-        'none',
-        '--extension',
-        '--browser',
-        'firefox',
-      ],
-      'only supported in chromium'
-    )
-  })
-
-  it('an extension with a comma in the temp folder', async () => {
-    // Which one os.tmpdir() reads depends on the platform
-    const names = ['TMPDIR', 'TMP', 'TEMP']
-    const previous = names.map((name) => process.env[name])
-    const temp = path.join(os.tmpdir(), 'a,b')
-    for (const name of names) {
-      process.env[name] = temp
-    }
-    try {
-      await rejectsRunner(
-        [`${FLOW}/pass.js`, '--runner', 'none', '--extension'],
-        "Chromium doesn't take paths with a comma"
-      )
-    } finally {
-      names.forEach((name, index) => {
-        const value = previous[index]
-        if (value === undefined) {
-          delete process.env[name]
-        } else {
-          process.env[name] = value
-        }
-      })
-    }
   })
 
   it('browser only options in workerd mode', async () => {

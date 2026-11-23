@@ -8,11 +8,10 @@ import { isFrame, removeInternalFrames } from './stack-frames.ts'
  * A position in one of our bundles, in any browser's stack format. Matching the
  * text of the position instead of the frame covers `at fn (url:1:2)` and
  * `fn@url:1:2`. Mocha removes the page's url from V8 frames, leaving
- * `at fn (bundle-out.js:1:2)`. The server has them at its root, the extension
- * in its `tests` folder.
+ * `at fn (bundle-out.js:1:2)`. The server has them at its root.
  */
 const POSITION =
-  /(?<![\w./-])(?:chrome-extension:\/\/[^\s()/]+\/tests\/|[a-z][\w+.-]*:\/\/[^\s()/]+\/)?((?:bundle|sw)-out\.js):(\d+):(\d+)/g
+  /(?<![\w./-])(?:[a-z][\w+.-]*:\/\/[^\s()/]+\/)?((?:bundle|sw)-out\.js):(\d+):(\d+)/g
 const INLINE_MAP = 'sourceMappingURL=data:application/json;base64,'
 
 // The filters of the test runners run in the page, where they only see bundles
