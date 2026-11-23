@@ -783,20 +783,30 @@ export class Runner extends BaseRunner {
     // run. With its own wait, where it goes can be slow.
     const copy = `${file}.${process.pid}.tmp`
     let timer: NodeJS.Timeout | undefined
+    let timedOut = false
     const copied = await Promise.race([
       fs.promises
         .copyFile(trace.file, copy)
-        .then(() => fs.promises.rename(copy, file))
+        .then(() => {
+          // Too late, another run may have kept its trace there since
+          if (timedOut) {
+            return fs.promises.rm(copy, { force: true }).then(() => false)
+          }
+          return fs.promises.rename(copy, file).then(() => true)
+        })
         .then(
-          () => true,
+          (renamed) => renamed,
           (error: Error) => {
             fs.promises.rm(copy, { force: true }).catch(noop)
             log.warn(`Could not save the trace: ${error.message}`)
             return undefined
           }
         ),
-      new Promise((resolve) => {
-        timer = setTimeout(resolve, TRACE_WAIT, false)
+      new Promise<false>((resolve) => {
+        timer = setTimeout(() => {
+          timedOut = true
+          resolve(false)
+        }, TRACE_WAIT)
       }),
     ])
     clearTimeout(timer)
