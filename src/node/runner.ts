@@ -9,7 +9,7 @@ import { watch } from 'chokidar'
 import { BaseRunner } from '../base-runner.ts'
 import type { Config } from '../types.ts'
 import { EXT } from '../utils/ext.ts'
-import { createPolka, log, UsageError, withTimeout } from '../utils/index.ts'
+import { log, UsageError, withTimeout } from '../utils/index.ts'
 import { toPatterns } from '../utils/name-pattern.ts'
 import {
   FORCE_KILL_DELAY,
@@ -18,6 +18,7 @@ import {
   killTree,
   withLocalBins,
 } from '../utils/process.ts'
+import { startServer } from '../utils/server.ts'
 import { runEachFile } from './each-file.ts'
 
 // What a killed subprocess gets after its forced kill, to end
@@ -125,7 +126,7 @@ export class NodeRunner extends BaseRunner {
 
   async #setupServer() {
     // setup http server
-    const { server, url } = await createPolka(
+    const { server, url } = await startServer(
       this.dir,
       this.options.cwd,
       this.options.assets

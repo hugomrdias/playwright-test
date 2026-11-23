@@ -22,7 +22,6 @@ import {
   addWorker,
   assertBrowserOptions,
   build,
-  createPolka,
   defaultOptions,
   getPw,
   log,
@@ -30,6 +29,7 @@ import {
   withTimeout,
   writeEnv,
 } from './utils/index.ts'
+import { startServer } from './utils/server.ts'
 import { createStackMapper } from './utils/stack-map.ts'
 
 export type { BrowserContext as Context, Page } from 'playwright-core'
@@ -120,7 +120,7 @@ export class Runner extends BaseRunner {
 
     // Assign server immediately on listen so cleanup still closes it if another
     // parallel setup step (like invalid browser validation) rejects.
-    const serverPromise = createPolka(
+    const serverPromise = startServer(
       this.files,
       this.options.cwd,
       this.options.assets
