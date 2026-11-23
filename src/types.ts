@@ -43,9 +43,10 @@ export interface RunnerOptions {
   /**
    * Only run tests whose name matches this regular expression, or
    * `/expression/flags`. Each test is matched by its own name, the name of its
-   * ancestors and all of those names joined by a space.
+   * ancestors and all of those names joined by a space. With several patterns a
+   * test runs when it matches any of them.
    */
-  testNamePattern?: string
+  testNamePattern?: string | string[]
   /**
    * Timeout in milliseconds for tests without their own, `0` for none.
    */
@@ -140,7 +141,7 @@ export interface CliOptions {
   runTimeout?: number
   /** `''` when the flag has no value */
   trace?: string
-  testNamePattern?: string
+  testNamePattern?: string | string[]
   testTimeout?: number
   config?: string
 }

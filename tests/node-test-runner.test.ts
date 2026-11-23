@@ -131,6 +131,26 @@ describe('node:test runner', () => {
         'other hook',
       ]
 
+      it('more than one pattern runs what matches any', async () => {
+        const proc = await run('grep', mode, [
+          '--runner',
+          'node-test',
+          '--test-name-pattern',
+          '^beta$',
+          '--test-name-pattern',
+          '/GAMMA/i',
+        ])
+
+        is(proc.exitCode, 0, output(proc))
+        for (const name of all) {
+          is(
+            proc.stdout.includes(name),
+            ['beta', 'gamma', 'other hook'].includes(name),
+            `${name} in:\n${proc.stdout}`
+          )
+        }
+      })
+
       for (const [pattern, expected] of patterns) {
         it(pattern, async () => {
           const proc = await run('grep', mode, [

@@ -2,7 +2,7 @@ import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import type { TestRunner } from './types.ts'
 import { EXT } from './utils/ext.ts'
-import { toRegExp } from './utils/name-pattern.ts'
+import { toPatterns, toRegExp } from './utils/name-pattern.ts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -24,6 +24,21 @@ if (webStorage) {
 }
 globalThis.location={}
 `
+
+/**
+ * The `grep` of mocha for `--test-name-pattern`, the one from its options without
+ * it. It only takes one, but anything with a `test` method works for several.
+ */
+function mochaGrep(testNamePattern: string | string[] | undefined) {
+  const patterns = toPatterns(testNamePattern).map((p) => String(toRegExp(p)))
+  if (patterns.length === 0) {
+    return 'grep'
+  }
+  if (patterns.length === 1) {
+    return patterns[0]
+  }
+  return `{ test: (title) => [${patterns.join(', ')}].some((re) => re.test(title)) }`
+}
 
 export const mocha: TestRunner = {
   name: 'mocha',
@@ -52,7 +67,7 @@ mocha.setup({
   timeout: options.testTimeout ?? timeout,
   color,
   ui,
-  grep: ${options.testNamePattern == null ? 'grep' : toRegExp(String(options.testNamePattern))},
+  grep: ${mochaGrep(options.testNamePattern)},
 })
 
 ${importAll(paths)}
@@ -103,9 +118,7 @@ export const nodeTest: TestRunner = {
       reporter?: string | string[]
     }
     return [
-      ...(testNamePattern == null
-        ? []
-        : [`--test-name-pattern=${testNamePattern}`]),
+      ...toPatterns(testNamePattern).map((p) => `--test-name-pattern=${p}`),
       // 0 is no timeout, for node that's a test that always times out
       ...(testTimeout ? [`--test-timeout=${testTimeout}`] : []),
       ...[reporter ?? []].flat().map((r) => `--test-reporter=${r}`),
