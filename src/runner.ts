@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { watch } from 'chokidar'
 import fs, { mkdirSync } from 'fs'
 import { cp } from 'fs/promises'
+import os from 'os'
 import path from 'path'
 import type {
   ConsoleMessage,
@@ -15,9 +16,11 @@ import type {
 } from 'playwright-core'
 import { BaseRunner, REMOVE_WAIT, removeFolder } from './base-runner.ts'
 import type { Binding, ClientBindings } from './client/types.ts'
+import { type FileStatus, summary } from './node/each-file.ts'
 import type { CompilerOutput, Config } from './types.ts'
 import { compileSw } from './utils/build-sw.ts'
 import { colors } from './utils/colors.ts'
+import { FileOutput } from './utils/file-output.ts'
 import {
   addWorker,
   assertBrowserOptions,
@@ -61,6 +64,21 @@ const TRACE_WAIT = 30_000
 /** The trace written into the folder of the run, or why it couldn't be */
 type Trace = { file: string } | { problem: string } | undefined
 
+/** How the tests of a page ended, see `#createTestWait` */
+interface TestResult {
+  failed: boolean
+  navigated: boolean
+  /** Ended by the run, like when another file failed with mocha's bail */
+  cancelled?: boolean
+}
+
+/** The bundles of a run, ready to load in pages */
+interface Prepared {
+  outNames: string[]
+  files: string[]
+  sw: boolean
+}
+
 export class Runner extends BaseRunner {
   declare stackMapper: { reset(): void; map<T>(value: T): T }
   declare url: string
@@ -75,14 +93,21 @@ export class Runner extends BaseRunner {
   declare context: Context | undefined
   declare page: Page | undefined
 
-  #testWait:
-    | {
-        page: Page
-        ended: boolean
-        failed: boolean
-        resolve: (result: { failed: boolean; navigated: boolean }) => void
-      }
-    | undefined = undefined
+  #testWaits: Map<
+    Page,
+    {
+      ended: boolean
+      failed: boolean
+      resolve: (result: TestResult) => void
+    }
+  > = new Map()
+  /** With `--test-isolation process`, the file each page runs */
+  #pageFile: Map<Page, number> = new Map()
+  /** The page that started each worker */
+  #workerPage: WeakMap<Worker, Page> = new WeakMap()
+  /** The files whose page had an uncaught error */
+  #erroredFiles: Set<number> = new Set()
+  #output: FileOutput | undefined = undefined
   #compiling: Promise<CompilerOutput> | undefined = undefined
   #launching: Promise<Context> | undefined = undefined
   #closing: { traced: Promise<Trace>; closed: Promise<void> } | undefined =
@@ -259,23 +284,15 @@ export class Runner extends BaseRunner {
           }
         }
       ),
-      context.exposeFunction(
+      context.exposeBinding(
         'PW_TEST_STDOUT_WRITE',
-        (msg: string | Uint8Array) =>
-          new Promise((resolve, reject) =>
-            process.stdout.write(this.stackMapper.map(msg), (error) =>
-              error ? reject(error) : resolve(error)
-            )
-          )
+        ({ page }: { page: Page }, msg: string | Uint8Array) =>
+          this.#write(page, process.stdout, msg)
       ),
-      context.exposeFunction(
+      context.exposeBinding(
         'PW_TEST_STDERR_WRITE',
-        (msg: string | Uint8Array) =>
-          new Promise((resolve, reject) =>
-            process.stderr.write(this.stackMapper.map(msg), (error) =>
-              error ? reject(error) : resolve(error)
-            )
-          )
+        ({ page }: { page: Page }, msg: string | Uint8Array) =>
+          this.#write(page, process.stderr, msg)
       ),
     ])
 
@@ -286,30 +303,71 @@ export class Runner extends BaseRunner {
    * Setup Page
    */
   async setupPage(context: Context) {
-    this.page = context.pages()[0]
+    this.page = context.pages()[0] ?? (await context.newPage())
+    this.#watchPage(this.page)
     await this.page.goto(this.url)
-
-    // Setup page events
-    this.page.on('console', this.#onConsole)
-    this.page.on('crash', () => this.#pageCrashed())
-    // Under --debug closing the tab leaves nothing to debug, and on macOS the
-    // browser keeps running without windows
-    this.page.on('close', () => this.#browserEnded('test page'))
-
-    // uncaught rejections
-    this.page.on('pageerror', (err) => {
-      this.pageErrored = true
-      log.error(
-        `Uncaught exception happened within the page. Run with --debug. \n${colors.dim(
-          // The stack of a syntax error can be empty
-          this.stackMapper.map(err.stack || err.toString())
-        )}`
-      )
-    })
-
     await this.page.waitForLoadState('domcontentloaded')
 
     return this.page
+  }
+
+  /**
+   * What a test page does that ends or fails the run, and what it prints
+   */
+  #watchPage(page: Page) {
+    page.on('console', this.#onConsole)
+    page.on('crash', () => this.#pageCrashed())
+    // Under --debug closing the tab leaves nothing to debug, and on macOS the
+    // browser keeps running without windows
+    page.on('close', () => this.#browserEnded('test page'))
+    page.on('worker', (worker) => this.#workerPage.set(worker, page))
+
+    // uncaught rejections
+    page.on('pageerror', (err) => {
+      const index = this.#pageFile.get(page)
+      if (index === undefined) {
+        this.pageErrored = true
+      } else {
+        this.#erroredFiles.add(index)
+      }
+      // The stack of a syntax error can be empty
+      const stack = this.stackMapper.map(err.stack || err.toString())
+      this.#print(index, () =>
+        log.error(
+          `Uncaught exception happened within the page. Run with --debug. \n${colors.dim(stack)}`
+        )
+      )
+    })
+  }
+
+  /**
+   * Print for the file that runs in `index`, see {@link FileOutput}. True when
+   * it printed right away.
+   */
+  #print(index: number | undefined, print: () => void) {
+    if (this.#output) {
+      return this.#output.write(index, print)
+    }
+    print()
+    return true
+  }
+
+  /**
+   * What the page writes to `process.stdout` and `process.stderr`. It waits for
+   * the write, but not for the files before its own.
+   */
+  #write(page: Page, stream: NodeJS.WriteStream, msg: string | Uint8Array) {
+    const mapped = this.stackMapper.map(msg)
+    return new Promise((resolve, reject) => {
+      const now = this.#print(this.#pageFile.get(page), () => {
+        stream.write(mapped, (error) =>
+          error ? reject(error) : resolve(error)
+        )
+      })
+      if (!now) {
+        resolve(undefined)
+      }
+    })
   }
 
   /**
@@ -319,29 +377,53 @@ export class Runner extends BaseRunner {
     page: Page,
     compiled: Promise<CompilerOutput> = this.compiler()
   ) {
+    const [prepared] = await Promise.all([
+      this.#prepare(compiled),
+      this.#setupTestPage(page),
+    ])
+    await this.#load(page, prepared, prepared.outNames[0] as string)
+    return { files: prepared.files }
+  }
+
+  /**
+   * The bundles, the service worker and the env of the run, once for all of
+   * its pages
+   */
+  async #prepare(compiled: Promise<CompilerOutput>): Promise<Prepared> {
     this.stackMapper.reset()
-    const swBuild = this.options.sw
-      ? compileSw(this, { entry: this.options.sw })
-      : undefined
+    const [{ outNames, files }, swOutput] = await Promise.all([
+      compiled,
+      this.options.sw ? compileSw(this, { entry: this.options.sw }) : undefined,
+      writeEnv(this, this.env),
+    ])
+    return {
+      outNames,
+      files: [...files, ...(swOutput?.files ?? [])],
+      sw: Boolean(swOutput),
+    }
+  }
+
+  /**
+   * What a test page needs before a bundle loads
+   */
+  async #setupTestPage(page: Page) {
     const debug = [this.env.DEBUG, '-pw:*', '-mocha:*']
       .filter(Boolean)
       .join(',')
-
-    const [{ outName, files: mainFiles }, swOutput] = await Promise.all([
-      compiled,
-      swBuild,
-      writeEnv(this, this.env),
+    await Promise.all([
       page.addScriptTag({ url: 'setup.js' }),
       page.evaluate((value) => {
         localStorage.debug = value
       }, debug),
     ])
+  }
 
-    const files = [...mainFiles]
-
+  /**
+   * Load a bundle in the page, or in a worker of the page
+   */
+  async #load(page: Page, { sw }: Prepared, outName: string) {
     // Inject and register the service worker
-    if (swOutput) {
-      files.push(...swOutput.files)
+    if (sw) {
       // `ready` never resolves when the registration fails, and it comes before
       // the worker claims the page, until then requests skip the worker. It may
       // never come, a hard reload under --debug has nothing left to claim the page.
@@ -367,8 +449,6 @@ export class Runner extends BaseRunner {
     } else {
       await page.addScriptTag({ url: loader, type: 'module' })
     }
-
-    return { outName, files }
   }
 
   async run() {
@@ -385,6 +465,11 @@ export class Runner extends BaseRunner {
 
       // In parallel with setting up the test page
       compiled ??= this.#compile()
+
+      if (this.#isolated()) {
+        await this.#runEachFile(context, compiled)
+        return
+      }
 
       // Setup page
       const page = await this.setupPage(context)
@@ -440,10 +525,185 @@ export class Runner extends BaseRunner {
   }
 
   #onTestEnd(page: Page, failed: boolean) {
-    if (this.#testWait?.page === page && !this.#testWait.ended) {
-      this.#testWait.ended = true
-      this.#testWait.failed = failed
-      this.#testWait.resolve({ failed, navigated: false })
+    const state = this.#testWaits.get(page)
+    if (state && !state.ended) {
+      state.ended = true
+      state.failed = failed
+      state.resolve({ failed, navigated: false })
+    }
+  }
+
+  /**
+   * With `--test-isolation process` and more than one file: a page per file, at
+   * most `--test-concurrency` at once. Not with --debug and --watch, they
+   * reload the one test page.
+   */
+  #isolated() {
+    return (
+      this.options.testIsolation !== 'none' &&
+      this.tests.length > 1 &&
+      !this.options.debug &&
+      !this.watching
+    )
+  }
+
+  /**
+   * Each file in a page of its own, the pages are reused for the next files.
+   * What a file prints comes out in the order of the files, then a summary of
+   * them. Mocha's `bail` ends the running files when one fails, and skips the
+   * rest.
+   */
+  async #runEachFile(context: Context, compiled: Promise<CompilerOutput>) {
+    const { cwd, testConcurrency, testRunner } = this.options
+    const files = this.tests
+    const concurrency = Math.min(
+      testConcurrency ?? Math.max(os.availableParallelism() - 1, 1),
+      files.length
+    )
+    const { bail = false } = (testRunner.options ?? {}) as { bail?: boolean }
+    const bails = testRunner.name === 'mocha' && bail
+    this.#output = new FileOutput(files.length)
+
+    const first = context.pages()[0] ?? context.newPage()
+    const [prepared, ...pages] = await Promise.all([
+      this.#prepare(compiled),
+      first,
+      ...Array.from({ length: concurrency - 1 }, () => context.newPage()),
+    ])
+    for (const page of pages) {
+      this.#watchPage(page)
+    }
+    this.page = pages[0]
+
+    const results: (FileStatus | undefined)[] = []
+    const cancels: Map<number, () => void> = new Map()
+    let next = 0
+    let stopping = false
+    let bailed = false
+    let navigated = false
+
+    const worker = async (page: Page) => {
+      while (!stopping && !this.stopped && next < files.length) {
+        const index = next++
+        const result = await this.#runFile(page, prepared, index, cancels)
+        if (result.navigated) {
+          navigated = true
+          stopping = true
+          for (const cancel of cancels.values()) {
+            cancel()
+          }
+          return
+        }
+        const passed = !result.failed && !result.cancelled
+        results[index] = { passed, cancelled: Boolean(result.cancelled) }
+        if (!passed && bails && !stopping) {
+          bailed = true
+          stopping = true
+          for (const cancel of cancels.values()) {
+            cancel()
+          }
+        }
+      }
+    }
+    await Promise.all(pages.map(worker))
+
+    if (navigated) {
+      await this.stop(
+        true,
+        'The page navigated away from the tests, they have to stay on the page they were loaded in.'
+      )
+      return
+    }
+    if (this.stopped) {
+      return
+    }
+    // Skipped by bail
+    for (let i = 0; i < files.length; i++) {
+      results[i] ??= { passed: false, cancelled: false }
+    }
+    if (bailed || next === files.length) {
+      summary({ cwd, files }, results as FileStatus[], next)
+    }
+    const failed = results.some((result) => !result?.passed)
+    await this.stop(failed, failed ? 'Tests failed.' : undefined)
+  }
+
+  /**
+   * Run one file in the page, then leave the page blank for the next one
+   */
+  async #runFile(
+    page: Page,
+    prepared: Prepared,
+    index: number,
+    cancels: Map<number, () => void>
+  ): Promise<TestResult> {
+    this.#pageFile.set(page, index)
+    // Bail can end it while the page loads, before there's a wait to end
+    let cancelled = false
+    let cancel = () => {
+      cancelled = true
+    }
+    cancels.set(index, () => cancel())
+    try {
+      await page.goto(this.url)
+      const testWait = this.#createTestWait(page)
+      cancel = testWait.cancel
+      if (cancelled) {
+        cancel()
+      }
+      try {
+        if (!cancelled) {
+          await this.#setupTestPage(page)
+          await this.#load(page, prepared, prepared.outNames[index] as string)
+        }
+        const result = await testWait.wait()
+        if (result.navigated || result.cancelled) {
+          return result
+        }
+        const none = this.options.runner === 'none'
+        // Page errors come in order with evaluate results
+        if (!result.failed && !none && !this.#erroredFiles.has(index)) {
+          await page.evaluate('0')
+        }
+        return {
+          ...result,
+          // `none` has no tests to fail, the files decide
+          failed: result.failed || (!none && this.#erroredFiles.has(index)),
+        }
+      } finally {
+        testWait.dispose()
+      }
+    } finally {
+      cancels.delete(index)
+      await this.#flushPage(page)
+      this.#output?.done(index)
+      // What the file left running can't print over the next ones
+      await page.goto('about:blank').catch(noop)
+      this.#pageFile.delete(page)
+    }
+  }
+
+  /**
+   * Wait for what the page and its workers printed so far, like
+   * `#flushConsole` does for all of them
+   */
+  async #flushPage(page: Page) {
+    const flush = async () => {
+      const workers = page.workers()
+      await Promise.allSettled([
+        page.evaluate('0'),
+        ...workers.map((worker) => worker.evaluate('0')),
+      ])
+      await Promise.allSettled(
+        [page, ...workers].map((thread) => this.lastConsole.get(thread))
+      )
+      return true
+    }
+    const flushed = await withTimeout(flush(), CONSOLE_FLUSH_TIMEOUT, false)
+    if (!flushed) {
+      log.warn(
+        'Timed out waiting for browser console output, some may be lost.'
+      )
     }
   }
 
@@ -453,20 +713,16 @@ export class Runner extends BaseRunner {
    * top-level navigation during load is never missed.
    */
   #createTestWait(page: Page) {
-    const { promise, resolve, reject } = Promise.withResolvers<{
-      failed: boolean
-      navigated: boolean
-    }>()
+    const { promise, resolve, reject } = Promise.withResolvers<TestResult>()
     // Avoid unhandled rejection if `runTests` throws before `wait()` is awaited
     promise.catch(() => undefined)
 
     const state = {
-      page,
       ended: false,
       failed: false,
       resolve,
     }
-    this.#testWait = state
+    this.#testWaits.set(page, state)
 
     const onCrash = () => {
       reject(new Error('Target crashed'))
@@ -538,12 +794,19 @@ export class Runner extends BaseRunner {
         }
         return promise
       },
+      /** End the wait, the run doesn't need these tests anymore */
+      cancel: () => {
+        if (!state.ended) {
+          state.ended = true
+          resolve({ failed: true, navigated: false, cancelled: true })
+        }
+      },
       dispose: () => {
         page.off('crash', onCrash)
         page.off('close', onClose)
         page.off('framenavigated', onFrameNavigated)
-        if (this.#testWait === state) {
-          this.#testWait = undefined
+        if (this.#testWaits.get(page) === state) {
+          this.#testWaits.delete(page)
         }
       },
     }
@@ -808,11 +1071,16 @@ export class Runner extends BaseRunner {
     // the same thread. A thread stuck in a loop can't answer the read of its last
     // message, that can't hold back the others.
     const read = readConsole(msg, this.stackMapper.map)
-    const thread = msg.worker() ?? msg.page() ?? this
+    const worker = msg.worker()
+    const thread = worker ?? msg.page() ?? this
+    // The file it belongs to now, its page can run the next one by the time
+    // it prints
+    const page = msg.page() ?? (worker && this.#workerPage.get(worker))
+    const index = page ? this.#pageFile.get(page) : undefined
     const pending = (this.lastConsole.get(thread) ?? Promise.resolve())
       .then(async () => {
         const print = await read
-        print()
+        this.#print(index, print)
       })
       .finally(() => {
         this.pendingConsole.delete(pending)
@@ -957,6 +1225,8 @@ export class Runner extends BaseRunner {
     if (this.context) {
       await this.#flushConsole()
     }
+    // What files that didn't end printed, before the reason the run ended
+    this.#output?.flushAll()
 
     await this.exit(fail, msg)
   }
@@ -988,13 +1258,14 @@ export class Runner extends BaseRunner {
    * @returns file to be loaded in the page
    */
   compiler(): Promise<CompilerOutput> {
+    const { testRunner } = this.options
+    const tests = this.tests.map((t) => t.replaceAll('\\', '/'))
     return build(
       this,
-      this.options.testRunner.buildConfig?.(this.options),
-      this.options.testRunner.compileRuntime(
-        this.options,
-        this.tests.map((t) => t.replaceAll('\\', '/'))
-      )
+      testRunner.buildConfig?.(this.options),
+      this.#isolated()
+        ? tests.map((test) => testRunner.compileRuntime(this.options, [test]))
+        : testRunner.compileRuntime(this.options, tests)
     )
   }
 }

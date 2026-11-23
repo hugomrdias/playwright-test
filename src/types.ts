@@ -53,8 +53,9 @@ export interface RunnerOptions {
   /**
    * How test files are isolated, like `--test-isolation` of `node:test`.
    * `process` runs each file on its own, `none` runs all of them together and
-   * they share globals and root hooks. Only node mode supports
-   * `process` for now, everything else runs as `none`.
+   * they share globals and root hooks. In browsers each file gets a page of
+   * its own. Workerd doesn't support `process` yet and runs as `none`, so do
+   * `--debug` and `--watch` in browsers.
    *
    * @default 'process'
    */
@@ -172,7 +173,8 @@ export type Config = Partial<Omit<RunnerOptions, 'testRunner' | 'minimal'>> & {
 export type ConfigFn = (options: CliOptions) => Config
 
 export interface CompilerOutput {
-  outName: string
+  /** One bundle, or with `--test-isolation process` one per test file in order */
+  outNames: string[]
   files: Set<string>
 }
 

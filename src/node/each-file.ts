@@ -35,10 +35,14 @@ export interface EachFileRun {
 
 type Chunk = ['stdout' | 'stderr', Buffer]
 
-interface FileResult {
+/** How a file ended, see {@link summary} */
+export interface FileStatus {
   passed: boolean
   /** Ended by the run, it didn't fail by itself */
   cancelled: boolean
+}
+
+interface FileResult extends FileStatus {
   output: Chunk[]
 }
 
@@ -160,9 +164,9 @@ export function runEachFile(options: EachFile): EachFileRun {
  *
  * @param started - How many of the files started
  */
-function summary(
-  { cwd, files }: EachFile,
-  results: FileResult[],
+export function summary(
+  { cwd, files }: { cwd: string; files: string[] },
+  results: FileStatus[],
   started: number
 ) {
   const ran = results.slice(0, started)
