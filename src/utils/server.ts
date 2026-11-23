@@ -16,6 +16,7 @@ import path from 'node:path'
 const TYPES: Record<string, string> = {
   html: 'text/html; charset=utf-8',
   htm: 'text/html; charset=utf-8',
+  xhtml: 'application/xhtml+xml; charset=utf-8',
   js: 'text/javascript; charset=utf-8',
   mjs: 'text/javascript; charset=utf-8',
   cjs: 'text/javascript; charset=utf-8',
@@ -31,6 +32,17 @@ const TYPES: Record<string, string> = {
   xml: 'text/xml; charset=utf-8',
   yaml: 'text/yaml; charset=utf-8',
   yml: 'text/yaml; charset=utf-8',
+  xsl: 'application/xml; charset=utf-8',
+  vtt: 'text/vtt; charset=utf-8',
+  ics: 'text/calendar; charset=utf-8',
+  rtf: 'text/rtf; charset=utf-8',
+  m3u8: 'application/vnd.apple.mpegurl',
+  mpd: 'application/dash+xml',
+  epub: 'application/epub+zip',
+  '7z': 'application/x-7z-compressed',
+  bz2: 'application/x-bzip2',
+  xz: 'application/x-xz',
+  zst: 'application/zstd',
   wasm: 'application/wasm',
   pdf: 'application/pdf',
   zip: 'application/zip',
@@ -47,6 +59,12 @@ const TYPES: Record<string, string> = {
   avif: 'image/avif',
   bmp: 'image/bmp',
   ico: 'image/x-icon',
+  tif: 'image/tiff',
+  tiff: 'image/tiff',
+  jxl: 'image/jxl',
+  heic: 'image/heic',
+  heif: 'image/heif',
+  eot: 'application/vnd.ms-fontobject',
   woff: 'font/woff',
   woff2: 'font/woff2',
   ttf: 'font/ttf',
@@ -55,6 +73,10 @@ const TYPES: Record<string, string> = {
   webm: 'video/webm',
   ogv: 'video/ogg',
   mov: 'video/quicktime',
+  mpeg: 'video/mpeg',
+  m4v: 'video/mp4',
+  '3gp': 'video/3gpp',
+  weba: 'audio/webm',
   mp3: 'audio/mpeg',
   wav: 'audio/wav',
   ogg: 'audio/ogg',
@@ -115,10 +137,16 @@ export function parseRange(
  * A directory serves its `index.html`.
  */
 async function find(roots: string[], pathname: string) {
-  for (const root of roots) {
+  for (const [index, root] of roots.entries()) {
     let file = path.join(root, pathname)
-    // `path.join` normalizes `..`, it must still be in the root
-    if (file !== root && !file.startsWith(root + path.sep)) {
+    // `path.join` normalizes `..`, it must still be in the root. Relative to
+    // it so that a root like `/` or `C:\` works too.
+    const relative = path.relative(root, file)
+    if (
+      relative === '..' ||
+      relative.startsWith(`..${path.sep}`) ||
+      path.isAbsolute(relative)
+    ) {
       continue
     }
     let stats = await fs.promises.stat(file).catch(() => undefined)
@@ -127,9 +155,25 @@ async function find(roots: string[], pathname: string) {
       stats = await fs.promises.stat(file).catch(() => undefined)
     }
     if (stats?.isFile()) {
-      return { file, stats }
+      return { file, stats, index }
     }
   }
+}
+
+/**
+ * The path of a request target, without its query. Not with `new URL()`, it
+ * reads a path that starts with `//` as a host, like `${PW_SERVER}/file`.
+ */
+export function requestPath(target = '/') {
+  if (!target.startsWith('/')) {
+    // The absolute form, `http://host/path`
+    try {
+      return new URL(target).pathname
+    } catch {
+      return '/'
+    }
+  }
+  return target.replace(/[?#].*$/s, '')
 }
 
 function end(res: ServerResponse, status: number, body: string) {
@@ -147,9 +191,7 @@ async function handle(
 ) {
   let pathname: string
   try {
-    pathname = decodeURIComponent(
-      new URL(req.url ?? '/', 'http://localhost').pathname
-    )
+    pathname = decodeURIComponent(requestPath(req.url))
   } catch {
     return end(res, 400, 'Bad Request')
   }
@@ -161,7 +203,7 @@ async function handle(
   if (!found) {
     return end(res, 404, 'Not Found')
   }
-  const { file, stats } = found
+  const { file, stats, index } = found
 
   // Never cached, the files of a run change between runs and in watch mode
   const headers: Record<string, string | number> = {
@@ -173,8 +215,9 @@ async function handle(
   if (type) {
     headers['Content-Type'] = type
   }
-  // The test page, so storage from an earlier run doesn't leak into this one
-  if (pathname === '/') {
+  // The test page, so storage from an earlier run doesn't leak into this one.
+  // Not an `index.html` of `--assets`, that's a fixture.
+  if (pathname === '/' && index === 0) {
     headers['Clear-Site-Data'] = '"cache", "cookies", "storage"'
   }
   // `.gz` and `.br` files are sent as they are, without a `Content-Encoding`,

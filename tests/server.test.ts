@@ -5,7 +5,12 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { after, before, describe, it } from 'node:test'
 import { closeServer } from '../src/utils/index.ts'
-import { contentType, parseRange, startServer } from '../src/utils/server.ts'
+import {
+  contentType,
+  parseRange,
+  requestPath,
+  startServer,
+} from '../src/utils/server.ts'
 
 /**
  * A request with the path as it is, `fetch` would normalize `..` away.
@@ -47,6 +52,9 @@ describe('http server', () => {
     writeFileSync(path.join(cwd, 'assets', 'sub', 'a b.wasm'), 'wasm')
     writeFileSync(path.join(cwd, 'assets', 'file.tar.gz'), 'not really gzip')
     writeFileSync(path.join(cwd, 'assets', 'blob.unknownext'), 'blob')
+    writeFileSync(path.join(cwd, 'assets', 'page.xhtml'), '<html/>')
+    writeFileSync(path.join(dir, 'file.txt'), 'top file')
+    writeFileSync(path.join(dir, 'nested', 'file.txt'), 'nested file')
     writeFileSync(path.join(cwd, 'secret.txt'), 'secret')
     ;({ url, server } = await startServer(dir, cwd, 'assets'))
   })
@@ -162,6 +170,50 @@ describe('http server', () => {
     }
   })
 
+  it('keeps a path that starts with //, like PW_SERVER + "/file"', async () => {
+    const rsp = await fetch(`${url}/nested/file.txt?x=1`)
+    is(rsp.status, 200)
+    is(await rsp.text(), 'nested file')
+    is((await raw(url, '//nested/file.txt')).body, 'nested file')
+  })
+
+  it('serves xhtml as xhtml', async () => {
+    const rsp = await fetch(new URL('page.xhtml', url))
+    is(rsp.headers.get('content-type'), 'application/xhtml+xml; charset=utf-8')
+  })
+
+  it('only clears site data on the index of the run, not of --assets', async () => {
+    const empty = path.join(root, 'empty-run')
+    mkdirSync(empty, { recursive: true })
+    writeFileSync(path.join(root, 'cwd', 'assets', 'index.html'), 'fixture')
+    const other = await startServer(empty, path.join(root, 'cwd'), 'assets')
+    try {
+      const rsp = await fetch(other.url)
+      is(await rsp.text(), 'fixture')
+      is(rsp.headers.get('clear-site-data'), null)
+    } finally {
+      await closeServer(other.server, 1000)
+    }
+  })
+
+  it('serves --assets at the root of the filesystem', async () => {
+    const file = path.join(root, 'cwd', 'assets', 'digits.txt')
+    const { root: fsRoot } = path.parse(file)
+    const rootServer = await startServer(path.join(root, 'run'), root, fsRoot)
+    try {
+      const urlPath = path
+        .relative(fsRoot, file)
+        .split(path.sep)
+        .map(encodeURIComponent)
+        .join('/')
+      const rsp = await fetch(new URL(urlPath, rootServer.url))
+      is(rsp.status, 200)
+      is(await rsp.text(), '0123456789')
+    } finally {
+      await closeServer(rootServer.server, 1000)
+    }
+  })
+
   it('400s for malformed paths', async () => {
     is((await raw(url, '/%E0%A4%A')).status, 400)
     is((await raw(url, '/a%00.txt')).status, 400)
@@ -184,6 +236,21 @@ describe('parseRange', () => {
   for (const [header, expected] of cases) {
     it(String(header), () => {
       equal(parseRange(header, 10), expected)
+    })
+  }
+})
+
+describe('requestPath', () => {
+  const cases: [string | undefined, string][] = [
+    [undefined, '/'],
+    ['/a/b.js?x=1#y', '/a/b.js'],
+    ['//a/b.js', '//a/b.js'],
+    ['http://127.0.0.1:1/a.js?x', '/a.js'],
+    ['*', '/'],
+  ]
+  for (const [target, expected] of cases) {
+    it(String(target), () => {
+      is(requestPath(target), expected)
     })
   }
 })
