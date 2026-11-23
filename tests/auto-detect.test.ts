@@ -7,6 +7,7 @@ import {
 import { after, before, describe, it } from 'node:test'
 import fs from 'fs'
 import path from 'path'
+import { Runner } from '../src/runner.ts'
 import { detectTestRunners } from '../src/utils/auto-detect.ts'
 import { UsageError } from '../src/utils/index.ts'
 import { resolveCli, runCli } from './helpers.ts'
@@ -246,13 +247,16 @@ describe('runner auto detection', () => {
       is(options.runner, 'mocha')
     })
 
-    it('detects the file a configured esbuild plugin resolves', async () => {
+    it('follows plugin redirects and runs output hooks only on the real bundle', async () => {
       const unused = write("import 'node:test'")
-      const suite = write("describe('suite', () => {})")
+      const suite = write("describe('redirected suite', () => {})")
+      const outputLog = path.resolve(dir, 'bundle-hook.log')
       const entry = write(
         `import './${path.basename(unused)}'\ndescribe('entry', () => {})`
       )
-      const config = write(`export default {
+      const config = write(`
+      import fs from 'node:fs'
+      export default {
         buildConfig: { plugins: [{
           name: 'redirect-suite',
           setup(build) {
@@ -261,11 +265,30 @@ describe('runner auto detection', () => {
                 ? { path: ${JSON.stringify(path.resolve(suite))} }
                 : undefined
             )
+            build.onEnd(() => {
+              const bundle = fs.readFileSync(build.initialOptions.outfile, 'utf8')
+              if (!bundle.includes('redirected suite')) {
+                throw new Error('Redirected suite is missing from the bundle')
+              }
+              fs.appendFileSync(${JSON.stringify(outputLog)}, 'bundle\\n')
+            })
           },
         }] },
       }`)
-      const { options } = await resolveCli([entry, '--config', config])
+      const { options, testFiles } = await resolveCli([
+        entry,
+        '--config',
+        config,
+      ])
       is(options.runner, 'mocha')
+      is(fs.existsSync(outputLog), false)
+      const runner = new Runner(options, testFiles)
+      try {
+        await runner.compiler()
+        is(fs.readFileSync(outputLog, 'utf8'), 'bundle\n')
+      } finally {
+        fs.rmSync(runner.dir, { recursive: true, force: true })
+      }
     })
 
     it('resolves each symlink from its own directory when preserving symlinks', async (t) => {

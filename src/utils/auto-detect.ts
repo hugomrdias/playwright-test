@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { parse } from 'acorn-loose'
-import type { Loader } from 'esbuild'
+import type { Loader, Plugin } from 'esbuild'
 import { build, transformSync } from 'esbuild'
 import fs from 'fs'
 import path from 'path'
@@ -327,7 +327,13 @@ export async function detectTestRunners(
           )
         },
       },
-      ...(config?.plugins ?? []),
+      ...(config?.plugins ?? []).map<Plugin>((plugin) => ({
+        name: plugin.name,
+        setup(build) {
+          // Detection has no output bundle for plugin hooks to consume.
+          return plugin.setup({ ...build, onEnd: () => undefined })
+        },
+      })),
     ],
   })
   return found
