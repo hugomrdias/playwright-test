@@ -134,16 +134,14 @@ export class Runner extends BaseRunner {
       return { server, url }
     })
 
-    // copy files, start http server, and resolve/download playwright in parallel
-    const [, , pw] = await Promise.all([
-      cp(path.join(__dirname, './../static'), this.dir, { recursive: true }),
-      serverPromise,
-      getPw(this.options.browser, {
-        headless,
-        channel,
-        executablePath: launchOptions.executablePath,
-      }),
-    ])
+    const copied = cp(path.join(__dirname, './../static'), this.dir, {
+      recursive: true,
+    })
+    const pwPromise = getPw(this.options.browser, {
+      headless,
+      channel,
+      executablePath: launchOptions.executablePath,
+    })
 
     const pwOptions: LaunchOptions = {
       ...launchOptions,
@@ -165,12 +163,25 @@ export class Runner extends BaseRunner {
       ],
     }
 
-    // Deleted with the files of the run once the browser is gone
-    this.#launching = pw.launchPersistentContext(this.#profile(), {
-      ...pwOptions,
-      ...this.options.browserContextOptions,
-    })
-    this.context = await this.#launching
+    // The browser starts while the files get copied and the server starts,
+    // only the extension it loads has to be copied first. Set right away, so
+    // `stopTests` waits for a browser still starting when another step fails.
+    // Deleted with the files of the run once the browser is gone.
+    const launching = Promise.all([
+      pwPromise,
+      this.options.extension ? copied : undefined,
+    ]).then(([pw]) =>
+      pw.launchPersistentContext(this.#profile(), {
+        ...pwOptions,
+        ...this.options.browserContextOptions,
+      })
+    )
+    // Avoid unhandled rejection when another step fails first
+    launching.catch(noop)
+    this.#launching = launching
+
+    await Promise.all([copied, serverPromise, launching])
+    this.context = await launching
 
     // Also when it crashes or gets killed, and when --debug users close it. It
     // fires when this process closes it too, which is after `stopped`.
