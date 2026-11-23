@@ -8,5 +8,6 @@ describe('mocha logs busy', () => {
     while (Date.now() < end) {
       // busy
     }
+    console.log('LOGS BUSY FINISHED')
   })
 })

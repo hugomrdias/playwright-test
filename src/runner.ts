@@ -706,17 +706,9 @@ export class Runner extends BaseRunner {
         // The run is ending and the page isn't used again, what it printed
         // stays with its file and `stop` prints it in order.
         running.catch(noop)
-        // The values of what it logged are read from the threads, they're
-        // gone after it navigates. As long as `stop` waits for them.
-        const threads = [page, ...page.workers()]
-        withTimeout(
-          Promise.allSettled(
-            threads.map((thread) => this.lastConsole.get(thread))
-          ),
-          CONSOLE_FLUSH_TIMEOUT
-        )
-          .then(() => page.goto('about:blank'))
-          .catch(noop)
+        // Right away, its tests can't go on. A value it logged that's still
+        // read from its threads prints as the preview of the browser.
+        page.goto('about:blank').catch(noop)
       } else {
         await this.#flushPage(page)
         this.#output?.done(index)
