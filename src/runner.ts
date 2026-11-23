@@ -1,5 +1,7 @@
 /** biome-ignore-all lint/suspicious/noConsole: its ok */
 
+import fs from 'node:fs'
+import os from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { watch } from 'chokidar'
 import { asyncExitHook } from 'exit-hook'
@@ -58,6 +60,20 @@ const WATCH_DEBOUNCE = 200
 const SW_CLAIM_TIMEOUT = Number(process.env.PW_TEST_SW_CLAIM_TIMEOUT) || 5000
 // Writing the screenshots and snapshots of a long run takes a while
 const TRACE_WAIT = 30_000
+
+/**
+ * Delete the browser profile, once the browser is gone. Its processes can
+ * still hold the files for a while after on Windows.
+ */
+function removeProfile(dir: string) {
+  try {
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10 })
+  } catch (error) {
+    log.warn(
+      `Could not delete the browser profile ${dir}: ${(error as Error).message}`
+    )
+  }
+}
 
 export class Runner extends BaseRunner {
   declare stackMapper: { reset(): void; map<T>(value: T): T }
@@ -161,12 +177,24 @@ export class Runner extends BaseRunner {
 
     this.#handleInterrupt()
 
-    // With an empty path Playwright creates the profile in the temp folder and
-    // deletes it, also when the exit hook doesn't wait for the browser to close
-    this.context = await pw.launchPersistentContext('', {
-      ...pwOptions,
-      ...this.options.browserContextOptions,
-    })
+    // Not an empty path, the profile Playwright makes for it is only deleted
+    // while this process waits for the browser to close. On Windows the browser
+    // can keep the files locked for longer than the exit waits.
+    const profile = fs.mkdtempSync(
+      path.join(os.tmpdir(), `playwright_${this.options.browser}dev_profile-`)
+    )
+    try {
+      this.context = await pw.launchPersistentContext(profile, {
+        ...pwOptions,
+        ...this.options.browserContextOptions,
+      })
+    } catch (error) {
+      removeProfile(profile)
+      throw error
+    }
+    // After the exit listener of Playwright, it kills the browser if it's still
+    // running. Also when the exit hook doesn't wait for the browser to close.
+    process.once('exit', () => removeProfile(profile))
 
     // Also when it crashes or gets killed, and when --debug users close it. It
     // fires when this process closes it too, which is after `stopped`.

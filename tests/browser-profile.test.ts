@@ -8,6 +8,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
+import { pathToFileURL } from 'node:url'
 import { runCli, TEST_CONCURRENCY } from './helpers.ts'
 
 /**
@@ -64,6 +65,26 @@ describe('browser profile', { concurrency: TEST_CONCURRENCY }, () => {
       })
     })
   }
+
+  it('is deleted when deleting it takes longer than the exit waits', async () => {
+    await withTempDir(async ({ env, leftovers }) => {
+      const preload = path.resolve('mocks/profile/slow-delete.js')
+      const proc = await runCli(
+        ['mocks/none/stdout.test.js', '--runner', 'none'],
+        {
+          env: {
+            ...env,
+            PW_TEST_EXIT_WAIT: '500',
+            NODE_OPTIONS: `--import ${pathToFileURL(preload).href}`,
+          },
+          timeout: 60_000,
+        }
+      )
+
+      is(proc.exitCode, 0, 'exit code')
+      equal(leftovers(), [])
+    })
+  })
 
   it('is in the temp folder and deleted when the run is cut short', async () => {
     await withTempDir(async ({ temp, env, leftovers }) => {
