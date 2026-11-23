@@ -1,4 +1,6 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
 import type { Result } from 'execa'
@@ -9,7 +11,12 @@ import { runCli, TEST_CONCURRENCY } from './helpers.ts'
 const dir = 'mocks/isolation'
 const output = (proc: Result) => `${proc.stdout}\n${proc.stderr}`
 
-function run(runner: string, files: string[], args: string[] = []) {
+function run(
+  runner: string,
+  files: string[],
+  args: string[] = [],
+  env: Record<string, string> = {}
+) {
   return runCli(
     [
       ...files.map((file) => `${dir}/${file}.test.js`),
@@ -19,7 +26,7 @@ function run(runner: string, files: string[], args: string[] = []) {
       'node',
       ...args,
     ],
-    { reject: false }
+    { reject: false, env }
   )
 }
 
@@ -107,11 +114,14 @@ describe('--test-isolation process in node mode', {
     // taskkill ends it without running its SIGTERM handler
     skip: process.platform === 'win32',
   }, async () => {
+    const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-isolation-'))
     const proc = await run(
       'mocha',
       ['mocha-fails-later', 'mocha-sigterm'],
-      ['--test-concurrency', '2']
+      ['--test-concurrency', '2'],
+      { PW_TEST_READY: path.join(temp, 'ready') }
     )
+    fs.rmSync(temp, { force: true, recursive: true })
 
     is(proc.exitCode, 1, output(proc))
     ok(proc.stdout.includes('SIGTERM HANDLED'), output(proc))
