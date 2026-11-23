@@ -1,7 +1,5 @@
 /** biome-ignore-all lint/suspicious/noConsole: its ok */
 
-import fs from 'node:fs'
-import os from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { watch } from 'chokidar'
 import { asyncExitHook } from 'exit-hook'
@@ -54,26 +52,14 @@ const CONSOLE_FLUSH_TIMEOUT =
 // browser profile can't be deleted until it does. Tests of slow afterTests
 // hooks lower it, to outlast it in less time.
 const EXIT_WAIT = Number(process.env.PW_TEST_EXIT_WAIT) || 5000
+// Playwright retries for about 5.5s to delete a locked profile
+const PROFILE_DELETE_WAIT = 10_000
 // Saving many files at once changes them within the poll of the watcher
 const WATCH_DEBOUNCE = 200
 // Tests of workers that never claim the page lower it
 const SW_CLAIM_TIMEOUT = Number(process.env.PW_TEST_SW_CLAIM_TIMEOUT) || 5000
 // Writing the screenshots and snapshots of a long run takes a while
 const TRACE_WAIT = 30_000
-
-/**
- * Delete the browser profile, once the browser is gone. Its processes can
- * still hold the files for a while after on Windows.
- */
-function removeProfile(dir: string) {
-  try {
-    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10 })
-  } catch (error) {
-    log.warn(
-      `Could not delete the browser profile ${dir}: ${(error as Error).message}`
-    )
-  }
-}
 
 export class Runner extends BaseRunner {
   declare stackMapper: { reset(): void; map<T>(value: T): T }
@@ -177,24 +163,12 @@ export class Runner extends BaseRunner {
 
     this.#handleInterrupt()
 
-    // Not an empty path, the profile Playwright makes for it is only deleted
-    // while this process waits for the browser to close. On Windows the browser
-    // can keep the files locked for longer than the exit waits.
-    const profile = fs.mkdtempSync(
-      path.join(os.tmpdir(), `playwright_${this.options.browser}dev_profile-`)
-    )
-    try {
-      this.context = await pw.launchPersistentContext(profile, {
-        ...pwOptions,
-        ...this.options.browserContextOptions,
-      })
-    } catch (error) {
-      removeProfile(profile)
-      throw error
-    }
-    // After the exit listener of Playwright, it kills the browser if it's still
-    // running. Also when the exit hook doesn't wait for the browser to close.
-    process.once('exit', () => removeProfile(profile))
+    // With an empty path Playwright creates the profile in the temp folder and
+    // deletes it, also when the exit hook doesn't wait for the browser to close
+    this.context = await pw.launchPersistentContext('', {
+      ...pwOptions,
+      ...this.options.browserContextOptions,
+    })
 
     // Also when it crashes or gets killed, and when --debug users close it. It
     // fires when this process closes it too, which is after `stopped`.
@@ -437,6 +411,7 @@ export class Runner extends BaseRunner {
       wait:
         AFTER_TESTS_TIMEOUT +
         EXIT_WAIT +
+        PROFILE_DELETE_WAIT +
         (this.options.trace === 'off' || this.options.debug ? 0 : TRACE_WAIT),
     })
 
@@ -621,7 +596,7 @@ export class Runner extends BaseRunner {
     }
     this.watching = true
     asyncExitHook(this.#clean.bind(this), {
-      wait: AFTER_TESTS_TIMEOUT + EXIT_WAIT,
+      wait: AFTER_TESTS_TIMEOUT + EXIT_WAIT + PROFILE_DELETE_WAIT,
     })
 
     let page: Page
@@ -934,13 +909,14 @@ export class Runner extends BaseRunner {
     // Before the close, it has its own wait
     await this.#saveTrace(exitCode)
 
+    // Before the server, its open connections could use up the wait for the exit
+    // A browser that's gone can't close it, and doesn't need to
+    const browserClosed =
+      this.context && this.#browserConnected()
+        ? this.context.close()
+        : undefined
     const close = async () => {
-      // Before the server, its open connections could use up the wait for the exit
-      // A browser that's gone can't close it, and doesn't need to
-      if (this.context && this.#browserConnected()) {
-        await this.context.close()
-      }
-
+      await browserClosed
       await new Promise((resolve, reject) => {
         if (this.server) {
           this.server.close((err) => (err ? reject(err) : resolve(true)))
@@ -949,17 +925,25 @@ export class Runner extends BaseRunner {
         }
       })
     }
+    const warn = (error: Error) => {
+      log.warn(`Could not close the browser: ${error.message}`)
+    }
 
     let timer: NodeJS.Timeout | undefined
-    await Promise.race([
-      close().catch((error: Error) => {
-        log.warn(`Could not close the browser: ${error.message}`)
-      }),
+    const wait = (ms: number) =>
       new Promise((resolve) => {
-        timer = setTimeout(resolve, EXIT_WAIT)
-      }),
-    ])
+        timer = setTimeout(resolve, ms)
+      })
+    await Promise.race([close().catch(warn), wait(EXIT_WAIT)])
     clearTimeout(timer)
+
+    // Once the browser is gone, closing it is Playwright deleting its profile.
+    // On Windows the files can stay locked for seconds after the browser exits,
+    // and the delete retries until then. Exiting first would leave the profile.
+    if (browserClosed && !this.#browserConnected()) {
+      await Promise.race([browserClosed.catch(noop), wait(PROFILE_DELETE_WAIT)])
+      clearTimeout(timer)
+    }
 
     // After the browser closed, it can still be using them. A bundle started
     // early may still be writing when the setup failed.

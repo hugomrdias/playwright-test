@@ -86,6 +86,32 @@ describe('browser profile', { concurrency: TEST_CONCURRENCY }, () => {
     })
   })
 
+  it('is deleted when interrupted while the browser starts', {
+    skip: process.platform === 'win32' && 'no SIGINT or shell script browsers',
+  }, async () => {
+    await withTempDir(async ({ temp, env, leftovers }) => {
+      const running = runCli(
+        [
+          'mocks/none/stdout.test.js',
+          '--runner',
+          'none',
+          '--config',
+          'mocks/profile/never-starts.config.js',
+        ],
+        { env, reject: false, timeout: 40_000 }
+      )
+      // Playwright makes the profile before it starts the browser
+      while (!fs.readdirSync(temp).some((name) => name.includes('profile'))) {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      }
+      running.kill('SIGINT')
+
+      const proc = await running
+      is(proc.exitCode, 130, 'exit code')
+      equal(leftovers(), [])
+    })
+  })
+
   it('is in the temp folder and deleted when the run is cut short', async () => {
     await withTempDir(async ({ temp, env, leftovers }) => {
       const running = runCli(
