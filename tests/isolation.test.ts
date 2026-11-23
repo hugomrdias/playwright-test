@@ -277,18 +277,19 @@ for (const mode of ['browser', 'web-worker']) {
       ok(!proc.stdout.includes('SLOW FINISHED'), output(proc))
     })
 
-    it('a run timeout ends every file', async () => {
+    it('a run timeout ends every file, and prints what they held back', async () => {
+      // The first file never ends, the second one waits for it to print
       const proc = await runIn(
         mode,
         'mocha',
-        ['mocha-a', 'mocha-slow'],
-        ['--test-concurrency', '2', '--run-timeout', '1000']
+        ['mocha-hangs', 'page-order-2'],
+        ['--test-concurrency', '2', '--run-timeout', '5000']
       )
 
       is(proc.exitCode, 1, output(proc))
       ok(proc.stderr.includes('Run timed out'), output(proc))
-      ok(proc.stdout.includes('has globals of its own'), output(proc))
-      ok(!proc.stdout.includes('SLOW FINISHED'), output(proc))
+      ok(proc.stdout.includes('PAGE ORDER 2 written'), output(proc))
+      ok(!proc.stdout.includes('ℹ files'), output(proc))
     })
   })
 }
