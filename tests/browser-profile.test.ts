@@ -91,6 +91,46 @@ describe('browser profile', { concurrency: TEST_CONCURRENCY }, () => {
     })
   })
 
+  it('is deleted when interrupted while the build never ends', {
+    skip: process.platform === 'win32' && 'no SIGINT',
+  }, async () => {
+    await withTempDir(async ({ env, leftovers }) => {
+      const running = runCli(
+        [
+          'mocks/none/stdout.test.js',
+          '--runner',
+          'none',
+          '--watch',
+          '--config',
+          'mocks/profile/stuck-build.config.js',
+        ],
+        {
+          // So the exit hook runs out of time quickly
+          env: {
+            ...env,
+            PW_TEST_AFTER_TESTS_TIMEOUT: '500',
+            PW_TEST_EXIT_WAIT: '500',
+          },
+          reject: false,
+          timeout: 40_000,
+        }
+      )
+      running.stderr?.on('data', (data: Buffer) => {
+        if (data.toString().includes('build-stuck')) {
+          running.kill('SIGINT')
+        }
+      })
+
+      const proc = await running
+      is(proc.exitCode, 130, 'exit code')
+      // The files of the run stay, the build could still be writing them
+      equal(
+        leftovers().filter((name) => name.endsWith('-profile')),
+        []
+      )
+    })
+  })
+
   it('is in the temp folder and deleted when the run is cut short', async () => {
     await withTempDir(async ({ temp, env, leftovers }) => {
       const running = runCli(

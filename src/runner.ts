@@ -994,6 +994,8 @@ export class Runner extends BaseRunner {
       })
     await Promise.race([closed, wait(EXIT_WAIT)])
     clearTimeout(timer)
+    // The bundles don't go there, a build that never ends can't keep it
+    removeFolder(this.#profile())
     // After the browser closed, it can still be using them. A bundle started
     // early may still be writing when the setup failed.
     await this.#compiling?.then(noop, noop)
