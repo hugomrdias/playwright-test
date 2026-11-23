@@ -85,6 +85,8 @@ export class Runner extends BaseRunner {
       }
     | undefined = undefined
   #compiling: Promise<CompilerOutput> | undefined = undefined
+  /** What the page loads the tests with, the worker that runs them has it as its URL */
+  #loader: string | undefined = undefined
   #launching: Promise<Context> | undefined = undefined
   #closing: { traced: Promise<Trace>; closed: Promise<void> } | undefined =
     undefined
@@ -412,6 +414,7 @@ export class Runner extends BaseRunner {
 
     // Choose the mode
     const loader = `load.js?entry=${outName}`
+    this.#loader = loader
     if (this.options.mode === 'web-worker') {
       await page.evaluate(addWorker(loader))
     } else {
@@ -969,7 +972,10 @@ export class Runner extends BaseRunner {
       this.options.mode === 'web-worker'
         ? await page
             .workers()
-            .find((worker) => worker.url().includes('load.js'))
+            .find((worker) => {
+              const loader = this.#loader
+              return loader !== undefined && worker.url().endsWith(`/${loader}`)
+            })
             ?.evaluate(read, RUNNING_TEST_KEY)
         : await page.evaluate(read, RUNNING_TEST_KEY)
     return typeof name === 'string' ? name : undefined
