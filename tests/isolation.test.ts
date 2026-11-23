@@ -103,14 +103,18 @@ describe('--test-isolation process in node mode', {
     ok(noBail.stdout.includes('ℹ cancelled 0'), output(noBail))
   })
 
-  it('a file ended by bail is cancelled, even if it exits with 0', async () => {
+  it('a file ended by bail is cancelled, even if it exits with 0', {
+    // taskkill ends it without running its SIGTERM handler
+    skip: process.platform === 'win32',
+  }, async () => {
     const proc = await run(
       'mocha',
-      ['mocha-fails', 'mocha-sigterm'],
+      ['mocha-fails-later', 'mocha-sigterm'],
       ['--test-concurrency', '2']
     )
 
     is(proc.exitCode, 1, output(proc))
+    ok(proc.stdout.includes('SIGTERM HANDLED'), output(proc))
     ok(proc.stdout.includes('ℹ pass 0'), output(proc))
     ok(proc.stdout.includes('ℹ cancelled 1'), output(proc))
   })
@@ -124,6 +128,18 @@ describe('--test-isolation process in node mode', {
 
     is(proc.exitCode, 0, output(proc))
     ok(proc.stdout.includes('MOCHA BIG END'), proc.stdout.slice(-2000))
+  })
+
+  it('mocha fails the file when stdout stays corked', async () => {
+    for (const isolation of ['process', 'none']) {
+      const proc = await run(
+        'mocha',
+        ['mocha-corked'],
+        ['--test-isolation', isolation]
+      )
+
+      is(proc.exitCode, 1, `${isolation}\n${output(proc)}`)
+    }
   })
 
   it('mocha .only filters its own file, all of them with none', async () => {

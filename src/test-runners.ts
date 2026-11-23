@@ -46,6 +46,8 @@ function mochaGrep(testNamePattern: string | string[] | undefined) {
  */
 const exitAfterWrites = `
 function exitAfterWrites(code) {
+  // The result, also if a corked stream never calls back and node ends by itself
+  process.exitCode = code
   let pending = 2
   const done = () => {
     if (--pending === 0) {
