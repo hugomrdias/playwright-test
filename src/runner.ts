@@ -164,21 +164,25 @@ export class Runner extends BaseRunner {
     }
 
     // The browser starts while the files get copied and the server starts,
-    // only the extension it loads has to be copied first. Set right away, so
-    // `stopTests` waits for a browser still starting when another step fails.
+    // only the extension it loads has to be copied first. Not once the run
+    // stopped, another step can fail while Playwright is still getting ready.
+    // `stopTests` waits for a browser that's already starting.
     // Deleted with the files of the run once the browser is gone.
     const launching = Promise.all([
       pwPromise,
       this.options.extension ? copied : undefined,
-    ]).then(([pw]) =>
-      pw.launchPersistentContext(this.#profile(), {
+    ]).then(([pw]) => {
+      if (this.stopped) {
+        throw new Error('The run stopped before the browser started')
+      }
+      this.#launching = pw.launchPersistentContext(this.#profile(), {
         ...pwOptions,
         ...this.options.browserContextOptions,
       })
-    )
+      return this.#launching
+    })
     // Avoid unhandled rejection when another step fails first
     launching.catch(noop)
-    this.#launching = launching
 
     await Promise.all([copied, serverPromise, launching])
     this.context = await launching
