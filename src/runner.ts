@@ -960,7 +960,10 @@ export class Runner extends BaseRunner {
         EXIT_WAIT
       )
     }
-    await withTimeout(this.#closeBrowser().closed, TRACE_WAIT + EXIT_WAIT)
+    const closing = this.#closeBrowser()
+    // Right away without a trace, so a slow close can't use up its wait
+    await closing.traced
+    await withTimeout(closing.closed, EXIT_WAIT)
   }
 
   async cleanUp(exitCode: number) {

@@ -10,7 +10,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { after, describe, it } from 'node:test'
 import { nanoid } from 'nanoid'
-import { execa, runCli, TEST_CONCURRENCY } from './helpers.ts'
+import { execa, execaSync, runCli, TEST_CONCURRENCY } from './helpers.ts'
 
 const FLOW = 'mocks/flow'
 
@@ -34,6 +34,22 @@ function run(args: string[], options?: RunOptions) {
     timeout: 30_000,
     ...options,
   })
+}
+
+/**
+ * If the process is still running. A zombie isn't, containers without an init
+ * can leave killed processes like that.
+ */
+function isRunning(pid: number) {
+  try {
+    process.kill(pid, 0)
+  } catch {
+    return false
+  }
+  const state = execaSync('ps', ['-o', 'stat=', '-p', String(pid)], {
+    reject: false,
+  }).stdout
+  return !String(state).trim().startsWith('Z')
 }
 
 function runFlow(name: string, args: string[] = [], options: RunOptions = {}) {
@@ -337,14 +353,10 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
 
       is(proc.exitCode, 130, proc.stderr)
       // A forced kill still takes a moment to land
-      let alive = true
+      let alive = isRunning(pid)
       for (let i = 0; i < 20 && alive; i++) {
-        try {
-          process.kill(pid, 0)
-          await new Promise((resolve) => setTimeout(resolve, 50))
-        } catch {
-          alive = false
-        }
+        await new Promise((resolve) => setTimeout(resolve, 50))
+        alive = isRunning(pid)
       }
       if (alive) {
         process.kill(pid, 'SIGKILL')
@@ -366,12 +378,7 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
 
       is(proc.timedOut, false, 'ended by itself')
       is(proc.exitCode, 143, proc.stderr)
-      let alive = true
-      try {
-        process.kill(pid, 0)
-      } catch {
-        alive = false
-      }
+      const alive = isRunning(pid)
       if (alive) {
         process.kill(pid, 'SIGKILL')
       }
