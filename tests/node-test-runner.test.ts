@@ -178,6 +178,66 @@ describe('node:test runner', () => {
       ok(!output(proc).includes('created after'), output(proc))
     })
 
+    it('a reporter comes from the project, with the conditions of import', async () => {
+      const dir = fs.mkdtempSync('mocks/tmp-reporter-')
+      const pkg = `${dir}/node_modules/only-import-reporter`
+      fs.mkdirSync(pkg, { recursive: true })
+      fs.writeFileSync(
+        `${pkg}/package.json`,
+        JSON.stringify({
+          name: 'only-import-reporter',
+          type: 'module',
+          exports: { import: './index.js' },
+        })
+      )
+      fs.writeFileSync(
+        `${pkg}/index.js`,
+        "export default async function* (source) { for await (const event of source) { if (event.type === 'test:pass') yield 'REPORTED ' + event.data.name + '\\n' } }\n"
+      )
+      fs.writeFileSync(
+        `${dir}/broken-reporter.js`,
+        "await new Promise((resolve) => setTimeout(resolve, 100))\nthrow new Error('reporter-boom')\n"
+      )
+      fs.writeFileSync(
+        `${dir}/marker.test.js`,
+        "import fs from 'node:fs'\nimport { test } from 'node:test'\ntest('writes', () => { fs.writeFileSync('marker.txt', '') })\n"
+      )
+      const config = (reporter: string) =>
+        fs.writeFileSync(
+          `${dir}/${reporter.replace(/\W/g, '')}.config.js`,
+          `export default { testRunner: { options: { reporter: '${reporter}' } } }\n`
+        )
+      config('only-import-reporter')
+      config('./broken-reporter.js')
+      const cli = (reporter: string) =>
+        runCli(
+          [
+            'marker.test.js',
+            '--runner',
+            'node-test',
+            '--mode',
+            'node',
+            '--cwd',
+            dir,
+            '--config',
+            `${dir}/${reporter.replace(/\W/g, '')}.config.js`,
+          ],
+          { reject: false }
+        )
+      try {
+        const broken = await cli('./broken-reporter.js')
+        is(broken.exitCode, 1, output(broken))
+        ok(output(broken).includes('reporter-boom'), output(broken))
+        is(fs.existsSync(`${dir}/marker.txt`), false, 'a file ran')
+
+        const proc = await cli('only-import-reporter')
+        is(proc.exitCode, 0, output(proc))
+        ok(proc.stdout.includes('REPORTED writes'), output(proc))
+      } finally {
+        fs.rmSync(dir, { recursive: true })
+      }
+    })
+
     it('a run timeout also ends a file that blocks and ignores SIGTERM', async () => {
       const dir = fs.mkdtempSync('mocks/tmp-blocked-')
       const file = `${dir}/pid.txt`

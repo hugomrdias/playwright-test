@@ -5,7 +5,7 @@
  *
  * It reads its options as JSON on stdin.
  */
-import { createRequire } from 'node:module'
+import { registerHooks } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import { run } from 'node:test'
@@ -33,27 +33,28 @@ async function readStdin() {
   return JSON.parse(Buffer.concat(chunks).toString()) as IsolatedRunOptions
 }
 
-/** A path or a package, from `cwd` */
-function resolveReporter(name: string) {
-  if (name.startsWith('.') || path.isAbsolute(name)) {
-    return pathToFileURL(path.resolve(name)).href
-  }
-  try {
-    const file = createRequire(path.join(process.cwd(), 'noop.js')).resolve(
-      name
-    )
-    return pathToFileURL(file).href
-  } catch {
-    // Maybe only for `import`
-    return name
-  }
-}
+// Like node, a reporter package resolves from `cwd` with the conditions of
+// `import`. `import.meta.resolve` only takes the parent behind a flag.
+const FROM_CWD = 'playwright-test-from-cwd:'
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (!specifier.startsWith(FROM_CWD)) {
+      return nextResolve(specifier, context)
+    }
+    return nextResolve(specifier.slice(FROM_CWD.length), {
+      ...context,
+      parentURL: pathToFileURL(path.join(process.cwd(), 'noop.js')).href,
+    })
+  },
+})
 
 /** Like `--test-reporter` of node */
 async function loadReporter(name: string) {
   let reporter: unknown = Object.hasOwn(BUILTIN, name)
     ? BUILTIN[name]
-    : await import(resolveReporter(name))
+    : await import(
+        path.isAbsolute(name) ? pathToFileURL(name).href : `${FROM_CWD}${name}`
+      )
   if (reporter && typeof reporter === 'object' && 'default' in reporter) {
     reporter = reporter.default
   }
@@ -76,12 +77,20 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => controller.abort())
 }
 
+// Before the files start, a reporter that fails to load runs none of them
+const names = options.reporters.length > 0 ? options.reporters : ['spec']
+const loaded = await Promise.all(names.map(loadReporter))
+
 const stream = run({
   files: options.files,
   isolation: 'process',
   concurrency:
     options.concurrency ?? Math.max(os.availableParallelism() - 1, 1),
-  execArgv: options.imports.flatMap((url) => ['--import', url]),
+  execArgv: [
+    ...options.imports.flatMap((url) => ['--import', url]),
+    // Node 24.0 doesn't give `timeout` to the files
+    ...(options.timeout ? [`--test-timeout=${options.timeout}`] : []),
+  ],
   testNamePatterns:
     options.testNamePatterns.length > 0 ? options.testNamePatterns : undefined,
   timeout: options.timeout,
@@ -93,8 +102,6 @@ stream.on('test:summary', (data) => {
   }
 })
 
-const names = options.reporters.length > 0 ? options.reporters : ['spec']
-const loaded = await Promise.all(names.map(loadReporter))
 for (const reporter of loaded) {
   // biome-ignore lint/suspicious/noExplicitAny: a reporter is a stream or a generator
   stream.compose(reporter as any).pipe(process.stdout)
