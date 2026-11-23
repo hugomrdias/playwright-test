@@ -48,6 +48,18 @@ describe('--trace', () => {
     ok(!existsSync(trace), 'no trace')
   })
 
+  it('saves the trace when only the afterTests hook fails', async () => {
+    const proc = await run([
+      'pass.mocha.js',
+      '--trace',
+      '--config',
+      'mocks/flow/after-throws.config.mjs',
+    ])
+
+    is(proc.exitCode, 1, proc.stderr)
+    assertTrace()
+  })
+
   it('keeps the trace of a passing run with on', async () => {
     const proc = await run(['pass.mocha.js', '--trace', 'on'])
 

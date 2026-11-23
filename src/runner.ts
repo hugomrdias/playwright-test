@@ -926,10 +926,14 @@ export class Runner extends BaseRunner {
   }
 
   /**
-   * The browser closes while the afterTests hook runs, it doesn't get it.
+   * The browser closes while the afterTests hook runs, it doesn't get it. Not
+   * when the trace is only kept for failures of a passing run, the hook
+   * failing would keep it.
    */
   async exit(fail: boolean, msg?: unknown) {
-    this.#closeBrowser(fail ? 1 : 0)
+    if (fail || !this.tracing || this.options.trace === 'on') {
+      this.#closeBrowser(fail ? 1 : 0)
+    }
     await super.exit(fail, msg)
   }
 
@@ -937,9 +941,13 @@ export class Runner extends BaseRunner {
     // Whatever is running fails from here on because of the browser closing
     this.stopped = true
 
-    // Already closing when the run ended, not when this process got a signal
-    const closing = this.#closeBrowser(exitCode)
+    // Already closing when the run ended, or after the hook decided the exit
+    // code for the trace, see `exit`. On a signal while the tests run, now.
+    if (!this.afterTestsResult) {
+      this.#closeBrowser(exitCode)
+    }
     await this.runAfterTests()
+    const closing = this.#closeBrowser(exitCode)
     // It has its own wait
     await closing.traced
 
@@ -967,7 +975,7 @@ export class Runner extends BaseRunner {
     // A browser that's still there gets killed by Playwright at the exit, and
     // its profile deleted.
     if (!this.#browserConnected()) {
-      await Promise.race([closed, wait(PROFILE_DELETE_WAIT)])
+      await Promise.race([closing.closed, wait(PROFILE_DELETE_WAIT)])
       clearTimeout(timer)
     }
 

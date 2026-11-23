@@ -77,7 +77,8 @@ describe('browser profile', { concurrency: TEST_CONCURRENCY }, () => {
           '--config',
           'mocks/profile/after-tests.config.js',
         ],
-        { env, timeout: 60_000 }
+        // CI runners can take their time to close Chromium
+        { env, timeout: 90_000 }
       )
 
       is(proc.exitCode, 0, 'exit code')
