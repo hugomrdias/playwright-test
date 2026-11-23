@@ -45,15 +45,16 @@ export const REMOVE_WAIT = 3000
 export async function removeFolder(dir: string) {
   const removing = rm(dir, REMOVE_OPTIONS).then(
     () => undefined,
-    (error: Error) => error.message
+    (error: Error) => `Could not delete ${dir}: ${error.message}`
   )
+  // It keeps trying, it may still be gone by the time this process exits
   const failure = await withTimeout(
     removing,
     REMOVE_WAIT,
-    `still in use after ${REMOVE_WAIT}ms`
+    `Stopped waiting for ${dir} to be deleted after ${REMOVE_WAIT}ms`
   )
   if (failure !== undefined) {
-    log.warn(`Could not delete ${dir}: ${failure}`)
+    log.warn(failure)
   }
 }
 

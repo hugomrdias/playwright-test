@@ -39,7 +39,11 @@ describe('removeFolder', () => {
     mockRm(() => Promise.reject(new Error('EPERM: nope')))
     await removeFolder('/nowhere')
     is(warn.mock.callCount(), 1)
-    ok(String(warn.mock.calls[0]?.arguments[0]).includes('EPERM: nope'))
+    ok(
+      String(warn.mock.calls[0]?.arguments[0]).includes(
+        'Could not delete /nowhere: EPERM: nope'
+      )
+    )
   })
 
   it('stops waiting for a folder still in use', async () => {
@@ -50,6 +54,6 @@ describe('removeFolder', () => {
     const took = Date.now() - start
     ok(took >= REMOVE_WAIT - 50 && took < REMOVE_WAIT + 1000, `${took}ms`)
     is(warn.mock.callCount(), 1)
-    ok(String(warn.mock.calls[0]?.arguments[0]).includes('still in use'))
+    ok(String(warn.mock.calls[0]?.arguments[0]).includes('Stopped waiting'))
   })
 })
