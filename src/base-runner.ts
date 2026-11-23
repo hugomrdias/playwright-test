@@ -107,8 +107,11 @@ export class BaseRunner {
       return
     }
 
+    // Only for the user, the temp folder is shared and the run has the
+    // browser profile and the trace before it's kept
     mkdirSync(this.dir, {
       recursive: true,
+      mode: 0o700,
     })
   }
 

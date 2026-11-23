@@ -3,7 +3,7 @@
 import { fileURLToPath } from 'node:url'
 import { watch } from 'chokidar'
 import { asyncExitHook } from 'exit-hook'
-import { copyFileSync, mkdirSync } from 'fs'
+import fs, { mkdirSync } from 'fs'
 import { cp } from 'fs/promises'
 import path from 'path'
 import type {
@@ -419,7 +419,10 @@ export class Runner extends BaseRunner {
       wait:
         AFTER_TESTS_TIMEOUT +
         EXIT_WAIT +
-        (this.options.trace === 'off' || this.options.debug ? 0 : TRACE_WAIT),
+        // Writing it, and copying it where it's kept
+        (this.options.trace === 'off' || this.options.debug
+          ? 0
+          : 2 * TRACE_WAIT),
     })
 
     let compiled: Promise<CompilerOutput> | undefined
@@ -763,7 +766,7 @@ export class Runner extends BaseRunner {
    * Keep the trace in `cwd` with `on` or when the run failed, the afterTests
    * hook included. Otherwise it goes with the files of the run.
    */
-  #keepTrace(trace: Trace, exitCode: number) {
+  async #keepTrace(trace: Trace, exitCode: number) {
     if (!trace || (this.options.trace !== 'on' && exitCode === 0)) {
       return
     }
@@ -775,11 +778,26 @@ export class Runner extends BaseRunner {
       this.options.cwd,
       `playwright-test-trace-${this.options.browser}.zip`
     )
-    try {
-      // Not a rename, the temp folder can be on another drive
-      copyFileSync(trace.file, file)
-    } catch (error) {
-      log.warn(`Could not save the trace: ${(error as Error).message}`)
+    // Not a rename, the temp folder can be on another drive. With its own
+    // wait, where it goes can be slow.
+    let timer: NodeJS.Timeout | undefined
+    const copied = await Promise.race([
+      fs.promises.copyFile(trace.file, file).then(
+        () => true,
+        (error: Error) => {
+          log.warn(`Could not save the trace: ${error.message}`)
+          return undefined
+        }
+      ),
+      new Promise((resolve) => {
+        timer = setTimeout(resolve, TRACE_WAIT, false)
+      }),
+    ])
+    clearTimeout(timer)
+    if (copied === false) {
+      log.warn(`Timed out saving the trace after ${TRACE_WAIT}ms.`)
+    }
+    if (!copied) {
       return
     }
     const shown = path.relative(process.cwd(), file) || file
@@ -1006,7 +1024,7 @@ export class Runner extends BaseRunner {
     const closing = this.#closeBrowser()
     await this.runAfterTests()
     // It has its own wait. Kept by the exit code, the hook can fail the run.
-    this.#keepTrace(await closing.traced, exitCode)
+    await this.#keepTrace(await closing.traced, exitCode)
 
     // After the browser, its open connections would use up the wait for the exit
     const closed = closing.closed.then(

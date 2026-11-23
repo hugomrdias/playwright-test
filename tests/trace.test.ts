@@ -84,6 +84,10 @@ describe('--trace', () => {
 
       is(proc.exitCode, 1, proc.stderr)
       ok(proc.stdout.includes('trace-written'), proc.stdout)
+      // Windows has no modes, its temp folder is the user's
+      if (process.platform !== 'win32') {
+        ok(proc.stdout.includes('mode-700'), proc.stdout)
+      }
       assertTrace()
     } finally {
       rmSync(temp, { recursive: true, force: true })
