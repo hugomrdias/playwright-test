@@ -6,7 +6,12 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
 import { watch } from 'chokidar'
-import { BaseRunner } from '../base-runner.ts'
+import {
+  BaseRunner,
+  REMOVE_WAIT,
+  removeFolder,
+  removeFolderNow,
+} from '../base-runner.ts'
 import type { Config } from '../types.ts'
 import { EXT } from '../utils/ext.ts'
 import { log, UsageError, withTimeout } from '../utils/index.ts'
@@ -43,6 +48,7 @@ interface Tests {
 
 class Workers {
   readonly dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-workers-'))
+  #removing?: Promise<void>
 
   #pids() {
     try {
@@ -70,12 +76,23 @@ class Workers {
     while (this.#pids().length > 0 && Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, 50))
     }
-    this.kill()
+    await this.remove()
   }
 
+  /**
+   * Force the ones left, then delete the folder. Once, the tests ending and
+   * stopping them both get here.
+   */
+  async remove() {
+    this.signal('SIGKILL')
+    this.#removing ??= removeFolder(this.dir)
+    await this.#removing
+  }
+
+  /** {@link remove} right away, for when this process exits next */
   kill() {
     this.signal('SIGKILL')
-    fs.rmSync(this.dir, { recursive: true, force: true })
+    removeFolderNow(this.dir)
   }
 }
 
@@ -172,7 +189,7 @@ export class NodeRunner extends BaseRunner {
       ])
     }
     // The files are gone once it ends by itself
-    finished.then(() => workers?.kill())
+    finished.then(() => workers?.remove())
     this.#tests = { child, finished, stop, workers }
     return this.#tests
   }
@@ -337,8 +354,9 @@ export class NodeRunner extends BaseRunner {
     }).on('change', restart)
   }
 
+  /** Stopping the tests, then deleting the folder of their workers */
   cleanupWait() {
-    return FORCE_KILL_DELAY + EXIT_WAIT
+    return FORCE_KILL_DELAY + EXIT_WAIT + REMOVE_WAIT
   }
 
   /**

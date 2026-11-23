@@ -2,6 +2,7 @@ import type { Server } from 'node:http'
 import { WriteStream } from 'node:tty'
 import { asyncExitHook, gracefulExit } from 'exit-hook'
 import { mkdirSync, rmSync } from 'fs'
+import { rm } from 'fs/promises'
 import { nanoid } from 'nanoid'
 import os from 'os'
 import path from 'path'
@@ -26,14 +27,43 @@ const merge = createMerge({ ignoreUndefined: true, concatArrays: true })
 // The browser or the tests are gone by then, nothing should hold it open
 const SERVER_CLOSE_WAIT = 1000
 
+const REMOVE_OPTIONS = { recursive: true, force: true, maxRetries: 10 }
+/**
+ * The most deleting a folder waits for its files to be let go, the exit hook
+ * waits for it. Each try waits longer, and per file, so it has to have an end.
+ */
+export const REMOVE_WAIT = 3000
+
 /**
  * Delete a folder of the run, not being able to doesn't change how it went.
  * The processes of a browser can still hold its files for a while after it
  * exits on Windows.
+ *
+ * Not with `rmSync`, it doesn't wait between its tries, and on Windows it
+ * doesn't retry a file another process still has open.
  */
-export function removeFolder(dir: string) {
+export async function removeFolder(dir: string) {
+  const removing = rm(dir, REMOVE_OPTIONS).then(
+    () => undefined,
+    (error: Error) => `Could not delete ${dir}: ${error.message}`
+  )
+  // It keeps trying, it may still be gone by the time this process exits
+  const failure = await withTimeout(
+    removing,
+    REMOVE_WAIT,
+    `Stopped waiting for ${dir} to be deleted after ${REMOVE_WAIT}ms`
+  )
+  if (failure !== undefined) {
+    log.warn(failure)
+  }
+}
+
+/**
+ * {@link removeFolder} right away, for when this process exits next.
+ */
+export function removeFolderNow(dir: string) {
   try {
-    rmSync(dir, { recursive: true, force: true, maxRetries: 10 })
+    rmSync(dir, REMOVE_OPTIONS)
   } catch (error) {
     log.warn(`Could not delete ${dir}: ${(error as Error).message}`)
   }
@@ -140,13 +170,17 @@ export class BaseRunner {
   handleExit() {
     asyncExitHook((exitCode) => this.#clean(exitCode), {
       // Waiting for a beforeTests hook still running, then the afterTests one
-      wait: 2 * AFTER_TESTS_TIMEOUT + SERVER_CLOSE_WAIT + this.cleanupWait(),
+      wait:
+        2 * AFTER_TESTS_TIMEOUT +
+        SERVER_CLOSE_WAIT +
+        REMOVE_WAIT +
+        this.cleanupWait(),
     })
     let interrupted = false
     process.on('SIGINT', () => {
       if (interrupted) {
         this.killTests()
-        this.removeFiles()
+        removeFolderNow(this.dir)
         process.exit(130)
       }
       interrupted = true
@@ -250,8 +284,8 @@ export class BaseRunner {
   /**
    * Delete the files of this run, not being able to doesn't change how it went.
    */
-  removeFiles() {
-    removeFolder(this.dir)
+  async removeFiles() {
+    await removeFolder(this.dir)
   }
 
   async #clean(exitCode: number) {
@@ -261,7 +295,7 @@ export class BaseRunner {
     await this.runAfterTests()
     await this.cleanUp(exitCode)
     await closeServer(this.server, SERVER_CLOSE_WAIT)
-    this.removeFiles()
+    await this.removeFiles()
   }
 
   /**
