@@ -22,8 +22,11 @@ describe('errors while the tests load', {
 
         is(proc.timedOut, false, 'ended by itself')
         is(proc.exitCode, 1, 'exit code')
-        ok(proc.stderr.includes('load-boom'), proc.stderr)
-        ok(proc.stderr.includes('throws.test.js:1'), proc.stderr)
+        // `node --test` reports what each file printed on stdout
+        const output =
+          runner === 'node-test' && mode === 'node' ? proc.stdout : proc.stderr
+        ok(output.includes('load-boom'), output)
+        ok(output.includes('throws.test.js:1'), output)
       })
     }
   }

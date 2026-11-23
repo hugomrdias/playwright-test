@@ -100,7 +100,8 @@ const nodeTestHarnessFile = path.resolve(__dirname, `node/test-harness${EXT}`)
 /**
  * `node:test` runner. In node mode `node:test` is the real thing, with all of
  * its API and reporters, browsers get `playwright-test/node-test` instead. Files
- * importing `playwright-test/node-test` run on it in every mode.
+ * importing `playwright-test/node-test` run on it in every mode, but with
+ * `--test-isolation process` in node mode, where it's the real one too.
  */
 export const nodeTest: TestRunner = {
   name: 'node-test',

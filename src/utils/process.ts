@@ -1,5 +1,6 @@
 import type { ChildProcess } from 'node:child_process'
 import { spawn, spawnSync } from 'node:child_process'
+import fs from 'node:fs'
 import path from 'node:path'
 
 /** How long a subprocess has to end after being asked to. */
@@ -75,4 +76,28 @@ export function forceKill(child: ChildProcess) {
     return
   }
   child.kill('SIGKILL')
+}
+
+/**
+ * Whether a process is still there, and not only waiting for its parent to
+ * read its exit code. Without a parent that does, it stays a zombie.
+ */
+export function isRunning(pid: number) {
+  try {
+    process.kill(pid, 0)
+  } catch {
+    return false
+  }
+  if (process.platform !== 'linux') {
+    return true
+  }
+  try {
+    // `pid (name) state ...`, the name can have spaces and parentheses
+    const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8')
+    return (
+      stat.slice(stat.lastIndexOf(')') + 2, stat.lastIndexOf(')') + 3) !== 'Z'
+    )
+  } catch {
+    return false
+  }
 }
