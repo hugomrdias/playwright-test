@@ -895,7 +895,9 @@ export class Runner extends BaseRunner {
               await Promise.all(regs.map((reg) => reg.unregister()))
             }
           })
-          await page.reload()
+          // Like the first run, without the storage of the one before
+          await this.#clearSiteData(page)
+          await page.goto(this.url)
           console.error()
           log.info('Reloading tests...')
           const { files } = await this.runTests(page)

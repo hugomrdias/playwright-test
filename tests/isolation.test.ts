@@ -196,6 +196,59 @@ const runIn = (
     { reject: false }
   )
 
+describe('--watch', () => {
+  it('reruns without the storage of the run before', async () => {
+    // In the project, watching all of the temp folder takes a long while
+    const temp = fs.mkdtempSync(path.join(dir, 'watch-'))
+    const file = path.join(temp, 'storage.test.js')
+    fs.writeFileSync(
+      file,
+      `describe('watch storage', () => {
+  it('starts clean', () => {
+    console.log('STORED ' + localStorage.getItem('watch'))
+    localStorage.setItem('watch', 'old')
+  })
+})
+`
+    )
+    const running = runCli([file, '--runner', 'mocha', '--watch'], {
+      reject: false,
+      timeout: 40_000,
+    })
+    let stdout = ''
+    const stored = (count: number) =>
+      new Promise<void>((resolve) => {
+        const check = () => {
+          if (stdout.split('STORED ').length > count) {
+            running.stdout?.off('data', onData)
+            resolve()
+          }
+        }
+        const onData = (data: Buffer) => {
+          stdout += data.toString()
+          check()
+        }
+        running.stdout?.on('data', onData)
+        check()
+      })
+    try {
+      await stored(1)
+      // Until it reruns, the watcher starts after the tests are loaded. Slower
+      // than it waits for the writes to finish.
+      const change = setInterval(() => {
+        fs.appendFileSync(file, '// changed\n')
+      }, 1500)
+      await stored(2).finally(() => clearInterval(change))
+    } finally {
+      running.kill()
+      await running
+      fs.rmSync(temp, { recursive: true, force: true })
+    }
+
+    is(stdout.match(/STORED \w+/g)?.join(), 'STORED null,STORED null', stdout)
+  })
+})
+
 for (const mode of ['browser', 'web-worker']) {
   describe(`--test-isolation process in ${mode} mode`, {
     concurrency: TEST_CONCURRENCY,
@@ -319,6 +372,19 @@ for (const mode of ['browser', 'web-worker']) {
       ok(!proc.stdout.includes('BUSY FINISHED'), output(proc))
       ok(!proc.stdout.includes('SLOW FINISHED'), output(proc))
       ok(Date.now() - started < 15_000, output(proc))
+    })
+
+    it('a service worker of the tests never answers for the test page', async () => {
+      // It serves an app shell to every page, the second file loads after it
+      const proc = await runIn(
+        mode,
+        'mocha',
+        ['mocha-a', 'mocha-b'],
+        ['--test-concurrency', '1', '--sw', `${dir}/sw-app-shell.js`]
+      )
+
+      is(proc.exitCode, 0, output(proc))
+      ok(proc.stdout.includes('ℹ pass 2'), output(proc))
     })
 
     it('mocha bail keeps what a cancelled file logged', async () => {
