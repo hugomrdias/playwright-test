@@ -272,8 +272,11 @@ export async function detectTestRunners(
   const config = options.buildConfig
   let found: Map<TestRunner, string> = new Map()
   await build({
-    absWorkingDir: config?.absWorkingDir ?? options.cwd,
-    stdin: { contents: 'import "runner-autodetection"' },
+    absWorkingDir: config?.absWorkingDir,
+    stdin: {
+      contents: 'import "runner-autodetection"',
+      resolveDir: options.cwd,
+    },
     bundle: true,
     write: false,
     logLevel: 'silent',
@@ -316,29 +319,37 @@ export async function detectTestRunners(
                   ) {
                     return result.path
                   }
-                }
+                },
+                config?.preserveSymlinks
               )
               return { contents: '' }
             }
           )
         },
       },
+      ...(config?.plugins ?? []),
     ],
   })
   return found
 }
 
-async function scanTestRunners(files: string[], resolveSource: ResolveSource) {
+async function scanTestRunners(
+  files: string[],
+  resolveSource: ResolveSource,
+  preserveSymlinks = false
+) {
   const found: Map<TestRunner, string> = new Map()
   const pending = [...files]
   const visited = new Set<string>()
   for (const file of pending) {
-    const realFile = fs.realpathSync(file)
-    if (visited.has(realFile)) {
+    const modulePath = preserveSymlinks
+      ? path.resolve(file)
+      : fs.realpathSync(file)
+    if (visited.has(modulePath)) {
       continue
     }
-    visited.add(realFile)
-    for (const dependency of evidence(realFile)) {
+    visited.add(modulePath)
+    for (const dependency of evidence(modulePath)) {
       const { id } = dependency
       const runner = RUNNER_MODULES.get(id)
       if (runner) {
@@ -351,7 +362,7 @@ async function scanTestRunners(files: string[], resolveSource: ResolveSource) {
         id === '.' ||
         id === '..'
       ) {
-        const resolved = await resolveSource(realFile, dependency)
+        const resolved = await resolveSource(modulePath, dependency)
         if (resolved && SOURCE_EXTENSIONS.includes(path.extname(resolved))) {
           pending.push(resolved)
         }

@@ -228,6 +228,82 @@ describe('runner auto detection', () => {
       is(options.runner, 'mocha')
     })
 
+    it('resolves a relative tsconfig from the launch directory with --cwd', async () => {
+      const cwd = fs.mkdtempSync(path.join(dir, 'cwd-'))
+      const entry = path.join(cwd, 'entry.js')
+      fs.writeFileSync(entry, "describe('suite', () => {})")
+      const tsconfig = write('{}', 'json')
+      const config = write(
+        `export default { buildConfig: { tsconfig: ${JSON.stringify(tsconfig)} } }`
+      )
+      const { options } = await resolveCli([
+        path.basename(entry),
+        '--cwd',
+        cwd,
+        '--config',
+        path.resolve(config),
+      ])
+      is(options.runner, 'mocha')
+    })
+
+    it('detects the file a configured esbuild plugin resolves', async () => {
+      const unused = write("import 'node:test'")
+      const suite = write("describe('suite', () => {})")
+      const entry = write(
+        `import './${path.basename(unused)}'\ndescribe('entry', () => {})`
+      )
+      const config = write(`export default {
+        buildConfig: { plugins: [{
+          name: 'redirect-suite',
+          setup(build) {
+            build.onResolve({ filter: /^\\.\\// }, ({ path }) =>
+              path === ${JSON.stringify(`./${path.basename(unused)}`)}
+                ? { path: ${JSON.stringify(path.resolve(suite))} }
+                : undefined
+            )
+          },
+        }] },
+      }`)
+      const { options } = await resolveCli([entry, '--config', config])
+      is(options.runner, 'mocha')
+    })
+
+    it('resolves each symlink from its own directory when preserving symlinks', async (t) => {
+      const target = fs.mkdtempSync(path.join(dir, 'target-'))
+      const wrapper = path.join(target, 'wrapper.js')
+      fs.writeFileSync(wrapper, "import './suite.js'")
+      fs.writeFileSync(path.join(target, 'suite.js'), "import 'node:test'")
+      const first = fs.mkdtempSync(path.join(dir, 'first-'))
+      const second = fs.mkdtempSync(path.join(dir, 'second-'))
+      for (const directory of [first, second]) {
+        try {
+          fs.symlinkSync(
+            path.resolve(wrapper),
+            path.join(directory, 'wrapper.js')
+          )
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'EPERM') throw error
+          t.skip('symlink creation is unavailable')
+          return
+        }
+      }
+      fs.writeFileSync(path.join(first, 'suite.js'), 'export {}')
+      fs.writeFileSync(
+        path.join(second, 'suite.js'),
+        "describe('suite', () => {})"
+      )
+      const entry = write(
+        `import './${path.basename(first)}/wrapper.js'\nimport './${path.basename(second)}/wrapper.js'`
+      )
+      const config = write(
+        'export default { buildConfig: { preserveSymlinks: true } }'
+      )
+      const { options } = await resolveCli([entry, '--config', config])
+      is(options.runner, 'mocha')
+      const { options: defaults } = await resolveCli([entry])
+      is(defaults.runner, 'node-test')
+    })
+
     it('falls back to none with a warning', async () => {
       const { options, logs } = await resolveCli([
         write('console.log("ran")'),
