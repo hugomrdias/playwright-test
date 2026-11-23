@@ -2,6 +2,7 @@ import type { Server } from 'node:http'
 import { WriteStream } from 'node:tty'
 import { asyncExitHook, gracefulExit } from 'exit-hook'
 import { mkdirSync, rmSync } from 'fs'
+import { rm } from 'fs/promises'
 import { nanoid } from 'nanoid'
 import os from 'os'
 import path from 'path'
@@ -26,14 +27,30 @@ const merge = createMerge({ ignoreUndefined: true, concatArrays: true })
 // The browser or the tests are gone by then, nothing should hold it open
 const SERVER_CLOSE_WAIT = 1000
 
+const REMOVE_OPTIONS = { recursive: true, force: true, maxRetries: 10 }
+
 /**
  * Delete a folder of the run, not being able to doesn't change how it went.
  * The processes of a browser can still hold its files for a while after it
  * exits on Windows.
+ *
+ * Not with `rmSync`, it doesn't wait between its tries, and on Windows it
+ * doesn't retry a file another process still has open.
  */
-export function removeFolder(dir: string) {
+export async function removeFolder(dir: string) {
   try {
-    rmSync(dir, { recursive: true, force: true, maxRetries: 10 })
+    await rm(dir, REMOVE_OPTIONS)
+  } catch (error) {
+    log.warn(`Could not delete ${dir}: ${(error as Error).message}`)
+  }
+}
+
+/**
+ * {@link removeFolder} right away, for when this process exits next.
+ */
+export function removeFolderNow(dir: string) {
+  try {
+    rmSync(dir, REMOVE_OPTIONS)
   } catch (error) {
     log.warn(`Could not delete ${dir}: ${(error as Error).message}`)
   }
@@ -146,7 +163,7 @@ export class BaseRunner {
     process.on('SIGINT', () => {
       if (interrupted) {
         this.killTests()
-        this.removeFiles()
+        removeFolderNow(this.dir)
         process.exit(130)
       }
       interrupted = true
@@ -250,8 +267,8 @@ export class BaseRunner {
   /**
    * Delete the files of this run, not being able to doesn't change how it went.
    */
-  removeFiles() {
-    removeFolder(this.dir)
+  async removeFiles() {
+    await removeFolder(this.dir)
   }
 
   async #clean(exitCode: number) {
@@ -261,7 +278,7 @@ export class BaseRunner {
     await this.runAfterTests()
     await this.cleanUp(exitCode)
     await closeServer(this.server, SERVER_CLOSE_WAIT)
-    this.removeFiles()
+    await this.removeFiles()
   }
 
   /**

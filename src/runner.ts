@@ -932,7 +932,7 @@ export class Runner extends BaseRunner {
     // the open connections of the browser would keep it open.
     await withTimeout(closing.closed, EXIT_WAIT)
     // The bundles don't go there, a build that never ends can't keep it
-    removeFolder(this.#profile())
+    await removeFolder(this.#profile())
     // After the browser closed, it can still be using them. A bundle started
     // early may still be writing when the setup failed.
     await this.#compiling?.then(noop, noop)

@@ -6,7 +6,7 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
 import { watch } from 'chokidar'
-import { BaseRunner, removeFolder } from '../base-runner.ts'
+import { BaseRunner, removeFolder, removeFolderNow } from '../base-runner.ts'
 import type { Config } from '../types.ts'
 import { EXT } from '../utils/ext.ts'
 import { log, UsageError, withTimeout } from '../utils/index.ts'
@@ -70,12 +70,19 @@ class Workers {
     while (this.#pids().length > 0 && Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, 50))
     }
-    this.kill()
+    await this.remove()
   }
 
+  /** Force the ones left, then delete the folder */
+  async remove() {
+    this.signal('SIGKILL')
+    await removeFolder(this.dir)
+  }
+
+  /** {@link remove} right away, for when this process exits next */
   kill() {
     this.signal('SIGKILL')
-    removeFolder(this.dir)
+    removeFolderNow(this.dir)
   }
 }
 
@@ -172,7 +179,7 @@ export class NodeRunner extends BaseRunner {
       ])
     }
     // The files are gone once it ends by itself
-    finished.then(() => workers?.kill())
+    finished.then(() => workers?.remove())
     this.#tests = { child, finished, stop, workers }
     return this.#tests
   }
