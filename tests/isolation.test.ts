@@ -442,13 +442,8 @@ for (const mode of ['browser', 'web-worker']) {
 
           is(proc.exitCode, 1, output(proc))
           ok(proc.stdout.includes('ℹ cancelled 1'), output(proc))
-          // The preview of the value, Chromium's has its keys
-          ok(
-            proc.stdout.includes(
-              browser === 'chromium' ? 'request: ' : 'Object'
-            ),
-            output(proc)
-          )
+          // The value may only have the preview of the browser, the text is there
+          ok(proc.stdout.includes('LOGGED BEFORE BAIL'), output(proc))
           ok(!proc.stdout.includes('LOGS BUSY FINISHED'), output(proc))
           // What it sent before the browser closed got here by now
           await new Promise((resolve) => setTimeout(resolve, 500))

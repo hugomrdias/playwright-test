@@ -3,7 +3,7 @@
 describe('mocha logs busy', () => {
   it('logs, then blocks the thread', function () {
     this.timeout(0)
-    console.log({ request: { detail: 'DEEP VALUE' } })
+    console.log('LOGGED BEFORE BAIL', { request: { detail: 'DEEP VALUE' } })
     const end = Date.now() + 1800
     while (Date.now() < end) {
       // busy
