@@ -117,6 +117,31 @@ describe('node:test runner', () => {
       is(proc.exitCode, 1, output(proc))
       ok(proc.stdout.includes('ℹ fail 1'), output(proc))
     })
+
+    it('a run timeout also ends the files that ignore SIGTERM', async () => {
+      const dir = fs.mkdtempSync('mocks/tmp-stubborn-')
+      const file = `${dir}/out.txt`
+      try {
+        const proc = await runCli(
+          [
+            'mocks/node-test-runner/isolation-kill/stubborn.test.js',
+            '--runner',
+            'node-test',
+            '--mode',
+            'node',
+            '--run-timeout',
+            '1000',
+          ],
+          { reject: false, env: { STUBBORN_FILE: file } }
+        )
+        is(proc.exitCode, 1, output(proc))
+        const lines = fs.readFileSync(file, 'utf8')
+        await new Promise((resolve) => setTimeout(resolve, 500))
+        is(fs.readFileSync(file, 'utf8'), lines, 'it kept running')
+      } finally {
+        fs.rmSync(dir, { recursive: true })
+      }
+    })
   })
 
   // In node mode the shim gets the options from PW_OPTIONS, not from node flags

@@ -11,7 +11,9 @@ import { createPolka, log, UsageError, withTimeout } from '../utils/index.ts'
 import {
   FORCE_KILL_DELAY,
   forceKill,
+  groupOptions,
   killTree,
+  trackGroup,
   withLocalBins,
 } from '../utils/process.ts'
 
@@ -162,11 +164,15 @@ export class NodeRunner extends BaseRunner {
       ...this.tests.map((t) => path.resolve(this.options.cwd, t)),
     ]
 
-    return spawn(process.execPath, nodeArgs, {
-      cwd: this.options.cwd,
-      env: withLocalBins(this.env, this.options.cwd),
-      stdio: ['ignore', 'inherit', 'inherit'],
-    })
+    // In its own group, killing it has to reach the workers too
+    return trackGroup(
+      spawn(process.execPath, nodeArgs, {
+        ...groupOptions(),
+        cwd: this.options.cwd,
+        env: withLocalBins(this.env, this.options.cwd),
+        stdio: ['ignore', 'inherit', 'inherit'],
+      })
+    )
   }
 
   async run() {
