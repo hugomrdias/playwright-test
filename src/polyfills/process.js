@@ -197,7 +197,7 @@ const p = {
     const exitCode = args.length === 0 ? p.exitCode : args[0]
     const options = JSON.parse(p.env.PW_OPTIONS)
     const failed = Number(exitCode ?? 0) !== 0
-    if (options.mode === 'worker') {
+    if (options.mode === 'web-worker') {
       postMessage({
         pwRunEnded: true,
         pwRunFailed: failed,

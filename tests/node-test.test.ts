@@ -9,7 +9,7 @@ import { execa, runCli, TEST_CONCURRENCY } from './helpers.ts'
 
 describe('playwright-test/node-test', () => {
   const runner = ['--runner', 'node-test']
-  const modes = ['node', 'main', 'worker']
+  const modes = ['node', 'browser', 'web-worker']
 
   /** A test in the output: its symbol, name and what's after `#`. */
   const STATUS = /^\s*(✔|✖|﹣|⚠) (.*) \(\d+(?:\.\d+)?ms\)(?: # (.*))?$/
@@ -511,12 +511,12 @@ describe('playwright-test/node-test', () => {
       )
 
       is(exitCode, 0, `${stdout}\n${stderr}`)
-      for (const mode of ['node', 'main', 'worker']) {
+      for (const mode of ['node', 'browser', 'web-worker']) {
         ok(stdout.includes(`${mode}: `), stdout)
       }
     })
 
-    for (const mode of ['main', 'worker']) {
+    for (const mode of ['browser', 'web-worker']) {
       it(`${mode}: exports and unsupported`, async () => {
         const { exitCode, stdout } = await runCli(
           [fixture('assert-exports'), '--runner', 'none', '--mode', mode],
@@ -540,7 +540,7 @@ describe('playwright-test/node-test', () => {
     })
 
     it('t.assert reports failures in browsers', async () => {
-      const { proc, results } = await runApi('assert-context', 'main')
+      const { proc, results } = await runApi('assert-context', 'browser')
 
       is(proc.exitCode, 1, proc.stdout)
       equal(results, [
@@ -579,7 +579,7 @@ describe('playwright-test/node-test', () => {
         env,
       })
 
-    for (const mode of ['node', 'main']) {
+    for (const mode of ['node', 'browser']) {
       it(`only prints failures and their parents in ${mode} mode`, async () => {
         const proc = await run(mode)
         is(proc.exitCode, 1)

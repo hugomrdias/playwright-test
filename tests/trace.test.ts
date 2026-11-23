@@ -117,8 +117,13 @@ describe('--trace', () => {
     assertTrace()
   })
 
-  it('keeps the trace in worker mode', async () => {
-    const proc = await run(['fails.mocha.js', '--trace', '--mode', 'worker'])
+  it('keeps the trace in web-worker mode', async () => {
+    const proc = await run([
+      'fails.mocha.js',
+      '--trace',
+      '--mode',
+      'web-worker',
+    ])
 
     is(proc.exitCode, 1, proc.stderr)
     assertTrace()

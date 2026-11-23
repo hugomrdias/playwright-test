@@ -3,7 +3,7 @@ import { describe, it } from 'node:test'
 import { runCli, TEST_CONCURRENCY } from './helpers.ts'
 
 describe('stdout / stderr', { concurrency: TEST_CONCURRENCY }, () => {
-  for (const mode of ['main', 'worker']) {
+  for (const mode of ['browser', 'web-worker']) {
     it(`does not add line breaks with mode:${mode}`, async () => {
       const proc = await runCli([
         'mocks/none/stdout.test.js',
@@ -34,7 +34,7 @@ describe('stdout / stderr', { concurrency: TEST_CONCURRENCY }, () => {
 })
 
 describe('process in the browser', { concurrency: TEST_CONCURRENCY }, () => {
-  for (const mode of ['main', 'worker']) {
+  for (const mode of ['browser', 'web-worker']) {
     it(`has what bundles expect with mode:${mode}`, async () => {
       const proc = await runCli([
         'mocks/none/process.test.js',
@@ -89,7 +89,7 @@ describe('process in the browser', { concurrency: TEST_CONCURRENCY }, () => {
 })
 
 describe('util.debuglog in the browser', () => {
-  for (const mode of ['main', 'worker']) {
+  for (const mode of ['browser', 'web-worker']) {
     it(`matches NODE_DEBUG wildcards case-insensitively with mode:${mode}`, async () => {
       const proc = await runCli(
         [
@@ -114,7 +114,7 @@ describe('util.debuglog in the browser', () => {
 })
 
 describe('path in the browser', { concurrency: TEST_CONCURRENCY }, () => {
-  for (const mode of ['main', 'worker']) {
+  for (const mode of ['browser', 'web-worker']) {
     it(`resolves every import to the same module with mode:${mode}`, async () => {
       const proc = await runCli([
         'mocks/none/path-imports.test.js',
@@ -175,7 +175,7 @@ for (const browser of ['chromium', 'firefox']) {
       return output.split('\n').filter((line) => line.includes(prefix))
     }
 
-    for (const mode of ['worker', 'main']) {
+    for (const mode of ['web-worker', 'browser']) {
       it(`prints every line to stdout with mode:${mode}`, {
         timeout,
       }, async () => {
@@ -198,7 +198,7 @@ for (const browser of ['chromium', 'firefox']) {
     }
 
     it('waits for arguments still being read', { timeout }, async () => {
-      const proc = await run('console-slow-args', 'worker')
+      const proc = await run('console-slow-args', 'web-worker')
 
       is(proc.exitCode, 0, 'exit code')
       const lines = linesWith(proc.stdout, 'console-slow-')
@@ -209,7 +209,7 @@ for (const browser of ['chromium', 'firefox']) {
 
     it('does not wait forever for a stuck page', { timeout }, async () => {
       // It always uses up the whole wait for the console
-      const proc = await run('console-stuck', 'worker', {
+      const proc = await run('console-stuck', 'web-worker', {
         PW_TEST_CONSOLE_FLUSH_TIMEOUT: '500',
       })
 

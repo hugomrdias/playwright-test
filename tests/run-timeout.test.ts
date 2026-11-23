@@ -17,7 +17,7 @@ describe('run timeout', { concurrency: TEST_CONCURRENCY }, () => {
     )
   }
 
-  for (const mode of ['main', 'worker', 'node']) {
+  for (const mode of ['browser', 'web-worker', 'node']) {
     it(`fails a test that never ends with mode:${mode}`, async () => {
       const proc = await run('never-ends', [
         '--mode',
@@ -61,7 +61,7 @@ describe('run timeout', { concurrency: TEST_CONCURRENCY }, () => {
     is(proc.timedOut, false, 'ended by itself')
   })
 
-  for (const mode of ['main', 'node']) {
+  for (const mode of ['browser', 'node']) {
     it(`leaves a run that ends in time alone with mode:${mode}`, async () => {
       const proc = await run('stdout', [
         '--mode',

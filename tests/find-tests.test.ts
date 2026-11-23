@@ -203,7 +203,7 @@ describe('cli', () => {
   const exited = (proc: Result, code: number) =>
     is(proc.exitCode, code, `${proc.stdout}\n${proc.stderr}`)
 
-  for (const mode of ['node', 'main']) {
+  for (const mode of ['node', 'browser']) {
     describe(`--mode ${mode}`, { concurrency: TEST_CONCURRENCY }, () => {
       it('runs an absolute path', async () => {
         const proc = await cli([file, '--mode', mode, '--runner', 'none'])
