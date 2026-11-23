@@ -6,6 +6,7 @@ import path from 'node:path'
 import { after, before, describe, it } from 'node:test'
 import { closeServer } from '../src/utils/index.ts'
 import {
+  CLEAR_SITE_DATA_PATH,
   contentType,
   parseRange,
   requestPath,
@@ -69,11 +70,19 @@ describe('http server', () => {
     is(/^http:\/\/127\.0\.0\.1:\d+\/$/.test(url), true, url)
   })
 
-  it('serves the index of the run and clears site data on it', async () => {
+  it('serves the index of the run', async () => {
     const rsp = await fetch(url)
     is(rsp.status, 200)
     is(await rsp.text(), '<p>run</p>')
     is(rsp.headers.get('content-type'), 'text/html; charset=utf-8')
+    is(rsp.headers.get('clear-site-data'), null)
+    is(rsp.headers.get('cache-control'), 'no-store')
+  })
+
+  it('clears site data on a path of its own', async () => {
+    const rsp = await fetch(new URL(CLEAR_SITE_DATA_PATH, url))
+    is(rsp.status, 200)
+    is(await rsp.text(), '')
     is(rsp.headers.get('clear-site-data'), '"cache", "cookies", "storage"')
     is(rsp.headers.get('cache-control'), 'no-store')
   })
@@ -184,7 +193,7 @@ describe('http server', () => {
     is(rsp.headers.get('content-type'), 'application/xhtml+xml')
   })
 
-  it('only clears site data on the index of the run, not of --assets', async () => {
+  it('serves the index.html of --assets without clearing site data', async () => {
     const empty = path.join(root, 'empty-run')
     mkdirSync(empty, { recursive: true })
     writeFileSync(path.join(root, 'cwd', 'assets', 'index.html'), 'fixture')

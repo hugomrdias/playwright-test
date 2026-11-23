@@ -32,7 +32,7 @@ import {
   withTimeout,
   writeEnv,
 } from './utils/index.ts'
-import { startServer } from './utils/server.ts'
+import { CLEAR_SITE_DATA_PATH, startServer } from './utils/server.ts'
 import { createStackMapper } from './utils/stack-map.ts'
 
 export type { BrowserContext as Context, Page } from 'playwright-core'
@@ -302,11 +302,20 @@ export class Runner extends BaseRunner {
   }
 
   /**
+   * So storage from an earlier run, or run of watch mode, doesn't leak into
+   * this one
+   */
+  async #clearSiteData(page: Page) {
+    await page.goto(new URL(CLEAR_SITE_DATA_PATH, this.url).href)
+  }
+
+  /**
    * Setup Page
    */
   async setupPage(context: Context) {
     this.page = context.pages()[0] ?? (await context.newPage())
     this.#watchPage(this.page)
+    await this.#clearSiteData(this.page)
     await this.page.goto(this.url)
     await this.page.waitForLoadState('domcontentloaded')
 
@@ -566,11 +575,10 @@ export class Runner extends BaseRunner {
     const bails = testRunner.name === 'mocha' && bail
     this.#output = new FileOutput(files.length)
 
-    // The index of the run clears the storage of earlier runs. Once, the files
-    // load it from `/index.html`, they'd clear what the others are using.
+    // Once, before the files, they share the storage like files share the disk
     const first = Promise.resolve(context.pages()[0] ?? context.newPage()).then(
       async (page) => {
-        await page.goto(this.url)
+        await this.#clearSiteData(page)
         return page
       }
     )
@@ -657,7 +665,7 @@ export class Runner extends BaseRunner {
       cancelled.resolve({ failed: true, navigated: false, cancelled: true })
     })
     const run = async (): Promise<TestResult> => {
-      await page.goto(new URL('index.html', this.url).href)
+      await page.goto(this.url)
       const testWait = this.#createTestWait(page)
       try {
         if (isCancelled) {

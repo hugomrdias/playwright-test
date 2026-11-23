@@ -137,7 +137,7 @@ export function parseRange(
  * A directory serves its `index.html`.
  */
 async function find(roots: string[], pathname: string) {
-  for (const [index, root] of roots.entries()) {
+  for (const root of roots) {
     let file = path.join(root, pathname)
     // `path.join` normalizes `..`, it must still be in the root. Relative to
     // it so that a root like `/` or `C:\` works too.
@@ -155,7 +155,7 @@ async function find(roots: string[], pathname: string) {
       stats = await fs.promises.stat(file).catch(() => undefined)
     }
     if (stats?.isFile()) {
-      return { file, stats, index }
+      return { file, stats }
     }
   }
 }
@@ -183,6 +183,12 @@ function end(res: ServerResponse, status: number, body: string) {
   res.end(body)
 }
 
+/**
+ * Loaded before the tests, so storage from an earlier run doesn't leak into
+ * this one. Not the test page, the files of an isolated run share the storage.
+ */
+export const CLEAR_SITE_DATA_PATH = '/__playwright-test__/clear-site-data'
+
 async function handle(
   roots: string[],
   req: IncomingMessage,
@@ -191,6 +197,15 @@ async function handle(
   const target = requestPath(req.url)
   if (target === undefined) {
     return end(res, 400, 'Bad Request')
+  }
+  if (target === CLEAR_SITE_DATA_PATH) {
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'Clear-Site-Data': '"cache", "cookies", "storage"',
+      'Content-Length': 0,
+    })
+    return res.end()
   }
   let pathname: string
   try {
@@ -206,7 +221,7 @@ async function handle(
   if (!found) {
     return end(res, 404, 'Not Found')
   }
-  const { file, stats, index } = found
+  const { file, stats } = found
 
   // Never cached, the files of a run change between runs and in watch mode
   const headers: Record<string, string | number> = {
@@ -217,11 +232,6 @@ async function handle(
   const type = contentType(file)
   if (type) {
     headers['Content-Type'] = type
-  }
-  // The test page, so storage from an earlier run doesn't leak into this one.
-  // Not an `index.html` of `--assets`, that's a fixture.
-  if (pathname === '/' && index === 0) {
-    headers['Clear-Site-Data'] = '"cache", "cookies", "storage"'
   }
   // `.gz` and `.br` files are sent as they are, without a `Content-Encoding`,
   // so the browser doesn't decompress them
