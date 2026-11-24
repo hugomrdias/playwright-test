@@ -4,7 +4,6 @@ allowBuilds:
   simple-git-hooks: true
   workerd: true
 minimumReleaseAgeExclude:
-  - playwright-core@1.65.0
   - cf@1.0.0-rc.1
 onlyBuiltDependencies:
   - "@biomejs/biome"

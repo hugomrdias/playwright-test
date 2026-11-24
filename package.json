@@ -106,7 +106,7 @@
     "lilconfig": "^3.1.4",
     "nanoid": "^6.0.2",
     "path-browserify": "^1.0.1",
-    "playwright-core": "1.65.0",
+    "playwright-core": "1.65.1",
     "sade": "^1.8.1",
     "std-env": "^4.3.0",
     "tinyglobby": "^0.2.17"
