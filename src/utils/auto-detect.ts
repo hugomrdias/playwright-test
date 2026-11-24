@@ -267,12 +267,13 @@ export async function detectTestRunners(
     Partial<Pick<RunnerOptions, 'buildConfig'>>
 ): Promise<Map<TestRunner, string>> {
   if (options.mode === 'node' || files.length === 0) {
-    return scanTestRunners(files, resolveNodeSource)
+    const { found } = await scanTestRunners(files, resolveNodeSource)
+    return found
   }
 
   const workerd = options.mode === 'workerd'
   const config = options.buildConfig
-  let found: Map<TestRunner, string> = new Map()
+  let scan = { found: new Map<TestRunner, string>(), hasEntryEvidence: false }
   let hasOnStart = false
   let skippedResolver: string | undefined
   await build({
@@ -307,7 +308,7 @@ export async function detectTestRunners(
           build.onLoad(
             { filter: /.*/, namespace: 'runner-autodetection' },
             async () => {
-              found = await scanTestRunners(
+              scan = await scanTestRunners(
                 files,
                 async (file, { id, kind }) => {
                   const result = await build.resolve(id, {
@@ -357,7 +358,9 @@ export async function detectTestRunners(
       })),
     ],
   })
-  if (skippedResolver !== undefined) {
+  const { found, hasEntryEvidence } = scan
+  // An incomplete scan can still use direct evidence or report a known conflict.
+  if (skippedResolver !== undefined && !hasEntryEvidence && found.size < 2) {
     throw new UsageError(
       `Cannot autodetect the test runner because esbuild plugin "${skippedResolver}" may depend on onStart hooks to resolve imports. Choose a runner with --runner or runner in the config file.`
     )
@@ -371,9 +374,10 @@ async function scanTestRunners(
   preserveSymlinks = false
 ) {
   const found: Map<TestRunner, string> = new Map()
+  let hasEntryEvidence = false
   const pending = [...files]
   const visited = new Set<string>()
-  for (const file of pending) {
+  for (const [index, file] of pending.entries()) {
     const modulePath = preserveSymlinks
       ? path.resolve(file)
       : fs.realpathSync(file)
@@ -385,6 +389,7 @@ async function scanTestRunners(
       const { id } = dependency
       const runner = RUNNER_MODULES.get(id)
       if (runner) {
+        hasEntryEvidence ||= index < files.length
         if (!found.has(runner)) {
           found.set(runner, file)
         }
@@ -401,5 +406,5 @@ async function scanTestRunners(
       }
     }
   }
-  return found
+  return { found, hasEntryEvidence }
 }

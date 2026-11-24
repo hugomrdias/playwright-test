@@ -330,6 +330,66 @@ describe('runner auto detection', () => {
       }
     })
 
+    it('uses direct runner evidence when an asset resolver is skipped', async () => {
+      fs.writeFileSync(path.join(dir, 'logo.svg'), '<svg id="runner-logo"/>')
+      const entrySource =
+        "import logo from './logo.svg'\ndescribe(logo, () => {})"
+      const entry = write(entrySource)
+      const calls = path.resolve(dir, 'asset-plugin-calls.log')
+      const config = write(`
+      import fs from 'node:fs'
+      import path from 'node:path'
+      export default {
+        buildConfig: {
+          loader: { '.svg': 'text' },
+          plugins: [{
+            name: 'log-build-start',
+            setup(build) {
+              build.onStart(() => fs.appendFileSync(${JSON.stringify(calls)}, 'start\\n'))
+            },
+          }, {
+            name: 'resolve-svg',
+            setup(build) {
+              build.onResolve({ filter: /[.]svg$/ }, (args) => {
+                fs.appendFileSync(${JSON.stringify(calls)}, 'resolve\\n')
+                return { path: path.resolve(args.resolveDir, args.path) }
+              })
+            },
+          }],
+        },
+      }`)
+      const { options, testFiles } = await resolveCli([
+        entry,
+        '--config',
+        config,
+      ])
+      is(options.runner, 'mocha')
+
+      const nodeSuite = write("import 'node:test'")
+      const mixed = write(
+        `import './${path.basename(nodeSuite)}'\n${entrySource}`
+      )
+      await rejects(
+        resolveCli([mixed, '--config', config]),
+        (error: Error) =>
+          error instanceof UsageError &&
+          error.message.includes('Found more than one test runner') &&
+          error.message.includes('"node:test"') &&
+          error.message.includes('"mocha"')
+      )
+      is(fs.existsSync(calls), false)
+
+      const runner = new Runner(options, testFiles)
+      try {
+        const { outName } = await runner.compiler()
+        const bundle = fs.readFileSync(path.join(runner.files, outName), 'utf8')
+        ok(bundle.includes('runner-logo'))
+        is(fs.readFileSync(calls, 'utf8'), 'start\nresolve\n')
+      } finally {
+        fs.rmSync(runner.dir, { recursive: true, force: true })
+      }
+    })
+
     it('requires an explicit runner when a resolver can depend on onStart', async () => {
       fs.writeFileSync(path.join(dir, 'stateful.js'), "import 'node:test'")
       const suite = write("describe('redirected by onStart', () => {})")
@@ -353,7 +413,15 @@ describe('runner auto detection', () => {
           },
         }] },
       }`)
-      for (const input of [entry, write("import './stateful.js'")]) {
+      const args = [entry, '--config', config]
+      const { options: direct } = await resolveCli(args)
+      is(direct.runner, 'mocha')
+
+      const helper = write("describe('unrelated suite', () => {})")
+      for (const input of [
+        write("import './stateful.js'"),
+        write(`import './stateful.js'\nimport './${path.basename(helper)}'`),
+      ]) {
         await rejects(
           resolveCli([input, '--config', config]),
           (error: Error) =>
@@ -363,7 +431,6 @@ describe('runner auto detection', () => {
         )
       }
 
-      const helper = write("describe('unrelated suite', () => {})")
       const unrelated = write(`import './${path.basename(helper)}'`)
       const { options: detected } = await resolveCli([
         unrelated,
@@ -373,7 +440,6 @@ describe('runner auto detection', () => {
       is(detected.runner, 'mocha')
       is(fs.existsSync(calls), false)
 
-      const args = [entry, '--config', config]
       const { options, testFiles } = await resolveCli([
         ...args,
         '--runner',
