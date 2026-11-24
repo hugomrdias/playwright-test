@@ -16,7 +16,12 @@ import { convertPathToPattern, globSync } from 'tinyglobby'
 import { fileURLToPath } from 'url'
 import type { Runner } from '../runner.ts'
 import * as DefaultRunners from '../test-runners.ts'
-import type { RunnerEnv, RunnerOptions, TestRunner } from '../types.ts'
+import type {
+  CompilerOutput,
+  RunnerEnv,
+  RunnerOptions,
+  TestRunner,
+} from '../types.ts'
 import { colors } from './colors.ts'
 import { createMerge } from './merge.ts'
 import { polyfillAliases } from './polyfill-aliases.ts'
@@ -667,27 +672,33 @@ export function writeEnv(runner: Runner, env: Record<string, unknown>) {
   )
 }
 
+const ENTRY = 'playwright-test:entry'
+
 /**
- * Build the bundle
+ * The name of the bundle of one test file, see {@link build}
+ */
+export const bundleName = (index: number) => `bundle-${index}-out.js`
+
+/**
+ * Build the bundle, or with a template for each file one bundle per file, the
+ * code they share in chunks next to them.
  *
  * @param config - Runner esbuild config
  */
 export async function build(
   runner: Runner,
   config: ESBuildOptions = {},
-  tmpl: string = ''
-) {
-  const outName = 'bundle-out.js'
-  const outPath = path.join(runner.files, outName)
-
+  tmpl: string | string[] = ''
+): Promise<CompilerOutput> {
   // Imports run first, so the env is there before anything the template imports
-  const infileContent = `
+  const entry = (template: string) => `
 import env from ${JSON.stringify(ENV_MODULE)}
 Object.assign(process.env, env)
 import.meta.env = { ...env }
 
-${tmpl}
+${template}
 `
+  const templates = Array.isArray(tmpl) ? tmpl : undefined
 
   const envPlugin: ESBuildPlugin = {
     name: 'env',
@@ -696,6 +707,25 @@ ${tmpl}
       build.onResolve({ filter: new RegExp(`^${ENV_MODULE}$`) }, () => ({
         path: `./${envFile(runner.dir)}`,
         external: true,
+      }))
+    },
+  }
+  /**
+   * The entries of the files, they import them from `cwd` like the one entry does
+   */
+  const entriesPlugin: ESBuildPlugin = {
+    name: 'entries',
+    setup(build) {
+      build.onResolve({ filter: new RegExp(`^${ENTRY}:\\d+$`) }, (args) => ({
+        path: args.path,
+        namespace: ENTRY,
+      }))
+      build.onLoad({ filter: /.*/, namespace: ENTRY }, (args) => ({
+        contents: entry(
+          templates?.[Number(args.path.slice(ENTRY.length + 1))] ?? ''
+        ),
+        resolveDir: runner.options.cwd,
+        loader: 'js',
       }))
     },
   }
@@ -711,21 +741,36 @@ ${tmpl}
       })
     },
   }
+  const output: ESBuildOptions = templates
+    ? {
+        entryPoints: templates.map((_, i) => ({
+          in: `${ENTRY}:${i}`,
+          out: bundleName(i).slice(0, -3),
+        })),
+        outdir: runner.files,
+        splitting: true,
+        // The stack mapper finds them by the end of their names
+        chunkNames: 'bundle-chunk-[hash]-out',
+      }
+    : {
+        stdin: {
+          contents: entry(tmpl as string),
+          resolveDir: runner.options.cwd,
+        },
+        outfile: path.join(runner.files, 'bundle-out.js'),
+      }
   const defaultOptions: ESBuildOptions = {
-    stdin: {
-      contents: infileContent,
-      resolveDir: runner.options.cwd,
-    },
+    ...output,
     bundle: true,
     sourcemap: 'inline',
     platform: 'browser',
     format: 'esm',
     plugins: [
       envPlugin,
+      ...(templates ? [entriesPlugin] : []),
       ...(runner.watching ? [watchPlugin] : []),
       wasmLoader(),
     ],
-    outfile: outPath,
     inject: [path.join(__dirname, 'inject-process.js')],
     alias: polyfillAliases,
     external: ['node:async_hooks', 'node:fs', 'msw/node'],
@@ -733,9 +778,21 @@ ${tmpl}
       global: 'globalThis',
     },
   }
-  await esbuild.build(
-    merge<ESBuildOptions>(defaultOptions, config, runner.options.buildConfig)
+  const options = merge<ESBuildOptions>(
+    defaultOptions,
+    config,
+    runner.options.buildConfig
   )
+  // It prefixes the imports of the chunks too, they're not served there
+  if (templates && options.publicPath) {
+    options.splitting = false
+  }
+  await esbuild.build(options)
 
-  return { outName, files }
+  return {
+    outNames: templates
+      ? templates.map((_, i) => bundleName(i))
+      : ['bundle-out.js'],
+    files,
+  }
 }

@@ -113,6 +113,13 @@ describe('cli flags', () => {
 
   it('warns when --test-isolation process is asked for and not supported', async () => {
     // One at a time, each one mocks console to read the logs
+    const workerd = await resolveCli([
+      MOCHA,
+      '--mode',
+      'workerd',
+      '--test-isolation',
+      'process',
+    ])
     const browser = await resolveCli([
       MOCHA,
       '--mode',
@@ -129,11 +136,12 @@ describe('cli flags', () => {
     ])
 
     ok(
-      browser.logs.includes(
-        `--test-isolation process isn't supported in --mode browser yet`
+      workerd.logs.includes(
+        `--test-isolation process isn't supported in --mode workerd yet`
       ),
-      browser.logs
+      workerd.logs
     )
+    ok(!browser.logs.includes('--test-isolation'), browser.logs)
     ok(!node.logs.includes('--test-isolation'), node.logs)
   })
 
