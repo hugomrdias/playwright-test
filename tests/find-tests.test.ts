@@ -4,12 +4,11 @@ import {
   ok,
 } from 'node:assert/strict'
 import { after, before, describe, it } from 'node:test'
-import type { Result } from 'execa'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import { findTests } from '../src/utils/index.ts'
-import { runCli, TEST_CONCURRENCY } from './helpers.ts'
+import { type RunTestResult, runTest, TEST_CONCURRENCY } from './helpers.ts'
 
 const extensions = ['js', 'ts']
 
@@ -198,9 +197,9 @@ describe('cli', () => {
     fs.rmSync(dir, { recursive: true })
   })
 
-  const cli = (args: string[]) => runCli(args, { reject: false })
+  const cli = (args: string[]) => runTest(args, { reject: false })
 
-  const exited = (proc: Result, code: number) =>
+  const exited = (proc: RunTestResult, code: number) =>
     is(proc.exitCode, code, `${proc.stdout}\n${proc.stderr}`)
 
   for (const mode of ['node', 'browser']) {

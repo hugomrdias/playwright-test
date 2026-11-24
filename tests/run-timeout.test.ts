@@ -1,16 +1,27 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
 import { once } from 'node:events'
 import { describe, it } from 'node:test'
-import { runCli, TEST_CONCURRENCY } from './helpers.ts'
+import { runCli, runTest, TEST_CONCURRENCY } from './helpers.ts'
 
 describe('run timeout', { concurrency: TEST_CONCURRENCY }, () => {
   function run(fixture: string, args: string[], env = {}) {
-    return runCli(
+    return runTest(
       [`mocks/none/${fixture}.test.js`, '--runner', 'none', ...args],
       {
         // A page that never ends always uses up the whole wait for its console
         env: { PW_TEST_CONSOLE_FLUSH_TIMEOUT: '500', ...env },
         // Fail here when the run timeout doesn't work, instead of hanging
+        reject: false,
+        timeout: 40_000,
+      }
+    )
+  }
+
+  function runProcess(fixture: string, args: string[], env = {}) {
+    return runCli(
+      [`mocks/none/${fixture}.test.js`, '--runner', 'none', ...args],
+      {
+        env: { PW_TEST_CONSOLE_FLUSH_TIMEOUT: '500', ...env },
         reject: false,
         timeout: 40_000,
       }
@@ -35,7 +46,7 @@ describe('run timeout', { concurrency: TEST_CONCURRENCY }, () => {
   it('closes the browser before the afterTests hook', {
     skip: process.platform === 'win32',
   }, async () => {
-    const proc = await run(
+    const proc = await runProcess(
       'never-ends',
       [
         '--config',
@@ -58,7 +69,7 @@ describe('run timeout', { concurrency: TEST_CONCURRENCY }, () => {
   it('stops the tests when it gets stopped', {
     skip: process.platform === 'win32',
   }, async () => {
-    const running = run('never-ends', ['--mode', 'node'])
+    const running = runProcess('never-ends', ['--mode', 'node'])
     // The fixture prints this right before it gets stuck
     await once(running.stdout, 'data')
     running.kill()

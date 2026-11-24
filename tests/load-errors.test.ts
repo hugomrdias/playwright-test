@@ -1,9 +1,9 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { runCli, TEST_CONCURRENCY } from './helpers.ts'
+import { runTest, TEST_CONCURRENCY } from './helpers.ts'
 
 function run(file: string, args: string[]) {
-  return runCli([file, ...args], {
+  return runTest([file, ...args], {
     // Fail here when nothing ends the run, instead of waiting for its timeout
     reject: false,
     timeout: 40_000,

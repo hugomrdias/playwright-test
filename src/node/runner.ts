@@ -10,10 +10,11 @@ import {
   REMOVE_WAIT,
   removeFolder,
   removeFolderNow,
+  tmpdir,
 } from '../base-runner.ts'
-import type { Config } from '../types.ts'
+import type { Config, Logger, RunResult, WatchHandle } from '../types.ts'
 import { EXT } from '../utils/ext.ts'
-import { log, UsageError, withTimeout } from '../utils/index.ts'
+import { UsageError, withTimeout } from '../utils/index.ts'
 import { toPatterns } from '../utils/name-pattern.ts'
 import {
   FORCE_KILL_DELAY,
@@ -50,8 +51,14 @@ interface Tests {
  * its pid in `dir`, and removes it when it exits.
  */
 class Workers {
-  readonly dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-workers-'))
+  readonly dir: string
+  readonly #log: Logger
   #removing?: Promise<void>
+
+  constructor(tempDir: string, logger: Logger) {
+    this.dir = fs.mkdtempSync(path.join(tempDir, 'pw-workers-'))
+    this.#log = logger
+  }
 
   #pids() {
     try {
@@ -88,14 +95,14 @@ class Workers {
    */
   async remove() {
     this.signal('SIGKILL')
-    this.#removing ??= removeFolder(this.dir)
+    this.#removing ??= removeFolder(this.dir, this.#log)
     await this.#removing
   }
 
   /** {@link remove} right away, for when this process exits next */
   kill() {
     this.signal('SIGKILL')
-    removeFolderNow(this.dir)
+    removeFolderNow(this.dir, this.#log)
   }
 }
 
@@ -122,6 +129,7 @@ function formatError(error: unknown): Error | string {
  */
 export class NodeRunner extends BaseRunner {
   #tests: Tests | undefined
+  #watcher: { close: () => Promise<void> } | undefined
 
   constructor(options: Config, testFiles?: string[]) {
     super(options, testFiles)
@@ -180,6 +188,19 @@ export class NodeRunner extends BaseRunner {
     return tests
   }
 
+  #hasCustomStdio() {
+    return this.stdout !== process.stdout || this.stderr !== process.stderr
+  }
+
+  #pipeToStreams(child: ChildProcess) {
+    child.stdout?.on('data', (chunk: Buffer) => {
+      this.stdout.write(chunk)
+    })
+    child.stderr?.on('data', (chunk: Buffer) => {
+      this.stderr.write(chunk)
+    })
+  }
+
   /**
    * One subprocess for all the files, and the files it started if they wrote
    * their pids in `workers`.
@@ -187,7 +208,7 @@ export class NodeRunner extends BaseRunner {
   #track(child: ChildProcess, workers?: Workers): Tests {
     const finished = new Promise<boolean>((resolve) => {
       child.once('error', (error) => {
-        log.error(`Could not start tests: ${error.message}`)
+        this.log.error(`Could not start tests: ${error.message}`)
         resolve(false)
       })
       child.once('close', (code) => resolve(code === 0))
@@ -223,6 +244,10 @@ export class NodeRunner extends BaseRunner {
       concurrency:
         testConcurrency ?? Math.max(os.availableParallelism() - 1, 1),
       bail: testRunner.name === 'mocha' && bail,
+      stdout: this.stdout,
+      stderr: this.stderr,
+      log: this.log,
+      colors: this.colors,
       spawn: (file, stdio) => this.#spawnTogether([file], stdio),
     })
   }
@@ -236,12 +261,17 @@ export class NodeRunner extends BaseRunner {
       '--input-type=module',
       ...(this.options.testRunner.nodeArgs?.(this.options) ?? []),
     ]
+    const pipe = stdio === 'pipe' || this.#hasCustomStdio()
+    const streamMode = pipe ? 'pipe' : 'inherit'
 
     const child = spawn(process.execPath, nodeArgs, {
       cwd: this.options.cwd,
       env: withLocalBins(this.env, this.options.cwd),
-      stdio: ['pipe', stdio, stdio] as ['pipe', 'pipe', 'pipe'],
+      stdio: ['pipe', streamMode, streamMode] as ['pipe', 'pipe', 'pipe'],
     })
+    if (stdio === 'inherit' && this.#hasCustomStdio()) {
+      this.#pipeToStreams(child)
+    }
     // It's gone when it ends or fails to start before reading all of the entry
     child.stdin.on('error', () => {
       // noop
@@ -260,7 +290,7 @@ export class NodeRunner extends BaseRunner {
     const { reporter } = (testRunner.options ?? {}) as {
       reporter?: string | string[]
     }
-    const workers = new Workers()
+    const workers = new Workers(tmpdir(this.initialEnv), this.log)
     const env = withLocalBins(this.env, this.options.cwd)
     // From a test of node:test it would think it's one of its workers, and
     // skip the files as a recursive run
@@ -277,15 +307,20 @@ export class NodeRunner extends BaseRunner {
     }
 
     if (!canRunInProcess(env, options.reporters)) {
+      const pipe = this.#hasCustomStdio()
+      const streamMode = pipe ? 'pipe' : 'inherit'
       const child = spawn(
         process.execPath,
         ['--enable-source-maps', isolatedRun],
         {
           cwd: this.options.cwd,
           env,
-          stdio: ['pipe', 'inherit', 'inherit'],
+          stdio: ['pipe', streamMode, streamMode] as ['pipe', 'pipe', 'pipe'],
         }
       )
+      if (pipe) {
+        this.#pipeToStreams(child)
+      }
       child.stdin.on('error', () => {
         // noop
       })
@@ -299,8 +334,9 @@ export class NodeRunner extends BaseRunner {
       cwd: this.options.cwd,
       env,
       signal: controller.signal,
+      stdout: this.stdout,
     }).catch((error: Error) => {
-      log.error(`Could not start tests: ${error.message}`)
+      this.log.error(`Could not start tests: ${error.message}`)
       return false
     })
     // The files are gone once it ends by itself
@@ -321,28 +357,34 @@ export class NodeRunner extends BaseRunner {
     }
   }
 
-  async run() {
-    this.handleExit()
+  run(): Promise<RunResult> {
+    return this.finish(async () => {
+      try {
+        await this.#setupServer()
+        this.startRunTimeout()
+        await this.runBeforeTests()
+        // Stopped during the hook, nothing would stop the tests started now
+        if (this.stopped) {
+          return
+        }
 
-    try {
-      await this.#setupServer()
-      this.startRunTimeout()
-      await this.runBeforeTests()
-      // Stopped during the hook, nothing would stop the tests started now
-      if (this.stopped) {
-        return
+        const passed = await this.runTests().finished
+        // A timeout or a signal stopping them already ended the run
+        await this.stop(!passed, passed ? undefined : 'Tests failed.')
+      } catch (error) {
+        await this.stop(true, formatError(error))
       }
-
-      const passed = await this.runTests().finished
-      // A timeout or a signal stopping them already ended the run
-      await this.stop(!passed, passed ? undefined : 'Tests failed.')
-    } catch (error) {
-      await this.stop(true, formatError(error))
-    }
+    })
   }
 
-  async watch() {
-    this.handleExit()
+  async watch(): Promise<WatchHandle> {
+    if (this.exitProcess) {
+      this.handleExit()
+    }
+    const handle: WatchHandle = {
+      done: this.done,
+      stop: async () => (await this.stop(false)) as RunResult,
+    }
 
     let tests: Tests
     try {
@@ -350,13 +392,13 @@ export class NodeRunner extends BaseRunner {
       await this.runBeforeTests()
       // Stopped during the hook, nothing would stop the tests started now
       if (this.stopped) {
-        return
+        return handle
       }
 
       tests = this.runTests()
     } catch (error) {
       await this.stop(true, formatError(error))
-      return
+      return handle
     }
 
     const cwd = this.options.cwd
@@ -377,7 +419,7 @@ export class NodeRunner extends BaseRunner {
       restarting = true
       do {
         pending = false
-        log.info('Reloading tests...')
+        this.log.info('Reloading tests...')
         await tests.stop()
         // Stopped in the meantime, nothing would stop the tests started now
         if (this.stopped) {
@@ -391,7 +433,7 @@ export class NodeRunner extends BaseRunner {
     // Watch for changes in the project, ignoring dot folders and node_modules.
     // Imported here, only --watch needs it.
     const { watch } = await import('chokidar')
-    watch(cwd, {
+    this.#watcher = watch(cwd, {
       ignored: (file, stats) => {
         const rel = path.relative(cwd, file)
         if (
@@ -408,6 +450,8 @@ export class NodeRunner extends BaseRunner {
       ignoreInitial: true,
       awaitWriteFinish: { pollInterval: 100, stabilityThreshold: 500 },
     }).on('change', restart)
+
+    return handle
   }
 
   /** Stopping the tests, then deleting the folder of their workers */
@@ -424,6 +468,8 @@ export class NodeRunner extends BaseRunner {
   }
 
   async stopTests() {
+    await this.#watcher?.close()
+    this.#watcher = undefined
     await this.#tests?.stop()
   }
 }

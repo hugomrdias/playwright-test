@@ -13,14 +13,14 @@ import {
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, it } from 'node:test'
-import { runCli } from './helpers.ts'
+import { runCli, runTest } from './helpers.ts'
 
 // Its own cwd, the trace of other runs can't end up there
 const cwd = 'mocks/trace'
 const trace = path.join(cwd, 'playwright-test-trace-chromium.zip')
 
 function run(args: string[], env: Record<string, string> = {}) {
-  return runCli(['--cwd', cwd, '--runner', 'mocha', ...args], {
+  return runTest(['--cwd', cwd, '--runner', 'mocha', ...args], {
     reject: false,
     timeout: 60_000,
     env,
@@ -118,15 +118,23 @@ describe('--trace', () => {
       path.join(process.env.PW_TEST_CHILD_TEMP || tmpdir(), 'pw-trace-')
     )
     try {
-      const proc = await run(
+      const proc = await runCli(
         [
+          '--cwd',
+          cwd,
+          '--runner',
+          'mocha',
           'pass.mocha.js',
           '--trace',
           '--config',
           `${cwd}/after-waits.config.mjs`,
         ],
         // Which one os.tmpdir() reads depends on the platform
-        { TMPDIR: temp, TMP: temp, TEMP: temp }
+        {
+          reject: false,
+          timeout: 60_000,
+          env: { TMPDIR: temp, TMP: temp, TEMP: temp },
+        }
       )
 
       is(proc.exitCode, 1, proc.stderr)

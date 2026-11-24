@@ -1,10 +1,14 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
 import { after, before, describe, it } from 'node:test'
-import type { Result } from 'execa'
 import fs from 'fs'
 import { pathToFileURL } from 'url'
 import { isRunning } from '../src/utils/process.ts'
-import { runCli, TEST_CONCURRENCY } from './helpers.ts'
+import {
+  type RunTestResult,
+  runCli,
+  runTest,
+  TEST_CONCURRENCY,
+} from './helpers.ts'
 
 describe('node:test runner', () => {
   const modes = ['node', 'browser', 'web-worker']
@@ -15,11 +19,12 @@ describe('node:test runner', () => {
     mode: string,
     args: string[] = ['--runner', 'node-test']
   ) =>
-    runCli([fixture(name), '--mode', mode, ...args], {
+    runTest([fixture(name), '--mode', mode, ...args], {
       reject: false,
     })
 
-  const output = (proc: Result) => `${proc.stdout}\n${proc.stderr}`
+  const output = (proc: Pick<RunTestResult, 'stdout' | 'stderr'>) =>
+    `${proc.stdout}\n${proc.stderr}`
 
   for (const mode of modes) {
     describe(`--mode ${mode}`, { concurrency: TEST_CONCURRENCY }, () => {
@@ -89,7 +94,7 @@ describe('node:test runner', () => {
       'mocks/node-test-runner/isolation/b.test.js',
     ]
     const isolation = (args: string[]) =>
-      runCli([...files, '--runner', 'node-test', '--mode', 'node', ...args], {
+      runTest([...files, '--runner', 'node-test', '--mode', 'node', ...args], {
         reject: false,
       })
 
@@ -127,7 +132,7 @@ describe('node:test runner', () => {
       try {
         const [glob, sibling] = await Promise.all(
           ['[case]{a,b}(c).test.js', 'left{.test.js'].map((name) =>
-            runCli(
+            runTest(
               [`${dir}/${name}`, '--runner', 'node-test', '--mode', 'node'],
               {
                 reject: false,
@@ -146,7 +151,7 @@ describe('node:test runner', () => {
     })
 
     it('runs from a test of node:test', async () => {
-      const proc = await runCli(
+      const proc = await runTest(
         [fixture('fail'), '--runner', 'node-test', '--mode', 'node'],
         { reject: false, env: { NODE_TEST_CONTEXT: 'child-v8' } }
       )
@@ -156,7 +161,7 @@ describe('node:test runner', () => {
     })
 
     it('playwright-test/node-test is the real node:test, tests can come after a top-level await', async () => {
-      const proc = await runCli(
+      const proc = await runTest(
         [
           'mocks/node-test-runner/isolation-late/late.test.js',
           '--runner',
@@ -317,7 +322,7 @@ describe('node:test runner', () => {
       const dir = fs.mkdtempSync('mocks/tmp-blocked-')
       const file = `${dir}/pid.txt`
       try {
-        const proc = await runCli(
+        const proc = await runTest(
           [
             'mocks/node-test-runner/isolation-kill/blocked.test.js',
             '--runner',
@@ -341,7 +346,7 @@ describe('node:test runner', () => {
       const dir = fs.mkdtempSync('mocks/tmp-stubborn-')
       const file = `${dir}/out.txt`
       try {
-        const proc = await runCli(
+        const proc = await runTest(
           [
             'mocks/node-test-runner/isolation-kill/stubborn.test.js',
             '--runner',
@@ -536,7 +541,7 @@ describe('node:test runner', () => {
         it(`${mode} ${name}`, async () => {
           const file = `${dir}/${count++}.test.js`
           fs.writeFileSync(file, `${imports}\n${source}\n`)
-          const proc = await runCli(
+          const proc = await runTest(
             [
               file,
               '--runner',

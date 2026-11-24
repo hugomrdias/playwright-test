@@ -6,7 +6,7 @@ import path from 'path'
 import sade from 'sade'
 import { isAgent } from 'std-env'
 import { fileURLToPath, pathToFileURL } from 'url'
-import type { RunnerOptions } from './types.ts'
+import type { Logger, RunnerOptions } from './types.ts'
 import { colors } from './utils/colors.ts'
 import {
   assertRunTimeout,
@@ -166,21 +166,20 @@ function validateOptions(options: RunnerOptions) {
   validateTestOptions(options)
 }
 
-function warnUnsupportedTestOptions({
-  runner,
-  testNamePattern,
-  testTimeout,
-}: RunnerOptions) {
+function warnUnsupportedTestOptions(
+  { runner, testNamePattern, testTimeout }: RunnerOptions,
+  logger: Logger = log
+) {
   if (runner !== 'none') {
     return
   }
   if (testNamePattern != null) {
-    log.warn(
+    logger.warn(
       `The "none" runner can't filter by name, ignoring --test-name-pattern.`
     )
   }
   if (testTimeout != null) {
-    log.warn(
+    logger.warn(
       `The "none" runner can't set a default timeout, ignoring --test-timeout.`
     )
   }
@@ -304,20 +303,43 @@ function program() {
     .option('--config', 'Path to the config file')
 }
 
-async function loadConfig(file: string | undefined) {
+async function loadConfig(file: string | undefined, cwd: string) {
   if (file) {
     return await lilconfig('playwright-test', {
       loaders: configLoaders,
-    }).load(path.resolve(file))
+    }).load(path.resolve(cwd, file))
   }
   return (
     (await lilconfig('playwright-test', {
       loaders: configLoaders,
-    }).search()) ??
+    }).search(cwd)) ??
     (await lilconfig('pw-test', {
       loaders: configLoaders,
-    }).search())
+    }).search(cwd))
   )
+}
+
+const AGENT_ENV_KEYS = [
+  'AI_AGENT',
+  'AUGMENT_AGENT',
+  'CLAUDECODE',
+  'CLAUDE_CODE',
+  'CODEX_SANDBOX',
+  'CODEX_THREAD_ID',
+  'COPILOT_AGENT',
+  'COPILOT_CLI',
+  'CURSOR_AGENT',
+  'GEMINI_CLI',
+  'GOOSE_PROVIDER',
+  'JUNIE_DATA',
+  'JUNIE_SHIM_PATH',
+  'OPENCODE',
+  'REPL_ID',
+]
+
+function isAgentFromEnv(env: Record<string, string | undefined>): boolean {
+  const merged: Record<string, string | undefined> = { ...process.env, ...env }
+  return AGENT_ENV_KEYS.some((key) => Boolean(merged[key]))
 }
 
 /**
@@ -329,6 +351,15 @@ interface ParsedFlags {
   config?: string
   trace?: string
   [flag: string]: unknown
+}
+
+export interface ResolveOptions {
+  /** Working directory for resolving `--cwd`, `--config` and test files */
+  cwd?: string
+  /** Extra/override environment variables used for agent detection */
+  env?: Record<string, string | undefined>
+  /** Logger for warnings (defaults to global `log`) */
+  log?: Logger
 }
 
 export interface ResolvedOptions {
@@ -345,8 +376,13 @@ export interface ResolvedOptions {
  * @returns nothing after --help or --version
  */
 export async function resolveOptions(
-  args: string[]
+  args: string[],
+  resolveOpts?: ResolveOptions
 ): Promise<ResolvedOptions | undefined> {
+  const baseCwd = resolveOpts?.cwd
+    ? path.resolve(resolveOpts.cwd)
+    : process.cwd()
+  const defaults = { ...cliDefaults, cwd: baseCwd }
   const parsed = program().parse(['node', 'playwright-test', ...args], {
     lazy: true,
     // Without defaults to tell their types, `--debug test.js` would take the file
@@ -369,7 +405,7 @@ export async function resolveOptions(
 
   checkUnknownFlags(opts)
 
-  const config = await loadConfig(opts.config)
+  const config = await loadConfig(opts.config, baseCwd)
 
   const cliFlags = {
     runner: opts.runner,
@@ -391,7 +427,7 @@ export async function resolveOptions(
   // if the supplied config module was a function, invoke it
   if (config && typeof config.config === 'function') {
     config.config = await config.config(
-      merge(cliDefaults, cliFlags, {
+      merge(defaults, cliFlags, {
         watch: opts.watch,
         trace: opts.trace,
         config: opts.config,
@@ -402,19 +438,15 @@ export async function resolveOptions(
   /**
    * Merge cli options with config file options
    */
-  const options: RunnerOptions = merge(
-    cliDefaults,
-    config ? config.config : {},
-    {
-      ...cliFlags,
-      input: input ? [input, ...opts._] : undefined,
-      testFiles: [],
-      // Without a value it's an empty string
-      trace: opts.trace === '' ? 'retain-on-failure' : opts.trace,
-    }
-  )
-  options.minimal = isAgent
-  options.cwd = path.resolve(options.cwd)
+  const options: RunnerOptions = merge(defaults, config ? config.config : {}, {
+    ...cliFlags,
+    input: input ? [input, ...opts._] : undefined,
+    testFiles: [],
+    // Without a value it's an empty string
+    trace: opts.trace === '' ? 'retain-on-failure' : opts.trace,
+  })
+  options.minimal = resolveOpts?.env ? isAgentFromEnv(resolveOpts.env) : isAgent
+  options.cwd = path.resolve(baseCwd, options.cwd)
 
   const testFiles = findTests({
     cwd: options.cwd,
@@ -426,7 +458,7 @@ export async function resolveOptions(
 
   // Not in cliDefaults, a config function sees whether --runner was set
   options.runner ??= defaultOptions.runner
-  warnUnsupportedTestOptions(options)
+  warnUnsupportedTestOptions(options, resolveOpts?.log)
   options.testIsolation ??= 'process'
 
   return { options, testFiles, watch: Boolean(opts.watch) }

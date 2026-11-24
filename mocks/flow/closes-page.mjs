@@ -17,4 +17,5 @@ runner.setupPage = async (context) => {
   })
   return page
 }
-await runner.run()
+const { exitCode } = await runner.run()
+process.exitCode = exitCode

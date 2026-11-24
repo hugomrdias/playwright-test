@@ -29,6 +29,7 @@ export interface IsolatedRunOptions {
   /** Built-in names or module specifiers, from `cwd` */
   reporters: string[]
   signal: AbortSignal
+  stdout?: NodeJS.WritableStream
 }
 
 // Like node, a reporter package resolves from `cwd` with the conditions of
@@ -107,6 +108,7 @@ export function canRunInProcess(env: NodeJS.ProcessEnv, reporters: string[]) {
   return (
     RUN_ENV &&
     process.execArgv.length === 0 &&
+    !process.env.NODE_TEST_CONTEXT &&
     env.NODE_OPTIONS === STARTUP_NODE_OPTIONS &&
     reporters.every((name) => Object.hasOwn(BUILTIN, name))
   )
@@ -117,6 +119,7 @@ export function canRunInProcess(env: NodeJS.ProcessEnv, reporters: string[]) {
  * everything. Stopping it with `signal` still reports what ran.
  */
 export async function runIsolated(options: IsolatedRunOptions) {
+  const stdout = options.stdout ?? process.stdout
   // Before the files start, a reporter that fails to load runs none of them
   const names = options.reporters.length > 0 ? options.reporters : ['spec']
   const loaded = await Promise.all(
@@ -156,7 +159,7 @@ export async function runIsolated(options: IsolatedRunOptions) {
   const outputs = loaded.map((reporter) => {
     // biome-ignore lint/suspicious/noExplicitAny: a reporter is a stream or a generator
     const out = stream.compose(reporter as any)
-    out.pipe(process.stdout, { end: false })
+    out.pipe(stdout, { end: false })
     return finished(out)
   })
   try {
@@ -165,8 +168,8 @@ export async function runIsolated(options: IsolatedRunOptions) {
     passed = false
   }
   // A pipe may still hold what the reporters wrote
-  if (process.stdout.writableNeedDrain) {
-    await new Promise((resolve) => process.stdout.once('drain', resolve))
+  if ((stdout as NodeJS.WriteStream).writableNeedDrain) {
+    await new Promise((resolve) => stdout.once('drain', resolve))
   }
   return passed
 }

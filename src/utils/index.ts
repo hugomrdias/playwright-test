@@ -16,11 +16,12 @@ import type { Runner } from '../runner.ts'
 import * as DefaultRunners from '../test-runners.ts'
 import type {
   CompilerOutput,
+  Logger,
   RunnerEnv,
   RunnerOptions,
   TestRunner,
 } from '../types.ts'
-import { colors } from './colors.ts'
+import { type Colors, colors } from './colors.ts'
 import { createMerge } from './merge.ts'
 import { polyfillAliases } from './polyfill-aliases.ts'
 
@@ -33,8 +34,14 @@ const merge = createMerge({ ignoreUndefined: true, concatArrays: true })
 export const DEFAULT_RUN_TIMEOUT = 30 * 60 * 1000
 
 /** A teardown can take a while, not forever. Tests of stuck hooks lower it. */
-export const AFTER_TESTS_TIMEOUT =
-  Number(process.env.PW_TEST_AFTER_TESTS_TIMEOUT) || 60_000
+export function afterTestsTimeout(
+  env: Record<string, string | undefined> = process.env
+) {
+  return Number(env.PW_TEST_AFTER_TESTS_TIMEOUT) || 60_000
+}
+
+/** Default teardown timeout from `process.env`. */
+export const AFTER_TESTS_TIMEOUT = afterTestsTimeout()
 
 /** An error that only needs its message shown. */
 export class UsageError extends Error {}
@@ -165,21 +172,23 @@ const TIMED_OUT = Symbol('timed out')
 export async function runAfterTests(
   afterTests: RunnerOptions['afterTests'],
   env: RunnerEnv,
-  beforeTestsOutput: unknown
+  beforeTestsOutput: unknown,
+  logger: Logger = log
 ): Promise<boolean> {
+  const timeout = afterTestsTimeout(env)
   try {
     const result = await withTimeout(
       Promise.resolve(afterTests(env, beforeTestsOutput)),
-      AFTER_TESTS_TIMEOUT,
+      timeout,
       TIMED_OUT
     )
     if (result === TIMED_OUT) {
-      throw new Error(`It did not finish in ${AFTER_TESTS_TIMEOUT}ms.`)
+      throw new Error(`It did not finish in ${timeout}ms.`)
     }
     return true
   } catch (error) {
     const stack = (error as { stack?: string } | undefined)?.stack
-    log.error(`The afterTests hook failed.\n${stack ?? error}`)
+    logger.error(`The afterTests hook failed.\n${stack ?? error}`)
     return false
   }
 }
@@ -212,23 +221,30 @@ export const defaultOptions: Omit<RunnerOptions, 'testRunner'> = {
   },
 }
 
-export const log = {
-  info(message: string, quiet: boolean = false) {
-    if (!quiet) {
-      console.error(colors.blue('ℹ'), message)
-    }
-  },
-  warn(message: string, quiet: boolean = false) {
-    if (!quiet) {
-      console.warn(colors.yellow('-'), message)
-    }
-  },
-  error(message: unknown, quiet: boolean = false) {
-    if (!quiet) {
-      console.warn(colors.red('✘'), message)
-    }
-  },
+export function createLogger(
+  out: Console = console,
+  color: Colors = colors
+): Logger {
+  return {
+    info(message: string, quiet: boolean = false) {
+      if (!quiet) {
+        out.error(color.blue('ℹ'), message)
+      }
+    },
+    warn(message: string, quiet: boolean = false) {
+      if (!quiet) {
+        out.warn(color.yellow('-'), message)
+      }
+    },
+    error(message: unknown, quiet: boolean = false) {
+      if (!quiet) {
+        out.warn(color.red('✘'), message)
+      }
+    },
+  }
 }
+
+export const log = createLogger()
 
 const defaultIgnorePatterns = [
   '.git', // Git repository files, see <https://git-scm.com/>
@@ -394,29 +410,32 @@ async function readConsoleArg(arg: JSHandle) {
   return text ?? value
 }
 
-const messageTypeToConsoleFn: Record<string, typeof console.log> = {
-  log: console.log,
-  warning: console.warn,
-  error: console.error,
-  info: console.info,
-  assert: console.assert,
-  debug: console.debug,
-  trace: console.trace,
-  dir: console.dir,
-  dirxml: console.dirxml,
-  profile: console.profile,
-  profileEnd: console.profileEnd,
-  startGroup: console.group,
-  startGroupCollapsed: console.groupCollapsed,
-  endGroup: console.groupEnd,
-  table: console.table,
-  count: console.count,
-  timeEnd: console.log,
-  timeLog: console.log,
+const messageTypeToConsoleMethod = {
+  log: 'log',
+  warning: 'warn',
+  error: 'error',
+  info: 'info',
+  assert: 'assert',
+  debug: 'debug',
+  trace: 'trace',
+  dir: 'dir',
+  dirxml: 'dirxml',
+  profile: 'profile',
+  profileEnd: 'profileEnd',
+  startGroup: 'group',
+  startGroupCollapsed: 'groupCollapsed',
+  endGroup: 'groupEnd',
+  table: 'table',
+  count: 'count',
+  timeEnd: 'log',
+  timeLog: 'log',
 
   // we ignore calls to console.clear, as we don't want the page to clear our terminal
-  // clear: console.clear
-}
+  // clear: 'clear'
+} as const
+
+type ConsoleMethod =
+  (typeof messageTypeToConsoleMethod)[keyof typeof messageTypeToConsoleMethod]
 
 /**
  * Print a console message from the browser.
@@ -425,36 +444,41 @@ function printConsole(
   msg: ConsoleMessage,
   msgArgs: unknown[],
   text: string,
-  mapStack: <T>(value: T) => T
+  mapStack: <T>(value: T) => T,
+  out: Console,
+  color: Colors
 ) {
   const type = msg.type()
-  const consoleFn = messageTypeToConsoleFn[type]
+  const method = messageTypeToConsoleMethod[
+    type as keyof typeof messageTypeToConsoleMethod
+  ] as ConsoleMethod
+  const consoleFn = out[method] as (...args: unknown[]) => void
 
   switch (type) {
     case 'endGroup': {
       // It has no arguments in Firefox and WebKit
-      console.groupEnd()
+      out.groupEnd()
       return
     }
     case 'assert': {
       // The page already checked it, and doesn't send the condition. Chromium
       // sends its name when there's no message.
-      console.assert(false, ...msgArgs.filter((a) => a !== 'console.assert'))
+      out.assert(false, ...msgArgs.filter((a) => a !== 'console.assert'))
       return
     }
     case 'count': {
       // Chromium sends what to print, Firefox only the label for us to count
       if (/: \d+$/.test(text)) {
-        console.log(text)
+        out.log(text)
       } else {
-        console.count(text)
+        out.count(text)
       }
       return
     }
     case 'trace': {
       // console.trace would print the stack of this function
       const { url, lineNumber, columnNumber } = msg.location()
-      console.error(
+      out.error(
         'Trace:',
         ...msgArgs.filter((a) => a !== 'console.trace'),
         mapStack(`\n    at ${url}:${lineNumber + 1}:${columnNumber + 1}`)
@@ -465,15 +489,15 @@ function printConsole(
   }
 
   if (msgArgs.length > 0) {
-    consoleFn.apply(console, msgArgs)
+    consoleFn.apply(out, msgArgs)
   } else if (['debug', 'timeEnd', 'timeLog'].includes(type)) {
     // How WebKit sends console.count and console.timeEnd
-    consoleFn.call(console, text)
+    consoleFn.call(out, text)
   } else if (text) {
-    console.error(colors.dim(`🌐${text}`))
+    out.error(color.dim(`🌐${text}`))
   } else if (type === 'log') {
     // Firefox sends console.log() and the others nothing at all
-    console.log()
+    out.log()
   }
 }
 
@@ -487,10 +511,17 @@ function printConsole(
  */
 export async function readConsole(
   msg: ConsoleMessage,
-  mapStack: <T>(value: T) => T
+  mapStack: <T>(value: T) => T,
+  out: Console = console,
+  color: Colors = colors
 ): Promise<() => void> {
   const type = msg.type()
-  const consoleFn = messageTypeToConsoleFn[type]
+  const method =
+    messageTypeToConsoleMethod[type as keyof typeof messageTypeToConsoleMethod]
+  const consoleFn =
+    method && typeof out[method] === 'function'
+      ? (out[method] as (...args: unknown[]) => void)
+      : undefined
 
   if (!consoleFn) {
     return () => {
@@ -510,14 +541,14 @@ export async function readConsole(
     const msgArgs = await Promise.all(
       msg.args().map(async (arg) => mapStack(await readConsoleArg(arg)))
     )
-    return () => printConsole(msg, msgArgs, text, mapStack)
+    return () => printConsole(msg, msgArgs, text, mapStack, out, color)
   } catch {
     // Runner was probably force stopped, the page can't give us the values
     // anymore so print the text on the stream this message belongs to.
     // console.assert would print nothing, it only checks its first argument.
     const printText =
-      type === 'assert' || type === 'trace' ? console.error : consoleFn
-    return () => printText.call(console, text)
+      type === 'assert' || type === 'trace' ? out.error : consoleFn
+    return () => printText.call(out, text)
   }
 }
 
@@ -784,6 +815,7 @@ ${template}
     define: {
       global: 'globalThis',
     },
+    ...(runner.stderr === process.stderr ? {} : { logLevel: 'silent' }),
   }
   const options = merge<ESBuildOptions>(
     defaultOptions,
@@ -794,7 +826,19 @@ ${template}
   if (templates && options.publicPath) {
     options.splitting = false
   }
-  await esbuild.build(options)
+  try {
+    await esbuild.build(options)
+  } catch (error) {
+    const { errors } = (error ?? {}) as { errors?: unknown }
+    if (runner.stderr !== process.stderr && Array.isArray(errors)) {
+      const formatted = await esbuild.formatMessages(errors, {
+        kind: 'error',
+        color: runner.colors.enabled,
+      })
+      runner.stderr.write(formatted.join('\n'))
+    }
+    throw error
+  }
 
   return {
     outNames: templates
