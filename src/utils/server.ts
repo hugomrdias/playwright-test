@@ -188,6 +188,12 @@ function end(res: ServerResponse, status: number, body: string) {
  */
 export const CLEAR_SITE_DATA_PATH = '/__playwright-test__/clear-site-data'
 
+/**
+ * The search param of the iframe the tests run in, at `/` like the page around
+ * it. It tells the iframe apart from the iframes of the tests, see `compileSw`.
+ */
+export const TEST_FRAME_PARAM = 'playwright-test'
+
 async function handle(
   roots: string[],
   req: IncomingMessage,

@@ -616,8 +616,11 @@ export async function getPw(
 }
 
 export function addWorker(filePath: string) {
-  return `
+  // In a block, the page runs it again for each file
+  return `{
 const w = new Worker("${filePath}", { type: "module" });
+// Ended with its file, see \`#closeTestFrame\`
+self.pwTestWorker = w;
 w.onmessage = function(e) {
     if(e.data.pwRunEnded) {
         self.PW_TEST.end(e.data.pwRunFailed)
@@ -645,6 +648,7 @@ w.onmessage = function(e) {
                 (error) => port.postMessage({ error: String(error?.message ?? error) })
             )
     }
+}
 }
 `
 }
