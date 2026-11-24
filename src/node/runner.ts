@@ -24,13 +24,16 @@ import {
 } from '../utils/process.ts'
 import { startServer } from '../utils/server.ts'
 import { runEachFile } from './each-file.ts'
-import { runIsolated } from './isolated-run.ts'
+import { canRunInProcess, runIsolated } from './node-test-run.ts'
 
 // What a killed subprocess gets after its forced kill, to end
 const EXIT_WAIT = 1000
 
 const isolatedFile = fileURLToPath(
   new URL(`./isolated-file${EXT}`, import.meta.url)
+)
+const isolatedRun = fileURLToPath(
+  new URL(`./isolated-run${EXT}`, import.meta.url)
 )
 
 interface Tests {
@@ -248,7 +251,8 @@ export class NodeRunner extends BaseRunner {
   }
 
   /**
-   * Each file in its own process, with `run()` of `node:test` in this one.
+   * Each file in its own process, with `run()` of `node:test` in this process
+   * when it can, else in one more process with the env of the tests.
    */
   #runIsolated(): Tests {
     const { testConcurrency, testNamePattern, testRunner, testTimeout } =
@@ -262,18 +266,38 @@ export class NodeRunner extends BaseRunner {
     // skip the files as a recursive run
     delete env.NODE_TEST_CONTEXT
     env.PW_WORKER_PIDS = workers.dir
-    const controller = new AbortController()
-
-    const finished = runIsolated({
+    const options = {
       files: this.tests.map((t) => path.resolve(this.options.cwd, t)),
-      cwd: this.options.cwd,
-      env,
       imports: [pathToFileURL(isolatedFile).href],
       concurrency: testConcurrency,
       testNamePatterns: toPatterns(testNamePattern),
       // 0 is no timeout, for node that's a test that always times out
       timeout: testTimeout || undefined,
       reporters: [reporter ?? []].flat(),
+    }
+
+    if (!canRunInProcess(env, options.reporters)) {
+      const child = spawn(
+        process.execPath,
+        ['--enable-source-maps', isolatedRun],
+        {
+          cwd: this.options.cwd,
+          env,
+          stdio: ['pipe', 'inherit', 'inherit'],
+        }
+      )
+      child.stdin.on('error', () => {
+        // noop
+      })
+      child.stdin.end(JSON.stringify(options))
+      return this.#track(child, workers)
+    }
+
+    const controller = new AbortController()
+    const finished = runIsolated({
+      ...options,
+      cwd: this.options.cwd,
+      env,
       signal: controller.signal,
     }).catch((error: Error) => {
       log.error(`Could not start tests: ${error.message}`)
