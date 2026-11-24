@@ -1,0 +1,28 @@
+# Preview releases on https://pkg.pr.new for every pull request and every
+# commit to master, needs the pkg.pr.new GitHub App on the repository
+name: preview
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          cache: true
+      # `--pnpm` packs with `pnpm pack`, which applies `publishConfig` and runs
+      # the prepack build, like `pnpm publish` in the release job
+      - run: pnpm exec pkg-pr-new publish --pnpm --packageManager=pnpm

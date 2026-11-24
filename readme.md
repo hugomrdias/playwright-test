@@ -8,6 +8,12 @@
 pnpm install playwright-test
 ```
 
+Every pull request and commit to `master` is also published to [pkg.pr.new](https://pkg.pr.new), the pull request comment has the install command for it, and the latest `master` is always at:
+
+```shell
+pnpm install https://pkg.pr.new/playwright-test@master
+```
+
 ## Usage
 
 ```shell
