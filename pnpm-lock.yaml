@@ -217,8 +217,8 @@ importers:
         specifier: ^1.0.1
         version: 1.0.1
       playwright-core:
-        specifier: 1.65.0
-        version: 1.65.0
+        specifier: 1.65.1
+        version: 1.65.1
       sade:
         specifier: ^1.8.1
         version: 1.8.1
@@ -1224,8 +1224,8 @@ packages:
     resolution: {integrity: sha512-+s3ZZl1Vt3wHfsIRH+chHG6/3wsu1N+Z5jitNYAPc0GGCYR8xmju34UShzTAMosi4WAYFCXvp80LZZc/fXSdpQ==}
     hasBin: true
 
-  playwright-core@1.65.0:
-    resolution: {integrity: sha512-vNSKgH6YqtN7cdT/L334zo0a+YwkrpicyrHJlWWPIm/Q+Nn2SWInil01oT0mbu96U4GgoRtCYQD9CzJQgju+lA==}
+  playwright-core@1.65.1:
+    resolution: {integrity: sha512-hqPpz7blSMPxWVdoeE1yiBSzXsKiVOd2k+kjCvmUywD2GPO2Dd9HfcWnq9NN0GHbNZDFgZ9JfBFr+X5/BLo0qw==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -1961,7 +1961,7 @@ snapshots:
 
   pkg-pr-new@0.0.94: {}
 
-  playwright-core@1.65.0: {}
+  playwright-core@1.65.1: {}
 
   pretty-ms@9.3.1:
     dependencies:
