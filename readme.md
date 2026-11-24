@@ -340,7 +340,7 @@ it('should geolocation', async () => {
 })
 ```
 
-`context` has these methods of Playwright's [`BrowserContext`](https://playwright.dev/docs/api/class-browsercontext), with the same arguments and results:
+`context` has these methods of Playwright's [`BrowserContext`](https://playwright.dev/docs/api/class-browsercontext), with the same arguments and results. They change the context of the page the file runs in, see [test isolation](#test-isolation):
 
 - `setOffline`
 - `grantPermissions`, `clearPermissions`
@@ -374,7 +374,7 @@ it('counts as user activation', async () => {
 - `page.click(selector, options)`, Playwright's [`page.click`](https://playwright.dev/docs/api/class-page#page-click). It waits for the element to be visible and stable, up to the `timeout` option, 30 seconds by default. It takes the options of Playwright except `signal`, an `AbortSignal` can't be sent to the runner.
 - `page.keyboard.press(key, options)` and `page.keyboard.type(text, options)`, Playwright's [`keyboard`](https://playwright.dev/docs/api/class-keyboard). They go to the focused element.
 
-The input always goes to the test page. With `--mode web-worker` it still goes to the page that started the worker, so it can click what the page shows, but the worker can't see the events or get the user activation, workers have none. In `node` and `workerd` modes they reject.
+The input always goes to the iframe the tests run in. With `--mode web-worker` it still goes to the page that started the worker, so it can click what the page shows, but the worker can't see the events or get the user activation, workers have none. In `node` and `workerd` modes they reject.
 
 Only these are there, not the rest of Playwright's `Page`, like `mouse`, `touchscreen`, `fill` or locators. Tests run in the page and can do most of it themselves, what they can't is trusted input.
 
@@ -429,7 +429,8 @@ playwright-test "test/**" --test-isolation none
 
 - `node-test` runs the files with `run()` of `node:test`, like `node --test --test-isolation=process`. `playwright-test/node-test` is the real `node:test` in them, so the output is the one of `node --test`.
 - `mocha` and `none` run each file in a process of its own. With more than one at once, what a file prints waits until it ends, and the files come out in their order. After them a summary counts the files that passed, failed, were cancelled or didn't run, and names the ones that failed. Mocha's `bail`, on by default, ends the files still running when one fails and skips the rest.
-- In `browser` and `web-worker` mode each file runs in a page of its own, all of them in the one browser context, so they share storage, cookies and service workers. In `web-worker` mode the page starts the worker of its file. The pages get reused for the next files, and the output, the summary and `bail` work like in node mode. Each file gets its own bundle, the code they share is bundled once. `--debug` and `--watch` still run the files together in the one test page.
+- In `browser` and `web-worker` mode it works like Vitest's browser mode: each of the `--test-concurrency` files that run at once gets a browser context with one page, which runs its files one after the other, each in a new iframe. The files of a page share the storage, cookies and service workers of its context, like files share the disk, and the `context` methods of `playwright-test/client` only change that context. Which files share a page depends on how fast the ones before them end. In `web-worker` mode the page starts a new worker for each file instead of an iframe. The iframe or worker is removed when its file ends, with the timers and workers it left running, and the output, the summary and `bail` work like in node mode. Each file gets its own bundle, the code they share is bundled once. `--test-isolation none`, `--debug` and `--watch` run the files together in one iframe of the browser's own persistent context, the one extensions loaded with `launchOptions.args` run in.
+- The iframe fills the page and is at the test page, `/` of the server, with a `playwright-test` search param that keeps a service worker of the tests (`--sw`) from answering for it, it still answers for the iframes of the tests. So `window.top` and `window.parent` are the page around the iframe, and `location.search` isn't empty.
 - In `workerd` mode each file runs in a workerd of its own, started with Miniflare from the same config, like the Cloudflare Vitest plugin does. Its bindings, Durable Objects, KV, queues and the rest, start empty for each file. Starting one takes around 200 ms, `--test-concurrency` of them run at once. The output, the summary and `bail` work like in node mode.
 - Each file is a run of its own for `mocha`: `.only` only filters the file it's in, and a reporter prints a report for each file, so `json` gives one document per file followed by the summary. `--test-isolation none` keeps one run for all the files.
 
@@ -566,7 +567,7 @@ playwright-test test --trace     # keeps the trace when the run fails
 playwright-test test --trace on  # always keeps it
 ```
 
-The trace is saved as `playwright-test-trace-<browser>.zip` in `--cwd`, replacing the one of an earlier run, and the run prints where it went. Upload it as an artifact and open it with `npx playwright show-trace playwright-test-trace-chromium.zip` or at [trace.playwright.dev](https://trace.playwright.dev).
+The trace is saved as `playwright-test-trace-<browser>.zip` in `--cwd`, replacing the one of an earlier run, and the run prints where it went. With `--test-isolation process` and more than one page, each browser context records its own, `playwright-test-trace-<browser>-1.zip` and so on. The same goes for a HAR of `browserContextOptions.recordHar`, saved next to its `path` as `<name>-1.har` and so on. Upload it as an artifact and open it with `npx playwright show-trace playwright-test-trace-chromium.zip` or at [trace.playwright.dev](https://trace.playwright.dev).
 
 ```yaml
 - run: pnpm test --trace
