@@ -113,6 +113,30 @@ describe('workerd mode', () => {
     ok(proc.stderr.includes('had hung'), proc.stderr)
   })
 
+  it('fails only the file of a test that never settles', async () => {
+    const proc = await runWorkerd(['test/hang.test.js', 'test/env.test.js'])
+
+    is(proc.exitCode, 1, `${proc.stdout}\n${proc.stderr}`)
+    ok(proc.stderr.includes('had hung'), proc.stderr)
+    ok(proc.stdout.includes('ℹ pass 1\nℹ fail 1'), proc.stdout)
+  })
+
+  it('gives each file a copy of the worker, with its own Durable Objects and KV', async () => {
+    const [isolated, together] = await Promise.all([
+      runWorkerd(['test/isolation-1.test.js', 'test/isolation-2.test.js']),
+      runWorkerd([
+        'test/isolation-1.test.js',
+        'test/isolation-2.test.js',
+        '--test-isolation',
+        'none',
+      ]),
+    ])
+
+    is(isolated.exitCode, 0, `${isolated.stdout}\n${isolated.stderr}`)
+    ok(isolated.stdout.includes('ℹ files 2'), isolated.stdout)
+    is(together.exitCode, 1, `${together.stdout}\n${together.stderr}`)
+  })
+
   it('stops the worker before the afterTests hook on a run timeout', async () => {
     const proc = await runWorkerd(
       [

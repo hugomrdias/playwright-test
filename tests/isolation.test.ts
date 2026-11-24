@@ -470,3 +470,95 @@ for (const mode of ['browser', 'web-worker']) {
     })
   })
 }
+
+describe('--test-isolation process in workerd mode', {
+  concurrency: TEST_CONCURRENCY,
+}, () => {
+  for (const runner of ['mocha', 'node-test']) {
+    it(`${runner} runs each file in a worker of its own, by default`, async () => {
+      const files = [`${runner}-a`, `${runner}-b`]
+      const [isolated, together] = await Promise.all([
+        runIn('workerd', runner, files, ['--test-concurrency', '2']),
+        runIn('workerd', runner, files, ['--test-isolation', 'none']),
+      ])
+
+      is(isolated.exitCode, 0, output(isolated))
+      ok(isolated.stdout.includes('ℹ files 2'), output(isolated))
+      ok(isolated.stdout.includes('ℹ pass 2'), output(isolated))
+      is(together.exitCode, 1, output(together))
+      ok(!together.stdout.includes('ℹ files'), output(together))
+    })
+  }
+
+  it('prints each file in the order of the files', async () => {
+    const procs = await Promise.all(
+      ['1', '2'].map((concurrency) =>
+        runIn(
+          'workerd',
+          'mocha',
+          ['page-order-1', 'page-order-2'],
+          ['--test-concurrency', concurrency]
+        )
+      )
+    )
+
+    for (const proc of procs) {
+      is(proc.exitCode, 0, output(proc))
+      const at = (text: string) => proc.stdout.indexOf(text)
+      // Both from the console and from process.stdout
+      const first = Math.max(at('PAGE ORDER 1\n'), at('PAGE ORDER 1 written'))
+      const second = Math.min(at('PAGE ORDER 2\n'), at('PAGE ORDER 2 written'))
+      ok(at('PAGE ORDER 1\n') !== -1, proc.stdout)
+      ok(first < second, proc.stdout)
+    }
+  })
+
+  it('fails when a file fails, and names it', async () => {
+    const proc = await runIn(
+      'workerd',
+      'mocha',
+      ['mocha-a', 'mocha-fails'],
+      ['--test-concurrency', '1']
+    )
+
+    is(proc.exitCode, 1, output(proc))
+    ok(proc.stdout.includes('ℹ pass 1'), output(proc))
+    ok(
+      proc.stdout.includes(
+        `✖ failing files:\n  ${path.join(dir, 'mocha-fails.test.js')}`
+      ),
+      output(proc)
+    )
+  })
+
+  it('mocha bail ends the other files', async () => {
+    const proc = await runIn(
+      'workerd',
+      'mocha',
+      // In the order of the files the last one doesn't start
+      ['bail-fails-later', 'mocha-slow', 'page-order-2'],
+      ['--test-concurrency', '2']
+    )
+
+    is(proc.exitCode, 1, output(proc))
+    ok(proc.stdout.includes('ℹ cancelled 1'), output(proc))
+    ok(proc.stdout.includes('ℹ skipped 1'), output(proc))
+    ok(!proc.stdout.includes('SLOW FINISHED'), output(proc))
+  })
+
+  it('a run timeout ends every file, and prints what they held back', async () => {
+    // The first file never ends, the second one waits for it to print. The
+    // timeout includes starting Miniflare, slow on CI runners.
+    const proc = await runIn(
+      'workerd',
+      'mocha',
+      ['mocha-hangs', 'page-order-2'],
+      ['--test-concurrency', '2', '--run-timeout', '5000']
+    )
+
+    is(proc.exitCode, 1, output(proc))
+    ok(proc.stderr.includes('Run timed out'), output(proc))
+    ok(proc.stdout.includes('PAGE ORDER 2 written'), output(proc))
+    ok(!proc.stdout.includes('ℹ files'), output(proc))
+  })
+})

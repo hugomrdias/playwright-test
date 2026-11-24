@@ -1,12 +1,15 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { builtinModules, createRequire } from 'node:module'
+import os from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { BuildOptions, Plugin as ESBuildPlugin } from 'esbuild'
 import esbuild from 'esbuild'
 import { BaseRunner } from '../base-runner.ts'
+import { type FileStatus, summary } from '../node/each-file.ts'
 import type { Config } from '../types.ts'
+import { FileOutput } from '../utils/file-output.ts'
 import { log, UsageError, withTimeout } from '../utils/index.ts'
 import { createMerge } from '../utils/merge.ts'
 import { startServer } from '../utils/server.ts'
@@ -28,6 +31,10 @@ const CONFIGS = [
 const RUN_HEADER = 'x-playwright-test-run'
 const RUNTIME_MODULE = 'playwright-test:runtime'
 const ENV_MODULE = 'playwright-test:env'
+/** With `--test-isolation process`, the entry of each file's worker */
+const ENTRY = 'playwright-test:entry'
+/** It marks what a file's worker prints, see {@link tagModule} */
+const TAG_MODULE = 'playwright-test:tag'
 /** Imports that become workerd modules, like `cf build` makes them. */
 const MODULE_TYPES = [
   [/\.(txt|html|sql)$/, 'text'],
@@ -249,6 +256,31 @@ function doneLog(token: string) {
 }
 
 /**
+ * What starts each message a file's worker prints, see {@link tagModule}
+ */
+function fileTag(token: string, index: number) {
+  // The log handler looks for it, the token is a UUID
+  return `[playwright-test:${token}:${index}]`
+}
+
+/**
+ * With `--test-isolation process` all the workers print to the one workerd,
+ * and its logs don't say which worker printed. This marks each message of a
+ * file's worker with its index, the runner takes it out again. They're
+ * formatted like `console` would, and `process.stdout` prints through
+ * `console.log`, so it's marked too.
+ */
+function tagModule(token: string, index: number) {
+  return `import { format } from 'node:util'
+const tag = ${JSON.stringify(fileTag(token, index))}
+for (const level of ['log', 'info', 'debug', 'warn', 'error', 'trace']) {
+  const print = console[level].bind(console)
+  console[level] = (...args) => print(tag + format(...args))
+}
+`
+}
+
+/**
  * The worker's default export, it starts the tests for requests with the run
  * header and passes everything else to the default export of `main`, so tests
  * reach the worker with `exports.default` from `cloudflare:workers`.
@@ -256,17 +288,22 @@ function doneLog(token: string) {
 function workerEntry({
   main,
   token,
+  index,
 }: {
   main: string | undefined
   token: string
+  /** The file of the worker, with `--test-isolation process` */
+  index?: number
 }) {
+  const suffix = index === undefined ? '' : `:${index}`
   const mainImports = main
     ? `import * as __pwMain from ${JSON.stringify(main)}
 export * from ${JSON.stringify(main)}`
     : 'const __pwMain = {}'
 
-  // Imports run in order, the worker sees the env when it loads
-  return `import ${JSON.stringify(ENV_MODULE)}
+  // Imports run in order, the worker sees the env when it loads and what it
+  // prints is marked from the start
+  return `${index === undefined ? '' : `import ${JSON.stringify(TAG_MODULE + suffix)}\n`}import ${JSON.stringify(ENV_MODULE)}
 ${mainImports}
 
 function isRun(request) {
@@ -278,7 +315,7 @@ async function run() {
   const { promise, resolve } = Promise.withResolvers()
   process.exit = (code = process.exitCode) => resolve(Number(code ?? 0))
   try {
-    await import(${JSON.stringify(RUNTIME_MODULE)})
+    await import(${JSON.stringify(RUNTIME_MODULE + suffix)})
   } catch (error) {
     console.error(error)
     resolve(1)
@@ -319,6 +356,39 @@ export default handler
 }
 
 /**
+ * The worker of one file with `--test-isolation process`, a copy of the
+ * worker with its own name. Bindings to the worker, like its Durable Objects,
+ * go to the copy, so each file has its own.
+ */
+function fileWorker(
+  worker: MiniflareWorker,
+  manifest: unknown,
+  index: number
+): MiniflareWorker {
+  const { name = 'playwright-test', env } = worker.config
+  const fileName = `${name}-${index}`
+  const bindings = Object.fromEntries(
+    Object.entries((env ?? {}) as Record<string, unknown>).map(
+      ([key, binding]) => [
+        key,
+        (binding as { worker?: unknown } | null)?.worker === name
+          ? { ...(binding as object), worker: fileName }
+          : binding,
+      ]
+    )
+  )
+  return {
+    ...worker,
+    config: {
+      ...worker.config,
+      name: fileName,
+      ...(env === undefined ? {} : { env: bindings }),
+      manifest,
+    },
+  }
+}
+
+/**
  * Runs the tests in workerd with Miniflare, inside the worker described by the
  * project's `cloudflare.config.ts`. Tests and the worker's entry point are
  * bundled into one module.
@@ -330,6 +400,13 @@ export class WorkerdRunner extends BaseRunner {
   declare workerName: string | undefined
   declare token: `${string}-${string}-${string}-${string}-${string}`
   declare outputDone: PromiseWithResolvers<void>
+  /** With a worker per file, what they print in the order of the files */
+  #output: FileOutput | undefined
+  /** With a worker per file, their names in the order of the files */
+  #fileWorkers: string[] = []
+  /** With a worker per file, the output of each one reached this process */
+  #filesDone: PromiseWithResolvers<void>[] = []
+  #summary: (() => void) | undefined
 
   constructor(options: Config, testFiles?: string[]) {
     super(options, testFiles)
@@ -397,37 +474,55 @@ for (const [key, value] of Object.entries(${JSON.stringify(inherited)})) {
 Object.assign(env, ${JSON.stringify(runner)})`
   }
 
-  async #bundle(main: string | undefined) {
-    const outfile = path.join(this.dir, 'bundle-out.js')
+  /**
+   * One bundle, or with `--test-isolation process` one per file. Each one has
+   * all of its code: workerd runs a module like the top level of the worker
+   * even when a request imports it, so the tests can't be in chunks.
+   *
+   * @returns the main module of each worker and the other modules
+   */
+  async #bundle(main: string | undefined, isolated: boolean) {
     const cwd = this.options.cwd
     const envModule = this.#envModule()
+    const token = this.token
     const modules: Map<
       string,
       { type: 'text' | 'data' | 'wasm'; path: string }
     > = new Map()
-    const runtime = this.options.testRunner.compileRuntime(
-      this.options,
-      this.tests.map((t) => path.resolve(cwd, t).replaceAll('\\', '/'))
+    const files = this.tests.map((t) =>
+      path.resolve(cwd, t).replaceAll('\\', '/')
     )
+    const runtime = (index: number | undefined) =>
+      this.options.testRunner.compileRuntime(
+        this.options,
+        index === undefined ? files : [files[index] as string]
+      )
 
     const runtimePlugin: ESBuildPlugin = {
       name: 'workerd-runtime',
       setup(build) {
         build.onResolve(
-          { filter: /^playwright-test:(runtime|env)$/ },
+          {
+            filter: /^playwright-test:(runtime|env|tag|entry)(:\d+)?$/,
+          },
           (args) => ({
             path: args.path,
             namespace: 'workerd-runtime',
           })
         )
-        build.onLoad(
-          { filter: /.*/, namespace: 'workerd-runtime' },
-          (args) => ({
-            contents: args.path === ENV_MODULE ? envModule : runtime,
-            resolveDir: cwd,
-            loader: 'js',
-          })
-        )
+        build.onLoad({ filter: /.*/, namespace: 'workerd-runtime' }, (args) => {
+          const [, name, index] = /^(.*?)(?::(\d+))?$/.exec(args.path) ?? []
+          const file = index === undefined ? undefined : Number(index)
+          const contents =
+            name === ENV_MODULE
+              ? envModule
+              : name === TAG_MODULE
+                ? tagModule(token, file as number)
+                : name === ENTRY
+                  ? workerEntry({ main, token, index: file })
+                  : runtime(file)
+          return { contents, resolveDir: cwd, loader: 'js' }
+        })
       },
     }
 
@@ -481,19 +576,33 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
       },
     }
 
+    const outNames = isolated
+      ? files.map((_, i) => `bundle-${i}-out.js`)
+      : ['bundle-out.js']
+    const output: BuildOptions = isolated
+      ? {
+          entryPoints: outNames.map((name, i) => ({
+            in: `${ENTRY}:${i}`,
+            out: name.slice(0, -3),
+          })),
+          outdir: this.dir,
+        }
+      : {
+          stdin: {
+            contents: workerEntry({ main, token }),
+            resolveDir: cwd,
+            sourcefile: 'workerd-entry.js',
+          },
+          outfile: path.join(this.dir, 'bundle-out.js'),
+        }
     const defaults: BuildOptions = {
-      stdin: {
-        contents: workerEntry({ main, token: this.token }),
-        resolveDir: cwd,
-        sourcefile: 'workerd-entry.js',
-      },
+      ...output,
       bundle: true,
       format: 'esm',
       platform: 'neutral',
       // Packages built for the Workers runtime
       conditions: ['workerd', 'worker', 'browser'],
       mainFields: ['browser', 'module', 'main'],
-      outfile,
       sourcemap: 'inline',
       external: ['cloudflare:*', 'workerd:*'],
       define: { 'import.meta.env': 'globalThis.process.env' },
@@ -507,13 +616,27 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
         this.options.buildConfig
       )
     )
-    return { outfile, modules }
+    return { outNames, modules }
   }
 
   #logHandler() {
+    // The index of the file a message is from, see `fileTag`
+    const tag = new RegExp(`\\[playwright-test:${this.token}:(\\d+)\\]`)
     return ({ level, message }: { level: string; message: string }) => {
+      let index: number | undefined
+      const tagged = this.#output ? tag.exec(message) : null
+      if (tagged) {
+        index = Number(tagged[1])
+        message =
+          message.slice(0, tagged.index) +
+          message.slice(tagged.index + tagged[0].length)
+      }
       if (message.includes(doneLog(this.token))) {
-        this.outputDone.resolve()
+        if (index === undefined) {
+          this.outputDone.resolve()
+        } else {
+          this.#filesDone[index]?.resolve()
+        }
         return
       }
       if (IGNORED_LOGS.some((ignored) => message.includes(ignored))) {
@@ -521,7 +644,12 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
       }
       const stream =
         level === 'error' || level === 'warn' ? process.stderr : process.stdout
-      stream.write(`${this.#mapStack(message)}\n`)
+      const text = `${this.#mapStack(message)}\n`
+      if (this.#output) {
+        this.#output.write(index, () => stream.write(text))
+      } else {
+        stream.write(text)
+      }
     }
   }
 
@@ -531,7 +659,7 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
   #mapStack(text: string) {
     // A path, a file URL or `/bundle-out.js` on Windows, workerd drops the drive
     return this.stackMapper.map(
-      text.replace(/[^\s()'"]*[\\/](bundle-out\.js:\d+:\d+)/g, '$1')
+      text.replace(/[^\s()'"]*[\\/](bundle(?:-[\w-]+)?-out\.js:\d+:\d+)/g, '$1')
     )
   }
 
@@ -557,8 +685,12 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
     const main = this.options.workerd?.main
       ? path.resolve(this.options.cwd, this.options.workerd.main)
       : loaded.main
-    const { outfile, modules } = await this.#bundle(main)
-    const name = path.basename(outfile)
+    const isolated = this.#isolated()
+    if (isolated) {
+      this.#output = new FileOutput(this.tests.length)
+      this.#filesDone = this.tests.map(() => Promise.withResolvers<void>())
+    }
+    const { outNames, modules } = await this.#bundle(main, isolated)
 
     const worker: MiniflareWorker = merge(
       loaded.worker,
@@ -567,25 +699,40 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
     worker.config.compatibilityFlags = withNodejsCompat(
       worker.config.compatibilityFlags
     )
-    worker.config.manifest = {
+    const shared = Object.fromEntries(
+      [...modules].map(([moduleName, module]) => [
+        moduleName,
+        {
+          type: module.type,
+          contents:
+            module.type === 'text'
+              ? readFileSync(module.path, 'utf8')
+              : new Uint8Array(readFileSync(module.path)),
+        },
+      ])
+    )
+    const manifest = (name: string) => ({
       mainModule: name,
       modulesRoot: this.dir,
       modules: {
-        [name]: { type: 'esm', contents: readFileSync(outfile, 'utf8') },
-        ...Object.fromEntries(
-          [...modules].map(([moduleName, module]) => [
-            moduleName,
-            {
-              type: module.type,
-              contents:
-                module.type === 'text'
-                  ? readFileSync(module.path, 'utf8')
-                  : new Uint8Array(readFileSync(module.path)),
-            },
-          ])
-        ),
+        [name]: {
+          type: 'esm',
+          contents: readFileSync(path.join(this.dir, name), 'utf8'),
+        },
+        ...shared,
       },
-    }
+    })
+    const workers = isolated
+      ? outNames.map((name, index) => fileWorker(worker, manifest(name), index))
+      : [
+          {
+            ...worker,
+            config: {
+              ...worker.config,
+              manifest: manifest(outNames[0] as string),
+            },
+          },
+        ]
 
     // Stopped while it bundled, the exit hook found nothing to stop and
     // nothing would stop it once it starts
@@ -595,9 +742,12 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
     this.mf = new miniflare.Miniflare({
       log: new miniflare.Log(miniflare.LogLevel.WARN),
       handleStructuredLogs: this.#logHandler(),
-      workers: [worker],
+      workers,
     })
     this.workerName = worker.config.name
+    this.#fileWorkers = isolated
+      ? workers.map((fileWorker) => fileWorker.config.name as string)
+      : []
     await this.mf.ready
   }
 
@@ -660,10 +810,10 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
    * Waits for the worker's output to reach this process, it comes after the
    * response to the run.
    */
-  async #outputDone() {
+  async #outputDone(done = this.outputDone.promise) {
     let timer: NodeJS.Timeout | undefined
     await Promise.race([
-      this.outputDone.promise,
+      done,
       new Promise((resolve) => {
         timer = setTimeout(resolve, OUTPUT_WAIT)
       }),
@@ -691,6 +841,132 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
     return code === 0
   }
 
+  /**
+   * With `--test-isolation process` and more than one file: a worker per
+   * file, in the one workerd.
+   */
+  #isolated() {
+    return this.options.testIsolation !== 'none' && this.tests.length > 1
+  }
+
+  /**
+   * Each file in its worker, at most `--test-concurrency` at once. What a file
+   * prints comes out in the order of the files, then a summary of them.
+   * Mocha's `bail` ends the run when a file fails, the files still running
+   * are cancelled and the rest skipped.
+   */
+  async #runEachFile() {
+    const { cwd, testConcurrency, testRunner } = this.options
+    const files = this.tests
+    const concurrency = Math.min(
+      testConcurrency ?? Math.max(os.availableParallelism() - 1, 1),
+      files.length
+    )
+    const { bail = false } = (testRunner.options ?? {}) as { bail?: boolean }
+    const bails = testRunner.name === 'mocha' && bail
+    const results: (FileStatus | undefined)[] = []
+    const cancels: Set<() => void> = new Set()
+    let next = 0
+    let stopping = false
+    let bailed = false
+
+    const worker = async () => {
+      while (!stopping && !this.stopped && next < files.length) {
+        const index = next++
+        const result = await this.#runFile(index, cancels)
+        results[index] = result
+        if (!result.passed && bails && !stopping) {
+          bailed = true
+          stopping = true
+          for (const cancel of cancels) {
+            cancel()
+          }
+        }
+      }
+    }
+    await Promise.all(Array.from({ length: concurrency }, worker))
+
+    if (this.stopped) {
+      return
+    }
+    // Skipped by bail
+    for (let i = 0; i < files.length; i++) {
+      results[i] ??= { passed: false, cancelled: false }
+    }
+    if (bailed || next === files.length) {
+      // After what the cancelled files printed, see `stop`
+      this.#summary = () =>
+        summary({ cwd, files }, results as FileStatus[], next)
+    }
+    const failed = results.some((result) => !result?.passed)
+    await this.stop(failed, failed ? 'Tests failed.' : undefined)
+  }
+
+  /**
+   * Run one file in its worker
+   */
+  async #runFile(index: number, cancels: Set<() => void>): Promise<FileStatus> {
+    const output = this.#output as FileOutput
+    const cancelled = Promise.withResolvers<FileStatus>()
+    const cancel = () => cancelled.resolve({ passed: false, cancelled: true })
+    cancels.add(cancel)
+    const run = async (): Promise<FileStatus> => {
+      const mf = this.mf as Miniflare
+      const worker = await mf.getWorker(this.#fileWorkers[index])
+      const response = await worker.fetch('http://localhost/', {
+        headers: { [RUN_HEADER]: this.token },
+      })
+      if (!response.ok) {
+        const text = this.#mapStack(await response.text())
+        output.write(index, () => log.error(text))
+        return { passed: false, cancelled: false }
+      }
+      const { code } = (await response.json()) as { code: number }
+      await this.#outputDone(this.#filesDone[index]?.promise)
+      return { passed: code === 0, cancelled: false }
+    }
+    const running = run()
+    let result: FileStatus | undefined
+    try {
+      result = await Promise.race([running, cancelled.promise])
+      return result
+    } catch (error) {
+      // Its request ends with workerd when the run ends
+      result = { passed: false, cancelled: this.stopped }
+      if (!this.stopped) {
+        output.write(index, () => log.error(error))
+      }
+      return result
+    } finally {
+      cancels.delete(cancel)
+      // A cancelled file keeps running until workerd stops, what it printed
+      // stays with it and `stop` prints it in order
+      running.catch(() => {
+        // The run is ending
+      })
+      if (!result?.cancelled) {
+        output.done(index)
+      }
+    }
+  }
+
+  /**
+   * End the run once. With a worker per file workerd stops first, then what
+   * the files that didn't end printed comes out, and the summary.
+   */
+  async stop(fail: boolean, msg?: unknown) {
+    if (this.stopped) {
+      return
+    }
+    this.stopped = true
+    if (this.#output) {
+      await this.stopTests()
+      this.#output.flushAll()
+      this.#summary?.()
+    }
+    await this.exit(fail, msg)
+  }
+
   async run() {
     this.handleExit()
 
@@ -712,6 +988,10 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
         return
       }
 
+      if (this.#output) {
+        await this.#runEachFile()
+        return
+      }
       const passed = await this.runTests()
       await this.stop(!passed, passed ? undefined : 'Tests failed.')
     } catch (error) {
