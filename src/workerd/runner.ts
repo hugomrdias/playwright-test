@@ -11,7 +11,6 @@ import type { Config, RunResult, WatchHandle } from '../types.ts'
 import { FileOutput } from '../utils/file-output.ts'
 import { UsageError, withTimeout } from '../utils/index.ts'
 import { createMerge } from '../utils/merge.ts'
-import { startServer } from '../utils/server.ts'
 import { createStackMapper } from '../utils/stack-map.ts'
 
 const merge = createMerge({ ignoreUndefined: true, concatArrays: true })
@@ -376,6 +375,7 @@ export class WorkerdRunner extends BaseRunner {
   /** With a worker per file, the output of each one reached this process */
   #filesDone: PromiseWithResolvers<void>[] = []
   #summary: (() => void) | undefined
+  #bundling: Promise<unknown> | undefined
 
   constructor(options: Config, testFiles?: string[]) {
     super(options, testFiles)
@@ -682,7 +682,16 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
       this.#output = new FileOutput(this.tests.length)
       this.#filesDone = this.tests.map(() => Promise.withResolvers<void>())
     }
-    const { outNames, modules, imports } = await this.#bundle(main, isolated)
+    if (this.stopped) {
+      return
+    }
+    const bundling = this.#bundle(main, isolated)
+    bundling.catch(() => undefined)
+    this.#bundling = bundling
+    const { outNames, modules, imports } = await bundling
+    if (this.stopped) {
+      return
+    }
 
     const worker: MiniflareWorker = merge(
       loaded.worker,
@@ -993,13 +1002,10 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
   run(): Promise<RunResult> {
     return this.finish(async () => {
       try {
-        const { server, url } = await startServer(
-          this.dir,
-          this.options.cwd,
-          this.options.assets
-        )
-        this.server = server
-        this.env.PW_SERVER = url
+        await this.startAssetServer(this.dir)
+        if (this.stopped) {
+          return
+        }
         this.startRunTimeout()
         await this.runBeforeTests()
         if (this.stopped) {
@@ -1037,8 +1043,18 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
     })
   }
 
-  watch(): Promise<WatchHandle> {
+  async watch(): Promise<WatchHandle> {
+    await this.removeFiles()
     throw new UsageError('--watch does not work in the workerd mode yet.')
+  }
+
+  async cleanUp() {
+    // Wait for any in-flight bundle write to settle before `removeFiles()`
+    // removes `this.dir`, otherwise esbuild can recreate it after cleanup.
+    await this.#bundling?.then(
+      () => undefined,
+      () => undefined
+    )
   }
 
   cleanupWait() {

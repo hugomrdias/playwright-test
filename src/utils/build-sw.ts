@@ -2,7 +2,7 @@ import type {
   BuildOptions as ESBuildOptions,
   Plugin as ESBuildPlugin,
 } from 'esbuild'
-import { build } from 'esbuild'
+import { build, formatMessages } from 'esbuild'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import type { Runner } from '../runner.ts'
@@ -120,10 +120,23 @@ self.addEventListener('activate', (event) => {
     define: {
       global: 'globalThis',
     },
+    ...(runner.stderr === process.stderr ? {} : { logLevel: 'silent' }),
   }
-  await build(
-    merge<ESBuildOptions>(defaultOptions, runner.options.buildSWConfig)
-  )
+  try {
+    await build(
+      merge<ESBuildOptions>(defaultOptions, runner.options.buildSWConfig)
+    )
+  } catch (error) {
+    const { errors } = (error ?? {}) as { errors?: unknown }
+    if (runner.stderr !== process.stderr && Array.isArray(errors)) {
+      const formatted = await formatMessages(errors, {
+        kind: 'error',
+        color: runner.colors.enabled,
+      })
+      runner.stderr.write(formatted.join('\n'))
+    }
+    throw error
+  }
 
   return { files, outName }
 }

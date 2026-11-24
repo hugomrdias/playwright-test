@@ -150,16 +150,20 @@ export async function withTimeout<T, F = undefined>(
 /**
  * Close the server of the run, its open connections can make that wait.
  */
-export function closeServer(server: Server | undefined, ms: number) {
+export async function closeServer(server: Server | undefined, ms: number) {
   if (!server) {
-    return Promise.resolve()
+    return
   }
-  return withTimeout(
-    new Promise<void>((resolve) => {
-      server.close(() => resolve())
+  const closed = await withTimeout(
+    new Promise<boolean>((resolve) => {
+      server.close(() => resolve(true))
     }),
-    ms
+    ms,
+    false
   )
+  if (!closed) {
+    server.closeAllConnections?.()
+  }
 }
 
 const TIMED_OUT = Symbol('timed out')
@@ -572,6 +576,10 @@ function hasPackageLink(registryDirectory: string) {
   }
 }
 
+let installRedirectCount = 0
+let savedConsoleLog: typeof console.log | undefined
+let savedConsoleInfo: typeof console.info | undefined
+
 /**
  * The Playwright browser type, with the browser it launches installed.
  *
@@ -583,7 +591,13 @@ export async function getPw(
     headless,
     channel,
     executablePath,
-  }: { headless: boolean; channel?: string; executablePath?: string }
+    redirectInstallLogs = false,
+  }: {
+    headless: boolean
+    channel?: string
+    executablePath?: string
+    redirectInstallLogs?: boolean
+  }
 ): Promise<BrowserType> {
   if (!['chromium', 'firefox', 'webkit'].includes(browserName)) {
     throw new Error(`Browser not supported: ${browserName}`)
@@ -630,18 +644,36 @@ export async function getPw(
     return api[browserName]
   }
 
-  // playwright will log browser download progress to stdout, temporarily
-  // redirect the output to stderr
-  const log = console.log
-  const info = console.info
+  if (!redirectInstallLogs) {
+    await registry.install(executables)
+    return api[browserName]
+  }
 
-  try {
+  // In CLI mode, playwright logs browser download progress to stdout; redirect
+  // it to stderr while keeping ref-counted originals so overlapping calls never
+  // corrupt console.log/console.info.
+  if (installRedirectCount === 0) {
+    savedConsoleLog = console.log
+    savedConsoleInfo = console.info
     console.log = console.error
     console.info = console.error
+  }
+  installRedirectCount++
+
+  try {
     await registry.install(executables)
   } finally {
-    console.log = log
-    console.info = info
+    installRedirectCount--
+    if (installRedirectCount === 0) {
+      if (savedConsoleLog) {
+        console.log = savedConsoleLog
+      }
+      if (savedConsoleInfo) {
+        console.info = savedConsoleInfo
+      }
+      savedConsoleLog = undefined
+      savedConsoleInfo = undefined
+    }
   }
   return api[browserName]
 }

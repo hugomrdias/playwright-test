@@ -30,11 +30,7 @@ import {
   withTimeout,
   writeEnv,
 } from './utils/index.ts'
-import {
-  CLEAR_SITE_DATA_PATH,
-  startServer,
-  TEST_FRAME_PARAM,
-} from './utils/server.ts'
+import { CLEAR_SITE_DATA_PATH, TEST_FRAME_PARAM } from './utils/server.ts'
 import { createStackMapper } from './utils/stack-map.ts'
 
 export type { BrowserContext as Context, Page } from 'playwright-core'
@@ -135,6 +131,7 @@ export class Runner extends BaseRunner {
   /** How the files of an isolated run ended, printed by `stop` */
   #summary: (() => void) | undefined = undefined
   #compiling: Promise<CompilerOutput> | undefined = undefined
+  #copying: Promise<void> | undefined = undefined
   #launching: Promise<Context> | undefined = undefined
   #closing: { traced: Promise<Trace>; closed: Promise<void> } | undefined =
     undefined
@@ -174,7 +171,7 @@ export class Runner extends BaseRunner {
     this.tracing = false
     this.watching = false
 
-    if (!process.env.DEBUG?.split(',').includes('-pw:*')) {
+    if (this.exitProcess && !process.env.DEBUG?.split(',').includes('-pw:*')) {
       process.env.DEBUG = [process.env.DEBUG, '-pw:*'].filter(Boolean).join(',')
     }
     // Before the bundles, the copy of the static files and a build started
@@ -193,24 +190,21 @@ export class Runner extends BaseRunner {
 
     // Assign server immediately on listen so cleanup still closes it if another
     // parallel setup step (like invalid browser validation) rejects.
-    const serverPromise = startServer(
-      this.files,
-      this.options.cwd,
-      this.options.assets
-    ).then(({ server, url }) => {
-      this.env.PW_SERVER = url
+    const serverPromise = this.startAssetServer(this.files).then((url) => {
       this.url = url
-      this.server = server
-      return { server, url }
+      return url
     })
 
     const copied = cp(path.join(__dirname, './../static'), this.files, {
       recursive: true,
     })
+    copied.catch(noop)
+    this.#copying = copied
     const pwPromise = getPw(this.options.browser, {
       headless,
       channel,
       executablePath: launchOptions.executablePath,
+      redirectInstallLogs: this.exitProcess,
     })
 
     const pwOptions: LaunchOptions = {
@@ -631,6 +625,9 @@ export class Runner extends BaseRunner {
         compiled = this.#compileEarly()
         // Setup the context
         const context = await this.setupContext()
+        if (this.stopped) {
+          return
+        }
         // After setupContext, downloading a browser doesn't count
         this.startRunTimeout()
         await this.runBeforeTests()
@@ -1070,6 +1067,9 @@ export class Runner extends BaseRunner {
     try {
       // Setup the context
       const context = await this.setupContext()
+      if (this.stopped) {
+        return handle
+      }
       await this.runBeforeTests()
       if (this.stopped) {
         return handle
@@ -1082,6 +1082,9 @@ export class Runner extends BaseRunner {
       page = await this.setupPage(context)
 
       ;({ files } = await this.runTests(page, compiled))
+      if (this.stopped) {
+        return handle
+      }
     } catch (error) {
       await this.stop(true, this.#endReason() || error)
       return handle
@@ -1127,20 +1130,44 @@ export class Runner extends BaseRunner {
       running = false
     }
 
-    const watcher = watch([...files], {
-      // Match dot files relative to cwd, so projects inside dot folders still work.
-      // Not `..`, that's a file of the project outside of cwd like in a monorepo.
-      ignored: (file) =>
-        /(^|[/\\])\.(?!\.([/\\]|$))/.test(
-          path.relative(this.options.cwd, file)
-        ),
-      ignoreInitial: true,
-      awaitWriteFinish: { pollInterval: 100, stabilityThreshold: 500 },
-    }).on('change', () => {
-      clearTimeout(debounce)
-      debounce = setTimeout(rerun, WATCH_DEBOUNCE)
-    })
-    this.#watcher = watcher
+    let watcher: ReturnType<typeof watch>
+    try {
+      watcher = watch([...files], {
+        // Match dot files relative to cwd, so projects inside dot folders still work.
+        // Not `..`, that's a file of the project outside of cwd like in a monorepo.
+        ignored: (file) =>
+          /(^|[/\\])\.(?!\.([/\\]|$))/.test(
+            path.relative(this.options.cwd, file)
+          ),
+        ignoreInitial: true,
+        awaitWriteFinish: { pollInterval: 100, stabilityThreshold: 500 },
+      }).on('change', () => {
+        clearTimeout(debounce)
+        debounce = setTimeout(rerun, WATCH_DEBOUNCE)
+      })
+      this.#watcher = watcher
+
+      const ready = new Promise<void>((resolve, reject) => {
+        watcher.once('ready', () => {
+          watcher.off('error', reject)
+          watcher.on('error', (error) => {
+            if (!this.stopped) {
+              this.log.error(error)
+            }
+          })
+          resolve()
+        })
+        watcher.once('error', reject)
+      })
+      await Promise.race([ready, this.done])
+      if (this.stopped) {
+        ready.catch(noop)
+        return handle
+      }
+    } catch (error) {
+      await this.stop(true, this.#endReason() || error)
+      return handle
+    }
 
     return handle
   }
@@ -1521,9 +1548,12 @@ export class Runner extends BaseRunner {
     await withTimeout(closing.closed, this.#exitWait)
     // The bundles don't go there, a build that never ends can't keep it
     await removeFolder(this.#profile(), this.log)
-    // After the browser closed, it can still be using them. A bundle started
-    // early may still be writing when the setup failed.
-    await this.#compiling?.then(noop, noop)
+    // After the browser closed, it can still be using them. A bundle or static
+    // copy started early may still be writing when the setup failed or stopped.
+    await Promise.all([
+      this.#compiling?.then(noop, noop),
+      this.#copying?.then(noop, noop),
+    ])
   }
 
   /**

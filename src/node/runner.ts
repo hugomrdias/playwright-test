@@ -23,7 +23,6 @@ import {
   killTree,
   withLocalBins,
 } from '../utils/process.ts'
-import { startServer } from '../utils/server.ts'
 import { runEachFile } from './each-file.ts'
 import { canRunInProcess, runIsolated } from './node-test-run.ts'
 
@@ -150,14 +149,7 @@ export class NodeRunner extends BaseRunner {
   }
 
   async #setupServer() {
-    // setup http server
-    const { server, url } = await startServer(
-      this.dir,
-      this.options.cwd,
-      this.options.assets
-    )
-    this.env.PW_SERVER = url
-    this.server = server
+    await this.startAssetServer(this.dir)
   }
 
   /**
@@ -361,6 +353,9 @@ export class NodeRunner extends BaseRunner {
     return this.finish(async () => {
       try {
         await this.#setupServer()
+        if (this.stopped) {
+          return
+        }
         this.startRunTimeout()
         await this.runBeforeTests()
         // Stopped during the hook, nothing would stop the tests started now
@@ -389,6 +384,9 @@ export class NodeRunner extends BaseRunner {
     let tests: Tests
     try {
       await this.#setupServer()
+      if (this.stopped) {
+        return handle
+      }
       await this.runBeforeTests()
       // Stopped during the hook, nothing would stop the tests started now
       if (this.stopped) {
@@ -430,26 +428,53 @@ export class NodeRunner extends BaseRunner {
       restarting = false
     }
 
-    // Watch for changes in the project, ignoring dot folders and node_modules.
-    // Imported here, only --watch needs it.
-    const { watch } = await import('chokidar')
-    this.#watcher = watch(cwd, {
-      ignored: (file, stats) => {
-        const rel = path.relative(cwd, file)
-        if (
-          rel
-            .split(path.sep)
-            .some((part) => part.startsWith('.') || part === 'node_modules')
-        ) {
-          return true
-        }
-        return Boolean(
-          stats?.isFile() && !extensions.includes(path.extname(file).slice(1))
-        )
-      },
-      ignoreInitial: true,
-      awaitWriteFinish: { pollInterval: 100, stabilityThreshold: 500 },
-    }).on('change', restart)
+    try {
+      // Watch for changes in the project, ignoring dot folders and node_modules.
+      // Imported here, only --watch needs it.
+      const { watch } = await import('chokidar')
+      if (this.stopped) {
+        return handle
+      }
+      const watcher = watch(cwd, {
+        ignored: (file, stats) => {
+          const rel = path.relative(cwd, file)
+          if (
+            rel
+              .split(path.sep)
+              .some((part) => part.startsWith('.') || part === 'node_modules')
+          ) {
+            return true
+          }
+          return Boolean(
+            stats?.isFile() && !extensions.includes(path.extname(file).slice(1))
+          )
+        },
+        ignoreInitial: true,
+        awaitWriteFinish: { pollInterval: 100, stabilityThreshold: 500 },
+      }).on('change', restart)
+      this.#watcher = watcher
+
+      const ready = new Promise<void>((resolve, reject) => {
+        watcher.once('ready', () => {
+          watcher.off('error', reject)
+          watcher.on('error', (error) => {
+            if (!this.stopped) {
+              this.log.error(error)
+            }
+          })
+          resolve()
+        })
+        watcher.once('error', reject)
+      })
+      await Promise.race([ready, this.done])
+      if (this.stopped) {
+        ready.catch(() => undefined)
+        return handle
+      }
+    } catch (error) {
+      await this.stop(true, formatError(error))
+      return handle
+    }
 
     return handle
   }

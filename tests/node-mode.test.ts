@@ -41,8 +41,12 @@ describe('node mode outside the package', () => {
   let project: string
 
   beforeEach(() => {
-    // The temp dir has no node_modules/.bin in any of its parent folders
-    project = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-test-'))
+    // The temp dir has no node_modules/.bin in any of its parent folders.
+    // realpathSync normalizes macOS /var -> /private/var so in-process cwd matches
+    // what a spawned child's process.cwd() resolves to.
+    project = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), 'pw-test-'))
+    )
   })
 
   afterEach(() => {

@@ -31,6 +31,7 @@ import {
   withTimeout,
 } from './utils/index.ts'
 import { createMerge } from './utils/merge.ts'
+import { startServer } from './utils/server.ts'
 
 const merge = createMerge({ ignoreUndefined: true, concatArrays: true })
 // The browser or the tests are gone by then, nothing should hold it open
@@ -170,6 +171,7 @@ export class BaseRunner {
   #beforeTests: Promise<unknown> | undefined
   #done: PromiseWithResolvers<RunResult>
   #runTimeout: NodeJS.Timeout | undefined
+  #serverStarting: Promise<void> | undefined
 
   constructor(options: Config, testFiles?: string[]) {
     const { stdout, stderr, env, exitProcess, ...rest } = options
@@ -401,6 +403,37 @@ export class BaseRunner {
     await removeFolder(this.dir, this.log)
   }
 
+  /**
+   * Start the HTTP asset server and track it while listening so a concurrent
+   * `stop()` still waits for it and closes it before cleanup completes.
+   */
+  protected async startAssetServer(filesDir: string): Promise<string> {
+    const starting = startServer(
+      filesDir,
+      this.options.cwd,
+      this.options.assets
+    )
+    this.#serverStarting = starting.then(
+      ({ server, url }) => {
+        this.server = server
+        this.env.PW_SERVER = url
+      },
+      () => undefined
+    )
+    const { url } = await starting
+    return url
+  }
+
+  /**
+   * Wait for an in-flight server start, then close the server if it started.
+   */
+  async #closeAssetServer() {
+    if (this.#serverStarting) {
+      await withTimeout(this.#serverStarting, SERVER_CLOSE_WAIT)
+    }
+    await closeServer(this.server, SERVER_CLOSE_WAIT)
+  }
+
   async #clean(exitCode: number) {
     // Whatever is still running fails from here on, it can't stop the run again
     this.stopped = true
@@ -408,7 +441,7 @@ export class BaseRunner {
     await this.stopTests()
     await this.runAfterTests()
     await this.cleanUp(exitCode)
-    await closeServer(this.server, SERVER_CLOSE_WAIT)
+    await this.#closeAssetServer()
     await this.removeFiles()
   }
 
@@ -439,7 +472,7 @@ export class BaseRunner {
       gracefulExit(exitCode)
     } else {
       await this.cleanUp(exitCode)
-      await closeServer(this.server, SERVER_CLOSE_WAIT)
+      await this.#closeAssetServer()
       await this.removeFiles()
     }
     const result: RunResult = { passed: exitCode === 0, exitCode }

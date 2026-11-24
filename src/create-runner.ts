@@ -51,6 +51,14 @@ export async function watch(
   options: Config = {},
   testFiles?: string[]
 ): Promise<WatchHandle> {
+  if (options.mode === 'workerd') {
+    throw new UsageError('--watch does not work in the workerd mode yet.')
+  }
   const runner = await createRunner(options, testFiles)
-  return await runner.watch()
+  try {
+    return await runner.watch()
+  } catch (error) {
+    await runner.removeFiles()
+    throw error
+  }
 }
