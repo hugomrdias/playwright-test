@@ -17,9 +17,8 @@ import type {
 import { BaseRunner, REMOVE_WAIT, removeFolder } from './base-runner.ts'
 import type { Binding, ClientBindings } from './client/types.ts'
 import { type FileStatus, summary } from './node/each-file.ts'
-import type { CompilerOutput, Config } from './types.ts'
+import type { CompilerOutput, Config, RunResult, WatchHandle } from './types.ts'
 import { compileSw } from './utils/build-sw.ts'
-import { colors } from './utils/colors.ts'
 import { FileOutput } from './utils/file-output.ts'
 import {
   addWorker,
@@ -27,44 +26,45 @@ import {
   build,
   defaultOptions,
   getPw,
-  log,
   readConsole,
   withTimeout,
   writeEnv,
 } from './utils/index.ts'
-import {
-  CLEAR_SITE_DATA_PATH,
-  startServer,
-  TEST_FRAME_PARAM,
-} from './utils/server.ts'
+import { CLEAR_SITE_DATA_PATH, TEST_FRAME_PARAM } from './utils/server.ts'
 import { createStackMapper } from './utils/stack-map.ts'
 
 export type { BrowserContext as Context, Page } from 'playwright-core'
+export { BaseRunner } from './base-runner.ts'
+export {
+  type ResolvedOptions,
+  type ResolveOptions,
+  resolveOptions,
+} from './cli-options.ts'
+export { type AnyRunner, createRunner, run, watch } from './create-runner.ts'
+export { NodeRunner } from './node/runner.ts'
 export type {
   CliOptions,
+  CompilerOutput,
   Config,
   ConfigFn,
+  Logger,
   RunnerEnv,
   RunnerOptions,
+  RunResult,
+  TestRunner,
+  WatchHandle,
   WorkerdOptions,
 } from './types.ts'
+export { UsageError } from './utils/index.ts'
+export { WorkerdRunner } from './workerd/runner.ts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const noop = () => undefined
 /** `-1`, `-2` and so on for the trace of each context, when there's more than one */
 const traceSuffix = (all: unknown[], index: number) =>
   all.length > 1 ? `-${index + 1}` : ''
-// Tests of stuck pages lower it, they always wait for all of it
-const CONSOLE_FLUSH_TIMEOUT =
-  Number(process.env.PW_TEST_CONSOLE_FLUSH_TIMEOUT) || 5000
-// Firefox on GitHub's Windows runners can take close to 3s to close, and the
-// browser profile can't be deleted until it does. Tests of slow afterTests
-// hooks lower it, to outlast it in less time.
-const EXIT_WAIT = Number(process.env.PW_TEST_EXIT_WAIT) || 5000
 // Saving many files at once changes them within the poll of the watcher
 const WATCH_DEBOUNCE = 200
-// Tests of workers that never claim the page lower it
-const SW_CLAIM_TIMEOUT = Number(process.env.PW_TEST_SW_CLAIM_TIMEOUT) || 5000
 // Writing the screenshots and snapshots of a long run takes a while
 const TRACE_WAIT = 30_000
 // The iframe of a page the tests run in, see `#openTestFrame`
@@ -131,9 +131,30 @@ export class Runner extends BaseRunner {
   /** How the files of an isolated run ended, printed by `stop` */
   #summary: (() => void) | undefined = undefined
   #compiling: Promise<CompilerOutput> | undefined = undefined
+  #copying: Promise<void> | undefined = undefined
   #launching: Promise<Context> | undefined = undefined
   #closing: { traced: Promise<Trace>; closed: Promise<void> } | undefined =
     undefined
+  #watcher: { close: () => Promise<void> } | undefined = undefined
+
+  /** Tests of stuck pages lower it, they always wait for all of it */
+  get #consoleFlushTimeout() {
+    return Number(this.env.PW_TEST_CONSOLE_FLUSH_TIMEOUT) || 5000
+  }
+
+  /**
+   * Firefox on GitHub's Windows runners can take close to 3s to close, and the
+   * browser profile can't be deleted until it does. Tests of slow afterTests
+   * hooks lower it, to outlast it in less time.
+   */
+  get #exitWait() {
+    return Number(this.env.PW_TEST_EXIT_WAIT) || 5000
+  }
+
+  /** Tests of workers that never claim the page lower it */
+  get #swClaimTimeout() {
+    return Number(this.env.PW_TEST_SW_CLAIM_TIMEOUT) || 5000
+  }
 
   constructor(options: Config, testFiles?: string[]) {
     super(options, testFiles)
@@ -150,7 +171,9 @@ export class Runner extends BaseRunner {
     this.tracing = false
     this.watching = false
 
-    process.env.DEBUG = [process.env.DEBUG, '-pw:*'].filter(Boolean).join(',')
+    if (this.exitProcess && !process.env.DEBUG?.split(',').includes('-pw:*')) {
+      process.env.DEBUG = [process.env.DEBUG, '-pw:*'].filter(Boolean).join(',')
+    }
     // Before the bundles, the copy of the static files and a build started
     // early would both make it
     mkdirSync(this.files, { recursive: true })
@@ -167,24 +190,21 @@ export class Runner extends BaseRunner {
 
     // Assign server immediately on listen so cleanup still closes it if another
     // parallel setup step (like invalid browser validation) rejects.
-    const serverPromise = startServer(
-      this.files,
-      this.options.cwd,
-      this.options.assets
-    ).then(({ server, url }) => {
-      this.env.PW_SERVER = url
+    const serverPromise = this.startAssetServer(this.files).then((url) => {
       this.url = url
-      this.server = server
-      return { server, url }
+      return url
     })
 
     const copied = cp(path.join(__dirname, './../static'), this.files, {
       recursive: true,
     })
+    copied.catch(noop)
+    this.#copying = copied
     const pwPromise = getPw(this.options.browser, {
       headless,
       channel,
       executablePath: launchOptions.executablePath,
+      redirectInstallLogs: this.exitProcess,
     })
 
     const pwOptions: LaunchOptions = {
@@ -324,12 +344,12 @@ export class Runner extends BaseRunner {
       context.exposeBinding(
         'PW_TEST_STDOUT_WRITE',
         ({ page }: { page: Page }, msg: string | Uint8Array) =>
-          this.#write(page, process.stdout, msg)
+          this.#write(page, this.stdout, msg)
       ),
       context.exposeBinding(
         'PW_TEST_STDERR_WRITE',
         ({ page }: { page: Page }, msg: string | Uint8Array) =>
-          this.#write(page, process.stderr, msg)
+          this.#write(page, this.stderr, msg)
       ),
     ])
   }
@@ -381,8 +401,8 @@ export class Runner extends BaseRunner {
       // The stack of a syntax error can be empty
       const stack = this.stackMapper.map(err.stack || err.toString())
       this.#print(index, () =>
-        log.error(
-          `Uncaught exception happened within the page. Run with --debug. \n${colors.dim(stack)}`
+        this.log.error(
+          `Uncaught exception happened within the page. Run with --debug. \n${this.colors.dim(stack)}`
         )
       )
     })
@@ -404,7 +424,7 @@ export class Runner extends BaseRunner {
    * What the page writes to `process.stdout` and `process.stderr`. It waits for
    * the write, but not for the files before its own.
    */
-  #write(page: Page, stream: NodeJS.WriteStream, msg: string | Uint8Array) {
+  #write(page: Page, stream: NodeJS.WritableStream, msg: string | Uint8Array) {
     const mapped = this.stackMapper.map(msg)
     return new Promise((resolve, reject) => {
       const now = this.#print(this.#pageFile.get(page), () => {
@@ -590,7 +610,7 @@ export class Runner extends BaseRunner {
       {
         debug: [this.env.DEBUG, '-pw:*', '-mocha:*'].filter(Boolean).join(','),
         sw,
-        claimTimeout: SW_CLAIM_TIMEOUT,
+        claimTimeout: this.#swClaimTimeout,
         loader,
         worker:
           this.options.mode === 'web-worker' ? addWorker(loader) : undefined,
@@ -598,77 +618,83 @@ export class Runner extends BaseRunner {
     )
   }
 
-  async run() {
-    this.handleExit()
-
-    let compiled: Promise<CompilerOutput> | undefined
-    try {
-      compiled = this.#compileEarly()
-      // Setup the context
-      const context = await this.setupContext()
-      // After setupContext, downloading a browser doesn't count
-      this.startRunTimeout()
-      await this.runBeforeTests()
-
-      // In parallel with setting up the test page
-      compiled ??= this.#compile()
-
-      if (this.#isolated()) {
-        await this.#runEachFile(context, compiled)
-        return
-      }
-
-      // Setup page
-      const page = await this.setupPage(context)
-
-      const testWait = this.options.debug
-        ? undefined
-        : this.#createTestWait(page)
-
+  run(): Promise<RunResult> {
+    return this.finish(async () => {
+      let compiled: Promise<CompilerOutput> | undefined
       try {
-        await this.runTests(page, compiled)
+        compiled = this.#compileEarly()
+        // Setup the context
+        const context = await this.setupContext()
+        if (this.stopped) {
+          return
+        }
+        // After setupContext, downloading a browser doesn't count
+        this.startRunTimeout()
+        await this.runBeforeTests()
+        if (this.stopped) {
+          return
+        }
 
-        // Re run on page reload
-        if (this.options.debug) {
-          page.on('load', () => {
-            this.runTests(page).catch((error) => {
-              console.error(error)
+        // In parallel with setting up the test page
+        compiled ??= this.#compile()
+
+        if (this.#isolated()) {
+          await this.#runEachFile(context, compiled)
+          return
+        }
+
+        // Setup page
+        const page = await this.setupPage(context)
+
+        const testWait = this.options.debug
+          ? undefined
+          : this.#createTestWait(page)
+
+        try {
+          await this.runTests(page, compiled)
+
+          // Re run on page reload
+          if (this.options.debug) {
+            page.on('load', () => {
+              this.runTests(page).catch((error) => {
+                this.console.error(error)
+              })
             })
-          })
-          return
+            return
+          }
+
+          const result = await (testWait as NonNullable<typeof testWait>).wait()
+          if (result.navigated) {
+            await this.stop(
+              true,
+              'The page navigated away from the tests, they have to stay on the page they were loaded in.'
+            )
+            return
+          }
+
+          // Page errors come in order with evaluate results, so they're all in by now
+          if (
+            !result.failed &&
+            !this.pageErrored &&
+            this.options.runner !== 'none'
+          ) {
+            await this.#testTarget(page).evaluate('0')
+          }
+
+          const failed =
+            result.failed ||
+            // `none` has no tests to fail, the files decide
+            (this.pageErrored && this.options.runner !== 'none')
+
+          // exit
+          await this.stop(failed, failed ? 'Tests failed.' : undefined)
+        } finally {
+          testWait?.dispose()
         }
-
-        const result = await (testWait as NonNullable<typeof testWait>).wait()
-        if (result.navigated) {
-          await this.stop(
-            true,
-            'The page navigated away from the tests, they have to stay on the page they were loaded in.'
-          )
-          return
-        }
-
-        // Page errors come in order with evaluate results, so they're all in by now
-        if (
-          !result.failed &&
-          !this.pageErrored &&
-          this.options.runner !== 'none'
-        ) {
-          await this.#testTarget(page).evaluate('0')
-        }
-
-        const failed =
-          result.failed ||
-          // `none` has no tests to fail, the files decide
-          (this.pageErrored && this.options.runner !== 'none')
-
-        // exit
-        await this.stop(failed, failed ? 'Tests failed.' : undefined)
-      } finally {
-        testWait?.dispose()
+      } catch (error) {
+        await this.stop(true, this.#endReason() || error)
       }
-    } catch (error) {
-      await this.stop(true, this.#endReason() || error)
-    }
+    })
   }
 
   #onTestEnd(page: Page, failed: boolean) {
@@ -775,7 +801,11 @@ export class Runner extends BaseRunner {
     if (bailed || next === files.length) {
       // After what the cancelled files printed, see `stop`
       this.#summary = () =>
-        summary({ cwd, files }, results as FileStatus[], next)
+        summary(
+          { cwd, files, stdout: this.stdout, colors: this.colors },
+          results as FileStatus[],
+          next
+        )
     }
     const failed = results.some((result) => !result?.passed)
     await this.stop(failed, failed ? 'Tests failed.' : undefined)
@@ -914,9 +944,9 @@ export class Runner extends BaseRunner {
       )
       return true
     }
-    const flushed = await withTimeout(flush(), CONSOLE_FLUSH_TIMEOUT, false)
+    const flushed = await withTimeout(flush(), this.#consoleFlushTimeout, false)
     if (!flushed) {
-      log.warn(
+      this.log.warn(
         'Timed out waiting for browser console output, some may be lost.'
       )
     }
@@ -1022,16 +1052,28 @@ export class Runner extends BaseRunner {
     }
   }
 
-  async watch() {
+  async watch(): Promise<WatchHandle> {
     this.watching = true
-    this.handleExit()
+    if (this.exitProcess) {
+      this.handleExit()
+    }
+    const handle: WatchHandle = {
+      done: this.done,
+      stop: async () => (await this.stop(false, undefined, true)) as RunResult,
+    }
 
     let page: Page
     let files: string[]
     try {
       // Setup the context
       const context = await this.setupContext()
+      if (this.stopped) {
+        return handle
+      }
       await this.runBeforeTests()
+      if (this.stopped) {
+        return handle
+      }
 
       // Not before the browser starts, the watcher would miss changes until then
       const compiled = this.#compile()
@@ -1040,9 +1082,12 @@ export class Runner extends BaseRunner {
       page = await this.setupPage(context)
 
       ;({ files } = await this.runTests(page, compiled))
+      if (this.stopped) {
+        return handle
+      }
     } catch (error) {
       await this.stop(true, this.#endReason() || error)
-      return
+      return handle
     }
 
     let running = false
@@ -1071,33 +1116,60 @@ export class Runner extends BaseRunner {
           // Like the first run, without the storage of the one before
           await this.#clearSiteData(page)
           await page.goto(this.url)
-          console.error()
-          log.info('Reloading tests...')
+          this.console.error()
+          this.log.info('Reloading tests...')
           const { files } = await this.runTests(page)
           watcher.add([...files])
         } catch (error) {
           // Closing the browser on the way out fails whatever was running
           if (!this.stopped) {
-            console.error((error as Error).stack)
+            this.console.error((error as Error).stack)
           }
         }
       } while (pending && !this.stopped)
       running = false
     }
 
-    const watcher = watch([...files], {
-      // Match dot files relative to cwd, so projects inside dot folders still work.
-      // Not `..`, that's a file of the project outside of cwd like in a monorepo.
-      ignored: (file) =>
-        /(^|[/\\])\.(?!\.([/\\]|$))/.test(
-          path.relative(this.options.cwd, file)
-        ),
-      ignoreInitial: true,
-      awaitWriteFinish: { pollInterval: 100, stabilityThreshold: 500 },
-    }).on('change', () => {
-      clearTimeout(debounce)
-      debounce = setTimeout(rerun, WATCH_DEBOUNCE)
-    })
+    let watcher: ReturnType<typeof watch>
+    try {
+      watcher = watch([...files], {
+        // Match dot files relative to cwd, so projects inside dot folders still work.
+        // Not `..`, that's a file of the project outside of cwd like in a monorepo.
+        ignored: (file) =>
+          /(^|[/\\])\.(?!\.([/\\]|$))/.test(
+            path.relative(this.options.cwd, file)
+          ),
+        ignoreInitial: true,
+        awaitWriteFinish: { pollInterval: 100, stabilityThreshold: 500 },
+      }).on('change', () => {
+        clearTimeout(debounce)
+        debounce = setTimeout(rerun, WATCH_DEBOUNCE)
+      })
+      this.#watcher = watcher
+
+      const ready = new Promise<void>((resolve, reject) => {
+        watcher.once('ready', () => {
+          watcher.off('error', reject)
+          watcher.on('error', (error) => {
+            if (!this.stopped) {
+              this.log.error(error)
+            }
+          })
+          resolve()
+        })
+        watcher.once('error', reject)
+      })
+      await Promise.race([ready, this.done])
+      if (this.stopped) {
+        ready.catch(noop)
+        return handle
+      }
+    } catch (error) {
+      await this.stop(true, this.#endReason() || error)
+      return handle
+    }
+
+    return handle
   }
 
   /**
@@ -1111,7 +1183,7 @@ export class Runner extends BaseRunner {
       return
     }
     if (debug || this.watching) {
-      log.warn(
+      this.log.warn(
         `Ignoring --trace, it does not work with ${debug ? '--debug' : '--watch'}.`
       )
       return
@@ -1192,10 +1264,10 @@ export class Runner extends BaseRunner {
     )
     for (const result of kept) {
       if (result && 'problem' in result) {
-        log.warn(result.problem)
+        this.log.warn(result.problem)
       } else if (result) {
         const shown = path.relative(process.cwd(), result.file) || result.file
-        log.info(
+        this.log.info(
           `Saved the trace, open it with \`npx playwright show-trace ${shown}\`.`
         )
       }
@@ -1226,7 +1298,7 @@ export class Runner extends BaseRunner {
         })
         .catch((error: Error) => {
           fs.promises.rm(copy, { force: true }).catch(noop)
-          log.warn(`Could not save the trace: ${error.message}`)
+          this.log.warn(`Could not save the trace: ${error.message}`)
           return false
         }),
       TRACE_WAIT,
@@ -1234,7 +1306,7 @@ export class Runner extends BaseRunner {
     )
     if (copied === 'timed out') {
       timedOut = true
-      log.warn(`Timed out saving the trace after ${TRACE_WAIT}ms.`)
+      this.log.warn(`Timed out saving the trace after ${TRACE_WAIT}ms.`)
     }
     if (copied !== true) {
       return
@@ -1318,7 +1390,12 @@ export class Runner extends BaseRunner {
     // Read it right away, print it after the messages that came before it from
     // the same thread. A thread stuck in a loop can't answer the read of its last
     // message, that can't hold back the others.
-    const read = readConsole(msg, this.stackMapper.map)
+    const read = readConsole(
+      msg,
+      this.stackMapper.map,
+      this.console,
+      this.colors
+    )
     const worker = msg.worker()
     const thread = worker ?? msg.page() ?? this
     // The file it belongs to now, its page can run the next one by the time
@@ -1369,9 +1446,9 @@ export class Runner extends BaseRunner {
       return true
     }
 
-    const flushed = await withTimeout(flush(), CONSOLE_FLUSH_TIMEOUT, false)
+    const flushed = await withTimeout(flush(), this.#consoleFlushTimeout, false)
     if (!flushed) {
-      log.warn(
+      this.log.warn(
         'Timed out waiting for browser console output, some may be lost.'
       )
     }
@@ -1410,7 +1487,7 @@ export class Runner extends BaseRunner {
             // rejects the close
             for (const result of results) {
               if (result.status === 'rejected') {
-                log.warn(
+                this.log.warn(
                   `Could not close the browser: ${(result.reason as Error).message}`
                 )
               }
@@ -1419,7 +1496,7 @@ export class Runner extends BaseRunner {
           }
         })
         .catch((error: Error) => {
-          log.warn(`Could not close the browser: ${error.message}`)
+          this.log.warn(`Could not close the browser: ${error.message}`)
         })
       this.#closing = { traced, closed }
     }
@@ -1436,7 +1513,7 @@ export class Runner extends BaseRunner {
       this.options.debug ||
       this.watching
     )
-    return 3 * EXIT_WAIT + REMOVE_WAIT + (tracing ? 2 * TRACE_WAIT : 0)
+    return 3 * this.#exitWait + REMOVE_WAIT + (tracing ? 2 * TRACE_WAIT : 0)
   }
 
   /**
@@ -1444,6 +1521,8 @@ export class Runner extends BaseRunner {
    * stops. The trace gets written first, it has its own wait.
    */
   async stopTests() {
+    await this.#watcher?.close()
+    this.#watcher = undefined
     // A browser that's still starting would keep using the profile, or make it
     // again after it got deleted
     if (this.#launching && !this.context) {
@@ -1451,13 +1530,13 @@ export class Runner extends BaseRunner {
         this.#launching.then((context) => {
           this.context = context
         }, noop),
-        EXIT_WAIT
+        this.#exitWait
       )
     }
     const closing = this.#closeBrowser()
     // Right away without a trace, so a slow close can't use up its wait
     await closing.traced
-    await withTimeout(closing.closed, EXIT_WAIT)
+    await withTimeout(closing.closed, this.#exitWait)
   }
 
   async cleanUp(exitCode: number) {
@@ -1466,27 +1545,34 @@ export class Runner extends BaseRunner {
     await this.#keepTrace(await closing.traced, exitCode)
     // Still closing when the wait in `stopTests` ran out. Before the server,
     // the open connections of the browser would keep it open.
-    await withTimeout(closing.closed, EXIT_WAIT)
+    await withTimeout(closing.closed, this.#exitWait)
     // The bundles don't go there, a build that never ends can't keep it
-    await removeFolder(this.#profile())
-    // After the browser closed, it can still be using them. A bundle started
-    // early may still be writing when the setup failed.
-    await this.#compiling?.then(noop, noop)
+    await removeFolder(this.#profile(), this.log)
+    // After the browser closed, it can still be using them. A bundle or static
+    // copy started early may still be writing when the setup failed or stopped.
+    await Promise.all([
+      this.#compiling?.then(noop, noop),
+      this.#copying?.then(noop, noop),
+    ])
   }
 
   /**
    * @param force - also under --debug, there's nothing left to debug
    */
-  async stop(fail: boolean, msg?: unknown, force: boolean = false) {
+  async stop(
+    fail: boolean,
+    msg?: unknown,
+    force: boolean = false
+  ): Promise<RunResult | undefined> {
     if (this.stopped) {
-      return
+      return this.done
     }
     // The browser stays open to debug the failure, without one there's nothing to
     if (this.options.debug && this.context && !force) {
       if (fail && msg) {
-        log.error(msg)
+        this.log.error(msg)
       }
-      return
+      return undefined
     }
     this.stopped = true
 
@@ -1497,7 +1583,7 @@ export class Runner extends BaseRunner {
     this.#output?.flushAll()
     this.#summary?.()
 
-    await this.exit(fail, msg)
+    return await this.exit(fail, msg)
   }
 
   /**

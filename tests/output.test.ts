@@ -1,11 +1,11 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { runCli, TEST_CONCURRENCY } from './helpers.ts'
+import { runTest, TEST_CONCURRENCY } from './helpers.ts'
 
 describe('stdout / stderr', { concurrency: TEST_CONCURRENCY }, () => {
   for (const mode of ['browser', 'web-worker']) {
     it(`does not add line breaks with mode:${mode}`, async () => {
-      const proc = await runCli([
+      const proc = await runTest([
         'mocks/none/stdout.test.js',
         '--runner',
         'none',
@@ -18,7 +18,7 @@ describe('stdout / stderr', { concurrency: TEST_CONCURRENCY }, () => {
     })
 
     it(`prints to stderr with mode:${mode}`, async () => {
-      const proc = await runCli([
+      const proc = await runTest([
         'mocks/none/stderr.test.js',
         '--runner',
         'none',
@@ -36,7 +36,7 @@ describe('stdout / stderr', { concurrency: TEST_CONCURRENCY }, () => {
 describe('process in the browser', { concurrency: TEST_CONCURRENCY }, () => {
   for (const mode of ['browser', 'web-worker']) {
     it(`has what bundles expect with mode:${mode}`, async () => {
-      const proc = await runCli([
+      const proc = await runTest([
         'mocks/none/process.test.js',
         '--runner',
         'none',
@@ -49,7 +49,7 @@ describe('process in the browser', { concurrency: TEST_CONCURRENCY }, () => {
     })
 
     it(`resolves every import to the global with mode:${mode}`, async () => {
-      const proc = await runCli([
+      const proc = await runTest([
         'mocks/none/process-imports.test.js',
         '--runner',
         'none',
@@ -68,7 +68,7 @@ describe('process in the browser', { concurrency: TEST_CONCURRENCY }, () => {
       ['unset-no-arg', 0],
     ]) {
       it(`uses process.exitCode for process.exit (${exitCase}) with mode:${mode}`, async () => {
-        const proc = await runCli(
+        const proc = await runTest(
           [
             'mocks/none/process-exit-code.test.js',
             '--runner',
@@ -91,7 +91,7 @@ describe('process in the browser', { concurrency: TEST_CONCURRENCY }, () => {
 describe('util.debuglog in the browser', () => {
   for (const mode of ['browser', 'web-worker']) {
     it(`matches NODE_DEBUG wildcards case-insensitively with mode:${mode}`, async () => {
-      const proc = await runCli(
+      const proc = await runTest(
         [
           'mocks/none/util-debuglog.test.js',
           '--runner',
@@ -116,7 +116,7 @@ describe('util.debuglog in the browser', () => {
 describe('path in the browser', { concurrency: TEST_CONCURRENCY }, () => {
   for (const mode of ['browser', 'web-worker']) {
     it(`resolves every import to the same module with mode:${mode}`, async () => {
-      const proc = await runCli([
+      const proc = await runTest([
         'mocks/none/path-imports.test.js',
         '--runner',
         'none',
@@ -130,7 +130,7 @@ describe('path in the browser', { concurrency: TEST_CONCURRENCY }, () => {
   }
 
   it('resolves in a service worker', async () => {
-    const proc = await runCli([
+    const proc = await runTest([
       'mocks/none/stdout.test.js',
       '--runner',
       'none',
@@ -155,7 +155,7 @@ for (const browser of ['chromium', 'firefox']) {
       mode: string,
       env: Record<string, string> = {}
     ) {
-      return runCli(
+      return runTest(
         [
           `mocks/none/${fixture}.test.js`,
           '--runner',

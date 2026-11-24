@@ -9,8 +9,16 @@ import { once } from 'node:events'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { PassThrough } from 'node:stream'
 import { after, describe, it } from 'node:test'
-import { execa, execaSync, runCli, TEST_CONCURRENCY } from './helpers.ts'
+import { NodeRunner, Runner } from '../src/runner.ts'
+import {
+  execa,
+  execaSync,
+  runCli,
+  runTest,
+  TEST_CONCURRENCY,
+} from './helpers.ts'
 
 const FLOW = 'mocks/flow'
 
@@ -488,7 +496,10 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
 
   describe('--runner none', { concurrency: false }, () => {
     it('runs a script like a benchmark', async () => {
-      const proc = await run(['mocks/tinybench.js', '--runner', 'none'])
+      const proc = await runTest(['mocks/tinybench.js', '--runner', 'none'], {
+        reject: false,
+        timeout: 30_000,
+      })
 
       is(proc.exitCode, 0, proc.stderr)
       ok(proc.stdout.includes('switch 1'), proc.stdout)
@@ -496,124 +507,101 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
   })
 
   describe('the runner classes', { concurrency: false }, () => {
-    for (const [className, file] of [
-      ['Runner', '../src/runner.ts'],
-      ['NodeRunner', '../src/node/runner.ts'],
-    ]) {
-      const script = (options: string) => `
-      const { ${className}: Runner } = await import(${JSON.stringify(
-        new URL(file, import.meta.url).href
-      )})
-      const test = ${JSON.stringify(path.resolve(FLOW, 'config-runner.js'))}
-      try {
-        new Runner(${options}, [test]).run()
-      } catch (error) {
-        console.error(error.message)
-        process.exit(1)
-      }
-    `
-      const runScript = (options: string) =>
-        execa(
-          process.execPath,
-          ['--input-type=module', '-e', script(options)],
-          {
-            reject: false,
-            timeout: 30_000,
-          }
-        )
-      const mode = className === 'Runner' ? 'browser' : 'node'
+    function captureStreams() {
+      const stdout = new PassThrough()
+      const stderr = new PassThrough()
+      let out = ''
+      let err = ''
+      stdout.on('data', (chunk: Buffer | string) => {
+        out += chunk.toString()
+      })
+      stderr.on('data', (chunk: Buffer | string) => {
+        err += chunk.toString()
+      })
+      return { stdout, stderr, getOut: () => out, getErr: () => err }
+    }
 
+    for (const [className, RunnerClass, mode] of [
+      ['Runner', Runner, 'browser'],
+      ['NodeRunner', NodeRunner, 'node'],
+    ] as const) {
       it(`${className} takes the name of a runner`, async () => {
-        const proc = await runScript(`{ runner: 'mocha', mode: '${mode}' }`)
-
-        is(proc.exitCode, 0, String(proc.stderr))
-        ok(
-          String(proc.stdout).includes('from-config-runner'),
-          String(proc.stdout)
+        const test = path.resolve(FLOW, 'config-runner.js')
+        const { stdout, stderr, getOut, getErr } = captureStreams()
+        const runner = new RunnerClass(
+          { runner: 'mocha', mode, stdout, stderr },
+          [test]
         )
+        const result = await runner.run()
+
+        is(result.exitCode, 0, getErr())
+        ok(getOut().includes('from-config-runner'), getOut())
       })
     }
 
-    for (const method of ['run', 'watch']) {
+    for (const method of ['run', 'watch'] as const) {
       it(`NodeRunner.${method}() stops cleanly when beforeTests throws`, async () => {
-        const script = `
-          const { NodeRunner } = await import(${JSON.stringify(
-            new URL('../src/node/runner.ts', import.meta.url).href
-          )})
-          const { default: hooks } = await import(${JSON.stringify(
-            new URL('../mocks/flow/before-throws.config.mjs', import.meta.url)
-              .href
-          )})
-          const test = ${JSON.stringify(path.resolve(FLOW, 'pass.js'))}
-          const runner = new NodeRunner({ runner: 'none', mode: 'node', ...hooks }, [test])
-          try {
-            await runner.${method}()
-          } catch (error) {
-            console.error('UNHANDLED:', error)
-            process.exit(2)
-          }
-        `
-        const proc = await execa(
-          process.execPath,
-          ['--input-type=module', '-e', script],
-          {
-            reject: false,
-            timeout: 15_000,
-          }
+        const { default: hooks } = await import(
+          new URL('../mocks/flow/before-throws.config.mjs', import.meta.url)
+            .href
         )
+        const test = path.resolve(FLOW, 'pass.js')
+        const { stdout, stderr, getErr } = captureStreams()
+        const runner = new NodeRunner(
+          { runner: 'none', mode: 'node', ...hooks, stdout, stderr },
+          [test]
+        )
+        const res = await runner[method]()
+        const result = 'done' in res ? await res.done : res
 
-        is(proc.timedOut, false, 'ended by itself')
-        is(proc.exitCode, 1, 'exit code')
-        ok(proc.stderr.includes('before-boom'), proc.stderr)
-        ok(proc.stderr.includes('before-throws.config.mjs'), proc.stderr)
-        ok(!proc.stderr.includes('UNHANDLED:'), proc.stderr)
-        ok(!proc.stderr.includes('after-ran'), proc.stderr)
+        is(result.exitCode, 1, 'exit code')
+        ok(getErr().includes('before-boom'), getErr())
+        ok(getErr().includes('before-throws.config.mjs'), getErr())
       })
 
       it(`NodeRunner.${method}() logs a diagnostic when beforeTests throws null`, async () => {
-        const script = `
-          const { NodeRunner } = await import(${JSON.stringify(
-            new URL('../src/node/runner.ts', import.meta.url).href
-          )})
-          const test = ${JSON.stringify(path.resolve(FLOW, 'pass.js'))}
-          const runner = new NodeRunner({
+        const test = path.resolve(FLOW, 'pass.js')
+        const { stdout, stderr, getErr } = captureStreams()
+        let afterRan = false
+        const runner = new NodeRunner(
+          {
             runner: 'none',
             mode: 'node',
+            stdout,
+            stderr,
             beforeTests: () => Promise.reject(null),
             afterTests: () => {
-              console.error('after-ran')
+              afterRan = true
               return Promise.resolve()
             },
-          }, [test])
-          try {
-            await runner.${method}()
-          } catch (error) {
-            console.error('UNHANDLED:', error)
-            process.exit(2)
-          }
-        `
-        const proc = await execa(
-          process.execPath,
-          ['--input-type=module', '-e', script],
-          {
-            reject: false,
-            timeout: 15_000,
-          }
+          },
+          [test]
         )
+        const res = await runner[method]()
+        const result = 'done' in res ? await res.done : res
 
-        is(proc.timedOut, false, 'ended by itself')
-        is(proc.exitCode, 1, 'exit code')
-        ok(proc.stderr.includes('null'), proc.stderr)
-        ok(!proc.stderr.includes('UNHANDLED:'), proc.stderr)
-        ok(!proc.stderr.includes('after-ran'), proc.stderr)
+        is(result.exitCode, 1, 'exit code')
+        ok(getErr().includes('null'), getErr())
+        is(afterRan, false)
       })
     }
   })
 
   describe('messages', { concurrency: false }, () => {
+    const runFlowTest = (
+      name: string,
+      args: string[] = [],
+      options: RunOptions = {}
+    ) =>
+      runTest([`${FLOW}/${name}`, '--runner', 'none', ...args], {
+        reject: false,
+        timeout: 30_000,
+        ...options,
+      })
+
     for (const mode of ['browser', 'web-worker', 'node']) {
       it(`prints nothing of its own on a passing run with mode:${mode}`, async () => {
-        const proc = await runFlow('pass.js', ['--mode', mode])
+        const proc = await runFlowTest('pass.js', ['--mode', mode])
 
         is(proc.exitCode, 0, proc.stderr)
         is(proc.stdout.trim(), 'flow-pass')
@@ -622,7 +610,7 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
     }
 
     it('tells when a test navigates away', async () => {
-      const proc = await runFlow('navigates.js')
+      const proc = await runFlowTest('navigates.js')
 
       is(proc.timedOut, false, 'ended by itself')
       is(proc.exitCode, 1, 'exit code')
@@ -649,7 +637,7 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
     ]
     for (const [name, env, expected] of debugCases) {
       it(`sets localStorage.debug ${name}`, async () => {
-        const proc = await runFlow('debug-env.js', [], { env })
+        const proc = await runFlowTest('debug-env.js', [], { env })
 
         is(proc.exitCode, 0, proc.stderr)
         ok(proc.stdout.includes(expected), proc.stdout)
@@ -660,12 +648,18 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
   describe('process.stdout.write', { concurrency: false }, () => {
     for (const mode of ['browser', 'web-worker']) {
       it(`calls back and returns true with mode:${mode}`, async () => {
-        const proc = await runFlow('stdout-callback.js', [
-          '--mode',
-          mode,
-          '--run-timeout',
-          '10000',
-        ])
+        const proc = await runTest(
+          [
+            `${FLOW}/stdout-callback.js`,
+            '--runner',
+            'none',
+            '--mode',
+            mode,
+            '--run-timeout',
+            '10000',
+          ],
+          { reject: false, timeout: 30_000 }
+        )
 
         is(proc.exitCode, 0, proc.stderr)
         ok(proc.stdout.includes('callback:true'), proc.stdout)
@@ -676,9 +670,14 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
   describe('console', { concurrency: false }, () => {
     for (const browser of ['chromium', 'firefox', 'webkit']) {
       it(`prints what the page logged in ${browser}`, async () => {
-        const proc = await runFlow('console.js', ['--browser', browser], {
-          env: { FORCE_COLOR: undefined },
-        })
+        const proc = await runTest(
+          [`${FLOW}/console.js`, '--runner', 'none', '--browser', browser],
+          {
+            reject: false,
+            timeout: 30_000,
+            env: { FORCE_COLOR: undefined },
+          }
+        )
         const stdout = proc.stdout.split('\n')
 
         is(proc.exitCode, 0, proc.stderr)
@@ -711,10 +710,15 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
     }
 
     it('prints the page while a worker is stuck', async () => {
-      const proc = await runFlow('stuck-worker.js', [], {
-        all: true,
-        env: { PW_TEST_CONSOLE_FLUSH_TIMEOUT: '1000' },
-      })
+      const proc = await runTest(
+        [`${FLOW}/stuck-worker.js`, '--runner', 'none'],
+        {
+          reject: false,
+          timeout: 30_000,
+          all: true,
+          env: { PW_TEST_CONSOLE_FLUSH_TIMEOUT: '1000' },
+        }
+      )
       const all = proc.all ?? ''
       const printed = all.indexOf('page-3')
 

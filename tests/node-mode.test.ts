@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import { execa, runCli, TEST_CONCURRENCY } from './helpers.ts'
+import { execa, runTest, TEST_CONCURRENCY } from './helpers.ts'
 
 describe('node mode localStorage with mocha', {
   concurrency: TEST_CONCURRENCY,
@@ -12,7 +12,7 @@ describe('node mode localStorage with mocha', {
   const args = ['--runner', 'mocha', '--mode', 'node']
 
   it('does not warn about it', async () => {
-    const proc = await runCli([fixture, ...args], { reject: false })
+    const proc = await runTest([fixture, ...args], { reject: false })
 
     is(proc.exitCode, 0, proc.stderr)
     ok(!proc.stderr.includes('localStorage'), proc.stderr)
@@ -21,7 +21,7 @@ describe('node mode localStorage with mocha', {
   it('leaves it for tests with a file for it', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-test-'))
     try {
-      const proc = await runCli(['mocks/web-storage/mocha.test.js', ...args], {
+      const proc = await runTest(['mocks/web-storage/mocha.test.js', ...args], {
         env: {
           NODE_OPTIONS: `--localstorage-file=${path.join(dir, 'storage')}`,
         },
@@ -41,8 +41,12 @@ describe('node mode outside the package', () => {
   let project: string
 
   beforeEach(() => {
-    // The temp dir has no node_modules/.bin in any of its parent folders
-    project = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-test-'))
+    // The temp dir has no node_modules/.bin in any of its parent folders.
+    // realpathSync normalizes macOS /var -> /private/var so in-process cwd matches
+    // what a spawned child's process.cwd() resolves to.
+    project = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), 'pw-test-'))
+    )
   })
 
   afterEach(() => {
@@ -90,11 +94,10 @@ console.log('BIN', process.env.PATH.split(${JSON.stringify(path.delimiter)})[0])
 `
     )
 
-    const proc = await execa(
-      process.execPath,
-      [cli, 'entry.test.js', ...none],
-      { cwd: project, reject: false }
-    )
+    const proc = await runTest(['entry.test.js', ...none], {
+      cwd: project,
+      reject: false,
+    })
 
     is(proc.exitCode, 0, proc.stderr)
     ok(proc.stdout.includes(`EXEC ${process.execPath}`), proc.stdout)
@@ -109,11 +112,10 @@ console.log('BIN', process.env.PATH.split(${JSON.stringify(path.delimiter)})[0])
   it('failing tests only report the failure', async () => {
     fs.writeFileSync(path.join(project, 'entry.test.js'), 'process.exit(1)\n')
 
-    const proc = await execa(
-      process.execPath,
-      [cli, 'entry.test.js', ...none],
-      { cwd: project, reject: false }
-    )
+    const proc = await runTest(['entry.test.js', ...none], {
+      cwd: project,
+      reject: false,
+    })
 
     is(proc.exitCode, 1, 'exit code')
     ok(proc.stderr.includes('Tests failed.'), proc.stderr)
@@ -125,14 +127,14 @@ describe('node mode passthrough', { concurrency: TEST_CONCURRENCY }, () => {
   const none = ['--runner', 'none', '--mode', 'node']
 
   it('runs erasable typescript as plain node', async () => {
-    const proc = await runCli(['mocks/node-mode/plain.ts', ...none])
+    const proc = await runTest(['mocks/node-mode/plain.ts', ...none])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('plain import.meta.env: undefined'), proc.stdout)
   })
 
   it('rejects typescript plain node does not run', async () => {
-    const proc = await runCli(['mocks/node-mode/enum.ts', ...none], {
+    const proc = await runTest(['mocks/node-mode/enum.ts', ...none], {
       reject: false,
     })
 

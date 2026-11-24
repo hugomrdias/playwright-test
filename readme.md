@@ -557,6 +557,33 @@ export default {
 
 Config files take `Config` (the partial config type, with optional `testRunner: { options }`) or `ConfigFn`, while programmatic runs resolve to `RunnerOptions`. See [src/types.ts](./src/types.ts) for the canonical type definitions, including `Config`, `ConfigFn`, `RunnerOptions`, `WorkerdOptions`, `buildConfig`/`buildSWConfig`, and the `beforeTests`/`afterTests` hooks.
 
+## Programmatic API
+
+Tests can also be run directly in-process without spawning the CLI or exiting the host Node.js process:
+
+```ts
+import { PassThrough } from 'node:stream'
+import { run, watch, createRunner, resolveOptions } from 'playwright-test'
+
+const stdout = new PassThrough()
+const stderr = new PassThrough()
+
+const { passed, exitCode } = await run({
+  input: ['test/**/*.test.js'],
+  mode: 'browser', // 'browser' | 'web-worker' | 'node' | 'workerd'
+  browser: 'chromium',
+  runner: 'node-test',
+  stdout,
+  stderr,
+  env: { DEBUG: 'app' },
+})
+```
+
+- `run(options, testFiles?)`: selects the runner for `options.mode`, executes the tests, cleans up browsers/servers/temp folders, and resolves to `{ passed, exitCode }`.
+- `watch(options, testFiles?)`: starts watch mode and resolves to a `{ stop(), done }` handle.
+- `createRunner(options, testFiles?)`: returns the underlying `Runner`, `NodeRunner`, or `WorkerdRunner` instance (also exported directly alongside `BaseRunner`, `resolveOptions`, and `UsageError`).
+- Options `stdout`, `stderr`, and `env` isolate output and environment per run so multiple runs can execute concurrently in the same process. Pass `exitProcess: true` to install process exit/SIGINT hooks and exit via `gracefulExit` like the CLI.
+
 ## Run in CI
 
 Check our CI config `.github/workflows/main.yml` and the playwright [Github Action](https://playwright.dev/docs/ci/#github-actions)

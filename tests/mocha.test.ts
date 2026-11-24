@@ -1,24 +1,24 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { runCli, TEST_CONCURRENCY } from './helpers.ts'
+import { runTest, TEST_CONCURRENCY } from './helpers.ts'
 
 describe('mocha', { concurrency: TEST_CONCURRENCY }, () => {
   it('runs with --runner mocha', async () => {
-    const proc = await runCli(['mocks/test.mocha.js', '--runner', 'mocha'])
+    const proc = await runTest(['mocks/test.mocha.js', '--runner', 'mocha'])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('passing'), 'process stdout')
   })
 
   it('fixtures', async () => {
-    const proc = await runCli(['mocks/fixtures.mocha.js', '--runner', 'mocha'])
+    const proc = await runTest(['mocks/fixtures.mocha.js', '--runner', 'mocha'])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('passing'), 'process stdout')
   })
 
   it('with DEBUG=app', async () => {
-    const proc = await runCli(['mocks/test.mocha.js', '--runner', 'mocha'], {
+    const proc = await runTest(['mocks/test.mocha.js', '--runner', 'mocha'], {
       env: { DEBUG: 'app' },
     })
 
@@ -28,7 +28,7 @@ describe('mocha', { concurrency: TEST_CONCURRENCY }, () => {
   })
 
   it('mode:web-worker', async () => {
-    const proc = await runCli([
+    const proc = await runTest([
       'mocks/test.mocha.js',
       '--runner',
       'mocha',
@@ -43,7 +43,7 @@ describe('mocha', { concurrency: TEST_CONCURRENCY }, () => {
   // Function configs are in config.test.ts
   for (const config of ['sw.config.cjs', 'sw.promise.config.mjs']) {
     it(`--sw from ${config}`, async () => {
-      const proc = await runCli([
+      const proc = await runTest([
         'mocks/sw/sw-test.js',
         '--runner',
         'mocha',

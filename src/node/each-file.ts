@@ -5,8 +5,9 @@
  */
 import type { ChildProcess } from 'node:child_process'
 import path from 'node:path'
-import { colors } from '../utils/colors.ts'
-import { log } from '../utils/index.ts'
+import type { Logger } from '../types.ts'
+import { type Colors, colors as defaultColors } from '../utils/colors.ts'
+import { log as defaultLog } from '../utils/index.ts'
 import { FORCE_KILL_DELAY, forceKill, killTree } from '../utils/process.ts'
 
 /** What a runner does with the files, see {@link runEachFile} */
@@ -17,6 +18,10 @@ export interface EachFile {
   concurrency: number
   /** The first failed file ends the others and skips the rest */
   bail: boolean
+  stdout?: NodeJS.WritableStream
+  stderr?: NodeJS.WritableStream
+  log?: Logger
+  colors?: Colors
   /**
    * Start one file, with `stdio` for its stdout and stderr. `pipe` when what it
    * prints has to wait for the files before it.
@@ -50,9 +55,20 @@ interface FileResult extends FileStatus {
 const STOP_WAIT = FORCE_KILL_DELAY + 1000
 
 export function runEachFile(options: EachFile): EachFileRun {
-  const { bail, concurrency, files, spawn } = options
+  const {
+    bail,
+    concurrency,
+    files,
+    spawn,
+    stdout = process.stdout,
+    stderr = process.stderr,
+    log = defaultLog,
+    colors = defaultColors,
+  } = options
+  const customStdio = stdout !== process.stdout || stderr !== process.stderr
   // One at a time they can print as they go, and keep their TTY
-  const stdio = Math.min(concurrency, files.length) > 1 ? 'pipe' : 'inherit'
+  const stdio =
+    customStdio || Math.min(concurrency, files.length) > 1 ? 'pipe' : 'inherit'
   const running = new Set<ChildProcess>()
   // Ended by the run, even if they exit with 0 on SIGTERM
   const ended = new WeakSet<ChildProcess>()
@@ -69,7 +85,7 @@ export function runEachFile(options: EachFile): EachFileRun {
     let result = results[printed]
     while (result) {
       for (const [stream, chunk] of result.output) {
-        process[stream].write(chunk)
+        ;(stream === 'stdout' ? stdout : stderr).write(chunk)
       }
       // Only the summary needs the file after this
       result.output = []
@@ -134,7 +150,11 @@ export function runEachFile(options: EachFile): EachFileRun {
     print()
     const passed = results.every((result) => result?.passed)
     if (files.length > 1 && (bailed || !stopping)) {
-      summary(options, results as FileResult[], next)
+      summary(
+        { cwd: options.cwd, files, stdout, colors },
+        results as FileResult[],
+        next
+      )
     }
     return passed
   })()
@@ -165,7 +185,17 @@ export function runEachFile(options: EachFile): EachFileRun {
  * @param started - How many of the files started
  */
 export function summary(
-  { cwd, files }: { cwd: string; files: string[] },
+  {
+    cwd,
+    files,
+    stdout = process.stdout,
+    colors = defaultColors,
+  }: {
+    cwd: string
+    files: string[]
+    stdout?: NodeJS.WritableStream
+    colors?: Colors
+  },
   results: FileStatus[],
   started: number
 ) {
@@ -189,5 +219,5 @@ export function summary(
       lines.push(`  ${path.relative(cwd, path.resolve(cwd, file))}`)
     }
   }
-  process.stdout.write(`${lines.join('\n')}\n`)
+  stdout.write(`${lines.join('\n')}\n`)
 }

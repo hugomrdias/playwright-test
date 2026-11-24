@@ -67,10 +67,29 @@ export interface RunnerOptions {
    */
   testConcurrency?: number
   /**
-   * Set by the CLI when an AI agent drives the run. The `node:test` API then
-   * only prints failures and the summary.
+   * Only print failures and the summary, without colors unless `FORCE_COLOR`
+   * is set. Set automatically by the CLI when an AI agent drives the run.
    */
   minimal?: boolean
+  /**
+   * Writable stream for test stdout. Defaults to `process.stdout`.
+   */
+  stdout?: NodeJS.WritableStream
+  /**
+   * Writable stream for runner logs and test stderr. Defaults to `process.stderr`.
+   */
+  stderr?: NodeJS.WritableStream
+  /**
+   * Extra environment variables merged over `process.env` for this run.
+   * Keys set to `undefined` are removed from the run's environment.
+   */
+  env?: Record<string, string | undefined>
+  /**
+   * Whether `run()` and `watch()` install process exit/SIGINT hooks and exit
+   * the Node.js process when the run ends. Defaults to `false`; the CLI sets
+   * `true`.
+   */
+  exitProcess?: boolean
   /**
    * Esbuild config for the bundle. Ignored in node mode, which runs files as
    * plain Node does.
@@ -163,9 +182,38 @@ export interface CliOptions {
 }
 
 /**
+ * Result of a completed test run.
+ */
+export interface RunResult {
+  /** Whether all tests and hooks passed */
+  passed: boolean
+  /** `0` when passed, `1` when failed */
+  exitCode: 0 | 1
+}
+
+/**
+ * Handle returned by `watch()` to stop watching and await cleanup.
+ */
+export interface WatchHandle {
+  /** Resolves once the watch session ends */
+  done: Promise<RunResult>
+  /** Stop watching, close tests and clean up */
+  stop: () => Promise<RunResult>
+}
+
+/**
+ * Logger used by runners for status, warning and error messages.
+ */
+export interface Logger {
+  info: (message: string, quiet?: boolean) => void
+  warn: (message: string, quiet?: boolean) => void
+  error: (message: unknown, quiet?: boolean) => void
+}
+
+/**
  * `testRunner.options` configures whichever runner gets used.
  */
-export type Config = Partial<Omit<RunnerOptions, 'testRunner' | 'minimal'>> & {
+export type Config = Partial<Omit<RunnerOptions, 'testRunner'>> & {
   testRunner?: Pick<TestRunner, 'options'>
 }
 

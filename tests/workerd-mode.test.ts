@@ -2,9 +2,19 @@ import { strictEqual as is, ok, throws } from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { UsageError } from '../src/utils/index.ts'
 import { WorkerdRunner } from '../src/workerd/runner.ts'
-import { runCli } from './helpers.ts'
+import { runCli, runTest } from './helpers.ts'
 
 function runWorkerd(
+  args: string[],
+  options?: { all?: boolean; env?: Record<string, string>; timeout?: number }
+) {
+  return runTest(['--mode', 'workerd', '--cwd', 'mocks/workerd', ...args], {
+    reject: false,
+    ...options,
+  })
+}
+
+function runWorkerdCli(
   args: string[],
   options?: { all?: boolean; env?: Record<string, string>; timeout?: number }
 ) {
@@ -89,7 +99,7 @@ describe('workerd mode', () => {
   })
 
   it('runs without a worker config', async () => {
-    const proc = await runCli(
+    const proc = await runTest(
       ['--mode', 'workerd', '--runner', 'mocha', 'mocks/node.test.js'],
       {
         reject: false,
@@ -153,7 +163,7 @@ describe('workerd mode', () => {
   })
 
   it('stops the worker before the afterTests hook on a run timeout', async () => {
-    const proc = await runWorkerd(
+    const proc = await runWorkerdCli(
       [
         '--config',
         'mocks/flow/after-waits.config.mjs',
@@ -177,7 +187,7 @@ describe('workerd mode', () => {
   })
 
   it('sees workerd start without a timeout', async () => {
-    const proc = await runWorkerd([
+    const proc = await runWorkerdCli([
       '--config',
       'mocks/workerd/slow-bundle.config.mjs',
       'test/worker.test.js',
@@ -190,7 +200,7 @@ describe('workerd mode', () => {
   it('does not start workerd when stopped while bundling', {
     skip: process.platform === 'win32',
   }, async () => {
-    const proc = await runWorkerd([
+    const proc = await runWorkerdCli([
       '--config',
       'mocks/workerd/slow-bundle.config.mjs',
       '--runner',

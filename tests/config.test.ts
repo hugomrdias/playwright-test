@@ -10,7 +10,7 @@ import path from 'node:path'
 import { after, before, describe, it } from 'node:test'
 import type { CliOptions } from '../src/types.ts'
 import { UsageError } from '../src/utils/index.ts'
-import { resolveCli, runCli, TEST_CONCURRENCY } from './helpers.ts'
+import { resolveCli, runTest, TEST_CONCURRENCY } from './helpers.ts'
 
 /** What the config functions in the fixtures leave behind */
 const fixtureGlobals = globalThis as typeof globalThis & {
@@ -19,7 +19,7 @@ const fixtureGlobals = globalThis as typeof globalThis & {
 }
 
 async function run(args: string[]) {
-  const proc = await runCli(
+  const proc = await runTest(
     ['mocks/config/where.js', '--runner', 'none', ...args],
     { reject: false }
   )

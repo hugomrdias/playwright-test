@@ -2,11 +2,12 @@ import type {
   BuildOptions as ESBuildOptions,
   Plugin as ESBuildPlugin,
 } from 'esbuild'
-import { build } from 'esbuild'
+import esbuild from 'esbuild'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import type { Runner } from '../runner.ts'
 import { EXT } from './ext.ts'
+import { runEsbuild } from './index.ts'
 import { createMerge } from './merge.ts'
 import { polyfillAliases } from './polyfill-aliases.ts'
 import { CLEAR_SITE_DATA_PATH, TEST_FRAME_PARAM } from './server.ts'
@@ -121,8 +122,10 @@ self.addEventListener('activate', (event) => {
       global: 'globalThis',
     },
   }
-  await build(
-    merge<ESBuildOptions>(defaultOptions, runner.options.buildSWConfig)
+  await runEsbuild(
+    esbuild,
+    merge<ESBuildOptions>(defaultOptions, runner.options.buildSWConfig),
+    { stderr: runner.stderr, color: runner.colors.enabled }
   )
 
   return { files, outName }

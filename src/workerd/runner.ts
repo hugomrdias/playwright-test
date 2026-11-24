@@ -1,18 +1,22 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs'
 import { builtinModules, createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { BuildOptions, Plugin as ESBuildPlugin } from 'esbuild'
-import esbuild from 'esbuild'
 import { BaseRunner } from '../base-runner.ts'
 import { type FileStatus, summary } from '../node/each-file.ts'
-import type { Config } from '../types.ts'
+import type { Config, RunResult, WatchHandle } from '../types.ts'
 import { FileOutput } from '../utils/file-output.ts'
-import { log, UsageError, withTimeout } from '../utils/index.ts'
+import { runEsbuild, UsageError, withTimeout } from '../utils/index.ts'
 import { createMerge } from '../utils/merge.ts'
-import { startServer } from '../utils/server.ts'
 import { createStackMapper } from '../utils/stack-map.ts'
 
 const merge = createMerge({ ignoreUndefined: true, concatArrays: true })
@@ -430,7 +434,7 @@ export class WorkerdRunner extends BaseRunner {
       if (
         key === 'NODE_ENV' ||
         key.startsWith('PW_') ||
-        process.env[key] !== value
+        this.initialEnv[key] !== value
       ) {
         runner[key] = value
       } else {
@@ -577,17 +581,34 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
       plugins: [modulesPlugin, runtimePlugin, builtinsPlugin],
       logLevel: 'error',
     }
-    const { metafile } = await esbuild.build({
-      ...merge<BuildOptions>(
-        defaults,
-        this.options.testRunner.buildConfig?.(this.options),
-        this.options.buildConfig
-      ),
-      metafile: true,
-      // workerd can't run test code in chunks, see above, and a worker only
-      // gets its bundle
-      splitting: false,
-    })
+    const { default: esbuild } = await import('esbuild')
+    // Build in memory (`write: false`) and only flush to `this.dir` if the run
+    // has not stopped, so a stalled or slow plugin neither blocks shutdown nor
+    // recreates `this.dir` after `removeFiles()`.
+    const result = await runEsbuild(
+      esbuild,
+      {
+        ...merge<BuildOptions>(
+          defaults,
+          this.options.testRunner.buildConfig?.(this.options),
+          this.options.buildConfig
+        ),
+        metafile: true,
+        // workerd can't run test code in chunks, see above, and a worker only
+        // gets its bundle
+        splitting: false,
+        write: false,
+      },
+      { stderr: this.stderr, color: this.colors.enabled }
+    )
+    if (this.stopped) {
+      return { outNames, modules, imports: new Map<string, Set<string>>() }
+    }
+    for (const file of result.outputFiles ?? []) {
+      mkdirSync(path.dirname(file.path), { recursive: true })
+      writeFileSync(file.path, file.contents)
+    }
+    const { metafile } = result
     // The modules each bundle imports, a worker only gets its own
     const imports: Map<string, Set<string>> = new Map()
     for (const [file, { imports: used }] of Object.entries(
@@ -622,7 +643,7 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
         return
       }
       const stream =
-        level === 'error' || level === 'warn' ? process.stderr : process.stdout
+        level === 'error' || level === 'warn' ? this.stderr : this.stdout
       const text = `${this.#mapStack(message)}\n`
       if (this.#output) {
         this.#output.write(index, () => stream.write(text))
@@ -669,7 +690,13 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
       this.#output = new FileOutput(this.tests.length)
       this.#filesDone = this.tests.map(() => Promise.withResolvers<void>())
     }
+    if (this.stopped) {
+      return
+    }
     const { outNames, modules, imports } = await this.#bundle(main, isolated)
+    if (this.stopped) {
+      return
+    }
 
     const worker: MiniflareWorker = merge(
       loaded.worker,
@@ -766,7 +793,7 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
     const { entrypoint, assets: _assets, env, ...config } = result.data.worker
 
     const localEnv: Record<string, string> = {}
-    for (const [key, value] of Object.entries(process.env)) {
+    for (const [key, value] of Object.entries(this.initialEnv)) {
       if (value !== undefined) {
         localEnv[key] = value
       }
@@ -781,7 +808,7 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
             localEnv,
             mode,
             remoteBindings: false,
-            logger: { warn: (m: string) => log.warn(m) },
+            logger: { warn: (m: string) => this.log.warn(m) },
           }),
         },
       },
@@ -816,7 +843,7 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
       headers: { [RUN_HEADER]: this.token },
     })
     if (!response.ok) {
-      log.error(this.#mapStack(await response.text()))
+      this.log.error(this.#mapStack(await response.text()))
       return false
     }
     const { code } = (await response.json()) as { code: number }
@@ -879,7 +906,11 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
     if (bailed || next === files.length) {
       // After what the cancelled files printed, see `stop`
       this.#summary = () =>
-        summary({ cwd, files }, results as FileStatus[], next)
+        summary(
+          { cwd, files, stdout: this.stdout, colors: this.colors },
+          results as FileStatus[],
+          next
+        )
     }
     const failed = results.some((result) => !result?.passed)
     await this.stop(failed, failed ? 'Tests failed.' : undefined)
@@ -908,7 +939,7 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
           return { passed: false, cancelled: true }
         }
         const text = this.#mapStack(await response.text())
-        output.write(index, () => log.error(text))
+        output.write(index, () => this.log.error(text))
         return { passed: false, cancelled: false }
       }
       const { code } = (await response.json()) as { code: number }
@@ -928,7 +959,7 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
         const startFailed =
           (error as { code?: string } | null)?.code === 'ERR_RUNTIME_FAILURE'
         output.write(index, () =>
-          log.error(startFailed ? (error as Error).message : error)
+          this.log.error(startFailed ? (error as Error).message : error)
         )
       }
       return result
@@ -960,9 +991,9 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
    * End the run once. With a workerd per file they stop first, then what
    * the files that didn't end printed comes out, and the summary.
    */
-  async stop(fail: boolean, msg?: unknown) {
+  async stop(fail: boolean, msg?: unknown): Promise<RunResult> {
     if (this.stopped) {
-      return
+      return this.done
     }
     this.stopped = true
     if (this.#output) {
@@ -970,57 +1001,55 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
       await this.stopTests()
       this.#summary?.()
     }
-    await this.exit(fail, msg)
+    return await this.exit(fail, msg)
   }
 
-  async run() {
-    this.handleExit()
+  run(): Promise<RunResult> {
+    return this.finish(async () => {
+      try {
+        await this.startAssetServer(this.dir)
+        if (this.stopped) {
+          return
+        }
+        this.startRunTimeout()
+        await this.runBeforeTests()
+        if (this.stopped) {
+          return
+        }
+        await this.#startMiniflare()
+        if (this.stopped) {
+          return
+        }
 
-    try {
-      const { server, url } = await startServer(
-        this.dir,
-        this.options.cwd,
-        this.options.assets
-      )
-      this.server = server
-      this.env.PW_SERVER = url
-      this.startRunTimeout()
-      await this.runBeforeTests()
-      if (this.stopped) {
-        return
+        if (this.#output) {
+          await this.#runEachFile()
+          return
+        }
+        const passed = await this.runTests()
+        await this.stop(!passed, passed ? undefined : 'Tests failed.')
+      } catch (error) {
+        const { code, errors } = (error ?? {}) as {
+          code?: string
+          errors?: unknown
+        }
+        // workerd printed why it couldn't start, the stack is Miniflare's
+        const startFailed = code === 'ERR_RUNTIME_FAILURE'
+        // esbuild already printed what it couldn't bundle
+        const bundleFailed = Array.isArray(errors)
+        await this.stop(
+          true,
+          bundleFailed
+            ? 'Could not bundle the tests.'
+            : error instanceof UsageError || startFailed
+              ? (error as Error).message
+              : error
+        )
       }
-      await this.#startMiniflare()
-      if (this.stopped) {
-        return
-      }
-
-      if (this.#output) {
-        await this.#runEachFile()
-        return
-      }
-      const passed = await this.runTests()
-      await this.stop(!passed, passed ? undefined : 'Tests failed.')
-    } catch (error) {
-      const { code, errors } = (error ?? {}) as {
-        code?: string
-        errors?: unknown
-      }
-      // workerd printed why it couldn't start, the stack is Miniflare's
-      const startFailed = code === 'ERR_RUNTIME_FAILURE'
-      // esbuild already printed what it couldn't bundle
-      const bundleFailed = Array.isArray(errors)
-      await this.stop(
-        true,
-        bundleFailed
-          ? 'Could not bundle the tests.'
-          : error instanceof UsageError || startFailed
-            ? (error as Error).message
-            : error
-      )
-    }
+    })
   }
 
-  watch() {
+  async watch(): Promise<WatchHandle> {
+    await this.removeFiles()
     throw new UsageError('--watch does not work in the workerd mode yet.')
   }
 

@@ -8,7 +8,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
-import { runCli, TEST_CONCURRENCY } from './helpers.ts'
+import { runCli, runTest, TEST_CONCURRENCY } from './helpers.ts'
 
 /**
  * Give each test its own temp directory so all browser profile tests can run
@@ -61,7 +61,7 @@ describe('browser profile', { concurrency: TEST_CONCURRENCY }, () => {
       timeout: 120_000,
     }, async () => {
       await withTempDir(async ({ env, leftovers }) => {
-        const proc = await runCli(
+        const proc = await runTest(
           [
             'mocks/none/stdout.test.js',
             '--runner',

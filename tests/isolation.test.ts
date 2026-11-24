@@ -5,13 +5,19 @@ import type { AddressInfo } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
-import type { Result } from 'execa'
-import { execa, runCli, TEST_CONCURRENCY } from './helpers.ts'
+import {
+  execa,
+  type RunTestResult,
+  runCli,
+  runTest,
+  TEST_CONCURRENCY,
+} from './helpers.ts'
 
 // --test-isolation process in node mode for the runners that don't have it,
 // node-test is in node-test-runner.test.ts
 const dir = 'mocks/isolation'
-const output = (proc: Result) => `${proc.stdout}\n${proc.stderr}`
+const output = (proc: Pick<RunTestResult, 'stdout' | 'stderr'>) =>
+  `${proc.stdout}\n${proc.stderr}`
 
 function run(
   runner: string,
@@ -19,7 +25,7 @@ function run(
   args: string[] = [],
   env: Record<string, string> = {}
 ) {
-  return runCli(
+  return runTest(
     [
       ...files.map((file) => `${dir}/${file}.test.js`),
       '--runner',
@@ -187,7 +193,7 @@ const runIn = (
   args: string[] = [],
   env: Record<string, string> = {}
 ) =>
-  runCli(
+  runTest(
     [
       ...files.map((file) => `${dir}/${file}.test.js`),
       '--runner',
@@ -376,12 +382,25 @@ for (const mode of ['browser', 'web-worker']) {
     it('each page records its own HAR with recordHar', async () => {
       const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-har-'))
       try {
-        const proc = await runIn(
-          mode,
-          'mocha',
-          ['mocha-a', 'mocha-b'],
-          ['--test-concurrency', '2', '--config', `${dir}/har.config.js`],
-          { PW_TEST_HAR_PATH: path.join(temp, 'run.har') }
+        const proc = await runTest(
+          [
+            `${dir}/mocha-a.test.js`,
+            `${dir}/mocha-b.test.js`,
+            '--runner',
+            'mocha',
+            '--mode',
+            mode,
+            '--test-concurrency',
+            '2',
+          ],
+          {
+            reject: false,
+            config: {
+              browserContextOptions: {
+                recordHar: { path: path.join(temp, 'run.har') },
+              },
+            },
+          }
         )
 
         is(proc.exitCode, 0, output(proc))
@@ -405,12 +424,25 @@ for (const mode of ['browser', 'web-worker']) {
       // Its folder is a file
       fs.writeFileSync(path.join(temp, 'file'), '')
       try {
-        const proc = await runIn(
-          mode,
-          'mocha',
-          ['mocha-a', 'mocha-b'],
-          ['--test-concurrency', '2', '--config', `${dir}/har.config.js`],
-          { PW_TEST_HAR_PATH: path.join(temp, 'file', 'run.har') }
+        const proc = await runTest(
+          [
+            `${dir}/mocha-a.test.js`,
+            `${dir}/mocha-b.test.js`,
+            '--runner',
+            'mocha',
+            '--mode',
+            mode,
+            '--test-concurrency',
+            '2',
+          ],
+          {
+            reject: false,
+            config: {
+              browserContextOptions: {
+                recordHar: { path: path.join(temp, 'file', 'run.har') },
+              },
+            },
+          }
         )
 
         is(proc.exitCode, 0, output(proc))
@@ -664,12 +696,21 @@ describe('--test-isolation process in workerd mode', {
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     const { port } = server.address() as AddressInfo
     try {
-      const running = runIn(
-        'workerd',
-        'mocha',
-        ['mocha-hangs', 'sigint-logs'],
-        ['--test-concurrency', '2'],
-        { PW_TEST_BEACON: `http://127.0.0.1:${port}/` }
+      const running = runCli(
+        [
+          `${dir}/mocha-hangs.test.js`,
+          `${dir}/sigint-logs.test.js`,
+          '--runner',
+          'mocha',
+          '--mode',
+          'workerd',
+          '--test-concurrency',
+          '2',
+        ],
+        {
+          reject: false,
+          env: { PW_TEST_BEACON: `http://127.0.0.1:${port}/` },
+        }
       )
       // A run that ends first, like when workerd can't start, says why
       const ended = await Promise.race([

@@ -5,7 +5,7 @@ import {
 } from 'node:assert/strict'
 import { before, describe, it } from 'node:test'
 import { pathToFileURL } from 'url'
-import { execa, runCli, TEST_CONCURRENCY } from './helpers.ts'
+import { execa, runTest, TEST_CONCURRENCY } from './helpers.ts'
 
 describe('playwright-test/node-test', () => {
   // With process isolation node mode runs the real node:test, the files here
@@ -38,7 +38,7 @@ describe('playwright-test/node-test', () => {
    * Run a fixture with this API, and read what it reported.
    */
   async function execApi(name: string, mode: string) {
-    const proc = await runCli([fixture(name), ...runner, '--mode', mode], {
+    const proc = await runTest([fixture(name), ...runner, '--mode', mode], {
       reject: false,
     })
     const output = lines(proc.stdout)
@@ -384,7 +384,7 @@ describe('playwright-test/node-test', () => {
       })
 
       it('no colors with NO_COLOR', async () => {
-        const proc = await runCli(
+        const proc = await runTest(
           [fixture('fail-falsy'), ...runner, '--mode', mode],
           { reject: false, env: { FORCE_COLOR: undefined, NO_COLOR: '1' } }
         )
@@ -398,7 +398,7 @@ describe('playwright-test/node-test', () => {
 
       it('no colors when piped', async () => {
         // A color terminal, so only the pipe turns colors off
-        const proc = await runCli(
+        const proc = await runTest(
           [fixture('fail-falsy'), ...runner, '--mode', mode],
           {
             reject: false,
@@ -418,7 +418,7 @@ describe('playwright-test/node-test', () => {
       })
 
       it('colors with FORCE_COLOR when piped', async () => {
-        const proc = await runCli(
+        const proc = await runTest(
           [fixture('fail-falsy'), ...runner, '--mode', mode],
           { reject: false, env: { FORCE_COLOR: '1', NO_COLOR: undefined } }
         )
@@ -430,7 +430,7 @@ describe('playwright-test/node-test', () => {
 
       it('styleText follows the pipe and FORCE_COLOR', async () => {
         const styled = async (env: Record<string, string | undefined>) => {
-          const proc = await runCli(
+          const proc = await runTest(
             [fixture('style-text'), ...runner, '--mode', mode],
             { reject: false, env: { NO_COLOR: undefined, ...env } }
           )
@@ -486,7 +486,7 @@ describe('playwright-test/node-test', () => {
       })
 
       it('multiple files share the run', async () => {
-        const proc = await runCli([
+        const proc = await runTest([
           'mocks/node-test/multi',
           ...runner,
           '--mode',
@@ -558,7 +558,7 @@ describe('playwright-test/node-test', () => {
     })
 
     it('runner none in node mode', async () => {
-      const { exitCode, stdout } = await runCli(
+      const { exitCode, stdout } = await runTest(
         [fixture('fail-root-each'), '--runner', 'none', '--mode', 'node'],
         { reject: false }
       )
@@ -619,7 +619,7 @@ describe('playwright-test/node-test', () => {
 
     for (const mode of modes) {
       it(mode, async () => {
-        const proc = await runCli(
+        const proc = await runTest(
           [fixture('spec-format'), ...runner, '--mode', mode],
           { reject: false, env: { NO_COLOR: '1' } }
         )
@@ -647,7 +647,7 @@ describe('playwright-test/node-test', () => {
 
     for (const mode of ['browser', 'web-worker']) {
       it(`${mode}: exports and unsupported`, async () => {
-        const { exitCode, stdout } = await runCli(
+        const { exitCode, stdout } = await runTest(
           [fixture('assert-exports'), '--runner', 'none', '--mode', mode],
           { reject: false }
         )
@@ -703,7 +703,7 @@ describe('playwright-test/node-test', () => {
       mode: string,
       env: Record<string, string | undefined> = agent
     ) =>
-      runCli([fixture('minimal'), ...runner, '--mode', mode], {
+      runTest([fixture('minimal'), ...runner, '--mode', mode], {
         reject: false,
         env,
       })
@@ -744,7 +744,7 @@ describe('playwright-test/node-test', () => {
       })
 
       it(`keeps the summary of passing runs in ${mode} mode`, async () => {
-        const proc = await runCli(
+        const proc = await runTest(
           [fixture('minimal-pass'), ...runner, '--mode', mode],
           { reject: false, env: agent }
         )

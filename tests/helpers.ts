@@ -1,7 +1,13 @@
+import { Console } from 'node:console'
 import os from 'node:os'
+import { PassThrough } from 'node:stream'
 import { mock } from 'node:test'
 import type { Options, ResultPromise } from 'execa'
 import { execa as baseExeca, execaSync as baseExecaSync } from 'execa'
+import type { AnyRunner } from '../src/create-runner.ts'
+import type { Config } from '../src/types.ts'
+import { createColors, supportsColor } from '../src/utils/colors.ts'
+import { createLogger, UsageError } from '../src/utils/index.ts'
 
 // Bounded in-file concurrency: paired with `--test-concurrency=3` in package.json,
 // this keeps total concurrent browsers safe on 4-vCPU CI runners (3x2 = 6) while
@@ -17,11 +23,12 @@ export const TEST_CONCURRENCY = process.env.CI
 // workflow. Only children get it, find-tests.test.ts needs its own temp folder in
 // another drive.
 const temp = process.env.PW_TEST_CHILD_TEMP
+const defaultEnv: Record<string, string | undefined> = {
+  NODE_TEST_CONTEXT: undefined,
+  ...(temp ? { TEMP: temp, TMP: temp } : {}),
+}
 const options = {
-  env: {
-    NODE_TEST_CONTEXT: undefined,
-    ...(temp ? { TEMP: temp, TMP: temp } : {}),
-  },
+  env: defaultEnv,
 }
 
 export const execa = baseExeca(options)
@@ -40,6 +47,127 @@ export function runCli<T extends Options = Record<never, never>>(
     args,
     cliOptions ?? ({} as T)
   ) as unknown as ResultPromise<T>
+}
+
+export interface RunTestOptions {
+  cwd?: string
+  env?: Record<string, string | undefined>
+  config?: Config
+  reject?: boolean
+  timeout?: number
+  all?: boolean
+}
+
+export interface RunTestResult {
+  exitCode: 0 | 1
+  stdout: string
+  stderr: string
+  all?: string
+  timedOut: boolean
+}
+
+/**
+ * Run playwright-test in-process through its programmatic API, resolving CLI
+ * arguments and capturing stdout/stderr without spawning a CLI subprocess.
+ */
+export async function runTest(
+  args: string[],
+  opts: RunTestOptions = {}
+): Promise<RunTestResult> {
+  const { resolveOptions } = await import('../src/cli-options.ts')
+  const { createRunner } = await import('../src/create-runner.ts')
+  const env: Record<string, string | undefined> = {
+    ...defaultEnv,
+    ...opts.env,
+  }
+  const stdoutStream = new PassThrough()
+  const stderrStream = new PassThrough()
+  let stdout = ''
+  let stderr = ''
+  let all = ''
+  stdoutStream.on('data', (chunk: Buffer | string) => {
+    const text = chunk.toString()
+    stdout += text
+    if (opts.all) {
+      all += text
+    }
+  })
+  stderrStream.on('data', (chunk: Buffer | string) => {
+    const text = chunk.toString()
+    stderr += text
+    if (opts.all) {
+      all += text
+    }
+  })
+
+  const outConsole = new Console({ stdout: stdoutStream, stderr: stderrStream })
+  const colors = createColors(supportsColor({ env, isTTY: false }))
+  const logger = createLogger(outConsole, colors)
+
+  let exitCode: 0 | 1 = 0
+  let timedOut = false
+  let runner: AnyRunner | undefined
+  let timer: NodeJS.Timeout | undefined
+
+  try {
+    const resolved = await resolveOptions(args, {
+      cwd: opts.cwd,
+      env,
+      log: logger,
+    })
+    if (resolved) {
+      runner = await createRunner(
+        {
+          ...resolved.options,
+          ...opts.config,
+          stdout: stdoutStream,
+          stderr: stderrStream,
+          env,
+          exitProcess: false,
+        } as Config,
+        resolved.testFiles
+      )
+      const running = runner.run()
+      if (opts.timeout) {
+        const result = await Promise.race([
+          running,
+          new Promise<'timedOut'>((resolve) => {
+            timer = setTimeout(() => resolve('timedOut'), opts.timeout)
+            timer.unref()
+          }),
+        ])
+        if (result === 'timedOut') {
+          timedOut = true
+          await runner.stop(true)
+          exitCode = 1
+        } else {
+          exitCode = result.exitCode
+        }
+      } else {
+        const result = await running
+        exitCode = result.exitCode
+      }
+    }
+  } catch (error) {
+    exitCode = 1
+    outConsole.error(error instanceof UsageError ? error.message : error)
+  } finally {
+    clearTimeout(timer)
+  }
+
+  const result: RunTestResult = {
+    exitCode,
+    stdout,
+    stderr,
+    ...(opts.all ? { all } : {}),
+    timedOut,
+  }
+  if (opts.reject !== false && (exitCode !== 0 || timedOut)) {
+    throw new Error(
+      `runTest failed (exitCode=${exitCode}, timedOut=${timedOut}) for: ${args.join(' ')}\n${stdout}\n${stderr}`
+    )
+  }
+  return result
 }
 
 /**

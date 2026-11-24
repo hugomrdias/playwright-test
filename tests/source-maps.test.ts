@@ -18,7 +18,7 @@ import type { BuildOptions } from 'esbuild'
 import esbuild from 'esbuild'
 import { cleanStack } from '../src/node/test-harness.ts'
 import { createStackMapper } from '../src/utils/stack-map.ts'
-import { runCli, TEST_CONCURRENCY } from './helpers.ts'
+import { runTest, TEST_CONCURRENCY } from './helpers.ts'
 
 const INTERNAL_MOCHA = /node_modules[/\\]mocha/
 
@@ -318,7 +318,7 @@ const NODE_TEST = [
 
 describe('stack traces in node mode', () => {
   it('node:test has no frames of the runner', async () => {
-    const proc = await runCli([...NODE_TEST, '--mode', 'node'], {
+    const proc = await runTest([...NODE_TEST, '--mode', 'node'], {
       reject: false,
     })
     const output = `${proc.stdout}${proc.stderr}`
@@ -399,7 +399,7 @@ for (const browser of ['chromium', 'firefox', 'webkit']) {
 
     for (const mode of ['browser', 'web-worker']) {
       it(`mocha points at the source without its own frames in ${mode}`, async () => {
-        const proc = await runCli(
+        const proc = await runTest(
           [
             'mocks/runner-options/mocha-fails.js',
             '--runner',
@@ -418,7 +418,7 @@ for (const browser of ['chromium', 'firefox', 'webkit']) {
       })
 
       it(`node:test has no frames of the runner in ${mode}`, async () => {
-        const proc = await runCli([...NODE_TEST, '--mode', mode, ...flags], {
+        const proc = await runTest([...NODE_TEST, '--mode', mode, ...flags], {
           reject: false,
         })
         const output = `${proc.stdout}${proc.stderr}`
@@ -431,7 +431,7 @@ for (const browser of ['chromium', 'firefox', 'webkit']) {
     }
 
     it('typescript written to stdout', async () => {
-      const proc = await runCli([
+      const proc = await runTest([
         'mocks/source-maps/stack.ts',
         '--runner',
         'none',
@@ -444,7 +444,7 @@ for (const browser of ['chromium', 'firefox', 'webkit']) {
     })
 
     it('every way of logging an error', async () => {
-      const proc = await runCli([
+      const proc = await runTest([
         'mocks/source-maps/console.js',
         '--runner',
         'none',
@@ -458,7 +458,7 @@ for (const browser of ['chromium', 'firefox', 'webkit']) {
 
     for (const mode of ['browser', 'web-worker']) {
       it(`stack traces written as bytes in ${mode}`, async () => {
-        const proc = await runCli([
+        const proc = await runTest([
           'mocks/source-maps/bytes.js',
           '--runner',
           'none',
@@ -475,7 +475,7 @@ for (const browser of ['chromium', 'firefox', 'webkit']) {
     }
 
     it('stack traces in JSON stay valid', async () => {
-      const proc = await runCli([
+      const proc = await runTest([
         'mocks/source-maps/json.js',
         '--runner',
         'none',
@@ -489,7 +489,7 @@ for (const browser of ['chromium', 'firefox', 'webkit']) {
     })
 
     it('uncaught exceptions', async () => {
-      const proc = await runCli([
+      const proc = await runTest([
         'mocks/source-maps/uncaught.js',
         '--runner',
         'none',

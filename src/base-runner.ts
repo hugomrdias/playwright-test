@@ -1,3 +1,4 @@
+import { Console } from 'node:console'
 import { randomUUID } from 'node:crypto'
 import type { Server } from 'node:http'
 import { WriteStream } from 'node:tty'
@@ -6,12 +7,20 @@ import { mkdirSync, rmSync } from 'fs'
 import { rm } from 'fs/promises'
 import os from 'os'
 import path from 'path'
-import type { Config, RunnerEnv, RunnerOptions } from './types.ts'
+import type {
+  Config,
+  Logger,
+  RunnerEnv,
+  RunnerOptions,
+  RunResult,
+} from './types.ts'
+import { type Colors, createColors, supportsColor } from './utils/colors.ts'
 import {
-  AFTER_TESTS_TIMEOUT,
+  afterTestsTimeout,
   assertNoExtension,
   assertRunTimeout,
   closeServer,
+  createLogger,
   defaultOptions,
   findTests,
   log,
@@ -22,6 +31,7 @@ import {
   withTimeout,
 } from './utils/index.ts'
 import { createMerge } from './utils/merge.ts'
+import { startServer } from './utils/server.ts'
 
 const merge = createMerge({ ignoreUndefined: true, concatArrays: true })
 // The browser or the tests are gone by then, nothing should hold it open
@@ -35,6 +45,16 @@ const REMOVE_OPTIONS = { recursive: true, force: true, maxRetries: 10 }
 export const REMOVE_WAIT = 3000
 
 /**
+ * The temp folder for a run, respecting env overrides like `TMPDIR` / `TEMP`.
+ */
+export function tmpdir(env: Record<string, string | undefined> = process.env) {
+  if (process.platform === 'win32') {
+    return env.TEMP || env.TMP || os.tmpdir()
+  }
+  return env.TMPDIR || os.tmpdir()
+}
+
+/**
  * Delete a folder of the run, not being able to doesn't change how it went.
  * The processes of a browser can still hold its files for a while after it
  * exits on Windows.
@@ -42,7 +62,7 @@ export const REMOVE_WAIT = 3000
  * Not with `rmSync`, it doesn't wait between its tries, and on Windows it
  * doesn't retry a file another process still has open.
  */
-export async function removeFolder(dir: string) {
+export async function removeFolder(dir: string, logger: Logger = log) {
   const removing = rm(dir, REMOVE_OPTIONS).then(
     () => undefined,
     (error: Error) => `Could not delete ${dir}: ${error.message}`
@@ -54,18 +74,18 @@ export async function removeFolder(dir: string) {
     `Stopped waiting for ${dir} to be deleted after ${REMOVE_WAIT}ms`
   )
   if (failure !== undefined) {
-    log.warn(failure)
+    logger.warn(failure)
   }
 }
 
 /**
  * {@link removeFolder} right away, for when this process exits next.
  */
-export function removeFolderNow(dir: string) {
+export function removeFolderNow(dir: string, logger: Logger = log) {
   try {
     rmSync(dir, REMOVE_OPTIONS)
   } catch (error) {
-    log.warn(`Could not delete ${dir}: ${(error as Error).message}`)
+    logger.warn(`Could not delete ${dir}: ${(error as Error).message}`)
   }
 }
 
@@ -76,12 +96,16 @@ const COLOR_SWITCHES = new Set([
 ])
 
 /**
- * Whether the streams of this process are TTYs and the colors their terminal
+ * Whether the streams of this run are TTYs and the colors their terminal
  * has, for the `process.stdout` and `process.stderr` of browsers. The color
  * depth comes from the env the tests get and leaves out the variables that
  * turn colors on or off, browsers check those in their own env like Node.js does.
  */
-function stdio(testEnv: NodeJS.ProcessEnv) {
+function stdio(
+  testEnv: NodeJS.ProcessEnv,
+  stdout: NodeJS.WritableStream,
+  stderr: NodeJS.WritableStream
+) {
   // Undefined values never reach the tests, Node.js checks keys like `CI` with `in`
   const env = Object.fromEntries(
     Object.entries(testEnv).filter(
@@ -90,17 +114,42 @@ function stdio(testEnv: NodeJS.ProcessEnv) {
   )
   const colorDepth = WriteStream.prototype.getColorDepth(env)
   return {
-    stdout: { isTTY: Boolean(process.stdout.isTTY), colorDepth },
-    stderr: { isTTY: Boolean(process.stderr.isTTY), colorDepth },
+    stdout: {
+      isTTY: Boolean((stdout as { isTTY?: boolean }).isTTY),
+      colorDepth,
+    },
+    stderr: {
+      isTTY: Boolean((stderr as { isTTY?: boolean }).isTTY),
+      colorDepth,
+    },
   }
 }
 
 /**
- * What running the tests takes in a browser and in node.
+ * Merge `process.env` with per-run overrides; `undefined` removes a key.
+ */
+function buildInitialEnv(
+  overrides?: Record<string, string | undefined>
+): Record<string, string | undefined> {
+  const env: Record<string, string | undefined> = { ...process.env }
+  if (overrides) {
+    for (const [key, value] of Object.entries(overrides)) {
+      if (value === undefined) {
+        delete env[key]
+      } else {
+        env[key] = value
+      }
+    }
+  }
+  return env
+}
+
+/**
+ * What running the tests takes in a browser, in node and in workerd.
  *
- * Every run ends in `exit`, through `stop`, or in the exit hook when this
+ * Every run ends in `exit`, through `stop`, or in the exit hook when the CLI
  * process gets stopped. Both stop the tests first, then run the afterTests
- * hook, then the hook deletes what the run made, see `#clean`.
+ * hook, then clean up what the run made.
  */
 export class BaseRunner {
   options: RunnerOptions
@@ -111,10 +160,22 @@ export class BaseRunner {
   afterTestsResult: Promise<boolean> | undefined
   env: RunnerEnv
   tests: string[]
+  stdout: NodeJS.WritableStream
+  stderr: NodeJS.WritableStream
+  console: Console
+  colors: Colors
+  log: Logger
+  exitProcess: boolean
+  /** Snapshot of `process.env` + `options.env` before runner/hook additions */
+  protected initialEnv: Record<string, string | undefined>
   #beforeTests: Promise<unknown> | undefined
+  #done: PromiseWithResolvers<RunResult>
+  #runTimeout: NodeJS.Timeout | undefined
+  #serverStarting: Promise<void> | undefined
 
   constructor(options: Config, testFiles?: string[]) {
-    this.options = merge(defaultOptions, options)
+    const { stdout, stderr, env, exitProcess, ...rest } = options
+    this.options = merge(defaultOptions, rest)
     this.options.testRunner = resolveTestRunner(
       this.options as { runner: string }
     )
@@ -122,14 +183,39 @@ export class BaseRunner {
     assertNoExtension(this.options)
     this.assertOptions()
     this.options.cwd = path.resolve(this.options.cwd)
+    this.stdout = stdout ?? process.stdout
+    this.stderr = stderr ?? process.stderr
+    this.exitProcess = Boolean(exitProcess)
+    this.initialEnv = buildInitialEnv(env)
+    this.colors = createColors(
+      supportsColor({
+        env: this.initialEnv,
+        minimal: Boolean(this.options.minimal),
+        stream: this.stdout as {
+          isTTY?: boolean
+          getColorDepth?: (env?: Record<string, string | undefined>) => number
+        },
+      })
+    )
+    this.console =
+      this.stdout === process.stdout && this.stderr === process.stderr
+        ? console
+        : new Console({ stdout: this.stdout, stderr: this.stderr })
+    this.log = createLogger(this.console, this.colors)
     this.server = undefined
-    this.dir = path.join(os.tmpdir(), `playwright-test-${randomUUID()}`)
+    this.dir = path.join(
+      tmpdir(this.initialEnv),
+      `playwright-test-${randomUUID()}`
+    )
     this.stopped = false
     this.beforeTestsOutput = undefined
     this.afterTestsResult = undefined
-    this.env = merge(JSON.parse(JSON.stringify(process.env)), {
+    this.#done = Promise.withResolvers<RunResult>()
+    this.env = merge(JSON.parse(JSON.stringify(this.initialEnv)), {
       PW_OPTIONS: JSON.stringify(this.options),
-      PW_STDIO: JSON.stringify(stdio(process.env)),
+      PW_STDIO: JSON.stringify(
+        stdio(this.initialEnv, this.stdout, this.stderr)
+      ),
       NODE_ENV: 'test',
     })
     this.tests =
@@ -153,6 +239,13 @@ export class BaseRunner {
   }
 
   /**
+   * Resolves with the result once the run and its cleanup finish.
+   */
+  get done(): Promise<RunResult> {
+    return this.#done.promise
+  }
+
+  /**
    * Check the options only this runner cares about, before anything gets created.
    */
   assertOptions() {
@@ -160,31 +253,45 @@ export class BaseRunner {
   }
 
   /**
-   * Clean up when this process ends, however it does, see `#clean`. First thing
-   * in `run` and `watch`.
+   * Clean up when this process ends, however it does, see `#clean`. Only
+   * installed when `exitProcess` is true (the CLI).
    *
    * The exit hook only runs once, and Playwright raises an interrupt again
    * when no other listener is left, so there's one more. A second interrupt
    * stops waiting for the hook, and for the tests to end, see `killTests`.
    */
   handleExit() {
+    const afterTimeout = afterTestsTimeout(this.env)
     asyncExitHook((exitCode) => this.#clean(exitCode), {
       // Waiting for a beforeTests hook still running, then the afterTests one
       wait:
-        2 * AFTER_TESTS_TIMEOUT +
-        SERVER_CLOSE_WAIT +
-        REMOVE_WAIT +
-        this.cleanupWait(),
+        2 * afterTimeout + SERVER_CLOSE_WAIT + REMOVE_WAIT + this.cleanupWait(),
     })
     let interrupted = false
     process.on('SIGINT', () => {
       if (interrupted) {
         this.killTests()
-        removeFolderNow(this.dir)
+        removeFolderNow(this.dir, this.log)
         process.exit(130)
       }
       interrupted = true
     })
+  }
+
+  /**
+   * Run the main body of a run and wait for it (and any early `stop()`) to
+   * finish cleanup and settle {@link done}.
+   */
+  protected async finish(work: () => Promise<void>): Promise<RunResult> {
+    if (this.exitProcess) {
+      this.handleExit()
+    }
+    const running = work()
+    // If stop() ends the run early (timeout, browser crash, external stop),
+    // any late rejection from the abandoned work must not crash the host.
+    running.catch(() => undefined)
+    await Promise.race([running, this.#done.promise])
+    return await this.#done.promise
   }
 
   /**
@@ -194,7 +301,11 @@ export class BaseRunner {
   startRunTimeout() {
     const ms = this.options.runTimeout
     if (ms > 0 && !this.options.debug) {
-      setTimeout(() => this.stop(true, runTimeoutMessage(ms)), ms).unref()
+      this.#runTimeout = setTimeout(
+        () => this.stop(true, runTimeoutMessage(ms)),
+        ms
+      )
+      this.#runTimeout.unref()
     }
   }
 
@@ -205,7 +316,9 @@ export class BaseRunner {
     })
     this.beforeTestsOutput = await this.#beforeTests
     // The hook can change the env, like TERM, and with it the color depth
-    this.env.PW_STDIO = JSON.stringify(stdio(this.env))
+    this.env.PW_STDIO = JSON.stringify(
+      stdio(this.env, this.stdout, this.stderr)
+    )
   }
 
   /**
@@ -226,17 +339,18 @@ export class BaseRunner {
     if (!this.#beforeTests) {
       return true
     }
+    const timeout = afterTestsTimeout(this.env)
     const finished = await withTimeout(
       this.#beforeTests.then(
         () => true,
         () => false
       ),
-      AFTER_TESTS_TIMEOUT,
+      timeout,
       'timed out'
     )
     if (finished === 'timed out') {
-      log.warn(
-        `The beforeTests hook did not finish in ${AFTER_TESTS_TIMEOUT}ms, not running the afterTests hook.`
+      this.log.warn(
+        `The beforeTests hook did not finish in ${timeout}ms, not running the afterTests hook.`
       )
     }
     if (finished !== true) {
@@ -245,7 +359,8 @@ export class BaseRunner {
     return runAfterTests(
       this.options.afterTests,
       this.env,
-      this.beforeTestsOutput
+      this.beforeTestsOutput,
+      this.log
     )
   }
 
@@ -285,39 +400,83 @@ export class BaseRunner {
    * Delete the files of this run, not being able to doesn't change how it went.
    */
   async removeFiles() {
-    await removeFolder(this.dir)
+    await removeFolder(this.dir, this.log)
+  }
+
+  /**
+   * Start the HTTP asset server and track it while listening so a concurrent
+   * `stop()` still waits for it and closes it before cleanup completes.
+   */
+  protected async startAssetServer(filesDir: string): Promise<string> {
+    const starting = startServer(
+      filesDir,
+      this.options.cwd,
+      this.options.assets
+    )
+    this.#serverStarting = starting.then(
+      ({ server, url }) => {
+        this.server = server
+        this.env.PW_SERVER = url
+      },
+      () => undefined
+    )
+    const { url } = await starting
+    return url
+  }
+
+  /**
+   * Wait for an in-flight server start, then close the server if it started.
+   */
+  async #closeAssetServer() {
+    if (this.#serverStarting) {
+      await withTimeout(this.#serverStarting, SERVER_CLOSE_WAIT)
+    }
+    await closeServer(this.server, SERVER_CLOSE_WAIT)
   }
 
   async #clean(exitCode: number) {
     // Whatever is still running fails from here on, it can't stop the run again
     this.stopped = true
+    clearTimeout(this.#runTimeout)
     await this.stopTests()
     await this.runAfterTests()
     await this.cleanUp(exitCode)
-    await closeServer(this.server, SERVER_CLOSE_WAIT)
+    await this.#closeAssetServer()
     await this.removeFiles()
   }
 
   /**
    * End the run once, whatever ends it first.
    */
-  async stop(fail: boolean, msg?: unknown) {
+  async stop(fail: boolean, msg?: unknown): Promise<RunResult | undefined> {
     if (this.stopped) {
-      return
+      return this.#done.promise
     }
     this.stopped = true
-    await this.exit(fail, msg)
+    return await this.exit(fail, msg)
   }
 
   /**
-   * End the process, the after tests hook failing also fails the run.
+   * End the run, the after tests hook failing also fails the run.
+   * When `exitProcess` is true, exits the Node.js process through `gracefulExit`.
    */
-  async exit(fail: boolean, msg?: unknown) {
+  async exit(fail: boolean, msg?: unknown): Promise<RunResult> {
+    clearTimeout(this.#runTimeout)
     if (fail && msg) {
-      log.error(msg)
+      this.log.error(msg)
     }
     await this.stopTests()
     const afterTestsPassed = await this.runAfterTests()
-    gracefulExit(fail || !afterTestsPassed ? 1 : 0)
+    const exitCode: 0 | 1 = fail || !afterTestsPassed ? 1 : 0
+    if (this.exitProcess) {
+      gracefulExit(exitCode)
+    } else {
+      await this.cleanUp(exitCode)
+      await this.#closeAssetServer()
+      await this.removeFiles()
+    }
+    const result: RunResult = { passed: exitCode === 0, exitCode }
+    this.#done.resolve(result)
+    return result
   }
 }

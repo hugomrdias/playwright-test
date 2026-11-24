@@ -3,16 +3,15 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, it } from 'node:test'
-import type { Result } from 'execa'
-import { runCli, TEST_CONCURRENCY } from './helpers.ts'
+import { type RunTestResult, runTest, TEST_CONCURRENCY } from './helpers.ts'
 
 describe('runner options', () => {
   const fixture = (name: string) => `mocks/runner-options/${name}.js`
 
   const run = (name: string, args: string[]) =>
-    runCli([fixture(name), ...args], { reject: false })
+    runTest([fixture(name), ...args], { reject: false })
 
-  const output = (proc: Result) => `${proc.stdout}\n${proc.stderr}`
+  const output = (proc: RunTestResult) => `${proc.stdout}\n${proc.stderr}`
 
   const patterns: [string, string[]][] = [
     ['alpha', ['alpha one', 'alpha two']],
@@ -121,7 +120,7 @@ describe('runner options', () => {
 `
         )
         for (const timeout of ['0', String(2 ** 31 - 2)]) {
-          const proc = await runCli(
+          const proc = await runTest(
             [
               file,
               '--runner',

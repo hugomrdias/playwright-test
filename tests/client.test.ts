@@ -1,10 +1,10 @@
 import { strictEqual as is } from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import type { ClickOptions } from '../src/client/types.ts'
-import { runCli, TEST_CONCURRENCY } from './helpers.ts'
+import { runTest, TEST_CONCURRENCY } from './helpers.ts'
 
 async function run(args: string[]) {
-  const proc = await runCli([...args, '--runner', 'node-test'], {
+  const proc = await runTest([...args, '--runner', 'node-test'], {
     reject: false,
     timeout: 60_000,
   })
