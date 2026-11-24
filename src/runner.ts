@@ -1403,9 +1403,18 @@ export class Runner extends BaseRunner {
           if (this.context && this.#browserConnected()) {
             // First the contexts of the pages, closing one saves its HAR and
             // videos
-            await Promise.allSettled(
+            const results = await Promise.allSettled(
               this.#workerContexts.map((context) => context.close())
             )
+            // Like the persistent one below, a HAR that can't be written
+            // rejects the close
+            for (const result of results) {
+              if (result.status === 'rejected') {
+                log.warn(
+                  `Could not close the browser: ${(result.reason as Error).message}`
+                )
+              }
+            }
             return this.context.close()
           }
         })

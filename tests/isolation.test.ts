@@ -400,6 +400,26 @@ for (const mode of ['browser', 'web-worker']) {
       }
     })
 
+    it('warns when the HAR of a page cannot be written', async () => {
+      const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-har-'))
+      // Its folder is a file
+      fs.writeFileSync(path.join(temp, 'file'), '')
+      try {
+        const proc = await runIn(
+          mode,
+          'mocha',
+          ['mocha-a', 'mocha-b'],
+          ['--test-concurrency', '2', '--config', `${dir}/har.config.js`],
+          { PW_TEST_HAR_PATH: path.join(temp, 'file', 'run.har') }
+        )
+
+        is(proc.exitCode, 0, output(proc))
+        ok(proc.stderr.includes('Could not close the browser'), output(proc))
+      } finally {
+        fs.rmSync(temp, { recursive: true, force: true })
+      }
+    })
+
     it('files that run one after the other share the storage, like files share the disk', {
       skip: mode === 'web-worker',
     }, async () => {
