@@ -268,7 +268,7 @@ describe('node:test runner', () => {
       }
     })
 
-    it('the files get the NODE_OPTIONS of the tests, also when beforeTests changes it', async () => {
+    it('the files get the NODE_OPTIONS of the tests, also when the config or beforeTests changes it', async () => {
       const dir = fs.mkdtempSync('mocks/tmp-node-options-')
       const preload = `${dir}/preload.js`
       fs.writeFileSync(
@@ -282,6 +282,10 @@ describe('node:test runner', () => {
       fs.writeFileSync(
         `${dir}/remove.config.js`,
         'export default { beforeTests: (env) => { delete env.NODE_OPTIONS } }\n'
+      )
+      fs.writeFileSync(
+        `${dir}/remove-on-load.config.js`,
+        'delete process.env.NODE_OPTIONS\nexport default {}\n'
       )
       const cli = (args: string[]) =>
         runCli(['a.test.js', '--mode', 'node', '--cwd', dir, ...args], {
@@ -297,6 +301,13 @@ describe('node:test runner', () => {
         const removed = await cli(['--config', `${dir}/remove.config.js`])
         is(removed.exitCode, 0, output(removed))
         ok(!removed.stdout.includes('PRELOADED'), output(removed))
+
+        const onLoad = await cli([
+          '--config',
+          `${dir}/remove-on-load.config.js`,
+        ])
+        is(onLoad.exitCode, 0, output(onLoad))
+        ok(!onLoad.stdout.includes('PRELOADED'), output(onLoad))
       } finally {
         fs.rmSync(dir, { recursive: true })
       }

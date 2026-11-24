@@ -85,6 +85,10 @@ async function loadReporter(name: string, cwd: string) {
 const [major = 0, minor = 0] = process.versions.node.split('.').map(Number)
 const RUN_ENV = major > 25 || (major === 25 && minor >= 6)
 
+// What node parsed its flags from, before a config file can change the env. The
+// CLI imports this module before it loads one.
+const STARTUP_NODE_OPTIONS = process.env.NODE_OPTIONS
+
 /**
  * Whether the CLI can call {@link runIsolated} itself instead of starting
  * `isolated-run.ts` in the env of the tests, and save starting that process.
@@ -92,7 +96,8 @@ const RUN_ENV = major > 25 || (major === 25 && minor >= 6)
  * - The files get the env of the tests, `run()` only takes it since Node.js 25.6.
  * - `run()` gives the files every node flag of the process it runs in, also the
  *   ones that came from `NODE_OPTIONS`. They're the same only when the CLI got no
- *   flags and the tests have its `NODE_OPTIONS`, a `beforeTests` can change it.
+ *   flags and the tests have the `NODE_OPTIONS` it started with, a config file or
+ *   a `beforeTests` can change it.
  * - A reporter of the project runs in the project, with the env of the tests,
  *   and is imported again for each run: a stream it exports ends with the run,
  *   and `--watch` reruns in the same CLI. The built-in ones only turn events
@@ -102,7 +107,7 @@ export function canRunInProcess(env: NodeJS.ProcessEnv, reporters: string[]) {
   return (
     RUN_ENV &&
     process.execArgv.length === 0 &&
-    env.NODE_OPTIONS === process.env.NODE_OPTIONS &&
+    env.NODE_OPTIONS === STARTUP_NODE_OPTIONS &&
     reporters.every((name) => Object.hasOwn(BUILTIN, name))
   )
 }
