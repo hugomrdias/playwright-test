@@ -120,9 +120,9 @@
     }
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.4",
+    "@biomejs/biome": "2.6.8",
     "@hugomrdias/configs": "^2.0.0",
-    "cf": "1.0.0-rc.1",
+    "cf": "1.0.0-rc.2",
     "debug": "^4.4.3",
     "delay": "^7.0.0",
     "execa": "^10.2.1",
@@ -130,7 +130,7 @@
     "p-defer": "^4.0.1",
     "pkg-pr-new": "^0.0.94",
     "simple-git-hooks": "^2.14.0",
-    "tinybench": "^6.2.3",
+    "tinybench": "^6.2.4",
     "typescript": "^7.0.2"
   },
   "simple-git-hooks": {
