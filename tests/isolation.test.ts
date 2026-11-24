@@ -581,7 +581,14 @@ describe('--test-isolation process in workerd mode', {
         ['--test-concurrency', '2'],
         { PW_TEST_BEACON: `http://127.0.0.1:${port}/` }
       )
-      await called.promise
+      // A run that ends first, like when workerd can't start, says why
+      const ended = await Promise.race([
+        called.promise.then(() => undefined),
+        running.then((proc) => proc),
+      ])
+      if (ended) {
+        throw new Error(`Ended before the second file ran:\n${output(ended)}`)
+      }
       // What it printed reaches the runner after the call
       await new Promise((resolve) => setTimeout(resolve, 500))
       running.kill('SIGINT')
