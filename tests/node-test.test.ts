@@ -202,6 +202,15 @@ describe('playwright-test/node-test', () => {
         ok(results.includes('pass declared outside of a test'), proc.stdout)
         ok(results.includes('fail throws right away'), proc.stdout)
         ok(results.includes('fail throws later'), proc.stdout)
+        for (const name of [
+          'inside the built suite',
+          'built in a test',
+          'builds a suite',
+          'runs while it is built',
+          'while a suite is built',
+        ]) {
+          ok(results.includes(`pass ${name}`), `${name}\n${proc.stdout}`)
+        }
         ok(results.includes('pass only fails its own test'), proc.stdout)
         is(proc.exitCode, 1, proc.stdout)
       })
@@ -223,7 +232,8 @@ describe('playwright-test/node-test', () => {
             `ORDER test() in first: test() can't tell which test it belongs to, these run at the same time: "getTestContext > first", "getTestContext > second". Call it before the first await of the test, or use the context of the test, like t.test().`,
             'ORDER one at a time: one again',
             'ORDER the other test runs',
-            'ORDER while a suite is built: unknown',
+            // Until the build ends, it's what runs after an await
+            'ORDER while a suite is built: built in a test',
             `ORDER test() outside of a test: test() can't tell which test it belongs to, these run at the same time: "code outside of the tests > opens", "code outside of the tests > runs with it". Call it before the first await of the test, or use the context of the test, like t.test().`,
           ],
           proc.stdout
@@ -233,6 +243,15 @@ describe('playwright-test/node-test', () => {
         ok(results.includes('fail runs with it'), proc.stdout)
         ok(results.includes('fail throws right away'), proc.stdout)
         ok(results.includes('fail throws later'), proc.stdout)
+        for (const name of [
+          'inside the built suite',
+          'built in a test',
+          'builds a suite',
+          'runs while it is built',
+          'while a suite is built',
+        ]) {
+          ok(results.includes(`pass ${name}`), `${name}\n${proc.stdout}`)
+        }
         ok(results.includes('pass only fails its own test'), proc.stdout)
         ok(
           output.includes(

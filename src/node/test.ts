@@ -1666,10 +1666,10 @@ function callAs<T>(test: Test, fn: () => T): T {
  * The test that global `test()` and hook calls, `getTestContext()` and uncaught
  * errors belong to. With async context that's known, like in Node.js, and what
  * runs outside of any test belongs to the root. Without it's the one whose
- * function runs right now, or the suite whose async body is being built, or the
- * innermost of what runs. When the `concurrency` option has more than one of
- * those at once, it's not possible to tell, and they're all returned, a suite
- * being built included.
+ * function runs right now, or the suite whose async body is being built, so its
+ * declarations after an `await` land in it, or the innermost of what runs. When
+ * the `concurrency` option has more than one of those at once, it's not
+ * possible to tell, and they're all returned.
  */
 function findCurrent(): Test | Test[] {
   const called = callStack.at(-1)
@@ -1679,13 +1679,14 @@ function findCurrent(): Test | Test[] {
   if (asyncContext) {
     return asyncContext.getStore() ?? root
   }
-  const innermost = innermostOf([...running])
-  if (innermost.length <= 1) {
-    return buildingCurrent ?? innermost[0] ?? root
+  if (buildingCurrent !== null) {
+    return buildingCurrent
   }
-  return buildingCurrent === null
-    ? innermost
-    : innermostOf([...running, buildingCurrent])
+  const innermost = innermostOf([...running])
+  if (innermost.length === 0) {
+    return root
+  }
+  return innermost.length === 1 ? innermost[0] : innermost
 }
 
 /** What isn't the parent of another one of them. */
