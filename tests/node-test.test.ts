@@ -201,6 +201,7 @@ describe('playwright-test/node-test', () => {
         // At the top level, like in node:test
         ok(results.includes('pass declared outside of a test'), proc.stdout)
         ok(results.includes('fail rejects while it is built'), proc.stdout)
+        ok(results.includes('fail rejects next to it'), proc.stdout)
         ok(results.includes('pass builds a todo suite'), proc.stdout)
         ok(results.includes('fail throws right away'), proc.stdout)
         ok(results.includes('fail throws later'), proc.stdout)
@@ -244,6 +245,12 @@ describe('playwright-test/node-test', () => {
         ok(results.includes('fail an unhandled rejection'), proc.stdout)
         ok(results.includes('fail runs with it'), proc.stdout)
         // Also when one of them is a suite being built
+        ok(
+          output.includes(
+            'ℹ An unhandled rejection happened while "a rejection next to a suite being built > rejects next to it", "a rejection next to a suite being built > a todo suite next to it" ran at the same time'
+          ),
+          output
+        )
         ok(
           results.includes(
             'fail an unhandled rejection while a suite is built'

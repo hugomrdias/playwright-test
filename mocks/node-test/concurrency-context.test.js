@@ -41,6 +41,34 @@ function attempt(fn) {
   }
 }
 
+// So only the test runner reports them
+globalThis.addEventListener?.('unhandledrejection', (event) =>
+  event.preventDefault()
+)
+
+// First, its body is built until the test next to it rejects, and the other
+// async bodies wait for it
+describe('a rejection next to a suite being built', {
+  concurrency: true,
+}, () => {
+  const building = gate()
+  const rejected = gate()
+
+  describe('a todo suite next to it', { todo: true }, async () => {
+    building.open()
+    await rejected.opened
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    it('inside the todo suite next to it', () => undefined)
+  })
+
+  it('rejects next to it', { timeout }, async () => {
+    await building.opened
+    Promise.reject(new Error('unhandled next to a build'))
+    rejected.open()
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  })
+})
+
 describe('getTestContext', { concurrency: true }, () => {
   const started = gate()
   const resumed = gate()
@@ -152,11 +180,6 @@ describe('an unhandled rejection while a suite is built', {
 }, () => {
   const building = gate()
   const rejected = gate()
-
-  // So only the test runner reports it
-  globalThis.addEventListener?.('unhandledrejection', (event) =>
-    event.preventDefault()
-  )
 
   it('builds a todo suite', { timeout }, async () => {
     await describe('a todo suite', { todo: true }, async () => {
