@@ -54,7 +54,7 @@ export interface RunnerOptions {
    * How test files are isolated, like `--test-isolation` of `node:test`.
    * `process` runs each file on its own, `none` runs all of them together and
    * they share globals and root hooks. In browsers each file gets a page of
-   * its own and in workerd a worker of its own. `--debug` and `--watch` in
+   * its own and in workerd a workerd of its own. `--debug` and `--watch` in
    * browsers run as `none`.
    *
    * @default 'process'

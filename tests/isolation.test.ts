@@ -1,4 +1,5 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
+import { once } from 'node:events'
 import fs from 'node:fs'
 import http from 'node:http'
 import type { AddressInfo } from 'node:net'
@@ -475,7 +476,7 @@ describe('--test-isolation process in workerd mode', {
   concurrency: TEST_CONCURRENCY,
 }, () => {
   for (const runner of ['mocha', 'node-test']) {
-    it(`${runner} runs each file in a worker of its own, by default`, async () => {
+    it(`${runner} runs each file in a workerd of its own, by default`, async () => {
       const files = [`${runner}-a`, `${runner}-b`]
       const [isolated, together] = await Promise.all([
         runIn('workerd', runner, files, ['--test-concurrency', '2']),
@@ -560,5 +561,24 @@ describe('--test-isolation process in workerd mode', {
     ok(proc.stderr.includes('Run timed out'), output(proc))
     ok(proc.stdout.includes('PAGE ORDER 2 written'), output(proc))
     ok(!proc.stdout.includes('ℹ files'), output(proc))
+  })
+
+  it('an interrupt ends every file, and prints what they held back', {
+    skip: process.platform === 'win32' && 'no SIGINT',
+  }, async () => {
+    const running = runIn(
+      'workerd',
+      'mocha',
+      ['mocha-hangs', 'page-order-2'],
+      ['--test-concurrency', '2']
+    )
+    // The first file prints its suite and hangs, the second one is done soon
+    await once(running.stdout, 'data')
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+    running.kill('SIGINT')
+    const proc = await running
+
+    is(proc.exitCode, 130, output(proc))
+    ok(proc.stdout.includes('PAGE ORDER 2 written'), output(proc))
   })
 })

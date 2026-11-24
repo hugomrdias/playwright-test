@@ -121,7 +121,19 @@ describe('workerd mode', () => {
     ok(proc.stdout.includes('ℹ pass 1\nℹ fail 1'), proc.stdout)
   })
 
-  it('gives each file a copy of the worker, with its own Durable Objects and KV', async () => {
+  it('gives each file the queue consumers of the worker', async () => {
+    const proc = await runWorkerd([
+      '--config',
+      'mocks/workerd/queue.config.mjs',
+      'test/queue-1.test.js',
+      'test/queue-2.test.js',
+    ])
+
+    is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
+    ok(proc.stdout.includes('ℹ files 2\nℹ pass 2'), proc.stdout)
+  })
+
+  it('gives each file a workerd of its own, with its own Durable Objects and KV', async () => {
     const [isolated, together] = await Promise.all([
       runWorkerd(['test/isolation-1.test.js', 'test/isolation-2.test.js']),
       runWorkerd([
