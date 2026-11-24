@@ -106,14 +106,6 @@ describe('runner options', () => {
       is(noBail.exitCode, 1, output(noBail))
       ok(noBail.stdout.includes('runs without bail'), output(noBail))
     })
-
-    it('applies to the autodetected runner', async () => {
-      const proc = await run('mocha-fails', [...mode, ...config])
-
-      ok(proc.stderr.includes('Autodetected "mocha"'), proc.stderr)
-      is(proc.exitCode, 1, output(proc))
-      ok(proc.stdout.includes('runs without bail'), output(proc))
-    })
   })
 
   describe('test timeout limits', { concurrency: TEST_CONCURRENCY }, () => {

@@ -61,7 +61,6 @@ function exitAfterWrites(code) {
 
 export const mocha: TestRunner = {
   name: 'mocha',
-  moduleId: 'mocha',
   options: {
     allowUncaught: false,
     bail: true,
@@ -125,8 +124,6 @@ const nodeTestHarnessFile = path.resolve(__dirname, `node/test-harness${EXT}`)
  */
 export const nodeTest: TestRunner = {
   name: 'node-test',
-  moduleId: 'node:test',
-  aliases: ['playwright-test/node-test'],
   options: {},
   buildConfig: (options) => {
     if (options.mode === 'node') {

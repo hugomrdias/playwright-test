@@ -20,7 +20,7 @@ const cwd = 'mocks/trace'
 const trace = path.join(cwd, 'playwright-test-trace-chromium.zip')
 
 function run(args: string[], env: Record<string, string> = {}) {
-  return runCli(['--cwd', cwd, ...args], {
+  return runCli(['--cwd', cwd, '--runner', 'mocha', ...args], {
     reject: false,
     timeout: 60_000,
     env,

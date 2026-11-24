@@ -82,16 +82,19 @@ describe('workerd mode', () => {
   })
 
   it('runs mocha files', async () => {
-    const proc = await runWorkerd(['test/worker.mocha.js'])
+    const proc = await runWorkerd(['test/worker.mocha.js', '--runner', 'mocha'])
 
     is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
     ok(proc.stdout.includes('1 passing'), proc.stdout)
   })
 
   it('runs without a worker config', async () => {
-    const proc = await runCli(['--mode', 'workerd', 'mocks/node.test.js'], {
-      reject: false,
-    })
+    const proc = await runCli(
+      ['--mode', 'workerd', '--runner', 'mocha', 'mocks/node.test.js'],
+      {
+        reject: false,
+      }
+    )
 
     is(proc.exitCode, 0, `${proc.stdout}\n${proc.stderr}`)
     ok(proc.stdout.includes('1 passing'), proc.stdout)

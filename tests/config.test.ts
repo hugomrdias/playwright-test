@@ -98,7 +98,7 @@ describe('config file', () => {
 }
 `)
 
-    const { options, logs } = await resolveCli([
+    const { options } = await resolveCli([
       fixture,
       '--config',
       file,
@@ -127,9 +127,8 @@ describe('config file', () => {
     // CLI flags beat the values returned by the config function
     is(options.mode, 'node')
     is(options.testNamePattern, 'alpha two')
-    // Runner autodetection runs when neither CLI nor config sets runner
-    is(options.runner, 'mocha')
-    ok(logs.includes('Autodetected "mocha"'), logs)
+    // The default runner when neither CLI nor config sets it
+    is(options.runner, 'node-test')
   })
 
   it('validates explicit CLI test flags before calling a config function', async () => {

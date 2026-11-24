@@ -7,7 +7,13 @@ for (const browser of ['firefox', 'webkit']) {
   describe(browser, { concurrency: TEST_CONCURRENCY }, () => {
     const flags = ['--browser', browser]
     const runs = {
-      mocha: ['./src/bin.ts', 'mocks/test.mocha.js', ...flags],
+      mocha: [
+        './src/bin.ts',
+        'mocks/test.mocha.js',
+        '--runner',
+        'mocha',
+        ...flags,
+      ],
       'playwright-test/node-test': [
         './src/bin.ts',
         'mocks/node-test/context.test.js',

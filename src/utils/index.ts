@@ -197,7 +197,7 @@ export const defaultOptions: Omit<RunnerOptions, 'testRunner'> = {
   debug: false,
   mode: 'browser', // or 'web-worker'
   input: undefined,
-  runner: 'none',
+  runner: 'node-test',
   sw: undefined,
   extensions: 'js,cjs,mjs,ts,tsx,jsx',
   runTimeout: DEFAULT_RUN_TIMEOUT,
