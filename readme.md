@@ -39,7 +39,7 @@ Description
     --run-timeout          Fail the run after this many milliseconds, 0 turns it off. Not used with --debug or --watch.  (default 1800000)
     --test-name-pattern    Only run tests whose name matches this regular expression or /expression/flags. Repeat it to run tests matching any of them.
     --test-timeout         Timeout in milliseconds for tests without their own, 0 for none.
-    --test-isolation       How test files are isolated: process runs each file on its own, none runs them together. --mode workerd runs them together for now.  (default process)
+    --test-isolation       How test files are isolated: process runs each file on its own, none runs them together.  (default process)
     --test-concurrency     How many test files run at once with --test-isolation process.  (default os.availableParallelism() - 1)
     --trace                Save a Playwright trace to playwright-test-trace-<browser>.zip in --cwd, open it with `npx playwright show-trace`. Alone it only keeps the trace of a failed run, `--trace on` always keeps it. Values other than `off` fail with --mode node or workerd; ignored with --debug and --watch.  (default off)
     --config               Path to the config file
@@ -121,7 +121,7 @@ Without a config the tests run in an empty worker. The `workerd` key of the conf
 
 The http server of `--assets` runs as in the other modes, tests fetch its files from `process.env.PW_SERVER`.
 
-`--sw`, `--trace` and `--watch` don't work in this mode, and neither do the static assets of `cloudflare.config.ts`, it doesn't say where their files are. A test that never settles fails the run, workerd cancels the request it runs in.
+`--sw`, `--trace` and `--watch` don't work in this mode, and neither do the static assets of `cloudflare.config.ts`, it doesn't say where their files are. A test that never settles fails its file, workerd cancels the request it runs in.
 
 ## `node:test` API
 
@@ -208,7 +208,7 @@ These aren't implemented and throw an error that names them, they never silently
 - A throw in a root `after` hook fails the run, it exits with 0 in `node:test`.
 - A root `after` hook runs when the whole run ends, `node:test` can run it earlier when using top level `await`.
 - There's no async context in browsers, so a running test is what's used to find out where things belong. A global `test()` call while a test is running creates a subtest of that test, and an uncaught error fails the running test even when an earlier test caused it. Only one async `describe` body runs at a time, the others wait for it.
-- In browsers, web workers and workerd all the files of a run share the root hooks, like `--test-isolation=none`.
+- With `--debug` and `--watch` in browsers all the files of a run share the root hooks, like `--test-isolation=none`.
 - A top level `await test()` runs before anything else, so an `.only` declared later doesn't filter it. A test declared after the run ended throws.
 - Awaiting `t.test()` on a test that already finished resolves and the subtest fails, it hangs in `node:test`.
 - `t.assert` always counts for `t.plan()`, in `node:test` it doesn't if it was read before calling `t.plan()`.
@@ -405,11 +405,12 @@ playwright-test "test/**" --runner node-test --mode node --test-concurrency 2
 playwright-test "test/**" --test-isolation none
 ```
 
-`process` is the default. For now workerd runs the files together like `none`, and warns when `process` is set explicitly. Both can also be set as `testIsolation` and `testConcurrency` in the config file.
+`process` is the default. Both can also be set as `testIsolation` and `testConcurrency` in the config file.
 
 - `node-test` runs the files with `run()` of `node:test`, like `node --test --test-isolation=process`. `playwright-test/node-test` is the real `node:test` in them, so the output is the one of `node --test`.
 - `mocha` and `none` run each file in a process of its own. With more than one at once, what a file prints waits until it ends, and the files come out in their order. After them a summary counts the files that passed, failed, were cancelled or didn't run, and names the ones that failed. Mocha's `bail`, on by default, ends the files still running when one fails and skips the rest.
 - In `browser` and `web-worker` mode each file runs in a page of its own, all of them in the one browser context, so they share storage, cookies and service workers. In `web-worker` mode the page starts the worker of its file. The pages get reused for the next files, and the output, the summary and `bail` work like in node mode. Each file gets its own bundle, the code they share is bundled once. `--debug` and `--watch` still run the files together in the one test page.
+- In `workerd` mode each file runs in a workerd of its own, started with Miniflare from the same config, like the Cloudflare Vitest plugin does. Its bindings, Durable Objects, KV, queues and the rest, start empty for each file. Starting one takes around 200 ms, `--test-concurrency` of them run at once. The output, the summary and `bail` work like in node mode.
 - Each file is a run of its own for `mocha`: `.only` only filters the file it's in, and a reporter prints a report for each file, so `json` gives one document per file followed by the summary. `--test-isolation none` keeps one run for all the files.
 
 ### AI agents

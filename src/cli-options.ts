@@ -193,18 +193,6 @@ function validateOptions(options: RunnerOptions) {
   validateTestOptions(options)
 }
 
-/**
- * Workerd doesn't run each file on its own yet, it runs the files together.
- * Said only when asked for, it's also the default.
- */
-function warnUnsupportedIsolation({ mode }: RunnerOptions, requested: unknown) {
-  if (requested === 'process' && mode === 'workerd') {
-    log.warn(
-      `--test-isolation process isn't supported in --mode ${mode} yet, the files run together like --test-isolation none.`
-    )
-  }
-}
-
 function warnUnsupportedTestOptions({
   runner,
   testNamePattern,
@@ -330,7 +318,7 @@ function program() {
     )
     .option(
       '--test-isolation',
-      'How test files are isolated: process runs each file on its own, none runs them together. --mode workerd runs them together for now.  (default process)'
+      'How test files are isolated: process runs each file on its own, none runs them together.  (default process)'
     )
     .option(
       '--test-concurrency',
@@ -465,7 +453,6 @@ export async function resolveOptions(
 
   options.runner ??= autoDetectTestRunner(testFiles)
   warnUnsupportedTestOptions(options)
-  warnUnsupportedIsolation(options, options.testIsolation)
   options.testIsolation ??= 'process'
 
   return { options, testFiles, watch: Boolean(opts.watch) }
