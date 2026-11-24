@@ -461,7 +461,7 @@ Before v16 the runner was detected from the test files. Upgrading, set it for an
 
 ## Flow control
 
-`mocha` and `node-test` end the run by themselves when their tests are done, you don't need to call a special function or trigger any event in your tests. The `none` runner only loads the files, so in browsers a script ends the run itself, with `process.exit` below. In node mode the run also ends when the event loop of the script drains, like plain Node.
+`mocha` and `node-test` end the run by themselves when their tests are done, you don't need to call a special function or trigger any event in your tests. The `none` runner only loads the files, so in browsers, web workers and workerd a script ends the run itself, with `process.exit` below. In node mode the run also ends when the event loop of the script drains, like plain Node.
 
 To manually stop the run you can use `process.exit`:
 
