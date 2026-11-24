@@ -1,12 +1,14 @@
 # playwright-test [![NPM Version](https://img.shields.io/npm/v/playwright-test.svg)](https://www.npmjs.com/package/playwright-test) [![NPM Downloads](https://img.shields.io/npm/dt/playwright-test.svg)](https://www.npmjs.com/package/playwright-test) [![NPM License](https://img.shields.io/npm/l/playwright-test.svg)](https://www.npmjs.com/package/playwright-test) ![tests](https://github.com/hugomrdias/playwright-test/workflows/tests/badge.svg)
 
-> Run mocha and `node:test` scripts inside real browsers with `playwright`.
+> Run mocha and `node:test` scripts inside real browsers with `playwright`, in Node.js and in workerd.
 
 ## Install
 
 ```shell
-pnpm install playwright-test
+pnpm install -D playwright-test
 ```
+
+It needs Node.js 24 or newer. `--mode workerd` also needs [`cf`](#workerd-mode), an optional peer dependency.
 
 Every pull request and commit to `master` is also published to [pkg.pr.new](https://pkg.pr.new), the pull request comment has the install command for it, and the latest `master` is always at:
 
@@ -224,25 +226,6 @@ These aren't implemented and throw an error that names them, they never silently
 - A failed hook of a suite or a root hook counts in `ℹ fail`, in `node:test` it fails the run without counting.
 - `t.filePath` and `t.workerId` are `undefined`.
 
-### Migrating from `playwright-test/taps`
-
-`playwright-test/taps` and `--runner taps` are gone, the API is the one from `node:test`:
-
-| `playwright-test/taps`                        | `node:test`                                                                                                   |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `test(name, fn, options)`                     | `test(name, options, fn)`. Options in the old position are **silently ignored**, a `{ skip: true }` test runs |
-| `const s = suite('x'); s('a', fn)`            | `describe('x', () => { it('a', fn) })`                                                                        |
-| `suite('x').skip`, `suite('x').only`          | `describe.skip('x', fn)`, `describe.only('x', fn)`                                                            |
-| `s.before(fn)` and the other hooks of a suite | `before(fn)` inside of `describe`                                                                             |
-| `import { assert } from ...`                  | `import assert from 'playwright-test/node-assert'`, or `node:assert/strict` in tests for node mode only       |
-| `assert.type(x, 'string')`                    | `assert.equal(typeof x, 'string')`                                                                            |
-| `assert.instance(x, Date)`                    | `assert.ok(x instanceof Date)`                                                                                |
-| `assert.subset(a, b)`                         | `assert.partialDeepStrictEqual(a, b)`, it doesn't take compare functions                                      |
-| A default timeout of 5 seconds                | No default timeout, use `--test-timeout`. Otherwise a test that hangs in a browser waits for `--run-timeout`  |
-| `exec`, `hold` and `configure`                | Not available, tests start by themselves                                                                      |
-
-Failures that used to pass are reported now: rejecting with nothing, uncaught errors in browsers, and tests declared inside of a test or after the run started.
-
 ## `node:assert` API
 
 `playwright-test/node-assert` is `node:assert/strict` for tests that also run in browsers. In Node it's the built-in, in browsers it's an implementation ported from Node. `t.assert` of `playwright-test/node-test` uses it too, with the loose `equal` and `deepEqual` that `t.assert` has in `node:test`.
@@ -301,6 +284,15 @@ Bundles resolve `path` and `path/posix`, also with the `node:` prefix, to [`path
 
 It only has POSIX paths: `path.win32` is `null`, and `path/win32` and other subpaths fail when bundling. `path.matchesGlob` doesn't exist, and relative paths resolve from `/`, which is what `process.cwd()` returns in browsers.
 
+## HTTP server
+
+Every run starts an http server on a free port of `127.0.0.1`. The test page of the browser modes is served from it and tests get its url in `process.env.PW_SERVER`, or `server` of the [client](#client), in every mode. It serves the files of the run first and then the files of `--assets`, a folder relative to `--cwd` that defaults to `--cwd` itself.
+
+- A folder serves its `index.html`.
+- A path is served as it is. Since v16 a path without an extension no longer falls back to `<path>.html` or `<path>.htm`, request the file by its name.
+- Responses have `Cache-Control: no-store`, and single byte ranges work, also suffix ranges like `bytes=-100`.
+- `.gz` and `.br` files are sent as they are, without a `Content-Encoding`.
+
 ## Stack traces
 
 Browsers don't apply source maps to `Error.stack`, so the runner maps stack traces in everything the page prints: `console`, `process.stdout`, `process.stderr` and uncaught exceptions. This works the same in every browser and mode. Frames from the runner and its test runners are removed from the failures they report, here and in node mode.
@@ -310,6 +302,10 @@ Reading `error.stack` inside the page gives positions in the bundle.
 ## Client
 
 This client package exposes the `playwright-test` options, some Playwright browser context methods and trusted input on the test page to be used in tests.
+
+- `mode`, the `--mode` of the run, and `options`, all the options of the run.
+- `server`, the url of the [http server](#http-server), and `env`, the environment of the run.
+- `context` and `page`, below.
 
 ```ts
 import * as Client from 'playwright-test/client'
@@ -403,6 +399,23 @@ playwright-test test.js --test-timeout 10000
 
 Both can also be set as `testNamePattern` and `testTimeout` in the config file.
 
+Without `--test-timeout` mocha keeps its own default of 5 seconds, set `timeout` in `testRunner.options` to change it. `node-test` has no default timeout.
+
+Nothing else is forwarded, an unknown flag is an error. Whatever else a runner takes goes in the config file, under `testRunner.options`. It applies to the runner in use, from `--runner`, `runner` in the config file or the default `node-test`:
+
+```js
+// playwright-test.config.js
+export default {
+  testRunner: {
+    options: {
+      bail: false, // mocha
+      ui: 'tdd', // mocha
+      reporter: 'tap', // the real node:test in node mode
+    },
+  },
+}
+```
+
 ### Test isolation
 
 Like `node:test`, `--test-isolation process` runs each test file on its own, with its own globals and root hooks, and `--test-concurrency` sets how many files run at once. `--test-isolation none` runs all the files together in one place, where they share globals and root hooks, and `--test-concurrency` is ignored.
@@ -426,21 +439,6 @@ When an AI agent drives the run, detected with [`std-env`](https://github.com/un
 
 Our own output also has no colors in an agent unless `FORCE_COLOR` is set. Colors printed by tests aren't changed.
 
-Nothing else is forwarded, an unknown flag is an error. Whatever else a runner takes goes in the config file, under `testRunner.options`. It applies to the runner in use, from `--runner`, `runner` in the config file or the default `node-test`:
-
-```js
-// playwright-test.config.js
-export default {
-  testRunner: {
-    options: {
-      bail: false, // mocha
-      ui: 'tdd', // mocha
-      reporter: 'tap', // the real node:test in node mode
-    },
-  },
-}
-```
-
 ## Choosing the runner
 
 The runner is `node-test` unless `--runner`, or `runner` in the config file, sets another one. `--runner` wins over the config file:
@@ -459,7 +457,7 @@ Before v16 the runner was detected from the test files. Upgrading, set it for an
 
 ## Flow control
 
-All test runners support automatic flow control, which means you don't need to call special function or trigger any event in your tests to stop the run. The `none` runner does not support flow control.
+`mocha` and `node-test` end the run by themselves when their tests are done, you don't need to call a special function or trigger any event in your tests. The `none` runner only loads the files, so ending the run is up to the script, with `process.exit` below.
 
 To manually stop the run you can use `process.exit`:
 
@@ -501,6 +499,8 @@ pw-test.config.mjs,
 .config/pw-testrc.cjs
 .config/pw-testrc.mjs
 ```
+
+`.config/playwright-testrc` and `.config/pw-testrc`, without an extension, are also read as JSON.
 
 Config files follow the module rules of Node.js: `.mjs` uses `export default`, `.cjs` uses `module.exports`, and `.js` depends on the `type` in your `package.json`.
 
