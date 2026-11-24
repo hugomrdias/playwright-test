@@ -7,11 +7,13 @@ on:
   pull_request:
     branches: [master]
 
-# A push to a pull request cancels its previous run, every commit to master
-# gets its own group so none of them miss a preview
+# A push to a pull request cancels its previous run. Master runs queue one at a
+# time in push order, so every commit gets a preview and `@master` never goes
+# back to an older one
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  queue: ${{ github.event_name == 'pull_request' && 'single' || 'max' }}
 
 permissions:
   contents: read
