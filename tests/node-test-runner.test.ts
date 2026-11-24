@@ -2,6 +2,7 @@ import { strictEqual as is, ok } from 'node:assert/strict'
 import { after, before, describe, it } from 'node:test'
 import type { Result } from 'execa'
 import fs from 'fs'
+import { pathToFileURL } from 'url'
 import { isRunning } from '../src/utils/process.ts'
 import { runCli, TEST_CONCURRENCY } from './helpers.ts'
 
@@ -269,7 +270,7 @@ describe('node:test runner', () => {
 
     it('the files get the NODE_OPTIONS of the tests, also when beforeTests changes it', async () => {
       const dir = fs.mkdtempSync('mocks/tmp-node-options-')
-      const preload = `${process.cwd()}/${dir}/preload.js`
+      const preload = `${dir}/preload.js`
       fs.writeFileSync(
         preload,
         "if (process.argv[1]?.endsWith('a.test.js')) console.log('PRELOADED')\n"
@@ -285,7 +286,8 @@ describe('node:test runner', () => {
       const cli = (args: string[]) =>
         runCli(['a.test.js', '--mode', 'node', '--cwd', dir, ...args], {
           reject: false,
-          env: { NODE_OPTIONS: `--import ${preload}` },
+          // A URL, an absolute path of Windows isn't one
+          env: { NODE_OPTIONS: `--import ${pathToFileURL(preload).href}` },
         })
       try {
         const kept = await cli([])
