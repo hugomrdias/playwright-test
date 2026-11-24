@@ -3,12 +3,11 @@ import { describe, it } from 'node:test'
 import { runCli, TEST_CONCURRENCY } from './helpers.ts'
 
 describe('mocha', { concurrency: TEST_CONCURRENCY }, () => {
-  it('is autodetected', async () => {
-    const proc = await runCli(['mocks/test.mocha.js'])
+  it('runs with --runner mocha', async () => {
+    const proc = await runCli(['mocks/test.mocha.js', '--runner', 'mocha'])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('passing'), 'process stdout')
-    ok(proc.stderr.includes('Autodetected "mocha" as the runner'), proc.stderr)
   })
 
   it('fixtures', async () => {
@@ -19,7 +18,7 @@ describe('mocha', { concurrency: TEST_CONCURRENCY }, () => {
   })
 
   it('with DEBUG=app', async () => {
-    const proc = await runCli(['mocks/test.mocha.js'], {
+    const proc = await runCli(['mocks/test.mocha.js', '--runner', 'mocha'], {
       env: { DEBUG: 'app' },
     })
 
@@ -29,7 +28,13 @@ describe('mocha', { concurrency: TEST_CONCURRENCY }, () => {
   })
 
   it('mode:web-worker', async () => {
-    const proc = await runCli(['mocks/test.mocha.js', '--mode', 'web-worker'])
+    const proc = await runCli([
+      'mocks/test.mocha.js',
+      '--runner',
+      'mocha',
+      '--mode',
+      'web-worker',
+    ])
 
     is(proc.exitCode, 0, 'exit code')
     ok(proc.stdout.includes('passing'), 'process stdout')
@@ -40,6 +45,8 @@ describe('mocha', { concurrency: TEST_CONCURRENCY }, () => {
     it(`--sw from ${config}`, async () => {
       const proc = await runCli([
         'mocks/sw/sw-test.js',
+        '--runner',
+        'mocha',
         '--sw',
         'mocks/sw/sw.js',
         '--config',

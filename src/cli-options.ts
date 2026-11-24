@@ -7,7 +7,6 @@ import sade from 'sade'
 import { isAgent } from 'std-env'
 import { fileURLToPath, pathToFileURL } from 'url'
 import type { RunnerOptions } from './types.ts'
-import { detectTestRunners } from './utils/auto-detect.ts'
 import { colors } from './utils/colors.ts'
 import {
   assertRunTimeout,
@@ -33,32 +32,6 @@ const loadEsm = async (filepath: string) => {
   }
 
   return res
-}
-
-/**
- * Pick the test runner from what the test files use, or `none`.
- */
-function autoDetectTestRunner(testFiles: string[]): RunnerOptions['runner'] {
-  const found = detectTestRunners(testFiles)
-
-  if (found.size > 1) {
-    const list = [...found].map(
-      ([runner, file]) => `"${runner.moduleId}" (${file})`
-    )
-    throw new UsageError(
-      `Found more than one test runner: ${list.join(', ')}. Choose one with --runner or runner in the config file.`
-    )
-  }
-
-  const [runner] = found.keys()
-  if (runner) {
-    log.info(`Autodetected "${runner.moduleId}" as the runner.`)
-    return runner.name
-  }
-  if (testFiles.length > 0) {
-    log.warn('Could not find a test runner. Using "none".')
-  }
-  return 'none'
 }
 
 const KNOWN_FLAGS = new Set([
@@ -279,7 +252,7 @@ function program() {
     )
     .option(
       '-r, --runner',
-      'Test runner. Options: mocha, node-test and none, which only loads the files and is for scripts like benchmarks. Autodetected by default.'
+      `Test runner. Options: node-test, mocha and none, which only loads the files and is for scripts like benchmarks.  (default ${defaultOptions.runner})`
     )
     .option(
       '-b, --browser',
@@ -451,7 +424,8 @@ export async function resolveOptions(
 
   validateOptions(options)
 
-  options.runner ??= autoDetectTestRunner(testFiles)
+  // Not in cliDefaults, a config function sees whether --runner was set
+  options.runner ??= defaultOptions.runner
   warnUnsupportedTestOptions(options)
   options.testIsolation ??= 'process'
 

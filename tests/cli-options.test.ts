@@ -290,18 +290,11 @@ describe('runner in the config file', () => {
   const file = `${FLOW}/config-runner.js`
   const config = ['--config', `${FLOW}/runner-mocha.config.mjs`]
 
-  it('picks the runner, without auto detection', async () => {
+  it('picks the runner', async () => {
     for (const mode of ['browser', 'node']) {
-      const { options, logs } = await resolveCli([
-        file,
-        ...config,
-        '--mode',
-        mode,
-      ])
+      const { options } = await resolveCli([file, ...config, '--mode', mode])
 
       is(options.runner, 'mocha')
-      ok(!logs.includes('Autodetected'), logs)
-      ok(!logs.includes('Could not find'), logs)
     }
   })
 

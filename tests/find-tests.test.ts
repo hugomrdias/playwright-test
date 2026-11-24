@@ -219,8 +219,6 @@ describe('cli', () => {
 
         exited(proc, 1)
         ok(proc.stderr.includes('No test files were found'), proc.stderr)
-        // Before runner auto detection
-        ok(!proc.stderr.includes('Using "none"'), proc.stderr)
       })
 
       it('exits with 1 with --debug too', async () => {

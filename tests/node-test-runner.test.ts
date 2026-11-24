@@ -35,18 +35,14 @@ describe('node:test runner', () => {
         }
       })
 
-      it('is autodetected', async () => {
+      it('is the default runner', async () => {
         const proc = await run('pass', mode, [])
 
         is(proc.exitCode, 0, output(proc))
-        ok(
-          proc.stderr.includes('Autodetected "node:test" as the runner'),
-          proc.stderr
-        )
         ok(proc.stdout.includes('passes in a suite'), output(proc))
       })
 
-      it('fails when a test fails, also autodetected', async () => {
+      it('fails when a test fails, also by default', async () => {
         const procs = await Promise.all(
           [['--runner', 'node-test'], []].map((args) => run('fail', mode, args))
         )
@@ -67,10 +63,6 @@ describe('node:test runner', () => {
         const proc = await run('entrypoint-fail', mode, [])
 
         is(proc.exitCode, 1, output(proc))
-        ok(
-          proc.stderr.includes('Autodetected "node:test" as the runner'),
-          proc.stderr
-        )
         ok(proc.stdout.includes('must fail on the entrypoint'), output(proc))
       })
 

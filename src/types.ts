@@ -4,8 +4,7 @@ import type { BrowserContextOptions, LaunchOptions } from 'playwright-core'
 export interface RunnerOptions {
   input?: string[]
   /**
-   * The test runner, `--runner` wins over it. Autodetected from the test files
-   * when neither is set.
+   * The test runner, `--runner` wins over it. Defaults to `node-test`.
    */
   runner?: 'mocha' | 'node-test' | 'none'
   testRunner: TestRunner
@@ -183,15 +182,6 @@ export interface CompilerOutput {
  */
 export interface TestRunner {
   name: NonNullable<RunnerOptions['runner']>
-  /**
-   * Module ID of the runner, also what auto detection looks for. `none` has no
-   * module to look for.
-   */
-  moduleId?: string
-  /**
-   * Other module IDs that also tell a test file uses this runner.
-   */
-  aliases?: string[]
   /**
    * Options for the runner, from `testRunner.options` in the config file.
    */

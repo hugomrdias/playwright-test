@@ -98,7 +98,6 @@
   },
   "dependencies": {
     "@jridgewell/trace-mapping": "^0.3.31",
-    "acorn-loose": "^8.5.2",
     "chokidar": "^6.0.0",
     "esbuild": "0.28.2",
     "esbuild-plugin-wasm": "^1.1.0",

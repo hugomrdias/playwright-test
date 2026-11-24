@@ -33,7 +33,7 @@ Description
     $ playwright-test [files] [options]
 
   Options
-    -r, --runner           Test runner. Options: mocha, node-test and none, which only loads the files and is for scripts like benchmarks. Autodetected by default, see [auto detection](#runner-auto-detection).
+    -r, --runner           Test runner. Options: node-test, mocha and none, which only loads the files and is for scripts like benchmarks.  (default node-test)
     -b, --browser          Browser to run tests. Options: chromium, firefox, webkit.  (default chromium)
     -m, --mode             Run mode. Options: browser, web-worker, node and workerd.  (default browser)
     -d, --debug            Debug mode, keeps browser window open.  (default false)
@@ -166,12 +166,12 @@ test('mocks', { timeout: 1000 }, (t) => {
 })
 ```
 
-Run it with the `node-test` runner, it's also autodetected from an import of `node:test` or `playwright-test/node-test`:
+`node-test` is the default runner:
 
 ```shell
-playwright-test "test/**/*.test.js" --runner node-test
-playwright-test "test/**/*.test.js" --runner node-test --mode web-worker
-playwright-test "test/**/*.test.js" --runner node-test --mode node
+playwright-test "test/**/*.test.js"
+playwright-test "test/**/*.test.js" --mode web-worker
+playwright-test "test/**/*.test.js" --mode node
 ```
 
 Files can import `node:test` instead, and they don't need to change to run anywhere:
@@ -408,7 +408,7 @@ Both can also be set as `testNamePattern` and `testTimeout` in the config file.
 Like `node:test`, `--test-isolation process` runs each test file on its own, with its own globals and root hooks, and `--test-concurrency` sets how many files run at once. `--test-isolation none` runs all the files together in one place, where they share globals and root hooks, and `--test-concurrency` is ignored.
 
 ```shell
-playwright-test "test/**" --runner node-test --mode node --test-concurrency 2
+playwright-test "test/**" --mode node --test-concurrency 2
 playwright-test "test/**" --test-isolation none
 ```
 
@@ -426,7 +426,7 @@ When an AI agent drives the run, detected with [`std-env`](https://github.com/un
 
 Our own output also has no colors in an agent unless `FORCE_COLOR` is set. Colors printed by tests aren't changed.
 
-Nothing else is forwarded, an unknown flag is an error. Whatever else a runner takes goes in the config file, under `testRunner.options`. It applies to the runner in use, from `--runner`, `runner` in the config file or auto detection:
+Nothing else is forwarded, an unknown flag is an error. Whatever else a runner takes goes in the config file, under `testRunner.options`. It applies to the runner in use, from `--runner`, `runner` in the config file or the default `node-test`:
 
 ```js
 // playwright-test.config.js
@@ -441,9 +441,9 @@ export default {
 }
 ```
 
-## Runner auto detection
+## Choosing the runner
 
-The runner comes from `--runner`, or `runner` in the config file:
+The runner is `node-test` unless `--runner`, or `runner` in the config file, sets another one. `--runner` wins over the config file:
 
 ```js
 // playwright-test.config.js
@@ -452,12 +452,10 @@ export default {
 }
 ```
 
-Without either, every test file is read to find the runner:
+Before v16 the runner was detected from the test files. Upgrading, set it for anything that isn't `node:test`:
 
-- A file importing the module of a runner asks for it, through `import`, `require()` or `import()`. Only the exact module counts, `mocha/mocha.js` isn't `mocha`, and neither do type only imports.
-- A top level call to `describe` or `it`, also `.only` and `.skip`, asks for `mocha`, unless the file declares or imports that name itself.
-- When nothing asks for a runner it's `none`, with a warning.
-- When files ask for different runners it's an error that names them.
+- Mocha suites need `--runner mocha`, without it they fail with `describe is not defined`.
+- Scripts that use no runner, and were run with `none` before, need `--runner none`. In browsers, web workers and workerd, `node-test` doesn't wait for timers or other work a file leaves behind once the files are loaded and their tests are done, so a script without tests that only fails later, for example with `process.exit(1)` in a `setTimeout`, passes. `--mode node` waits for them.
 
 ## Flow control
 
