@@ -5,8 +5,6 @@ import type {
   BuildOptions as ESBuildOptions,
   Plugin as ESBuildPlugin,
 } from 'esbuild'
-import esbuild from 'esbuild'
-import { wasmLoader } from 'esbuild-plugin-wasm'
 import fs from 'fs'
 import type { Server } from 'http'
 import { createRequire } from 'module'
@@ -759,6 +757,11 @@ ${template}
         },
         outfile: path.join(runner.files, 'bundle-out.js'),
       }
+  // Here and not at the top, node mode never bundles
+  const [{ default: esbuild }, { wasmLoader }] = await Promise.all([
+    import('esbuild'),
+    import('esbuild-plugin-wasm'),
+  ])
   const defaultOptions: ESBuildOptions = {
     ...output,
     bundle: true,

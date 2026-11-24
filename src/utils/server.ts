@@ -1,11 +1,10 @@
 import fs from 'node:fs'
-import {
-  createServer,
-  type IncomingMessage,
-  type Server,
-  type ServerResponse,
-} from 'node:http'
+import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import path from 'node:path'
+
+// Not imported, an import of `node:http` takes ~30ms: Node.js syncs all of its
+// exports to the module, and one of them is a getter that loads undici
+const { createServer } = process.getBuiltinModule('node:http')
 
 /**
  * Content types by extension. Scripts must be JavaScript for module scripts,

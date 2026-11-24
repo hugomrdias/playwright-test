@@ -5,7 +5,6 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
-import { watch } from 'chokidar'
 import {
   BaseRunner,
   REMOVE_WAIT,
@@ -25,6 +24,7 @@ import {
 } from '../utils/process.ts'
 import { startServer } from '../utils/server.ts'
 import { runEachFile } from './each-file.ts'
+import { canRunInProcess, runIsolated } from './node-test-run.ts'
 
 // What a killed subprocess gets after its forced kill, to end
 const EXIT_WAIT = 1000
@@ -172,8 +172,7 @@ export class NodeRunner extends BaseRunner {
       tests = this.#track(this.#spawnTogether(this.tests))
     } else if (testRunner.name === 'node-test') {
       // `run()` of `node:test` isolates the files itself
-      const workers = new Workers()
-      tests = this.#track(this.#spawnIsolated(workers), workers)
+      tests = this.#runIsolated()
     } else {
       tests = this.#runEachFile()
     }
@@ -252,44 +251,74 @@ export class NodeRunner extends BaseRunner {
   }
 
   /**
-   * Each file in its own process, with `run()` of `node:test`.
+   * Each file in its own process, with `run()` of `node:test` in this process
+   * when it can, else in one more process with the env of the tests.
    */
-  #spawnIsolated(workers: Workers) {
+  #runIsolated(): Tests {
     const { testConcurrency, testNamePattern, testRunner, testTimeout } =
       this.options
     const { reporter } = (testRunner.options ?? {}) as {
       reporter?: string | string[]
     }
+    const workers = new Workers()
     const env = withLocalBins(this.env, this.options.cwd)
     // From a test of node:test it would think it's one of its workers, and
     // skip the files as a recursive run
     delete env.NODE_TEST_CONTEXT
     env.PW_WORKER_PIDS = workers.dir
+    const options = {
+      files: this.tests.map((t) => path.resolve(this.options.cwd, t)),
+      imports: [pathToFileURL(isolatedFile).href],
+      concurrency: testConcurrency,
+      testNamePatterns: toPatterns(testNamePattern),
+      // 0 is no timeout, for node that's a test that always times out
+      timeout: testTimeout || undefined,
+      reporters: [reporter ?? []].flat(),
+    }
 
-    const child = spawn(
-      process.execPath,
-      ['--enable-source-maps', isolatedRun],
-      {
-        cwd: this.options.cwd,
-        env,
-        stdio: ['pipe', 'inherit', 'inherit'],
-      }
-    )
-    child.stdin.on('error', () => {
-      // noop
-    })
-    child.stdin.end(
-      JSON.stringify({
-        files: this.tests.map((t) => path.resolve(this.options.cwd, t)),
-        imports: [pathToFileURL(isolatedFile).href],
-        concurrency: testConcurrency,
-        testNamePatterns: toPatterns(testNamePattern),
-        // 0 is no timeout, for node that's a test that always times out
-        timeout: testTimeout || undefined,
-        reporters: [reporter ?? []].flat(),
+    if (!canRunInProcess(env, options.reporters)) {
+      const child = spawn(
+        process.execPath,
+        ['--enable-source-maps', isolatedRun],
+        {
+          cwd: this.options.cwd,
+          env,
+          stdio: ['pipe', 'inherit', 'inherit'],
+        }
+      )
+      child.stdin.on('error', () => {
+        // noop
       })
-    )
-    return child
+      child.stdin.end(JSON.stringify(options))
+      return this.#track(child, workers)
+    }
+
+    const controller = new AbortController()
+    const finished = runIsolated({
+      ...options,
+      cwd: this.options.cwd,
+      env,
+      signal: controller.signal,
+    }).catch((error: Error) => {
+      log.error(`Could not start tests: ${error.message}`)
+      return false
+    })
+    // The files are gone once it ends by itself
+    finished.then(() => workers.remove())
+    return {
+      finished,
+      async stop() {
+        controller.abort()
+        await Promise.all([
+          withTimeout(finished, FORCE_KILL_DELAY + EXIT_WAIT),
+          workers.end(),
+        ])
+      },
+      kill() {
+        controller.abort()
+        workers.kill()
+      },
+    }
   }
 
   async run() {
@@ -359,7 +388,9 @@ export class NodeRunner extends BaseRunner {
       restarting = false
     }
 
-    // Watch for changes in the project, ignoring dot folders and node_modules
+    // Watch for changes in the project, ignoring dot folders and node_modules.
+    // Imported here, only --watch needs it.
+    const { watch } = await import('chokidar')
     watch(cwd, {
       ignored: (file, stats) => {
         const rel = path.relative(cwd, file)

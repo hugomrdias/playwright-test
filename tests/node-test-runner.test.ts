@@ -2,6 +2,7 @@ import { strictEqual as is, ok } from 'node:assert/strict'
 import { after, before, describe, it } from 'node:test'
 import type { Result } from 'execa'
 import fs from 'fs'
+import { pathToFileURL } from 'url'
 import { isRunning } from '../src/utils/process.ts'
 import { runCli, TEST_CONCURRENCY } from './helpers.ts'
 
@@ -225,6 +226,88 @@ describe('node:test runner', () => {
         const proc = await cli('only-import-reporter')
         is(proc.exitCode, 0, output(proc))
         ok(proc.stdout.includes('REPORTED writes'), output(proc))
+      } finally {
+        fs.rmSync(dir, { recursive: true })
+      }
+    })
+
+    it('a reporter of the project runs in the project, with the env of the tests', async () => {
+      const dir = fs.mkdtempSync('mocks/tmp-reporter-context-')
+      fs.writeFileSync(
+        `${dir}/context-reporter.js`,
+        "import path from 'node:path'\nexport default async function* (source) { for await (const event of source) { if (event.type === 'test:pass') yield 'CONTEXT ' + path.basename(process.cwd()) + ' ' + process.env.FROM_BEFORE + '\\n' } }\n"
+      )
+      fs.writeFileSync(
+        `${dir}/a.test.js`,
+        "import { test } from 'node:test'\ntest('passes', () => {})\n"
+      )
+      fs.writeFileSync(
+        `${dir}/reporter.config.js`,
+        "export default { beforeTests: (env) => { env.FROM_BEFORE = 'set' }, testRunner: { options: { reporter: './context-reporter.js' } } }\n"
+      )
+      try {
+        const proc = await runCli(
+          [
+            'a.test.js',
+            '--mode',
+            'node',
+            '--cwd',
+            dir,
+            '--config',
+            `${dir}/reporter.config.js`,
+          ],
+          { reject: false }
+        )
+        is(proc.exitCode, 0, output(proc))
+        ok(
+          proc.stdout.includes(`CONTEXT ${dir.split('/').pop()} set`),
+          output(proc)
+        )
+      } finally {
+        fs.rmSync(dir, { recursive: true })
+      }
+    })
+
+    it('the files get the NODE_OPTIONS of the tests, also when the config or beforeTests changes it', async () => {
+      const dir = fs.mkdtempSync('mocks/tmp-node-options-')
+      const preload = `${dir}/preload.js`
+      fs.writeFileSync(
+        preload,
+        "if (process.argv[1]?.endsWith('a.test.js')) console.log('PRELOADED')\n"
+      )
+      fs.writeFileSync(
+        `${dir}/a.test.js`,
+        "import { test } from 'node:test'\ntest('passes', () => {})\n"
+      )
+      fs.writeFileSync(
+        `${dir}/remove.config.js`,
+        'export default { beforeTests: (env) => { delete env.NODE_OPTIONS } }\n'
+      )
+      fs.writeFileSync(
+        `${dir}/remove-on-load.config.js`,
+        'delete process.env.NODE_OPTIONS\nexport default {}\n'
+      )
+      const cli = (args: string[]) =>
+        runCli(['a.test.js', '--mode', 'node', '--cwd', dir, ...args], {
+          reject: false,
+          // A URL, an absolute path of Windows isn't one
+          env: { NODE_OPTIONS: `--import ${pathToFileURL(preload).href}` },
+        })
+      try {
+        const kept = await cli([])
+        is(kept.exitCode, 0, output(kept))
+        ok(kept.stdout.includes('PRELOADED'), output(kept))
+
+        const removed = await cli(['--config', `${dir}/remove.config.js`])
+        is(removed.exitCode, 0, output(removed))
+        ok(!removed.stdout.includes('PRELOADED'), output(removed))
+
+        const onLoad = await cli([
+          '--config',
+          `${dir}/remove-on-load.config.js`,
+        ])
+        is(onLoad.exitCode, 0, output(onLoad))
+        ok(!onLoad.stdout.includes('PRELOADED'), output(onLoad))
       } finally {
         fs.rmSync(dir, { recursive: true })
       }
