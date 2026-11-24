@@ -1,9 +1,9 @@
+import { randomUUID } from 'node:crypto'
 import type { Server } from 'node:http'
 import { WriteStream } from 'node:tty'
 import { asyncExitHook, gracefulExit } from 'exit-hook'
 import { mkdirSync, rmSync } from 'fs'
 import { rm } from 'fs/promises'
-import { nanoid } from 'nanoid'
 import os from 'os'
 import path from 'path'
 import type { Config, RunnerEnv, RunnerOptions } from './types.ts'
@@ -123,7 +123,7 @@ export class BaseRunner {
     this.assertOptions()
     this.options.cwd = path.resolve(this.options.cwd)
     this.server = undefined
-    this.dir = path.join(os.tmpdir(), `playwright-test-${nanoid()}`)
+    this.dir = path.join(os.tmpdir(), `playwright-test-${randomUUID()}`)
     this.stopped = false
     this.beforeTestsOutput = undefined
     this.afterTestsResult = undefined
