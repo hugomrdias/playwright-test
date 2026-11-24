@@ -25,15 +25,13 @@ import {
 } from '../utils/process.ts'
 import { startServer } from '../utils/server.ts'
 import { runEachFile } from './each-file.ts'
+import { runIsolated } from './isolated-run.ts'
 
 // What a killed subprocess gets after its forced kill, to end
 const EXIT_WAIT = 1000
 
 const isolatedFile = fileURLToPath(
   new URL(`./isolated-file${EXT}`, import.meta.url)
-)
-const isolatedRun = fileURLToPath(
-  new URL(`./isolated-run${EXT}`, import.meta.url)
 )
 
 interface Tests {
@@ -172,8 +170,7 @@ export class NodeRunner extends BaseRunner {
       tests = this.#track(this.#spawnTogether(this.tests))
     } else if (testRunner.name === 'node-test') {
       // `run()` of `node:test` isolates the files itself
-      const workers = new Workers()
-      tests = this.#track(this.#spawnIsolated(workers), workers)
+      tests = this.#runIsolated()
     } else {
       tests = this.#runEachFile()
     }
@@ -252,44 +249,53 @@ export class NodeRunner extends BaseRunner {
   }
 
   /**
-   * Each file in its own process, with `run()` of `node:test`.
+   * Each file in its own process, with `run()` of `node:test` in this one.
    */
-  #spawnIsolated(workers: Workers) {
+  #runIsolated(): Tests {
     const { testConcurrency, testNamePattern, testRunner, testTimeout } =
       this.options
     const { reporter } = (testRunner.options ?? {}) as {
       reporter?: string | string[]
     }
+    const workers = new Workers()
     const env = withLocalBins(this.env, this.options.cwd)
     // From a test of node:test it would think it's one of its workers, and
     // skip the files as a recursive run
     delete env.NODE_TEST_CONTEXT
     env.PW_WORKER_PIDS = workers.dir
+    const controller = new AbortController()
 
-    const child = spawn(
-      process.execPath,
-      ['--enable-source-maps', isolatedRun],
-      {
-        cwd: this.options.cwd,
-        env,
-        stdio: ['pipe', 'inherit', 'inherit'],
-      }
-    )
-    child.stdin.on('error', () => {
-      // noop
+    const finished = runIsolated({
+      files: this.tests.map((t) => path.resolve(this.options.cwd, t)),
+      cwd: this.options.cwd,
+      env,
+      imports: [pathToFileURL(isolatedFile).href],
+      concurrency: testConcurrency,
+      testNamePatterns: toPatterns(testNamePattern),
+      // 0 is no timeout, for node that's a test that always times out
+      timeout: testTimeout || undefined,
+      reporters: [reporter ?? []].flat(),
+      signal: controller.signal,
+    }).catch((error: Error) => {
+      log.error(`Could not start tests: ${error.message}`)
+      return false
     })
-    child.stdin.end(
-      JSON.stringify({
-        files: this.tests.map((t) => path.resolve(this.options.cwd, t)),
-        imports: [pathToFileURL(isolatedFile).href],
-        concurrency: testConcurrency,
-        testNamePatterns: toPatterns(testNamePattern),
-        // 0 is no timeout, for node that's a test that always times out
-        timeout: testTimeout || undefined,
-        reporters: [reporter ?? []].flat(),
-      })
-    )
-    return child
+    // The files are gone once it ends by itself
+    finished.then(() => workers.remove())
+    return {
+      finished,
+      async stop() {
+        controller.abort()
+        await Promise.all([
+          withTimeout(finished, FORCE_KILL_DELAY + EXIT_WAIT),
+          workers.end(),
+        ])
+      },
+      kill() {
+        controller.abort()
+        workers.kill()
+      },
+    }
   }
 
   async run() {
