@@ -399,9 +399,12 @@ playwright-test test.js --test-timeout 10000
 
 Both can also be set as `testNamePattern` and `testTimeout` in the config file.
 
-Without `--test-timeout` mocha keeps its own default of 5 seconds, set `timeout` in `testRunner.options` to change it. `node-test` has no default timeout.
+`playwright-test` gives mocha a default timeout of 5 seconds, mocha's own is 2. `--test-timeout`, or `testTimeout` in the config file, wins over `timeout` in `testRunner.options`. `node-test` has no default timeout.
 
-Nothing else is forwarded, an unknown flag is an error. Whatever else a runner takes goes in the config file, under `testRunner.options`. It applies to the runner in use, from `--runner`, `runner` in the config file or the default `node-test`:
+Nothing else is forwarded, an unknown flag is an error. The other options of a runner go in the config file, under `testRunner.options`, for the runner in use, from `--runner`, `runner` in the config file or the default `node-test`. Only these are read, anything else is ignored:
+
+- `mocha`: `allowUncaught`, `bail`, `reporter`, `timeout`, `color`, `ui` and `grep`.
+- `node-test`: `reporter`, only in node mode with the real `node:test`.
 
 ```js
 // playwright-test.config.js
@@ -458,7 +461,7 @@ Before v16 the runner was detected from the test files. Upgrading, set it for an
 
 ## Flow control
 
-`mocha` and `node-test` end the run by themselves when their tests are done, you don't need to call a special function or trigger any event in your tests. The `none` runner only loads the files, so ending the run is up to the script, with `process.exit` below.
+`mocha` and `node-test` end the run by themselves when their tests are done, you don't need to call a special function or trigger any event in your tests. The `none` runner only loads the files, so in browsers a script ends the run itself, with `process.exit` below. In node mode the run also ends when the event loop of the script drains, like plain Node.
 
 To manually stop the run you can use `process.exit`:
 
