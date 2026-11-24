@@ -27,8 +27,8 @@ describe('runner auto detection', () => {
     return file
   }
 
-  const detect = (files: string[]) =>
-    [...detectTestRunners(files).keys()].map((r) => r.moduleId)
+  const detect = async (files: string[]) =>
+    [...(await detectTestRunners(files)).keys()].map((r) => r.moduleId)
 
   const cases: [string, string, string[], string?][] = [
     ['import', "import test from 'node:test'", ['node:test']],
@@ -129,19 +129,20 @@ describe('runner auto detection', () => {
   ]
 
   for (const [name, source, expected, ext] of cases) {
-    it(name, () => {
-      equal(detect([write(source, ext)]), expected)
+    it(name, async () => {
+      equal(await detect([write(source, ext)]), expected)
     })
   }
 
-  it('looks past a first file that says nothing', () => {
-    equal(detect([write('export const a = 1'), write("import 'node:test'")]), [
-      'node:test',
-    ])
+  it('looks past a first file that says nothing', async () => {
+    equal(
+      await detect([write('export const a = 1'), write("import 'node:test'")]),
+      ['node:test']
+    )
   })
 
-  it('reports every runner it finds', () => {
-    equal(detect([write("import 'node:test'"), write("describe('a')")]), [
+  it('reports every runner it finds', async () => {
+    equal(await detect([write("import 'node:test'"), write("describe('a')")]), [
       'node:test',
       'mocha',
     ])

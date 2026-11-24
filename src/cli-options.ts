@@ -7,7 +7,6 @@ import sade from 'sade'
 import { isAgent } from 'std-env'
 import { fileURLToPath, pathToFileURL } from 'url'
 import type { RunnerOptions } from './types.ts'
-import { detectTestRunners } from './utils/auto-detect.ts'
 import { colors } from './utils/colors.ts'
 import {
   assertRunTimeout,
@@ -38,8 +37,12 @@ const loadEsm = async (filepath: string) => {
 /**
  * Pick the test runner from what the test files use, or `none`.
  */
-function autoDetectTestRunner(testFiles: string[]): RunnerOptions['runner'] {
-  const found = detectTestRunners(testFiles)
+async function autoDetectTestRunner(
+  testFiles: string[]
+): Promise<RunnerOptions['runner']> {
+  // Loaded only when needed, the parser isn't used with --runner
+  const { detectTestRunners } = await import('./utils/auto-detect.ts')
+  const found = await detectTestRunners(testFiles)
 
   if (found.size > 1) {
     const list = [...found].map(
@@ -451,7 +454,7 @@ export async function resolveOptions(
 
   validateOptions(options)
 
-  options.runner ??= autoDetectTestRunner(testFiles)
+  options.runner ??= await autoDetectTestRunner(testFiles)
   warnUnsupportedTestOptions(options)
   options.testIsolation ??= 'process'
 

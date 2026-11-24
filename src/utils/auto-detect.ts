@@ -1,7 +1,7 @@
 import { parse } from 'acorn-loose'
 import type { Loader } from 'esbuild'
-import { transformSync } from 'esbuild'
-import fs from 'fs'
+import { transform } from 'esbuild'
+import fs from 'fs/promises'
 import path from 'path'
 import { mocha, nodeTest } from '../test-runners.ts'
 import type { TestRunner } from '../types.ts'
@@ -42,15 +42,19 @@ const MOCHA_GLOBAL_MODIFIERS = new Set(['only', 'skip'])
  * Read a file as code the parser understands. Types and JSX are stripped first,
  * the parser doesn't know `import type` from an import and gets lost in
  * generics and JSX.
+ *
+ * Async on purpose: `transformSync` starts its own esbuild service and makes a
+ * blocking round trip per file, the async `transform` reuses the service the
+ * build starts anyway and runs the files in parallel.
  */
-function readSource(file: string) {
-  const contents = fs.readFileSync(file, 'utf8')
+async function readSource(file: string) {
+  const contents = await fs.readFile(file, 'utf8')
   const loader = LOADERS[path.extname(file)]
   if (!loader) {
     return contents
   }
   try {
-    return transformSync(contents, { loader }).code
+    return (await transform(contents, { loader })).code
   } catch {
     return contents
   }
@@ -169,8 +173,8 @@ function calledGlobal(node: Statement) {
 /**
  * The modules a file imports, and `mocha` if it calls its globals.
  */
-function evidence(file: string): Set<string> {
-  const { body } = parse(readSource(file), {
+function evidence(source: string): Set<string> {
+  const { body } = parse(source, {
     ecmaVersion: 'latest',
     sourceType: 'module',
   })
@@ -212,10 +216,15 @@ function evidence(file: string): Set<string> {
  *
  * @returns each runner found and the first file asking for it
  */
-export function detectTestRunners(files: string[]): Map<TestRunner, string> {
+export async function detectTestRunners(
+  files: string[]
+): Promise<Map<TestRunner, string>> {
+  const sources = await Promise.all(
+    files.map(async (file) => [file, await readSource(file)] as const)
+  )
   const found: Map<TestRunner, string> = new Map()
-  for (const file of files) {
-    for (const id of evidence(file)) {
+  for (const [file, source] of sources) {
+    for (const id of evidence(source)) {
       const runner = RUNNER_MODULES.get(id)
       if (runner && !found.has(runner)) {
         found.set(runner, file)
