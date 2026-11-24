@@ -456,7 +456,7 @@ export default {
 Before v16 the runner was detected from the test files. Upgrading, set it for anything that isn't `node:test`:
 
 - Mocha suites need `--runner mocha`, without it they fail with `describe is not defined`.
-- Scripts that use no runner, and were run with `none` before, need `--runner none`. With `node-test` the run ends once the files are loaded, without waiting for timers or other work they leave behind, so a script that only fails later, for example with `process.exit(1)` in a `setTimeout`, passes.
+- Scripts that use no runner, and were run with `none` before, need `--runner none`. With `node-test` in browsers, web workers and workerd, a file that registers no tests ends the run once it's loaded, without waiting for timers or other work it leaves behind, so a script that only fails later, for example with `process.exit(1)` in a `setTimeout`, passes. `--mode node` waits for them.
 
 ## Flow control
 
