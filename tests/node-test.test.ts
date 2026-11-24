@@ -184,6 +184,8 @@ describe('playwright-test/node-test', () => {
       'ORDER test() in first: works',
       'ORDER one at a time: one again',
       'ORDER the other test runs',
+      'ORDER while a suite is built: runs while it is built',
+      'ORDER test() outside of a test: works',
     ]
 
     for (const mode of ['node', 'workerd']) {
@@ -196,7 +198,10 @@ describe('playwright-test/node-test', () => {
         ok(results.includes('fail rejects'), proc.stdout)
         ok(results.includes('pass runs with it'), proc.stdout)
         ok(results.includes('pass inside first'), proc.stdout)
-        ok(results.includes('fail its own test'), proc.stdout)
+        // At the top level, like in node:test
+        ok(results.includes('pass declared outside of a test'), proc.stdout)
+        ok(results.includes('fail throws right away'), proc.stdout)
+        ok(results.includes('fail throws later'), proc.stdout)
         ok(results.includes('pass only fails its own test'), proc.stdout)
         is(proc.exitCode, 1, proc.stdout)
       })
@@ -218,13 +223,16 @@ describe('playwright-test/node-test', () => {
             `ORDER test() in first: test() can't tell which test it belongs to, these run at the same time: "getTestContext > first", "getTestContext > second". Call it before the first await of the test, or use the context of the test, like t.test().`,
             'ORDER one at a time: one again',
             'ORDER the other test runs',
+            'ORDER while a suite is built: unknown',
+            `ORDER test() outside of a test: test() can't tell which test it belongs to, these run at the same time: "code outside of the tests > opens", "code outside of the tests > runs with it". Call it before the first await of the test, or use the context of the test, like t.test().`,
           ],
           proc.stdout
         )
         // The test around both fails, and the other one is cancelled
         ok(results.includes('fail an unhandled rejection'), proc.stdout)
         ok(results.includes('fail runs with it'), proc.stdout)
-        ok(results.includes('fail its own test'), proc.stdout)
+        ok(results.includes('fail throws right away'), proc.stdout)
+        ok(results.includes('fail throws later'), proc.stdout)
         ok(results.includes('pass only fails its own test'), proc.stdout)
         ok(
           output.includes(

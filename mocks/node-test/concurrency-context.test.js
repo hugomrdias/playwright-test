@@ -86,14 +86,63 @@ describe('an unhandled rejection', { concurrency: true }, () => {
 })
 
 describe('a beforeEach hook that fails', { concurrency: true }, () => {
-  beforeEach(async (t) => {
-    if (t.name === 'its own test') {
-      await new Promise((resolve) => setTimeout(resolve, 10))
+  beforeEach((t) => {
+    if (t.name === 'throws right away') {
       throw new Error('beforeEach fails')
     }
-    await new Promise((resolve) => setTimeout(resolve, 40))
+    if (t.name === 'throws later') {
+      return new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('beforeEach fails later')), 10)
+      )
+    }
+    return new Promise((resolve) => setTimeout(resolve, 40))
   })
 
-  it('its own test', () => undefined)
+  it('throws right away', () => log('NOT RUN throws right away'))
+  it('throws later', () => log('NOT RUN throws later'))
   it('only fails its own test', () => log('the other test runs'))
+})
+
+describe('while a suite is built', { concurrency: true }, () => {
+  const building = gate()
+  const checked = gate()
+
+  it('builds a suite', { timeout }, async () => {
+    await describe('built in a test', async () => {
+      building.open()
+      await checked.opened
+      it('inside the built suite', () => undefined)
+    })
+  })
+
+  it('runs while it is built', { timeout }, async () => {
+    await building.opened
+    log(`while a suite is built: ${name()}`)
+    checked.open()
+  })
+})
+
+// Declared outside of any test, it runs while two tests do
+const declare = gate()
+declare.opened.then(() => {
+  log(
+    `test() outside of a test: ${attempt(() => test('declared outside of a test', () => undefined))}`
+  )
+})
+
+describe('code outside of the tests', { concurrency: true }, () => {
+  const started = gate()
+  const declared = gate()
+
+  it('opens', { timeout }, async () => {
+    started.open()
+    declare.open()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    declared.open()
+  })
+
+  it('runs with it', { timeout }, async () => {
+    await started.opened
+    await declared.opened
+  })
 })
