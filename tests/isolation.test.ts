@@ -360,6 +360,46 @@ for (const mode of ['browser', 'web-worker']) {
       ok(proc.stdout.includes('ℹ pass 2'), output(proc))
     })
 
+    it('keyboard input reaches the iframe without a focused element', {
+      skip: mode === 'web-worker',
+    }, async () => {
+      const files = ['keyboard', 'mocha-a']
+      const [isolated, together] = await Promise.all([
+        runIn(mode, 'mocha', files, ['--test-concurrency', '1']),
+        runIn(mode, 'mocha', files, ['--test-isolation', 'none']),
+      ])
+
+      is(isolated.exitCode, 0, output(isolated))
+      is(together.exitCode, 0, output(together))
+    })
+
+    it('each page records its own HAR with recordHar', async () => {
+      const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-har-'))
+      try {
+        const proc = await runIn(
+          mode,
+          'mocha',
+          ['mocha-a', 'mocha-b'],
+          ['--test-concurrency', '2', '--config', `${dir}/har.config.js`],
+          { PW_TEST_HAR_PATH: path.join(temp, 'run.har') }
+        )
+
+        is(proc.exitCode, 0, output(proc))
+        for (const name of ['run-1.har', 'run-2.har']) {
+          const har = JSON.parse(fs.readFileSync(path.join(temp, name), 'utf8'))
+          ok(
+            har.log.entries.some((entry: { request: { url: string } }) =>
+              /bundle-\d+-out\.js/.test(entry.request.url)
+            ),
+            name
+          )
+        }
+        ok(!fs.existsSync(path.join(temp, 'run.har')), 'no empty HAR')
+      } finally {
+        fs.rmSync(temp, { recursive: true, force: true })
+      }
+    })
+
     it('files that run one after the other share the storage, like files share the disk', {
       skip: mode === 'web-worker',
     }, async () => {

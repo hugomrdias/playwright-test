@@ -211,7 +211,7 @@ export class Runner extends BaseRunner {
       }
       this.#launching = pw.launchPersistentContext(this.#profile(), {
         ...pwOptions,
-        ...this.options.browserContextOptions,
+        ...this.#persistentContextOptions(),
       })
       return this.#launching
     })
@@ -490,7 +490,16 @@ export class Runner extends BaseRunner {
           frame.src = src
           frame.style.cssText =
             'position:fixed;inset:0;width:100%;height:100%;border:0'
-          frame.addEventListener('load', () => resolve(), { once: true })
+          // Focused, keyboard input goes to its document like it went to the
+          // page before
+          frame.addEventListener(
+            'load',
+            () => {
+              frame.contentWindow?.focus()
+              resolve()
+            },
+            { once: true }
+          )
           document.body.append(frame)
         }),
       { name: TEST_FRAME_NAME, src: url.href }
@@ -708,8 +717,8 @@ export class Runner extends BaseRunner {
     // of the files go in them.
     const [prepared, ...pages] = await Promise.all([
       this.#prepare(compiled),
-      ...Array.from({ length: concurrency }, () =>
-        this.#newWorkerPage(context)
+      ...Array.from({ length: concurrency }, (_, index) =>
+        this.#newWorkerPage(context, index, concurrency)
       ),
     ])
     for (const page of pages) {
@@ -773,15 +782,42 @@ export class Runner extends BaseRunner {
   }
 
   /**
-   * A new browser context in the browser of the persistent one, with the
-   * bindings of the runner, and its page at the test page
+   * The options of the persistent context. In an isolated run it runs no
+   * tests, it records no HAR or video, those of the pages would get replaced
+   * by its empty ones.
    */
-  async #newWorkerPage(persistent: Context): Promise<Page> {
+  #persistentContextOptions() {
+    const options = this.options.browserContextOptions
+    if (!options || !this.#isolated()) {
+      return options
+    }
+    const { recordHar: _har, recordVideo: _video, ...rest } = options
+    return rest
+  }
+
+  /**
+   * A new browser context in the browser of the persistent one, with the
+   * bindings of the runner, and its page at the test page. With more than one,
+   * each records its HAR next to the one of `recordHar.path`, `-1` and so on.
+   */
+  async #newWorkerPage(
+    persistent: Context,
+    index: number,
+    count: number
+  ): Promise<Page> {
     const browser = persistent.browser()
     if (!browser) {
       throw new Error('The browser of the persistent context is gone')
     }
-    const context = await browser.newContext(this.options.browserContextOptions)
+    const options = { ...this.options.browserContextOptions }
+    if (options.recordHar && count > 1) {
+      const { dir, name, ext } = path.parse(options.recordHar.path)
+      options.recordHar = {
+        ...options.recordHar,
+        path: path.join(dir, `${name}-${index + 1}${ext}`),
+      }
+    }
+    const context = await browser.newContext(options)
     this.#workerContexts.push(context)
     await Promise.all([
       this.#prepareContext(context),
@@ -1362,9 +1398,14 @@ export class Runner extends BaseRunner {
     if (!this.#closing) {
       const traced = this.#writeTrace()
       const closed = traced
-        .then(() => {
+        .then(async () => {
           // A browser that's gone can't close it, and doesn't need to
           if (this.context && this.#browserConnected()) {
+            // First the contexts of the pages, closing one saves its HAR and
+            // videos
+            await Promise.allSettled(
+              this.#workerContexts.map((context) => context.close())
+            )
             return this.context.close()
           }
         })

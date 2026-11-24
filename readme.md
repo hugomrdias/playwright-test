@@ -567,7 +567,7 @@ playwright-test test --trace     # keeps the trace when the run fails
 playwright-test test --trace on  # always keeps it
 ```
 
-The trace is saved as `playwright-test-trace-<browser>.zip` in `--cwd`, replacing the one of an earlier run, and the run prints where it went. With `--test-isolation process` and more than one page, each browser context records its own, `playwright-test-trace-<browser>-1.zip` and so on. Upload it as an artifact and open it with `npx playwright show-trace playwright-test-trace-chromium.zip` or at [trace.playwright.dev](https://trace.playwright.dev).
+The trace is saved as `playwright-test-trace-<browser>.zip` in `--cwd`, replacing the one of an earlier run, and the run prints where it went. With `--test-isolation process` and more than one page, each browser context records its own, `playwright-test-trace-<browser>-1.zip` and so on. The same goes for a HAR of `browserContextOptions.recordHar`, saved next to its `path` as `<name>-1.har` and so on. Upload it as an artifact and open it with `npx playwright show-trace playwright-test-trace-chromium.zip` or at [trace.playwright.dev](https://trace.playwright.dev).
 
 ```yaml
 - run: pnpm test --trace
