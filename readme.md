@@ -328,18 +328,17 @@ it('should setoffline', async () => {
 
 it('should geolocation', async () => {
   if (Client.mode === 'browser') {
-    const deferred = pdefer()
     await Client.context.setGeolocation({
       latitude: 59.95,
       longitude: 30.316_67,
     })
     await Client.context.grantPermissions(['geolocation'])
 
-    navigator.geolocation.getCurrentPosition((position) => {
-      deferred.resolve(position)
-    })
-
-    const position = (await deferred.promise) as GeolocationPosition
+    const position = await new Promise<GeolocationPosition>(
+      (resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject)
+      }
+    )
     equal(position.coords.latitude, 59.95)
   }
 })
