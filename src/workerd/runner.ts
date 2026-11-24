@@ -584,6 +584,9 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
         this.options.buildConfig
       ),
       metafile: true,
+      // workerd can't run test code in chunks, see above, and a worker only
+      // gets its bundle
+      splitting: false,
     })
     // The modules each bundle imports, a worker only gets its own
     const imports: Map<string, Set<string>> = new Map()
@@ -900,6 +903,10 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
         headers: { [RUN_HEADER]: this.token },
       })
       if (!response.ok) {
+        // Its workerd stopped with the run
+        if (this.stopped) {
+          return { passed: false, cancelled: true }
+        }
         const text = this.#mapStack(await response.text())
         output.write(index, () => log.error(text))
         return { passed: false, cancelled: false }
@@ -917,7 +924,12 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
       // Its workerd stops when the run ends
       result = { passed: false, cancelled: this.stopped }
       if (!this.stopped) {
-        output.write(index, () => log.error(error))
+        // workerd printed why it couldn't start, the stack is Miniflare's
+        const startFailed =
+          (error as { code?: string } | null)?.code === 'ERR_RUNTIME_FAILURE'
+        output.write(index, () =>
+          log.error(startFailed ? (error as Error).message : error)
+        )
       }
       return result
     } finally {
@@ -927,7 +939,9 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
       running.catch(() => {
         // The run is ending
       })
-      if (!result?.cancelled) {
+      // Once the run stops, `stopTests` stops its workerd and prints what's
+      // left in order
+      if (!result?.cancelled && !this.stopped) {
         output.done(index)
         if (mf) {
           this.#running.delete(mf)
@@ -1020,15 +1034,20 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
    * when a signal stops the run.
    */
   async stopTests() {
-    this.#disposing ??= Promise.all([
-      ...[this.mf, ...this.#running].map((mf) =>
-        mf?.dispose().catch(() => {
-          // Nothing left to stop
-        })
-      ),
-      ...this.#disposals,
-    ]).then(() => undefined)
-    await withTimeout(this.#disposing, EXIT_WAIT)
-    this.#output?.flushAll()
+    // Called again by `exit` and the exit hook, a workerd that doesn't stop
+    // is only waited for once
+    this.#disposing ??= (async () => {
+      const disposals = Promise.all([
+        ...[this.mf, ...this.#running].map((mf) =>
+          mf?.dispose().catch(() => {
+            // Nothing left to stop
+          })
+        ),
+        ...this.#disposals,
+      ])
+      await withTimeout(disposals, EXIT_WAIT)
+      this.#output?.flushAll()
+    })()
+    await this.#disposing
   }
 }

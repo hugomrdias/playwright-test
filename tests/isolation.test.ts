@@ -1,5 +1,4 @@
 import { strictEqual as is, ok } from 'node:assert/strict'
-import { once } from 'node:events'
 import fs from 'node:fs'
 import http from 'node:http'
 import type { AddressInfo } from 'node:net'
@@ -566,19 +565,32 @@ describe('--test-isolation process in workerd mode', {
   it('an interrupt ends every file, and prints what they held back', {
     skip: process.platform === 'win32' && 'no SIGINT',
   }, async () => {
-    const running = runIn(
-      'workerd',
-      'mocha',
-      ['mocha-hangs', 'page-order-2'],
-      ['--test-concurrency', '2']
-    )
-    // The first file prints its suite and hangs, the second one is done soon
-    await once(running.stdout, 'data')
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    running.kill('SIGINT')
-    const proc = await running
+    // The second file calls this once it printed
+    const called = Promise.withResolvers<void>()
+    const server = http.createServer((_, res) => {
+      res.end()
+      called.resolve()
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const { port } = server.address() as AddressInfo
+    try {
+      const running = runIn(
+        'workerd',
+        'mocha',
+        ['mocha-hangs', 'sigint-logs'],
+        ['--test-concurrency', '2'],
+        { PW_TEST_BEACON: `http://127.0.0.1:${port}/` }
+      )
+      await called.promise
+      // What it printed reaches the runner after the call
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      running.kill('SIGINT')
+      const proc = await running
 
-    is(proc.exitCode, 130, output(proc))
-    ok(proc.stdout.includes('PAGE ORDER 2 written'), output(proc))
+      is(proc.exitCode, 130, output(proc))
+      ok(proc.stdout.includes('SIGINT LOGS WRITTEN'), output(proc))
+    } finally {
+      server.close()
+    }
   })
 })
