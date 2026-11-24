@@ -1,5 +1,113 @@
 # Changelog
 
+## [16.0.0](https://github.com/hugomrdias/playwright-test/compare/v15.0.1...v16.0.0) (2026-11-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* tests in browsers run in an iframe, so `window.top` is the page around it and `location.search` has a `playwright-test` param. With --test-isolation process the files that run at once have browser contexts of their own: they don't share storage, cookies or service workers, the client `context` methods only change their own, and extensions loaded with `launchOptions.args` aren't in them. --trace writes playwright-test-trace-<browser>-<n>.zip, one for each context, when there's more than one.
+* the runner is no longer detected from the test files. It is node-test unless --runner or runner in the config file sets it, so mocha suites need --runner mocha (or runner: 'mocha'), and scripts that relied on the fallback to none need --runner none. The programmatic default for runner is node-test instead of none.
+* --mode workerd runs each file in a worker of its own by default, use --test-isolation none to run them together.
+* in browser and web-worker mode, files no longer share one page by default. Each file gets its own globals. Use --test-isolation none to run them together as before.
+* a path without an extension no longer falls back to `<path>.html` or `<path>.htm`, request the file by its name.
+* --test-isolation defaults to process. With node-test in node mode each file now runs in its own process and files no longer share globals or root hooks. Pass --test-isolation none for the old behavior.
+* remove --extension ([#812](https://github.com/hugomrdias/playwright-test/issues/812))
+* `t.tags` is lowercased, deduplicated and frozen, and invalid `tags` (not an array, a non-string, empty, ASCII whitespace or operator characters, or the reserved words and/or/not) throw like in
+* make node mode a plain passthrough to node ([#810](https://github.com/hugomrdias/playwright-test/issues/810))
+* rename --mode main to browser and worker to web-worker ([#809](https://github.com/hugomrdias/playwright-test/issues/809))
+* `--before` is gone, passing it fails as an unknown option, and `before` in a config file is ignored. Do the setup in the `beforeTests` hook of the config file for node side setup, or at the top of the test file (or a file imported by it) for setup in the page.
+* remove --incognito option and capture extension service worker console output ([#793](https://github.com/hugomrdias/playwright-test/issues/793))
+* --runner no longer takes a path or module and a config file can't define a runner, only mocha, node-test and none exist. Uncaught errors in the page and a failing afterTests now fail the run. `Setup complete` and `Tests passed.` are no longer printed.
+* playwright-test/taps and --runner taps are removed, including assert.subset, assert.type and assert.instance. exec, hold and configure are no longer exported from playwright-test/node-test. The output of playwright-test/node-test and of node:test in browsers is the spec format. See "Migrating from playwright-test/taps" in the readme.
+* browser, mode, debug, incognito, extension, cwd and extensions from a config file now take effect, they were ignored before. Remove any stale values.
+* code coverage is removed. --cov and --report-dir now fail as unknown options, and the cov and reportDir options are gone, in browsers and node mode. error.stack read inside the page has bundle positions, only what the page prints is mapped. The buffer package is no longer installed with playwright-test.
+* `--runner tape` and `--runner uvu` are no longer built-in runners and files importing `tape` or `uvu` are no longer autodetected. Use a custom runner that exports `playwrightTestRunner` to keep running them.
+* `--runner benchmark` is no longer a built-in runner and files importing `benchmark` are no longer autodetected. Use a custom runner that exports `playwrightTestRunner` to keep running them.
+* running without any test files now exits with 1 instead of 0. This includes a glob without matches and no arguments in a project without tests. Don't run playwright-test on packages without tests.
+* cli flags are no longer forwarded to the test runner and an unknown flag is now an error. Use `--test-name-pattern` instead of `--grep`, `--test-timeout` instead of `--timeout` and `testRunner.options` in the config file for everything else, including `bail`, `reporter` and `ui`.
+* a package named `assert` or `util` installed by a project is now ignored in bundles, and importing something `util` doesn't have fails at bundle time.
+* `--runner zora` is no longer supported and zora test files are no longer autodetected. Use a custom runner via `--runner <module>` if you still need zora.
+* requires Node.js 24 or later. In node mode, relative imports need file extensions, TypeScript relies on Node type stripping, `import.meta.env` is not defined and `buildConfig` is ignored.
+
+### Features
+
+* --test-isolation process for mocha and none in node mode ([#823](https://github.com/hugomrdias/playwright-test/issues/823)) ([2c92958](https://github.com/hugomrdias/playwright-test/commit/2c9295820d96363aa992517d9ef7652c72fd4e07))
+* --test-isolation process in browser and web-worker mode ([#825](https://github.com/hugomrdias/playwright-test/issues/825)) ([0761835](https://github.com/hugomrdias/playwright-test/commit/076183523afd7b49dc3fd95df1ab1b4598ec4e1d))
+* --test-isolation process in workerd mode ([#826](https://github.com/hugomrdias/playwright-test/issues/826)) ([f6999b8](https://github.com/hugomrdias/playwright-test/commit/f6999b833ec07b408e958fc041376d4387aa6ae6))
+* add --mode workerd to run tests in the Cloudflare Workers runtime ([#779](https://github.com/hugomrdias/playwright-test/issues/779)) ([b0d30b1](https://github.com/hugomrdias/playwright-test/commit/b0d30b1d352cc058d020fb7084f405c5d87c4ea8))
+* add --test-isolation and --test-concurrency, process by default ([#819](https://github.com/hugomrdias/playwright-test/issues/819)) ([b75eab5](https://github.com/hugomrdias/playwright-test/commit/b75eab563a615d035a61cfc784069a7e91dc09c8))
+* add --trace to record a Playwright trace of browser runs ([#773](https://github.com/hugomrdias/playwright-test/issues/773)) ([507f0c6](https://github.com/hugomrdias/playwright-test/commit/507f0c600c6bbc3c21559e456b6cb1d84d43f0ea))
+* add a process polyfill for browser bundles and drop the process package ([#756](https://github.com/hugomrdias/playwright-test/issues/756)) ([b9c603f](https://github.com/hugomrdias/playwright-test/commit/b9c603f3011d2de9d21d1a2926ea5ca381183bc0))
+* add a programmatic test runner API ([#841](https://github.com/hugomrdias/playwright-test/issues/841)) ([43749e4](https://github.com/hugomrdias/playwright-test/commit/43749e4064a8f86efa98285f069880a804d7335c))
+* add a run timeout ([2350fde](https://github.com/hugomrdias/playwright-test/commit/2350fded5ca40dc292c6fff739dec6493112a149))
+* add cookies, headers, clearPermissions and trusted input to the client ([#778](https://github.com/hugomrdias/playwright-test/issues/778)) ([59b8bf2](https://github.com/hugomrdias/playwright-test/commit/59b8bf2cc99cc9650bc071f740615992877c0e42))
+* add launchOptions to pass Playwright launch options ([#775](https://github.com/hugomrdias/playwright-test/issues/775)) ([d34c163](https://github.com/hugomrdias/playwright-test/commit/d34c16374ff81fd5064eb70500a2a6fc4cd7b716))
+* add the node-test runner and replace runner flag forwarding ([#747](https://github.com/hugomrdias/playwright-test/issues/747)) ([dfe395b](https://github.com/hugomrdias/playwright-test/commit/dfe395bb3f2c0079130adb23e30d772edeee57ed))
+* add the playwright-test/node-assert entrypoint ([1df5e26](https://github.com/hugomrdias/playwright-test/commit/1df5e263431d65d073498638c70a97915bfa2780))
+* add the playwright-test/node-test entrypoint ([a379d94](https://github.com/hugomrdias/playwright-test/commit/a379d943826a5dc6a54e3f414d134b33e8149b77))
+* allow --test-name-pattern more than once ([#815](https://github.com/hugomrdias/playwright-test/issues/815)) ([8f39a5d](https://github.com/hugomrdias/playwright-test/commit/8f39a5d0e15581966fc1dbb03635cc4f2ac445af))
+* fix the browser runner flow and remove custom test runners ([#765](https://github.com/hugomrdias/playwright-test/issues/765)) ([6fe98c7](https://github.com/hugomrdias/playwright-test/commit/6fe98c789650e3cdf0d455445d4f4f9d3eaade08))
+* make node mode a plain passthrough to node ([#810](https://github.com/hugomrdias/playwright-test/issues/810)) ([6c1cc5d](https://github.com/hugomrdias/playwright-test/commit/6c1cc5dd2207f8738df5ac352c75fad3418d91ea))
+* print only failures in the node:test shim when an AI agent drives the run ([#766](https://github.com/hugomrdias/playwright-test/issues/766)) ([57a1292](https://github.com/hugomrdias/playwright-test/commit/57a129285d60a5f750fed5f2f82cd48483237d9d))
+* remove --before option ([#800](https://github.com/hugomrdias/playwright-test/issues/800)) ([0c2169c](https://github.com/hugomrdias/playwright-test/commit/0c2169c5a500451d81031e5204771cc7a8416875))
+* remove --extension ([#812](https://github.com/hugomrdias/playwright-test/issues/812)) ([9ccea0a](https://github.com/hugomrdias/playwright-test/commit/9ccea0aef519d1b0acd93f3b1ba38b1d1ec709e3))
+* remove --incognito option and capture extension service worker console output ([#793](https://github.com/hugomrdias/playwright-test/issues/793)) ([524e33f](https://github.com/hugomrdias/playwright-test/commit/524e33f6a76b6e1c85742d393633b0c65ac344f2))
+* remove coverage and map stack traces in node ([#761](https://github.com/hugomrdias/playwright-test/issues/761)) ([a29c9a7](https://github.com/hugomrdias/playwright-test/commit/a29c9a729a3fa7a7343784f0340878fc9cd65e9c))
+* remove runner auto detection, node-test is the default runner ([#835](https://github.com/hugomrdias/playwright-test/issues/835)) ([a61cd46](https://github.com/hugomrdias/playwright-test/commit/a61cd46690e70c707e07bea993e75b2cc2084797))
+* remove support for benchmark.js ([#749](https://github.com/hugomrdias/playwright-test/issues/749)) ([8abbfe7](https://github.com/hugomrdias/playwright-test/commit/8abbfe771dccd1e9b256d9bd0e2608688457fcbd))
+* remove support for uvu and tape ([#755](https://github.com/hugomrdias/playwright-test/issues/755)) ([afaa740](https://github.com/hugomrdias/playwright-test/commit/afaa7401e5e6bd30f4ad5d28aba361a7a2678c48))
+* remove taps and report node:test results in the spec format ([#764](https://github.com/hugomrdias/playwright-test/issues/764)) ([360d4b0](https://github.com/hugomrdias/playwright-test/commit/360d4b079a4eaa8b3eb48ac6354402f0c18292b9))
+* remove zora runner ([2c4aaa4](https://github.com/hugomrdias/playwright-test/commit/2c4aaa42b4511fff42ae14a7894bc0f0a665113d))
+* rename --mode main to browser and worker to web-worker ([#809](https://github.com/hugomrdias/playwright-test/issues/809)) ([bfccff0](https://github.com/hugomrdias/playwright-test/commit/bfccff0d9c584ad75e44789552b01144935ae70f))
+* replace the assert and util npm polyfills with our own ([3c3ea06](https://github.com/hugomrdias/playwright-test/commit/3c3ea06217a03115d658a205389d6c290f25430a))
+* resolve node:path, path/posix and service worker path imports ([#758](https://github.com/hugomrdias/playwright-test/issues/758)) ([a9cce13](https://github.com/hugomrdias/playwright-test/commit/a9cce1370d604143bd40151ae189161d9b8d3493))
+* run browser test files in iframes, a browser context per worker ([#837](https://github.com/hugomrdias/playwright-test/issues/837)) ([a1bd361](https://github.com/hugomrdias/playwright-test/commit/a1bd3617e3c804a6ba351a690e408bbd5cf27e9f))
+* run node mode without bundling and require Node 24 ([#737](https://github.com/hugomrdias/playwright-test/issues/737)) ([e943237](https://github.com/hugomrdias/playwright-test/commit/e9432372695ec77e64c275447c05dce04ce42bd2))
+* serve files with node:http instead of polka and sirv ([#820](https://github.com/hugomrdias/playwright-test/issues/820)) ([2e42c07](https://github.com/hugomrdias/playwright-test/commit/2e42c07be72528dafa82a241b3b8aa343881280e))
+* support mock.timers in node:test for browsers ([#818](https://github.com/hugomrdias/playwright-test/issues/818)) ([ebd0493](https://github.com/hugomrdias/playwright-test/commit/ebd04939da1247d87d1b010f03ebb22354ef5f2b))
+* the concurrency option of node-test in browsers, web workers and workerd ([#827](https://github.com/hugomrdias/playwright-test/issues/827)) ([27fd6be](https://github.com/hugomrdias/playwright-test/commit/27fd6bec312cea53d3a4c73ed64a97c44aa60dc3))
+* transform project files with esbuild in node mode ([#741](https://github.com/hugomrdias/playwright-test/issues/741)) ([4310b9e](https://github.com/hugomrdias/playwright-test/commit/4310b9ea08149a3eea17f714daa1ec1f557dcf3c))
+
+
+### Bug Fixes
+
+* browser stdout and stderr follow the runner's TTY state ([#804](https://github.com/hugomrdias/playwright-test/issues/804)) ([8a36a96](https://github.com/hugomrdias/playwright-test/commit/8a36a9640ef0eaf883bb7156ddbd4dd9bb2776c2))
+* browser watch ignoring every file when cwd is inside a dot folder ([1c91487](https://github.com/hugomrdias/playwright-test/commit/1c91487c730721dc5be0c74c88dc882787232e56))
+* bump cf ([#836](https://github.com/hugomrdias/playwright-test/issues/836)) ([1b542e9](https://github.com/hugomrdias/playwright-test/commit/1b542e9d41f5600f6ed39b8478627d2c9655dbd5))
+* bundle digit built-ins and harden workerd cleanup ([#794](https://github.com/hugomrdias/playwright-test/issues/794)) ([a83ec31](https://github.com/hugomrdias/playwright-test/commit/a83ec3147db35c39969c2f012acb98e2d918c1d3))
+* clean up published .d.ts types and re-export Config and WorkerdOptions ([#788](https://github.com/hugomrdias/playwright-test/issues/788)) ([5b06d48](https://github.com/hugomrdias/playwright-test/commit/5b06d48f2fbf8d5803c57b749a37cb0010645a02))
+* delete browser profiles after each run and keep them off C: in CI ([#759](https://github.com/hugomrdias/playwright-test/issues/759)) ([c3c2087](https://github.com/hugomrdias/playwright-test/commit/c3c2087840f4cb08b521c07b5cf8663e4a68e882))
+* **deps:** bump playwright-core to 1.65.0 to fix Firefox on macOS 27 ([#760](https://github.com/hugomrdias/playwright-test/issues/760)) ([d7d8411](https://github.com/hugomrdias/playwright-test/commit/d7d8411dae7103e125f7adcca70cb1c741d7f951)), closes [#753](https://github.com/hugomrdias/playwright-test/issues/753)
+* **deps:** bump playwright-core to 1.65.1 ([#831](https://github.com/hugomrdias/playwright-test/issues/831)) ([2fbd081](https://github.com/hugomrdias/playwright-test/commit/2fbd081d8059d5caa43e90ead48a028a8d5f01bc))
+* **deps:** refresh the lockfile to clear security alerts ([#751](https://github.com/hugomrdias/playwright-test/issues/751)) ([19aab12](https://github.com/hugomrdias/playwright-test/commit/19aab12e8446e11aaa08a38142cecb353094ec7a))
+* **deps:** remove the unused events package ([#757](https://github.com/hugomrdias/playwright-test/issues/757)) ([8d93ad2](https://github.com/hugomrdias/playwright-test/commit/8d93ad23358d6ce62641a5c440b8a7e0b34e67e1))
+* end the run with a clear message when the page crashes or the browser closes ([#772](https://github.com/hugomrdias/playwright-test/issues/772)) ([124ccdd](https://github.com/hugomrdias/playwright-test/commit/124ccdd4ff12f8fee31bd45eee2ef23988ebeb78))
+* fail runs on load errors and use config file browser and mode ([1099f6d](https://github.com/hugomrdias/playwright-test/commit/1099f6d08f6bddb268eb8ef5d80da6dda6f72715))
+* find test files from Windows paths and exit 1 when there are none ([#748](https://github.com/hugomrdias/playwright-test/issues/748)) ([639c36b](https://github.com/hugomrdias/playwright-test/commit/639c36b8e77420bce8b07bf189d4ee6055594317))
+* install winldd with the browser on Windows ([8660784](https://github.com/hugomrdias/playwright-test/commit/866078489c483a9e6ba2063b3736f089eaf7199c))
+* keep browser console output on its stream when the run ends ([#746](https://github.com/hugomrdias/playwright-test/issues/746)) ([3a71976](https://github.com/hugomrdias/playwright-test/commit/3a71976d75045b6b4e16bb54460d07a74474772e))
+* lowercase, dedupe and validate tags like node:test ([#814](https://github.com/hugomrdias/playwright-test/issues/814)) ([dcde3ef](https://github.com/hugomrdias/playwright-test/commit/dcde3efacb85986524a3ab60c4f128fbb9257b27))
+* make --before work again and fail fast when its script throws ([#763](https://github.com/hugomrdias/playwright-test/issues/763)) ([d9b9eed](https://github.com/hugomrdias/playwright-test/commit/d9b9eed0ea84b09f0720b81f68127db6b96edfa3))
+* make the client context methods work in worker mode ([#770](https://github.com/hugomrdias/playwright-test/issues/770)) ([ae7ada0](https://github.com/hugomrdias/playwright-test/commit/ae7ada00a5a6f92e44ab50b625aba6342d4cfb36))
+* **node-test:** match node:test --test-timeout inheritance and late test error ([#796](https://github.com/hugomrdias/playwright-test/issues/796)) ([5aaddfe](https://github.com/hugomrdias/playwright-test/commit/5aaddfefb365f13a02e8e89e920257a429737b39)), closes [#781](https://github.com/hugomrdias/playwright-test/issues/781)
+* open the extension devtools under --debug with locators ([#774](https://github.com/hugomrdias/playwright-test/issues/774)) ([0002a2a](https://github.com/hugomrdias/playwright-test/commit/0002a2ab044c1d94db6187f11b0036b110f3923d))
+* optimize browser startup and test teardown ([#791](https://github.com/hugomrdias/playwright-test/issues/791)) ([b85c566](https://github.com/hugomrdias/playwright-test/commit/b85c566193da204e4ad7688a863a8d886e3d24bc))
+* replace kleur with Node.js color APIs ([#790](https://github.com/hugomrdias/playwright-test/issues/790)) ([2060c11](https://github.com/hugomrdias/playwright-test/commit/2060c11f26f3b89ef053ffa0e160a7357ce9b98f))
+* respect process.exitCode in process.exit and fix util.debuglog wildcards ([#795](https://github.com/hugomrdias/playwright-test/issues/795)) ([060e023](https://github.com/hugomrdias/playwright-test/commit/060e023d4cc302e114bbcb7c69d8422e49da7cba))
+* run c8 from the package in node mode coverage ([#743](https://github.com/hugomrdias/playwright-test/issues/743)) ([5f489c5](https://github.com/hugomrdias/playwright-test/commit/5f489c5d1b485d7596c8ada9c233aac154c0732d))
+* share exit cleanup across runners and stop tests before afterTests ([#808](https://github.com/hugomrdias/playwright-test/issues/808)) ([96e15fd](https://github.com/hugomrdias/playwright-test/commit/96e15fd093daa1b7bb463b32bfd78c999ec650a8))
+* support Node.js 26 and run CI on it ([9b8aeea](https://github.com/hugomrdias/playwright-test/commit/9b8aeea2de7f51bee86d31a6895a21c0da883c9f))
+* validate CLI options and handle runner errors ([#789](https://github.com/hugomrdias/playwright-test/issues/789)) ([b6b5196](https://github.com/hugomrdias/playwright-test/commit/b6b5196088d79307862ccf5a729148a1bf2ad310))
+
+
+### Performance Improvements
+
+* bundle the tests while the browser starts ([#799](https://github.com/hugomrdias/playwright-test/issues/799)) ([c943f5e](https://github.com/hugomrdias/playwright-test/commit/c943f5e67b68d4a5359971cfa0e5db8b38191722))
+* enable Node's compile cache for the CLI ([#798](https://github.com/hugomrdias/playwright-test/issues/798)) ([b7dff2b](https://github.com/hugomrdias/playwright-test/commit/b7dff2b8c45fe5bfbc2b082ce2ab3cfb9afec84b))
+* **node:** cut node mode startup by ~75 ms ([#838](https://github.com/hugomrdias/playwright-test/issues/838)) ([cac6ec6](https://github.com/hugomrdias/playwright-test/commit/cac6ec6bc28f7776cfa33d996838fab7f462dde6))
+* speed up Playwright test suite ([#792](https://github.com/hugomrdias/playwright-test/issues/792)) ([7721324](https://github.com/hugomrdias/playwright-test/commit/772132439740dc108210f24ee8674ff4e1f07b58))
+* start the browser while the server starts ([#811](https://github.com/hugomrdias/playwright-test/issues/811)) ([5c20f58](https://github.com/hugomrdias/playwright-test/commit/5c20f58b926ba6b75c4839311e5694aea9d1b8cd))
+
 ## [15.0.1](https://github.com/hugomrdias/playwright-test/compare/v15.0.0...v15.0.1) (2026-09-26)
 
 
