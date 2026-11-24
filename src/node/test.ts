@@ -1670,8 +1670,11 @@ function callAs<T>(test: Test, fn: () => T): T {
  * declarations after an `await` land in it, or the innermost of what runs. When
  * the `concurrency` option has more than one of those at once, it's not
  * possible to tell, and they're all returned.
+ *
+ * @param error - for an uncaught error, which could also come from a test that
+ * runs at the same time as the suite being built
  */
-function findCurrent(): Test | Test[] {
+function findCurrent(error = false): Test | Test[] {
   const called = callStack.at(-1)
   if (called !== undefined) {
     return called
@@ -1679,10 +1682,12 @@ function findCurrent(): Test | Test[] {
   if (asyncContext) {
     return asyncContext.getStore() ?? root
   }
-  if (buildingCurrent !== null) {
-    return buildingCurrent
-  }
   const innermost = innermostOf([...running])
+  if (buildingCurrent !== null) {
+    return error && innermost.length > 1
+      ? innermostOf([...running, buildingCurrent])
+      : buildingCurrent
+  }
   if (innermost.length === 0) {
     return root
   }
@@ -1735,7 +1740,7 @@ function rootError(err: unknown) {
  */
 function onUncaught(err: unknown, type: string) {
   const failure = new TestFailure(err, type)
-  let current = findCurrent()
+  let current = findCurrent(true)
   if (Array.isArray(current)) {
     // The closest test around all of them, which cancels the others
     const tests = current

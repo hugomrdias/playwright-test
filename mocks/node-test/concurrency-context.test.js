@@ -146,3 +146,31 @@ describe('code outside of the tests', { concurrency: true }, () => {
     await declared.opened
   })
 })
+
+describe('an unhandled rejection while a suite is built', {
+  concurrency: true,
+}, () => {
+  const building = gate()
+  const rejected = gate()
+
+  // So only the test runner reports it
+  globalThis.addEventListener?.('unhandledrejection', (event) =>
+    event.preventDefault()
+  )
+
+  it('builds a todo suite', { timeout }, async () => {
+    await describe('a todo suite', { todo: true }, async () => {
+      building.open()
+      await rejected.opened
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      it('inside the todo suite', () => undefined)
+    })
+  })
+
+  it('rejects while it is built', { timeout }, async () => {
+    await building.opened
+    Promise.reject(new Error('unhandled while built'))
+    rejected.open()
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  })
+})
