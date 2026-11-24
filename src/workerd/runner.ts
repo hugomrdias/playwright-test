@@ -327,14 +327,15 @@ export default handler
 `
 }
 
-const EXIT_SIGNALS = ['SIGINT', 'SIGTERM', 'SIGHUP'] as const
+/** The signals the exit hook of the run handles, Miniflare keeps the others */
+const EXIT_SIGNALS = ['SIGINT', 'SIGTERM'] as const
 
 /**
  * Miniflare exits this process right away on an interrupt, before the exit
  * hook of the run can stop the tests, print what the files held back and run
- * the afterTests hook. This takes out the signal listeners it adds, the run
- * stops it itself. Its exit listener stays, it still stops workerd when this
- * process exits.
+ * the afterTests hook. This takes out the listeners it adds for the signals
+ * of the exit hook, the run stops it itself. The others stay, like its exit
+ * listener, it still stops workerd when this process exits.
  */
 function withoutSignalExit<T>(start: () => T): T {
   const before = new Map(
@@ -371,6 +372,8 @@ export class WorkerdRunner extends BaseRunner {
   #startFile: ((index: number) => Miniflare) | undefined
   /** With a workerd per file, the ones running */
   #running: Set<Miniflare> = new Set()
+  /** With a workerd per file, the ones the files that ended still stop */
+  #disposals: Set<Promise<void>> = new Set()
   /** With a worker per file, the output of each one reached this process */
   #filesDone: PromiseWithResolvers<void>[] = []
   #summary: (() => void) | undefined
@@ -928,10 +931,12 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
         output.done(index)
         if (mf) {
           this.#running.delete(mf)
-          // The next file doesn't wait for it
-          mf.dispose().catch(() => {
+          // The next file doesn't wait for it, `stopTests` does
+          const disposal = mf.dispose().catch(() => {
             // Nothing left to stop
           })
+          this.#disposals.add(disposal)
+          disposal.finally(() => this.#disposals.delete(disposal))
         }
       }
     }
@@ -1015,13 +1020,14 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
    * when a signal stops the run.
    */
   async stopTests() {
-    this.#disposing ??= Promise.all(
-      [this.mf, ...this.#running].map((mf) =>
+    this.#disposing ??= Promise.all([
+      ...[this.mf, ...this.#running].map((mf) =>
         mf?.dispose().catch(() => {
           // Nothing left to stop
         })
-      )
-    ).then(() => undefined)
+      ),
+      ...this.#disposals,
+    ]).then(() => undefined)
     await withTimeout(this.#disposing, EXIT_WAIT)
     this.#output?.flushAll()
   }
