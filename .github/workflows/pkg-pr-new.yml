@@ -7,9 +7,11 @@ on:
   pull_request:
     branches: [master]
 
+# A push to a pull request cancels its previous run, every commit to master
+# gets its own group so none of them miss a preview
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -19,7 +21,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # The preview is linked to the head commit, not the merge commit pull
+      # requests check out by default
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: pnpm/setup@v3
         with:
           cache: true
