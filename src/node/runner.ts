@@ -5,7 +5,6 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
-import { watch } from 'chokidar'
 import {
   BaseRunner,
   REMOVE_WAIT,
@@ -365,7 +364,9 @@ export class NodeRunner extends BaseRunner {
       restarting = false
     }
 
-    // Watch for changes in the project, ignoring dot folders and node_modules
+    // Watch for changes in the project, ignoring dot folders and node_modules.
+    // Imported here, only --watch needs it.
+    const { watch } = await import('chokidar')
     watch(cwd, {
       ignored: (file, stats) => {
         const rel = path.relative(cwd, file)

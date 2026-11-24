@@ -4,11 +4,9 @@ import { gracefulExit } from 'exit-hook'
 import { isAgent } from 'std-env'
 import { resolveOptions } from './cli-options.ts'
 import { NodeRunner } from './node/runner.ts'
-import { Runner } from './runner.ts'
 import type { RunnerOptions } from './types.ts'
 import { colors, supportsColor } from './utils/colors.ts'
 import { UsageError } from './utils/index.ts'
-import { WorkerdRunner } from './workerd/runner.ts'
 
 colors.enabled = supportsColor({ minimal: isAgent })
 
@@ -21,13 +19,19 @@ const fail = (err: unknown) => {
 process.on('uncaughtException', fail)
 process.on('unhandledRejection', fail)
 
-function createRunner(options: RunnerOptions, testFiles: string[]) {
+/**
+ * The runners of the other modes are imported only when they run, node mode
+ * doesn't load esbuild or their dependencies.
+ */
+async function createRunner(options: RunnerOptions, testFiles: string[]) {
   if (options.mode === 'node') {
     return new NodeRunner(options, testFiles)
   }
   if (options.mode === 'workerd') {
+    const { WorkerdRunner } = await import('./workerd/runner.ts')
     return new WorkerdRunner(options, testFiles)
   }
+  const { Runner } = await import('./runner.ts')
   return new Runner(options, testFiles)
 }
 
@@ -39,7 +43,7 @@ async function main() {
     if (!resolved) {
       return
     }
-    const runner = createRunner(resolved.options, resolved.testFiles)
+    const runner = await createRunner(resolved.options, resolved.testFiles)
     if (resolved.watch) {
       await runner.watch()
     } else {
