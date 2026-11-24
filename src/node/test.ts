@@ -651,8 +651,8 @@ class TestHook {
   timeout: number | null
   outerSignal: AbortSignal | undefined
 
-  error: TestFailure | Error | null = null
-  promise: Promise<void> | undefined
+  /** What `before` and `after` hooks, which only run once, gave. */
+  promise: Promise<TestFailure | Error | null> | undefined
 
   constructor(
     hookType: HookType,
@@ -672,9 +672,15 @@ class TestHook {
   }
 
   /**
+   * Run it, and give its error. Several tests that run at the same time can run
+   * a `beforeEach` or `afterEach` hook at once, each gets its own error.
+   *
    * @param owner - the test that runs it, it's what's running while it does
    */
-  run(args: { ctx: TestContext | SuiteContext }, owner: Test) {
+  run(
+    args: { ctx: TestContext | SuiteContext },
+    owner: Test
+  ): Promise<TestFailure | Error | null> {
     if (this.hookType === 'before' || this.hookType === 'after') {
       this.promise ??= this.#run(args, owner)
       return this.promise
@@ -683,7 +689,7 @@ class TestHook {
   }
 
   async #run({ ctx }: { ctx: TestContext | SuiteContext }, owner: Test) {
-    this.error = null
+    let error: TestFailure | Error | null = null
     const stop = stopTest(
       this.timeout,
       this.outerSignal ?? new AbortController().signal
@@ -694,7 +700,7 @@ class TestHook {
           this.fn,
           ctx,
           (err) => {
-            this.error = err
+            error = err
           },
           owner
         ),
@@ -704,7 +710,7 @@ class TestHook {
         throw abortError(this.outerSignal)
       }
     } catch (err) {
-      this.error =
+      error =
         err instanceof TestFailure ||
         (err as { failureType?: unknown } | null | undefined)?.failureType ===
           kAborted
@@ -713,6 +719,7 @@ class TestHook {
     } finally {
       stop.dispose()
     }
+    return error
   }
 }
 
@@ -980,9 +987,9 @@ class Test {
     const hook = new TestHook(name, fn, options)
     if (name === 'before' && this.startTime !== null) {
       // Already started, run the hook immediately
-      hook.run(this.getRunArgs(), this).then(() => {
-        if (hook.error != null) {
-          this.fail(hook.error)
+      hook.run(this.getRunArgs(), this).then((error) => {
+        if (error !== null) {
+          this.fail(error)
         }
       })
     }
@@ -1149,9 +1156,9 @@ class Test {
   ) {
     try {
       for (const hook of this.hooks[name]) {
-        await hook.run(args, owner)
-        if (hook.error) {
-          throw hook.error
+        const error = await hook.run(args, owner)
+        if (error) {
+          throw error
         }
       }
     } catch (err) {

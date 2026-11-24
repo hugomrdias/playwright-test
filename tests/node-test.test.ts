@@ -183,6 +183,7 @@ describe('playwright-test/node-test', () => {
       'ORDER first after await: first',
       'ORDER test() in first: works',
       'ORDER one at a time: one again',
+      'ORDER the other test runs',
     ]
 
     for (const mode of ['node', 'workerd']) {
@@ -195,6 +196,8 @@ describe('playwright-test/node-test', () => {
         ok(results.includes('fail rejects'), proc.stdout)
         ok(results.includes('pass runs with it'), proc.stdout)
         ok(results.includes('pass inside first'), proc.stdout)
+        ok(results.includes('fail its own test'), proc.stdout)
+        ok(results.includes('pass only fails its own test'), proc.stdout)
         is(proc.exitCode, 1, proc.stdout)
       })
     }
@@ -214,12 +217,15 @@ describe('playwright-test/node-test', () => {
             'ORDER first after await: unknown',
             `ORDER test() in first: test() can't tell which test it belongs to, these run at the same time: "getTestContext > first", "getTestContext > second". Call it before the first await of the test, or use the context of the test, like t.test().`,
             'ORDER one at a time: one again',
+            'ORDER the other test runs',
           ],
           proc.stdout
         )
         // The test around both fails, and the other one is cancelled
         ok(results.includes('fail an unhandled rejection'), proc.stdout)
         ok(results.includes('fail runs with it'), proc.stdout)
+        ok(results.includes('fail its own test'), proc.stdout)
+        ok(results.includes('pass only fails its own test'), proc.stdout)
         ok(
           output.includes(
             'ℹ An unhandled rejection happened while "an unhandled rejection > rejects", "an unhandled rejection > runs with it" ran at the same time, it can\'t be told which one it came from'

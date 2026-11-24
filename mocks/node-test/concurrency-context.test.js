@@ -4,7 +4,13 @@
  * With async context, in Node.js and workerd, it's known. In browsers it's only
  * known for the code that runs before the first `await` of a test.
  */
-import { describe, getTestContext, it, test } from '../../src/node/test.ts'
+import {
+  beforeEach,
+  describe,
+  getTestContext,
+  it,
+  test,
+} from '../../src/node/test.ts'
 
 const log = (/** @type {string} */ msg) => console.log(`ORDER ${msg}`)
 
@@ -77,4 +83,17 @@ describe('an unhandled rejection', { concurrency: true }, () => {
     started.open()
     await new Promise((resolve) => setTimeout(resolve, 100))
   })
+})
+
+describe('a beforeEach hook that fails', { concurrency: true }, () => {
+  beforeEach(async (t) => {
+    if (t.name === 'its own test') {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      throw new Error('beforeEach fails')
+    }
+    await new Promise((resolve) => setTimeout(resolve, 40))
+  })
+
+  it('its own test', () => undefined)
+  it('only fails its own test', () => log('the other test runs'))
 })
