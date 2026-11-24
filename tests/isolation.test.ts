@@ -272,7 +272,7 @@ for (const mode of ['browser', 'web-worker']) {
       ['mocha', 'mocha'],
       ['node-test', 'node-test'],
     ]) {
-      it(`${runner} runs each file in a page of its own, by default`, async () => {
+      it(`${runner} runs each file in an iframe of its own, by default`, async () => {
         const files = [`${prefix}-a`, `${prefix}-b`]
         const [isolated, together] = await Promise.all([
           runIn(mode, runner, files, ['--test-concurrency', '2']),
@@ -346,7 +346,81 @@ for (const mode of ['browser', 'web-worker']) {
     })
 
     // Workers have no localStorage
-    it('files share the storage of the run, like files share the disk', {
+    it('files that run at once each have a browser context of their own', {
+      skip: mode === 'web-worker',
+    }, async () => {
+      const proc = await runIn(
+        mode,
+        'mocha',
+        ['context-1', 'context-2'],
+        ['--test-concurrency', '2']
+      )
+
+      is(proc.exitCode, 0, output(proc))
+      ok(proc.stdout.includes('ℹ pass 2'), output(proc))
+    })
+
+    it('keyboard input reaches the iframe without a focused element', {
+      skip: mode === 'web-worker',
+    }, async () => {
+      const files = ['keyboard', 'mocha-a']
+      const [isolated, together] = await Promise.all([
+        runIn(mode, 'mocha', files, ['--test-concurrency', '1']),
+        runIn(mode, 'mocha', files, ['--test-isolation', 'none']),
+      ])
+
+      is(isolated.exitCode, 0, output(isolated))
+      is(together.exitCode, 0, output(together))
+    })
+
+    it('each page records its own HAR with recordHar', async () => {
+      const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-har-'))
+      try {
+        const proc = await runIn(
+          mode,
+          'mocha',
+          ['mocha-a', 'mocha-b'],
+          ['--test-concurrency', '2', '--config', `${dir}/har.config.js`],
+          { PW_TEST_HAR_PATH: path.join(temp, 'run.har') }
+        )
+
+        is(proc.exitCode, 0, output(proc))
+        for (const name of ['run-1.har', 'run-2.har']) {
+          const har = JSON.parse(fs.readFileSync(path.join(temp, name), 'utf8'))
+          ok(
+            har.log.entries.some((entry: { request: { url: string } }) =>
+              /bundle-\d+-out\.js/.test(entry.request.url)
+            ),
+            name
+          )
+        }
+        ok(!fs.existsSync(path.join(temp, 'run.har')), 'no empty HAR')
+      } finally {
+        fs.rmSync(temp, { recursive: true, force: true })
+      }
+    })
+
+    it('warns when the HAR of a page cannot be written', async () => {
+      const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-har-'))
+      // Its folder is a file
+      fs.writeFileSync(path.join(temp, 'file'), '')
+      try {
+        const proc = await runIn(
+          mode,
+          'mocha',
+          ['mocha-a', 'mocha-b'],
+          ['--test-concurrency', '2', '--config', `${dir}/har.config.js`],
+          { PW_TEST_HAR_PATH: path.join(temp, 'file', 'run.har') }
+        )
+
+        is(proc.exitCode, 0, output(proc))
+        ok(proc.stderr.includes('Could not close the browser'), output(proc))
+      } finally {
+        fs.rmSync(temp, { recursive: true, force: true })
+      }
+    })
+
+    it('files that run one after the other share the storage, like files share the disk', {
       skip: mode === 'web-worker',
     }, async () => {
       const proc = await runIn(
@@ -415,6 +489,22 @@ for (const mode of ['browser', 'web-worker']) {
 
       is(proc.exitCode, 0, output(proc))
       ok(proc.stdout.includes('ℹ pass 2'), output(proc))
+    })
+
+    it('the tests run in an iframe of the page, also with none', {
+      skip: mode === 'web-worker',
+    }, async () => {
+      // The iframe of the file before is gone
+      const files = ['frame-1', 'frame-2']
+      const [isolated, together] = await Promise.all([
+        runIn(mode, 'mocha', files, ['--test-concurrency', '1']),
+        runIn(mode, 'mocha', files, ['--test-isolation', 'none']),
+      ])
+
+      is(isolated.exitCode, 0, output(isolated))
+      ok(isolated.stdout.includes('ℹ pass 2'), output(isolated))
+      is(together.exitCode, 0, output(together))
+      ok(together.stdout.includes('2 passing'), output(together))
     })
 
     // Firefox lets a navigation wait for the task the page runs

@@ -32,7 +32,11 @@ import {
   withTimeout,
   writeEnv,
 } from './utils/index.ts'
-import { CLEAR_SITE_DATA_PATH, startServer } from './utils/server.ts'
+import {
+  CLEAR_SITE_DATA_PATH,
+  startServer,
+  TEST_FRAME_PARAM,
+} from './utils/server.ts'
 import { createStackMapper } from './utils/stack-map.ts'
 
 export type { BrowserContext as Context, Page } from 'playwright-core'
@@ -47,6 +51,9 @@ export type {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const noop = () => undefined
+/** `-1`, `-2` and so on for the trace of each context, when there's more than one */
+const traceSuffix = (all: unknown[], index: number) =>
+  all.length > 1 ? `-${index + 1}` : ''
 // Tests of stuck pages lower it, they always wait for all of it
 const CONSOLE_FLUSH_TIMEOUT =
   Number(process.env.PW_TEST_CONSOLE_FLUSH_TIMEOUT) || 5000
@@ -60,9 +67,14 @@ const WATCH_DEBOUNCE = 200
 const SW_CLAIM_TIMEOUT = Number(process.env.PW_TEST_SW_CLAIM_TIMEOUT) || 5000
 // Writing the screenshots and snapshots of a long run takes a while
 const TRACE_WAIT = 30_000
+// The iframe of a page the tests run in, see `#openTestFrame`
+const TEST_FRAME_NAME = 'playwright-test'
 
-/** The trace written into the folder of the run, or why it couldn't be */
-type Trace = { file: string } | { problem: string } | undefined
+/**
+ * The traces written into the folder of the run, one for each traced context,
+ * or why they couldn't be
+ */
+type Trace = ({ file: string } | { problem: string })[] | undefined
 
 /** How the tests of a page ended, see `#createTestWait` */
 interface TestResult {
@@ -103,6 +115,12 @@ export class Runner extends BaseRunner {
   > = new Map()
   /** With `--test-isolation process`, the file each page runs */
   #pageFile: Map<Page, number> = new Map()
+  /** The browser contexts of the pages of an isolated run, see `#newWorkerPage` */
+  #workerContexts: Context[] = []
+  /** The contexts that record a trace, see `#startTracing` */
+  #tracedContexts: Context[] = []
+  /** The iframe each page runs its tests in, see `#openTestFrame` */
+  #testFrame: Map<Page, Frame> = new Map()
   /** The page that started each worker */
   #workerPage: WeakMap<Worker, Page> = new WeakMap()
   /** The files whose page had an uncaught error */
@@ -193,7 +211,7 @@ export class Runner extends BaseRunner {
       }
       this.#launching = pw.launchPersistentContext(this.#profile(), {
         ...pwOptions,
-        ...this.options.browserContextOptions,
+        ...this.#persistentContextOptions(),
       })
       return this.#launching
     })
@@ -209,6 +227,20 @@ export class Runner extends BaseRunner {
       this.#browserEnded('browser')
     })
 
+    await this.#prepareContext(this.context)
+    // An isolated run traces the context of each of its pages instead
+    if (!this.#isolated()) {
+      await this.#startTracing(this.context)
+    }
+    return this.context
+  }
+
+  /**
+   * What the runner needs in a browser context: the bindings of the tests and
+   * the output of service workers. The persistent context of the browser, and
+   * the context of each page of an isolated run.
+   */
+  async #prepareContext(context: Context) {
     // Only Chromium reports service workers, the others keep their output.
     // The ones of an extension loaded with `launchOptions.args` can already be
     // running, and get reported again with the event.
@@ -219,47 +251,44 @@ export class Runner extends BaseRunner {
         worker.on('console', this.#onConsole)
       }
     }
-    this.context.on('serviceworker', trackServiceWorker)
-    for (const worker of this.context.serviceWorkers()) {
+    context.on('serviceworker', trackServiceWorker)
+    for (const worker of context.serviceWorkers()) {
       trackServiceWorker(worker)
     }
 
-    await this.#startTracing(this.context)
-
     // Multiplexed bindings of playwright-test/client; a worker running the
     // tests calls them through the page, see `addWorker`. Trusted input goes
-    // to the page that calls it, the test page.
-    const context = this.context
+    // to the page that calls it, in the frame of its tests.
     const clientBindings: {
       [K in Binding]: (
-        source: { page: Page },
+        source: { context: Context; page: Page },
         ...args: Parameters<ClientBindings[K]>
       ) => ReturnType<ClientBindings[K]>
     } = {
-      pwContextSetOffline: async (_source, offline) => {
-        await context.setOffline(offline)
+      pwContextSetOffline: async (source, offline) => {
+        await source.context.setOffline(offline)
       },
-      pwContextGrantPermissions: async (_source, permissions, options) => {
-        await context.grantPermissions(permissions, options)
+      pwContextGrantPermissions: async (source, permissions, options) => {
+        await source.context.grantPermissions(permissions, options)
       },
-      pwContextClearPermissions: async () => {
-        await context.clearPermissions()
+      pwContextClearPermissions: async (source) => {
+        await source.context.clearPermissions()
       },
-      pwContextSetGeolocation: async (_source, geolocation) => {
-        await context.setGeolocation(geolocation)
+      pwContextSetGeolocation: async (source, geolocation) => {
+        await source.context.setGeolocation(geolocation)
       },
-      pwContextSetExtraHTTPHeaders: async (_source, headers) => {
-        await context.setExtraHTTPHeaders(headers)
+      pwContextSetExtraHTTPHeaders: async (source, headers) => {
+        await source.context.setExtraHTTPHeaders(headers)
       },
-      pwContextAddCookies: async (_source, cookies) => {
-        await context.addCookies(cookies)
+      pwContextAddCookies: async (source, cookies) => {
+        await source.context.addCookies(cookies)
       },
-      pwContextCookies: (_source, urls) => context.cookies(urls),
-      pwContextClearCookies: async (_source, options) => {
-        await context.clearCookies(options)
+      pwContextCookies: (source, urls) => source.context.cookies(urls),
+      pwContextClearCookies: async (source, options) => {
+        await source.context.clearCookies(options)
       },
       pwPageClick: async ({ page }, selector, options) => {
-        await page.click(selector, options)
+        await this.#testTarget(page).click(selector, options)
       },
       pwPageKeyboardPress: async ({ page }, key, options) => {
         await page.keyboard.press(key, options)
@@ -272,7 +301,11 @@ export class Runner extends BaseRunner {
     await Promise.all([
       context.exposeBinding(
         'pwClientCall',
-        (source: { page: Page }, name: Binding, ...args: unknown[]) => {
+        (
+          source: { context: Context; page: Page },
+          name: Binding,
+          ...args: unknown[]
+        ) => {
           if (!Object.hasOwn(clientBindings, name)) {
             throw new Error(`Unknown playwright-test/client call: ${name}`)
           }
@@ -283,7 +316,7 @@ export class Runner extends BaseRunner {
       context.exposeBinding(
         'PW_TEST_NOTIFY',
         ({ page, frame }: { page: Page; frame: Frame }, failed: boolean) => {
-          if (frame === page.mainFrame()) {
+          if (frame === this.#testFrame.get(page)) {
             this.#onTestEnd(page, Boolean(failed))
           }
         }
@@ -299,8 +332,6 @@ export class Runner extends BaseRunner {
           this.#write(page, process.stderr, msg)
       ),
     ])
-
-    return this.context
   }
 
   /**
@@ -388,17 +419,17 @@ export class Runner extends BaseRunner {
   }
 
   /**
-   * Run the tests
+   * Run the tests, in a new iframe of the page
    */
   async runTests(
     page: Page,
     compiled: Promise<CompilerOutput> = this.compiler()
   ) {
-    const [prepared] = await Promise.all([
+    const [prepared, frame] = await Promise.all([
       this.#prepare(compiled),
-      this.#setupTestPage(page),
+      this.#openTestFrame(page),
     ])
-    await this.#load(page, prepared, prepared.outNames[0] as string)
+    await this.#start(frame, prepared, prepared.outNames[0] as string)
     return { files: prepared.files }
   }
 
@@ -421,51 +452,150 @@ export class Runner extends BaseRunner {
   }
 
   /**
-   * What a test page needs before a bundle loads
+   * Where the tests of a page run, once its iframe is open
    */
-  async #setupTestPage(page: Page) {
-    const debug = [this.env.DEBUG, '-pw:*', '-mocha:*']
-      .filter(Boolean)
-      .join(',')
-    await Promise.all([
-      page.addScriptTag({ url: 'setup.js' }),
-      page.evaluate((value) => {
-        localStorage.debug = value
-      }, debug),
-    ])
+  #testTarget(page: Page): Page | Frame {
+    return this.#testFrame.get(page) ?? page
   }
 
   /**
-   * Load a bundle in the page, or in a worker of the page
+   * A same-origin iframe the size of the page, at the test page. It replaces the
+   * one before it, a file gets a new global scope and document without a
+   * navigation of the page. Open before the bundle loads, `PW_TEST_NOTIFY` only
+   * counts what it calls.
+   *
+   * In web-worker mode the page itself starts the worker of each file, the
+   * worker is the new global scope. Chromium doesn't emulate `setOffline` for
+   * the workers of an iframe.
    */
-  async #load(page: Page, { sw }: Prepared, outName: string) {
-    // Inject and register the service worker
-    if (sw) {
-      // `ready` never resolves when the registration fails, and it comes before
-      // the worker claims the page, until then requests skip the worker. It may
-      // never come, a hard reload under --debug has nothing left to claim the page.
-      await page.evaluate(async (timeout) => {
-        const { serviceWorker } = navigator
-        await serviceWorker.register('/sw-out.js')
-        await serviceWorker.ready
-        if (!serviceWorker.controller) {
-          await new Promise((resolve) => {
-            serviceWorker.addEventListener('controllerchange', resolve, {
-              once: true,
-            })
-            setTimeout(resolve, timeout)
-          })
-        }
-      }, SW_CLAIM_TIMEOUT)
-    }
-
-    // Choose the mode
-    const loader = `load.js?entry=${outName}`
+  async #openTestFrame(page: Page, file?: number): Promise<Frame> {
     if (this.options.mode === 'web-worker') {
-      await page.evaluate(addWorker(loader))
-    } else {
-      await page.addScriptTag({ url: loader, type: 'module' })
+      const frame = page.mainFrame()
+      this.#testFrame.set(page, frame)
+      return frame
     }
+    const url = new URL(this.url)
+    url.searchParams.set(TEST_FRAME_PARAM, file === undefined ? '' : `${file}`)
+    this.#testFrame.delete(page)
+    await page.evaluate(
+      ({ name, src }) =>
+        new Promise<void>((resolve) => {
+          for (const old of document.querySelectorAll('iframe')) {
+            if (old.name === name) {
+              old.remove()
+            }
+          }
+          const frame = document.createElement('iframe')
+          frame.name = name
+          frame.src = src
+          frame.style.cssText =
+            'position:fixed;inset:0;width:100%;height:100%;border:0'
+          // Focused, keyboard input goes to its document like it went to the
+          // page before
+          frame.addEventListener(
+            'load',
+            () => {
+              frame.contentWindow?.focus()
+              resolve()
+            },
+            { once: true }
+          )
+          document.body.append(frame)
+        }),
+      { name: TEST_FRAME_NAME, src: url.href }
+    )
+    const frame =
+      page.frame({ name: TEST_FRAME_NAME }) ??
+      page
+        .mainFrame()
+        .childFrames()
+        .find((child) => child.url() === url.href)
+    if (!frame) {
+      throw new Error('The iframe of the tests did not open')
+    }
+    this.#testFrame.set(page, frame)
+    return frame
+  }
+
+  /**
+   * Remove the iframe of the tests, or end the worker of the tests, what they
+   * left running stops with it
+   */
+  async #closeTestFrame(page: Page) {
+    this.#testFrame.delete(page)
+    await page
+      .evaluate((name) => {
+        // @ts-expect-error see `addWorker`
+        globalThis.pwTestWorker?.terminate()
+        for (const frame of document.querySelectorAll('iframe')) {
+          if (frame.name === name) {
+            frame.remove()
+          }
+        }
+      }, TEST_FRAME_NAME)
+      .catch(noop)
+  }
+
+  /**
+   * Load a bundle in the iframe of the tests, or in a worker of it, in one
+   * round trip: setup.js, the debug namespaces and the service worker first.
+   */
+  async #start(frame: Frame, { sw }: Prepared, outName: string) {
+    const loader = `load.js?entry=${outName}`
+    await frame.evaluate(
+      async ({ debug, sw, claimTimeout, loader, worker }) => {
+        const script = (attrs: { src: string; type?: string }) =>
+          new Promise((resolve, reject) => {
+            const element = document.createElement('script')
+            Object.assign(element, attrs)
+            element.addEventListener('load', resolve, { once: true })
+            element.addEventListener(
+              'error',
+              () =>
+                reject(new Error(`Failed to load script at ${element.src}`)),
+              { once: true }
+            )
+            document.head.append(element)
+          })
+        localStorage.debug = debug
+        await script({ src: 'setup.js' })
+
+        // `ready` never resolves when the registration fails, and it comes
+        // before the worker claims the frame, until then requests skip the
+        // worker. It may never come, a hard reload under --debug has nothing
+        // left to claim the frame.
+        if (sw) {
+          const { serviceWorker } = navigator
+          await serviceWorker.register('/sw-out.js')
+          await serviceWorker.ready
+          if (!serviceWorker.controller) {
+            await new Promise((resolve) => {
+              serviceWorker.addEventListener('controllerchange', resolve, {
+                once: true,
+              })
+              setTimeout(resolve, claimTimeout)
+            })
+          }
+        }
+
+        if (worker) {
+          // An inline script runs right away, in the global scope
+          const element = document.createElement('script')
+          element.textContent = worker
+          document.head.append(element)
+        } else {
+          await script({ src: loader, type: 'module' })
+        }
+      },
+      {
+        debug: [this.env.DEBUG, '-pw:*', '-mocha:*'].filter(Boolean).join(','),
+        sw,
+        claimTimeout: SW_CLAIM_TIMEOUT,
+        loader,
+        worker:
+          this.options.mode === 'web-worker' ? addWorker(loader) : undefined,
+      }
+    )
   }
 
   async run() {
@@ -523,7 +653,7 @@ export class Runner extends BaseRunner {
           !this.pageErrored &&
           this.options.runner !== 'none'
         ) {
-          await page.evaluate('0')
+          await this.#testTarget(page).evaluate('0')
         }
 
         const failed =
@@ -551,8 +681,8 @@ export class Runner extends BaseRunner {
   }
 
   /**
-   * With `--test-isolation process` and more than one file: a page per file, at
-   * most `--test-concurrency` at once. Not with --debug and --watch, they
+   * With `--test-isolation process` and more than one file: an iframe per file,
+   * at most `--test-concurrency` at once. Not with --debug and --watch, they
    * reload the one test page.
    */
   #isolated() {
@@ -565,7 +695,7 @@ export class Runner extends BaseRunner {
   }
 
   /**
-   * Each file in a page of its own, the pages are reused for the next files.
+   * Each file in an iframe of its own, in a page that runs one file at a time.
    * What a file prints comes out in the order of the files, then a summary of
    * them. Mocha's `bail` ends the running files when one fails, and skips the
    * rest.
@@ -581,17 +711,15 @@ export class Runner extends BaseRunner {
     const bails = testRunner.name === 'mocha' && bail
     this.#output = new FileOutput(files.length)
 
-    // Once, before the files, they share the storage like files share the disk
-    const first = Promise.resolve(context.pages()[0] ?? context.newPage()).then(
-      async (page) => {
-        await this.#clearSiteData(page)
-        return page
-      }
-    )
+    // Like Vitest, a browser context and page for each file that runs at once.
+    // The files that run one after the other in a page share its storage,
+    // like files share the disk. The pages stay at the test page, the iframes
+    // of the files go in them.
     const [prepared, ...pages] = await Promise.all([
       this.#prepare(compiled),
-      first,
-      ...Array.from({ length: concurrency - 1 }, () => context.newPage()),
+      ...Array.from({ length: concurrency }, (_, index) =>
+        this.#newWorkerPage(context, index, concurrency)
+      ),
     ])
     for (const page of pages) {
       this.#watchPage(page)
@@ -654,7 +782,54 @@ export class Runner extends BaseRunner {
   }
 
   /**
-   * Run one file in the page, then leave the page blank for the next one
+   * The options of the persistent context. In an isolated run it runs no
+   * tests, it records no HAR or video, those of the pages would get replaced
+   * by its empty ones.
+   */
+  #persistentContextOptions() {
+    const options = this.options.browserContextOptions
+    if (!options || !this.#isolated()) {
+      return options
+    }
+    const { recordHar: _har, recordVideo: _video, ...rest } = options
+    return rest
+  }
+
+  /**
+   * A new browser context in the browser of the persistent one, with the
+   * bindings of the runner, and its page at the test page. With more than one,
+   * each records its HAR next to the one of `recordHar.path`, `-1` and so on.
+   */
+  async #newWorkerPage(
+    persistent: Context,
+    index: number,
+    count: number
+  ): Promise<Page> {
+    const browser = persistent.browser()
+    if (!browser) {
+      throw new Error('The browser of the persistent context is gone')
+    }
+    const options = { ...this.options.browserContextOptions }
+    if (options.recordHar && count > 1) {
+      const { dir, name, ext } = path.parse(options.recordHar.path)
+      options.recordHar = {
+        ...options.recordHar,
+        path: path.join(dir, `${name}-${index + 1}${ext}`),
+      }
+    }
+    const context = await browser.newContext(options)
+    this.#workerContexts.push(context)
+    await Promise.all([
+      this.#prepareContext(context),
+      this.#startTracing(context),
+    ])
+    const page = await context.newPage()
+    await page.goto(this.url)
+    return page
+  }
+
+  /**
+   * Run one file in an iframe of the page, then remove it for the next one
    */
   async #runFile(
     page: Page,
@@ -671,17 +846,13 @@ export class Runner extends BaseRunner {
       cancelled.resolve({ failed: true, navigated: false, cancelled: true })
     })
     const run = async (): Promise<TestResult> => {
-      await page.goto(this.url)
+      const frame = await this.#openTestFrame(page, index)
       const testWait = this.#createTestWait(page)
       try {
         if (isCancelled) {
           return await cancelled.promise
         }
-        await this.#setupTestPage(page)
-        if (isCancelled) {
-          return await cancelled.promise
-        }
-        await this.#load(page, prepared, prepared.outNames[index] as string)
+        await this.#start(frame, prepared, prepared.outNames[index] as string)
         const result = await Promise.race([testWait.wait(), cancelled.promise])
         if (result.navigated || result.cancelled) {
           return result
@@ -689,7 +860,7 @@ export class Runner extends BaseRunner {
         const none = this.options.runner === 'none'
         // Page errors come in order with evaluate results
         if (!result.failed && !none && !this.#erroredFiles.has(index)) {
-          await page.evaluate('0')
+          await frame.evaluate('0')
         }
         return {
           ...result,
@@ -721,7 +892,7 @@ export class Runner extends BaseRunner {
         await this.#flushPage(page)
         this.#output?.done(index)
         // What the file left running can't print over the next ones
-        await page.goto('about:blank').catch(noop)
+        await this.#closeTestFrame(page)
         this.#pageFile.delete(page)
       }
     }
@@ -735,7 +906,7 @@ export class Runner extends BaseRunner {
     const flush = async () => {
       const workers = page.workers()
       await Promise.allSettled([
-        page.evaluate('0'),
+        this.#testTarget(page).evaluate('0'),
         ...workers.map((worker) => worker.evaluate('0')),
       ])
       await Promise.allSettled(
@@ -778,12 +949,14 @@ export class Runner extends BaseRunner {
       })
     }
     const onFrameNavigated = (frame: Frame) => {
-      if (frame !== page.mainFrame() || state.ended) {
+      const target = this.#testFrame.get(page)
+      if (state.ended || (frame !== page.mainFrame() && frame !== target)) {
         return
       }
       // `history.pushState` and hash changes also fire `framenavigated` without
-      // replacing the document; only a real navigation removes `PW_TEST`.
-      page.evaluate('globalThis.PW_TEST !== undefined').then(
+      // replacing the document; only a real navigation removes `PW_TEST`. The
+      // page navigating takes the iframe of the tests with it.
+      ;(target ?? page).evaluate('globalThis.PW_TEST !== undefined').then(
         (hasController) => {
           if (!hasController && !state.ended) {
             state.ended = true
@@ -813,7 +986,7 @@ export class Runner extends BaseRunner {
     return {
       wait: async () => {
         if (!state.ended) {
-          const snapshot = await page
+          const snapshot = await this.#testTarget(page)
             .evaluate(() => {
               // @ts-expect-error
               const ctrl = globalThis.PW_TEST
@@ -948,6 +1121,7 @@ export class Runner extends BaseRunner {
       snapshots: true,
       sources: false,
     })
+    this.#tracedContexts.push(context)
     this.tracing = true
   }
 
@@ -962,22 +1136,35 @@ export class Runner extends BaseRunner {
     this.tracing = false
     // The context can be gone before the browser process notices
     if (this.closed === 'browser' || !this.#browserConnected()) {
-      return {
-        problem:
-          'Could not save the trace, the browser closed before the run ended.',
-      }
+      return [
+        {
+          problem:
+            'Could not save the trace, the browser closed before the run ended.',
+        },
+      ]
     }
-    const file = path.join(this.dir, 'trace.zip')
-    // Closing the context throws the trace away
-    return await withTimeout<Trace, Trace>(
-      (this.context as Context).tracing.stop({ path: file }).then(
-        () => ({ file }),
-        (error: Error) => ({
-          problem: `Could not save the trace: ${error.message}`,
-        })
-      ),
-      TRACE_WAIT,
-      { problem: `Timed out saving the trace after ${TRACE_WAIT}ms.` }
+    const contexts = this.#tracedContexts
+    // Closing a context throws its trace away
+    return await Promise.all(
+      contexts.map((context, index) => {
+        const file = path.join(
+          this.dir,
+          `trace${traceSuffix(contexts, index)}.zip`
+        )
+        return withTimeout<
+          { file: string } | { problem: string },
+          { problem: string }
+        >(
+          context.tracing.stop({ path: file }).then(
+            () => ({ file }),
+            (error: Error) => ({
+              problem: `Could not save the trace: ${error.message}`,
+            })
+          ),
+          TRACE_WAIT,
+          { problem: `Timed out saving the trace after ${TRACE_WAIT}ms.` }
+        )
+      })
     )
   }
 
@@ -989,14 +1176,39 @@ export class Runner extends BaseRunner {
     if (!trace || (this.options.trace !== 'on' && exitCode === 0)) {
       return
     }
-    if ('problem' in trace) {
-      log.warn(trace.problem)
-      return
-    }
-    const file = path.join(
-      this.options.cwd,
-      `playwright-test-trace-${this.options.browser}.zip`
+    // A trace for each page of an isolated run, numbered when there are more.
+    // Copied at once, reported in order.
+    const kept = await Promise.all(
+      trace.map((written, index) => {
+        if ('problem' in written) {
+          return written
+        }
+        const file = path.join(
+          this.options.cwd,
+          `playwright-test-trace-${this.options.browser}${traceSuffix(trace, index)}.zip`
+        )
+        return this.#copyTrace(written.file, file)
+      })
     )
+    for (const result of kept) {
+      if (result && 'problem' in result) {
+        log.warn(result.problem)
+      } else if (result) {
+        const shown = path.relative(process.cwd(), result.file) || result.file
+        log.info(
+          `Saved the trace, open it with \`npx playwright show-trace ${shown}\`.`
+        )
+      }
+    }
+  }
+
+  /**
+   * Copy a trace where it's kept, it warns when it can't
+   */
+  async #copyTrace(
+    from: string,
+    file: string
+  ): Promise<{ file: string } | undefined> {
     // Not a rename, the temp folder can be on another drive. Copied next to
     // it first, a copy that doesn't finish can't replace the trace of another
     // run. With its own wait, where it goes can be slow.
@@ -1004,7 +1216,7 @@ export class Runner extends BaseRunner {
     let timedOut = false
     const copied = await withTimeout(
       fs.promises
-        .copyFile(trace.file, copy)
+        .copyFile(from, copy)
         .then(() => {
           // Too late, another run may have kept its trace there since
           if (timedOut) {
@@ -1027,10 +1239,7 @@ export class Runner extends BaseRunner {
     if (copied !== true) {
       return
     }
-    const shown = path.relative(process.cwd(), file) || file
-    log.info(
-      `Saved the trace, open it with \`npx playwright show-trace ${shown}\`.`
-    )
+    return { file }
   }
 
   /**
@@ -1138,15 +1347,21 @@ export class Runner extends BaseRunner {
       // Console messages come in order with evaluate results from the same
       // target, after this round trip the older ones already reached node.
       // Workers need their own, the message ending the run can overtake them.
-      await Promise.allSettled([
-        ...(this.context?.pages() ?? []).flatMap((page) => [
-          page.evaluate('0'),
-          ...page.workers().map((worker) => worker.evaluate('0')),
-        ]),
-        ...(this.context?.serviceWorkers() ?? []).map((worker) =>
-          worker.evaluate('0')
-        ),
-      ])
+      const contexts = [
+        ...(this.context ? [this.context] : []),
+        ...this.#workerContexts,
+      ]
+      await Promise.allSettled(
+        contexts.flatMap((context) => [
+          ...context
+            .pages()
+            .flatMap((page) => [
+              this.#testTarget(page).evaluate('0'),
+              ...page.workers().map((worker) => worker.evaluate('0')),
+            ]),
+          ...context.serviceWorkers().map((worker) => worker.evaluate('0')),
+        ])
+      )
 
       while (this.pendingConsole.size > 0) {
         await Promise.allSettled(this.pendingConsole)
@@ -1183,9 +1398,23 @@ export class Runner extends BaseRunner {
     if (!this.#closing) {
       const traced = this.#writeTrace()
       const closed = traced
-        .then(() => {
+        .then(async () => {
           // A browser that's gone can't close it, and doesn't need to
           if (this.context && this.#browserConnected()) {
+            // First the contexts of the pages, closing one saves its HAR and
+            // videos
+            const results = await Promise.allSettled(
+              this.#workerContexts.map((context) => context.close())
+            )
+            // Like the persistent one below, a HAR that can't be written
+            // rejects the close
+            for (const result of results) {
+              if (result.status === 'rejected') {
+                log.warn(
+                  `Could not close the browser: ${(result.reason as Error).message}`
+                )
+              }
+            }
             return this.context.close()
           }
         })

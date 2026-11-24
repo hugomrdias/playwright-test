@@ -61,6 +61,37 @@ describe('--trace', () => {
     assertTrace()
   })
 
+  it('keeps a trace for each browser context of an isolated run', async () => {
+    const traces = [1, 2].map((n) =>
+      path.join(cwd, `playwright-test-trace-chromium-${n}.zip`)
+    )
+    try {
+      const proc = await run([
+        'pass.mocha.js',
+        'fails.mocha.js',
+        '--trace',
+        '--test-concurrency',
+        '2',
+      ])
+
+      is(proc.exitCode, 1, proc.stderr)
+      for (const file of traces) {
+        ok(
+          proc.stderr.includes(
+            `Saved the trace, open it with \`npx playwright show-trace ${file}\`.`
+          ),
+          proc.stderr
+        )
+        ok(readFileSync(file).includes('trace.trace'), 'has the trace')
+      }
+      ok(!existsSync(trace), 'no trace without a number')
+    } finally {
+      for (const file of traces) {
+        rmSync(file, { force: true })
+      }
+    }
+  })
+
   it('does not keep the trace of a passing run', async () => {
     const proc = await run(['pass.mocha.js', '--trace'])
 

@@ -9,7 +9,7 @@ import type { Runner } from '../runner.ts'
 import { EXT } from './ext.ts'
 import { createMerge } from './merge.ts'
 import { polyfillAliases } from './polyfill-aliases.ts'
-import { CLEAR_SITE_DATA_PATH } from './server.ts'
+import { CLEAR_SITE_DATA_PATH, TEST_FRAME_PARAM } from './server.ts'
 
 const merge = createMerge({ ignoreUndefined: true, concatArrays: true })
 
@@ -17,17 +17,23 @@ const ENV_MODULE = 'playwright-test:env'
 const HARNESS_MODULE = 'playwright-test:harness'
 
 /**
- * First, so the worker of the tests never answers for the pages of the runner.
- * Each file of an isolated run loads the test page again, it's in its scope.
+ * First, so the worker of the tests never answers for the pages of the runner:
+ * the tabs, and the iframe each file runs in, which loads after the worker of
+ * an earlier file is in place. Iframes of the tests at `/` are theirs.
  */
 const harness = `
 const pages = new Set(['/', ${JSON.stringify(CLEAR_SITE_DATA_PATH)}])
 self.addEventListener('fetch', (event) => {
+  const { request } = event
+  if (request.mode !== 'navigate') {
+    return
+  }
+  const url = new URL(request.url)
   if (
-    event.request.mode === 'navigate' &&
-    // Not an iframe of the tests, the runner's pages are the tabs
-    event.request.destination === 'document' &&
-    pages.has(new URL(event.request.url).pathname)
+    (request.destination === 'document' && pages.has(url.pathname)) ||
+    (request.destination === 'iframe' &&
+      url.pathname === '/' &&
+      url.searchParams.has(${JSON.stringify(TEST_FRAME_PARAM)}))
   ) {
     event.stopImmediatePropagation()
   }

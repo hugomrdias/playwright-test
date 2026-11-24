@@ -1,10 +1,12 @@
 /** biome-ignore-all lint/suspicious/noConsole: the tests read what it prints */
-// Logs a value that takes a read of the thread, then keeps it busy
+// Logs a value that takes a read of the thread, then keeps it busy. Long
+// enough for the timer of bail-fails-later to fire on a loaded machine,
+// bail ends it before the loop does.
 describe('mocha logs busy', () => {
   it('logs, then blocks the thread', function () {
     this.timeout(0)
     console.log('LOGGED BEFORE BAIL', { request: { detail: 'DEEP VALUE' } })
-    const end = Date.now() + 1800
+    const end = Date.now() + 6000
     while (Date.now() < end) {
       // busy
     }
