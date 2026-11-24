@@ -1,5 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs'
 import { builtinModules, createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -9,7 +15,7 @@ import { BaseRunner } from '../base-runner.ts'
 import { type FileStatus, summary } from '../node/each-file.ts'
 import type { Config, RunResult, WatchHandle } from '../types.ts'
 import { FileOutput } from '../utils/file-output.ts'
-import { UsageError, withTimeout } from '../utils/index.ts'
+import { runEsbuild, UsageError, withTimeout } from '../utils/index.ts'
 import { createMerge } from '../utils/merge.ts'
 import { createStackMapper } from '../utils/stack-map.ts'
 
@@ -375,7 +381,6 @@ export class WorkerdRunner extends BaseRunner {
   /** With a worker per file, the output of each one reached this process */
   #filesDone: PromiseWithResolvers<void>[] = []
   #summary: (() => void) | undefined
-  #bundling: Promise<unknown> | undefined
 
   constructor(options: Config, testFiles?: string[]) {
     super(options, testFiles)
@@ -574,12 +579,15 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
       external: ['cloudflare:*', 'workerd:*'],
       define: { 'import.meta.env': 'globalThis.process.env' },
       plugins: [modulesPlugin, runtimePlugin, builtinsPlugin],
-      logLevel: this.stderr === process.stderr ? 'error' : 'silent',
+      logLevel: 'error',
     }
     const { default: esbuild } = await import('esbuild')
-    let metafile: Awaited<ReturnType<typeof esbuild.build>>['metafile']
-    try {
-      ;({ metafile } = await esbuild.build({
+    // Build in memory (`write: false`) and only flush to `this.dir` if the run
+    // has not stopped, so a stalled or slow plugin neither blocks shutdown nor
+    // recreates `this.dir` after `removeFiles()`.
+    const result = await runEsbuild(
+      esbuild,
+      {
         ...merge<BuildOptions>(
           defaults,
           this.options.testRunner.buildConfig?.(this.options),
@@ -589,18 +597,18 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
         // workerd can't run test code in chunks, see above, and a worker only
         // gets its bundle
         splitting: false,
-      }))
-    } catch (error) {
-      const { errors } = (error ?? {}) as { errors?: unknown }
-      if (this.stderr !== process.stderr && Array.isArray(errors)) {
-        const formatted = await esbuild.formatMessages(errors, {
-          kind: 'error',
-          color: this.colors.enabled,
-        })
-        this.stderr.write(formatted.join('\n'))
-      }
-      throw error
+        write: false,
+      },
+      { stderr: this.stderr, color: this.colors.enabled }
+    )
+    if (this.stopped) {
+      return { outNames, modules, imports: new Map<string, Set<string>>() }
     }
+    for (const file of result.outputFiles ?? []) {
+      mkdirSync(path.dirname(file.path), { recursive: true })
+      writeFileSync(file.path, file.contents)
+    }
+    const { metafile } = result
     // The modules each bundle imports, a worker only gets its own
     const imports: Map<string, Set<string>> = new Map()
     for (const [file, { imports: used }] of Object.entries(
@@ -685,10 +693,7 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
     if (this.stopped) {
       return
     }
-    const bundling = this.#bundle(main, isolated)
-    bundling.catch(() => undefined)
-    this.#bundling = bundling
-    const { outNames, modules, imports } = await bundling
+    const { outNames, modules, imports } = await this.#bundle(main, isolated)
     if (this.stopped) {
       return
     }
@@ -1046,15 +1051,6 @@ export default (imports = {}) => WebAssembly.instantiate(wasm, imports)`,
   async watch(): Promise<WatchHandle> {
     await this.removeFiles()
     throw new UsageError('--watch does not work in the workerd mode yet.')
-  }
-
-  async cleanUp() {
-    // Wait for any in-flight bundle write to settle before `removeFiles()`
-    // removes `this.dir`, otherwise esbuild can recreate it after cleanup.
-    await this.#bundling?.then(
-      () => undefined,
-      () => undefined
-    )
   }
 
   cleanupWait() {

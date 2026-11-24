@@ -744,6 +744,56 @@ const ENTRY = 'playwright-test:entry'
  */
 export const bundleName = (index: number) => `bundle-${index}-out.js`
 
+const WARNING_LOG_LEVELS = new Set(['verbose', 'debug', 'info', 'warning'])
+
+/**
+ * Run `esbuild.build`, routing warnings and errors to `stderr` when it isn't
+ * `process.stderr` while respecting the configured `logLevel`.
+ */
+export async function runEsbuild(
+  esbuild: typeof import('esbuild'),
+  options: ESBuildOptions,
+  { stderr, color }: { stderr: NodeJS.WritableStream; color: boolean }
+) {
+  if (stderr === process.stderr) {
+    return await esbuild.build(options)
+  }
+  const logLevel = options.logLevel ?? 'warning'
+  const showWarnings = WARNING_LOG_LEVELS.has(logLevel)
+  const showErrors = logLevel !== 'silent'
+  try {
+    const result = await esbuild.build({ ...options, logLevel: 'silent' })
+    if (showWarnings && result.warnings.length > 0) {
+      const formatted = await esbuild.formatMessages(result.warnings, {
+        kind: 'warning',
+        color,
+      })
+      stderr.write(formatted.join('\n'))
+    }
+    return result
+  } catch (error) {
+    const { errors, warnings } = (error ?? {}) as {
+      errors?: unknown
+      warnings?: unknown
+    }
+    if (showWarnings && Array.isArray(warnings) && warnings.length > 0) {
+      const formatted = await esbuild.formatMessages(warnings, {
+        kind: 'warning',
+        color,
+      })
+      stderr.write(formatted.join('\n'))
+    }
+    if (showErrors && Array.isArray(errors) && errors.length > 0) {
+      const formatted = await esbuild.formatMessages(errors, {
+        kind: 'error',
+        color,
+      })
+      stderr.write(formatted.join('\n'))
+    }
+    throw error
+  }
+}
+
 /**
  * Build the bundle, or with a template for each file one bundle per file, the
  * code they share in chunks next to them.
@@ -847,7 +897,6 @@ ${template}
     define: {
       global: 'globalThis',
     },
-    ...(runner.stderr === process.stderr ? {} : { logLevel: 'silent' }),
   }
   const options = merge<ESBuildOptions>(
     defaultOptions,
@@ -858,19 +907,10 @@ ${template}
   if (templates && options.publicPath) {
     options.splitting = false
   }
-  try {
-    await esbuild.build(options)
-  } catch (error) {
-    const { errors } = (error ?? {}) as { errors?: unknown }
-    if (runner.stderr !== process.stderr && Array.isArray(errors)) {
-      const formatted = await esbuild.formatMessages(errors, {
-        kind: 'error',
-        color: runner.colors.enabled,
-      })
-      runner.stderr.write(formatted.join('\n'))
-    }
-    throw error
-  }
+  await runEsbuild(esbuild, options, {
+    stderr: runner.stderr,
+    color: runner.colors.enabled,
+  })
 
   return {
     outNames: templates

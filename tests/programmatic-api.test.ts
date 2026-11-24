@@ -222,26 +222,26 @@ describe('programmatic API', { concurrency: TEST_CONCURRENCY }, () => {
     is(fs.existsSync(runner.dir), false, 'temp dir removed')
   })
 
-  it('waits for in-flight workerd bundling before removing the temp dir on stop()', async () => {
-    const { stdout, stderr } = makeCapture()
-    let onStartDone = false
+  it('stops promptly on a stalled workerd bundle plugin without recreating the temp dir', async () => {
+    const { stdout, stderr, err } = makeCapture()
     const started = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
     const runner = new WorkerdRunner(
       {
         mode: 'workerd',
         runner: 'none',
         cwd: path.resolve('mocks/workerd'),
+        runTimeout: 100,
         stdout,
         stderr,
         buildConfig: {
           plugins: [
             {
-              name: 'delayed-start',
+              name: 'stalled-start',
               setup(build) {
                 build.onStart(async () => {
                   started.resolve()
-                  await new Promise((resolve) => setTimeout(resolve, 250))
-                  onStartDone = true
+                  await release.promise
                 })
               },
             },
@@ -253,10 +253,16 @@ describe('programmatic API', { concurrency: TEST_CONCURRENCY }, () => {
 
     const running = runner.run()
     await started.promise
-    await runner.stop(false)
-    await running
+    const result = await running
 
-    is(onStartDone, true, 'cleanup waited for esbuild to finish')
+    is(result.exitCode, 1)
+    ok(err().includes('Run timed out after 100ms'), err())
+    is(runner.server?.listening ?? false, false, 'asset server closed')
+    is(fs.existsSync(runner.dir), false, 'temp dir removed')
+
+    // Releasing the stalled plugin after shutdown must not recreate the temp dir
+    release.resolve()
+    await new Promise((resolve) => setTimeout(resolve, 150))
     is(fs.existsSync(runner.dir), false, 'temp dir stayed removed')
   })
 
@@ -328,25 +334,54 @@ describe('programmatic API', { concurrency: TEST_CONCURRENCY }, () => {
     }
   })
 
-  it('routes service-worker esbuild diagnostics to custom stderr', async () => {
+  it('routes service-worker esbuild diagnostics and warnings to custom stderr', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-sw-err-'))
-    const sw = path.join(dir, 'bad-sw.js')
-    fs.writeFileSync(sw, "import './does-not-exist.js'\n")
-    const { stdout, stderr, err } = makeCapture()
+    const badSw = path.join(dir, 'bad-sw.js')
+    const okSw = path.join(dir, 'ok-sw.js')
+    fs.writeFileSync(badSw, "import './does-not-exist.js'\n")
+    fs.writeFileSync(okSw, '// empty sw\n')
     try {
-      const result = await run(
+      const failCap = makeCapture()
+      const failed = await run(
         {
           mode: 'browser',
           runner: 'none',
-          sw,
-          stdout,
-          stderr,
+          sw: badSw,
+          stdout: failCap.stdout,
+          stderr: failCap.stderr,
         },
         [path.resolve('mocks/none/stdout.test.js')]
       )
 
-      is(result.exitCode, 1)
-      ok(err().includes('Could not resolve'), err())
+      is(failed.exitCode, 1)
+      ok(failCap.err().includes('Could not resolve'), failCap.err())
+
+      const warnCap = makeCapture()
+      const warned = await run(
+        {
+          mode: 'browser',
+          runner: 'none',
+          sw: okSw,
+          stdout: warnCap.stdout,
+          stderr: warnCap.stderr,
+          buildSWConfig: {
+            plugins: [
+              {
+                name: 'warn-sw',
+                setup(build) {
+                  build.onStart(() => ({
+                    warnings: [{ text: 'sw-plugin-warning' }],
+                  }))
+                },
+              },
+            ],
+          },
+        },
+        [path.resolve('mocks/none/stdout.test.js')]
+      )
+
+      is(warned.exitCode, 0, warnCap.err())
+      ok(warnCap.err().includes('sw-plugin-warning'), warnCap.err())
     } finally {
       fs.rmSync(dir, { recursive: true, force: true })
     }
