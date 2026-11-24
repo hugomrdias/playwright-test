@@ -4,12 +4,12 @@ import {
   match,
   ok,
 } from 'node:assert/strict'
+import { randomUUID } from 'node:crypto'
 import { once } from 'node:events'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { after, describe, it } from 'node:test'
-import { nanoid } from 'nanoid'
 import { execa, execaSync, runCli, TEST_CONCURRENCY } from './helpers.ts'
 
 const FLOW = 'mocks/flow'
@@ -436,7 +436,7 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
 
     for (const runner of ['mocha', 'node-test', 'none']) {
       it(`takes test files with quotes with --runner ${runner}`, async () => {
-        const dir = `mocks/tmp-it's-${nanoid()}`
+        const dir = `mocks/tmp-it's-${randomUUID()}`
         created.push(dir)
         fs.mkdirSync(dir)
         fs.copyFileSync(`${FLOW}/pass.js`, `${dir}/a.test.js`)
@@ -725,7 +725,7 @@ describe('runner flow', { concurrency: TEST_CONCURRENCY }, () => {
   })
 
   describe('--watch', { concurrency: false }, () => {
-    const root = `mocks/tmp-watch-${nanoid()}`
+    const root = `mocks/tmp-watch-${randomUUID()}`
     const app = `${root}/app`
     const lib = `${app}/lib.js`
     const test = `${app}/a.test.js`
