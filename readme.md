@@ -184,7 +184,7 @@ The types are the ones from `node:test`, which come from `@types/node`.
 - `test` (also the default export), `it`, `describe`, `suite`, `skip`, `todo`, `only`, `before`, `after`, `beforeEach`, `afterEach`, `mock`, `getTestContext`, and `assert.register`.
 - `test(name?, options?, fn?)`, which returns a promise, and `.skip`, `.todo` and `.only` on all of them.
 - The options `skip`, `todo`, `only`, `timeout`, `plan`, `signal`, `tags` and `concurrency`. There's no default timeout.
-- Suites to any depth, async suites and hooks scoped to their suite. Everything runs in declaration order.
+- Suites to any depth, async suites and hooks scoped to their suite. Everything runs in declaration order, unless the `concurrency` option of a test or a suite lets its subtests run at the same time, like in `node:test`. Its value is inherited, and results are reported in declaration order either way. Top level tests run one at a time, like in a file of `node:test`.
 - The test context: `t.test`, `t.name`, `t.fullName`, `t.skip`, `t.todo`, `t.diagnostic`, `t.log`, `t.plan`, `t.assert` (with `called`, `callCount`, `lastCalledWith` and `nthCalledWith` in any Node.js version, in node mode only with `--test-isolation none`), `t.signal`, `t.mock`, `t.waitFor`, `t.runOnly`, `t.error`, `t.passed`, `t.tags`, `t.before`, `t.after`, `t.beforeEach`, `t.afterEach` and `(t, done)` callbacks, also in hooks.
 - `mock.fn`, `mock.method`, `mock.getter`, `mock.setter`, `mock.property`, `mock.reset` and `mock.restoreAll`. `t.mock` is restored when the test ends.
 - `mock.timers` with `enable`, `tick`, `runAll`, `setTime`, `reset` and `Symbol.dispose`. It mocks the globals `setTimeout`, `setInterval`, `setImmediate` (added when the browser has none), `Date` and `AbortSignal.timeout`. `t.mock.timers` is reset when the test ends.
@@ -202,12 +202,14 @@ These aren't implemented and throw an error that names them, they never silently
 
 ### What's different from `node:test`
 
-- Tests run serially, `concurrency` is accepted and ignored.
 - `.only` always filters, there's no `--test-only` flag to pass.
 - A test that never settles fails in node mode, where `node:test` hangs. A browser can't tell it will never settle and also waits forever, so use the `timeout` option.
 - A throw in a root `after` hook fails the run, it exits with 0 in `node:test`.
 - A root `after` hook runs when the whole run ends, `node:test` can run it earlier when using top level `await`.
-- There's no async context in browsers, so a running test is what's used to find out where things belong. A global `test()` call while a test is running creates a subtest of that test, and an uncaught error fails the running test even when an earlier test caused it. Only one async `describe` body runs at a time, the others wait for it.
+- There's no async context in browsers, so what runs is used to find out where a global `test()` or hook call, `getTestContext()` or an uncaught error belongs. A global `test()` call while a test is running creates a subtest of that test, and an uncaught error fails the running test even when an earlier test caused it. Node.js and workerd have async context, so there they belong where they do in `node:test`. Only one async `describe` body runs at a time, the others wait for it, and until it ends what's declared after an `await`, anywhere, belongs to it.
+- When the `concurrency` option runs tests at the same time in a browser, which one runs is only known before the first `await` of a test. After it `getTestContext()` returns `undefined`, a global `test()`, `describe()` or hook call throws, so use `t.test()` and the hooks of `t`, and an uncaught error fails the closest test around the ones that run, which cancels them, with a diagnostic that names them.
+- A `beforeEach` or `afterEach` hook that fails for one of the tests that run at the same time only fails that test, in `node:test` it also fails the others that run the hook while it does.
+- `mock.timers` and the other global mocks are shared, so two tests that run at the same time and mock the same thing get in each other's way, like in `node:test`.
 - With `--debug` and `--watch` in browsers all the files of a run share the root hooks, like `--test-isolation=none`.
 - A top level `await test()` runs before anything else, so an `.only` declared later doesn't filter it. A test declared after the run ended throws.
 - Awaiting `t.test()` on a test that already finished resolves and the subtest fails, it hangs in `node:test`.

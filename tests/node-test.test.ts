@@ -132,12 +132,13 @@ describe('playwright-test/node-test', () => {
     { name: 'mock-assert', exitCode: 0 },
     { name: 'tags', exitCode: 0 },
     { name: 'mock-timers', exitCode: 0 },
+    { name: 'concurrency', exitCode: 1, workerd: true },
     // Real node:test only filters with the flag, this API always does
     { name: 'only', exitCode: 0, flags: ['--test-only'] },
   ]
 
   describe('parity with node:test', { concurrency: TEST_CONCURRENCY }, () => {
-    for (const { name, exitCode, flags } of parity) {
+    for (const { name, exitCode, flags, workerd } of parity) {
       describe(name, { concurrency: false }, () => {
         let real: Awaited<ReturnType<typeof runReal>>
 
@@ -147,7 +148,7 @@ describe('playwright-test/node-test', () => {
           ok(real.results.length > 0, 'real node:test reported results')
         })
 
-        for (const mode of modes) {
+        for (const mode of workerd ? [...modes, 'workerd'] : modes) {
           it(mode, async () => {
             const api = await runApi(name, mode)
 
@@ -169,6 +170,118 @@ describe('playwright-test/node-test', () => {
             ok(!api.order.some((line) => line.includes('NOT RUN')), 'not run')
           })
         }
+      })
+    }
+  })
+
+  describe('while the concurrency option runs several tests at once', {
+    concurrency: TEST_CONCURRENCY,
+  }, () => {
+    const known = [
+      'ORDER first before await: first',
+      'ORDER second after await: second',
+      'ORDER first after await: first',
+      'ORDER test() in first: works',
+      'ORDER one at a time: one again',
+      'ORDER the other test runs',
+      'ORDER while a suite is built: runs while it is built',
+      'ORDER test() outside of a test: works',
+    ]
+
+    for (const mode of ['node', 'workerd']) {
+      it(`${mode} knows which test runs, with async context`, async () => {
+        const { proc, order, results } = await runApi(
+          'concurrency-context',
+          mode
+        )
+        equal(order, known, proc.stdout)
+        ok(results.includes('fail rejects'), proc.stdout)
+        ok(results.includes('pass runs with it'), proc.stdout)
+        ok(results.includes('pass inside first'), proc.stdout)
+        // At the top level, like in node:test
+        ok(results.includes('pass declared outside of a test'), proc.stdout)
+        ok(results.includes('fail rejects while it is built'), proc.stdout)
+        ok(results.includes('fail rejects next to it'), proc.stdout)
+        ok(results.includes('pass builds a todo suite'), proc.stdout)
+        ok(results.includes('fail throws right away'), proc.stdout)
+        ok(results.includes('fail throws later'), proc.stdout)
+        for (const name of [
+          'inside the built suite',
+          'built in a test',
+          'builds a suite',
+          'runs while it is built',
+          'while a suite is built',
+        ]) {
+          ok(results.includes(`pass ${name}`), `${name}\n${proc.stdout}`)
+        }
+        ok(results.includes('pass only fails its own test'), proc.stdout)
+        is(proc.exitCode, 1, proc.stdout)
+      })
+    }
+
+    for (const mode of ['browser', 'web-worker']) {
+      it(`${mode} only knows before the first await`, async () => {
+        const { proc, order, results } = await runApi(
+          'concurrency-context',
+          mode
+        )
+        const output = lines(proc.stdout).join('\n')
+        equal(
+          order,
+          [
+            'ORDER first before await: first',
+            'ORDER second after await: unknown',
+            'ORDER first after await: unknown',
+            `ORDER test() in first: test() can't tell which test it belongs to, these run at the same time: "getTestContext > first", "getTestContext > second". Call it before the first await of the test, or use the context of the test, like t.test().`,
+            'ORDER one at a time: one again',
+            'ORDER the other test runs',
+            // Until the build ends, it's what runs after an await
+            'ORDER while a suite is built: built in a test',
+            `ORDER test() outside of a test: test() can't tell which test it belongs to, these run at the same time: "code outside of the tests > opens", "code outside of the tests > runs with it". Call it before the first await of the test, or use the context of the test, like t.test().`,
+          ],
+          proc.stdout
+        )
+        // The test around both fails, and the other one is cancelled
+        ok(results.includes('fail an unhandled rejection'), proc.stdout)
+        ok(results.includes('fail runs with it'), proc.stdout)
+        // Also when one of them is a suite being built
+        ok(
+          output.includes(
+            'ℹ An unhandled rejection happened while "a rejection next to a suite being built > rejects next to it", "a rejection next to a suite being built > a todo suite next to it" ran at the same time'
+          ),
+          output
+        )
+        ok(
+          results.includes(
+            'fail an unhandled rejection while a suite is built'
+          ),
+          proc.stdout
+        )
+        ok(
+          output.includes(
+            'ℹ An unhandled rejection happened while "an unhandled rejection while a suite is built > rejects while it is built", "an unhandled rejection while a suite is built > builds a todo suite > a todo suite" ran at the same time'
+          ),
+          output
+        )
+        ok(results.includes('fail throws right away'), proc.stdout)
+        ok(results.includes('fail throws later'), proc.stdout)
+        for (const name of [
+          'inside the built suite',
+          'built in a test',
+          'builds a suite',
+          'runs while it is built',
+          'while a suite is built',
+        ]) {
+          ok(results.includes(`pass ${name}`), `${name}\n${proc.stdout}`)
+        }
+        ok(results.includes('pass only fails its own test'), proc.stdout)
+        ok(
+          output.includes(
+            'ℹ An unhandled rejection happened while "an unhandled rejection > rejects", "an unhandled rejection > runs with it" ran at the same time, it can\'t be told which one it came from'
+          ),
+          output
+        )
+        is(proc.exitCode, 1, proc.stdout)
       })
     }
   })

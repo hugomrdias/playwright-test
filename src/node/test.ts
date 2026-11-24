@@ -6,9 +6,10 @@
  * The behaviour follows `lib/internal/test_runner/test.js` from Node.js, with
  * two structural differences:
  *
- * - Tests always run serially. Which makes a single `current` pointer a good
- *   enough replacement for the async context tracking Node.js uses to find the
- *   parent of a global `test()` call, and that isn't available in browsers.
+ * - There's no async context tracking in browsers, which Node.js uses to find
+ *   the test of a global `test()` call, `getTestContext()` or an uncaught
+ *   error. What's running is known instead, see {@link findCurrent}, and that's
+ *   only ambiguous when the `concurrency` option runs tests at the same time.
  * - Top level tests wait for `exec()` instead of the end of the build phase,
  *   unless their promise is awaited, see {@link LazyTestPromise}.
  */
@@ -163,33 +164,36 @@ function stopTest(timeout: number | null, signal: AbortSignal) {
 function invoke(
   fn: TestFn,
   ctx: TestContext | SuiteContext,
-  fail: (err: TestFailure) => void
+  fail: (err: TestFailure) => void,
+  owner: Test
 ) {
   if (fn.length !== 2) {
-    return Promise.resolve(fn.call(ctx, ctx))
+    return Promise.resolve(callAs(owner, () => fn.call(ctx, ctx)))
   }
 
   // Error-first callback style `(t, done) => {}`
   const { promise, resolve, reject } = deferred()
   let calledCount = 0
-  const ret = fn.call(ctx, ctx, (err?: unknown) => {
-    calledCount++
-    // Let the user know about a second call, this ends up as an uncaught error.
-    if (calledCount === 2) {
-      throw new TestFailure(
-        'callback invoked multiple times',
-        kMultipleCallbackInvocations
-      )
-    }
-    if (calledCount > 1) {
-      return
-    }
-    if (err) {
-      reject(err)
-    } else {
-      resolve()
-    }
-  })
+  const ret = callAs(owner, () =>
+    fn.call(ctx, ctx, (err?: unknown) => {
+      calledCount++
+      // Let the user know about a second call, this ends up as an uncaught error.
+      if (calledCount === 2) {
+        throw new TestFailure(
+          'callback invoked multiple times',
+          kMultipleCallbackInvocations
+        )
+      }
+      if (calledCount > 1) {
+        return
+      }
+      if (err) {
+        reject(err)
+      } else {
+        resolve()
+      }
+    })
+  )
 
   if (
     typeof (ret as PromiseLike<unknown> | null | undefined)?.then === 'function'
@@ -285,6 +289,40 @@ function normalizeTags(tags: unknown, inherited: readonly string[] = []) {
   }
   // Frozen like in Node.js, the tags of the children are made from them
   return Object.freeze([...result])
+}
+
+/** Like Node.js shows big numbers in errors, `1_000_000_000_000` */
+function addNumericalSeparator(value: string) {
+  let result = ''
+  let i = value.length
+  const start = value[0] === '-' ? 1 : 0
+  for (; i >= start + 4; i -= 3) {
+    result = `_${value.slice(i - 3, i)}${result}`
+  }
+  return `${value.slice(0, i)}${result}`
+}
+
+/** `validateUint32(value, name, true)` of Node.js */
+function validateConcurrency(value: number) {
+  let range: string | undefined
+  if (!Number.isInteger(value)) {
+    range = 'an integer'
+  } else if (value < 1 || value > 4_294_967_295) {
+    range = '>= 1 && <= 4294967295'
+  }
+  if (range === undefined) {
+    return
+  }
+  const received =
+    Number.isInteger(value) && Math.abs(value) > 2 ** 32
+      ? addNumericalSeparator(String(value))
+      : inspect(value)
+  throw Object.assign(
+    new RangeError(
+      `The value of "options.concurrency" is out of range. It must be ${range}. Received ${received}`
+    ),
+    { code: 'ERR_OUT_OF_RANGE' }
+  )
 }
 
 function validateTimeout(
@@ -613,8 +651,8 @@ class TestHook {
   timeout: number | null
   outerSignal: AbortSignal | undefined
 
-  error: TestFailure | Error | null = null
-  promise: Promise<void> | undefined
+  /** What `before` and `after` hooks, which only run once, gave. */
+  promise: Promise<TestFailure | Error | null> | undefined
 
   constructor(
     hookType: HookType,
@@ -633,32 +671,46 @@ class TestHook {
     this.outerSignal = signal
   }
 
-  run(args: { ctx: TestContext | SuiteContext }) {
+  /**
+   * Run it, and give its error. Several tests that run at the same time can run
+   * a `beforeEach` or `afterEach` hook at once, each gets its own error.
+   *
+   * @param owner - the test that runs it, it's what's running while it does
+   */
+  run(
+    args: { ctx: TestContext | SuiteContext },
+    owner: Test
+  ): Promise<TestFailure | Error | null> {
     if (this.hookType === 'before' || this.hookType === 'after') {
-      this.promise ??= this.#run(args)
+      this.promise ??= this.#run(args, owner)
       return this.promise
     }
-    return this.#run(args)
+    return this.#run(args, owner)
   }
 
-  async #run({ ctx }: { ctx: TestContext | SuiteContext }) {
-    this.error = null
+  async #run({ ctx }: { ctx: TestContext | SuiteContext }, owner: Test) {
+    let error: TestFailure | Error | null = null
     const stop = stopTest(
       this.timeout,
       this.outerSignal ?? new AbortController().signal
     )
     try {
       await Promise.race([
-        invoke(this.fn, ctx, (err) => {
-          this.error = err
-        }),
+        invoke(
+          this.fn,
+          ctx,
+          (err) => {
+            error = err
+          },
+          owner
+        ),
         stop.promise,
       ])
       if (this.outerSignal?.aborted) {
         throw abortError(this.outerSignal)
       }
     } catch (err) {
-      this.error =
+      error =
         err instanceof TestFailure ||
         (err as { failureType?: unknown } | null | undefined)?.failureType ===
           kAborted
@@ -667,6 +719,7 @@ class TestHook {
     } finally {
       stop.dispose()
     }
+    return error
   }
 }
 
@@ -711,16 +764,34 @@ class Test {
   announced = false
   /** The build of a suite, tests never have one. */
   buildFinished = false
-  active = false
+  /** How many of its subtests run at once, at most. */
+  concurrency: number
+  /** How many of its subtests run. */
+  activeSubtests = 0
+  /** Whether it counts in the {@link activeSubtests} of its parent. */
+  holdsSlot = false
   error: unknown = null
   startTime: (() => number) | null = null
+  /** How long it took, from when it started to when it finished. */
+  duration = 0
   diagnostics: string[] = []
   subtests: Test[] = []
   pendingSubtests: { test: Test; resolve: () => void }[] = []
   unfinishedSubtests: Set<Test> = new Set()
   subtestsPromise: ReturnType<typeof deferred> | null = null
-  previous: Test | null = null
-  errorsAtStart = 0
+  /**
+   * Reports come out in the order the subtests started, which is the order
+   * they're declared in, even when they finish in another one. Like Node.js
+   * each subtest gets a number and a finished one waits in `readySubtests`
+   * until all those before it have been reported.
+   */
+  reportOrder = 0
+  nextReportOrder = 1
+  /** The number of the subtest whose report is next. */
+  waitingOn = 1
+  readySubtests: Map<number, Test> = new Map()
+  /** How many failures inside of it have been reported. */
+  reportedErrors = 0
   done = deferred()
   hooks = {
     before: [] as TestHook[],
@@ -769,14 +840,17 @@ class Test {
       }
     }
 
-    // Accepted to be compatible, tests always run serially
-    if (
-      concurrency != null &&
-      typeof concurrency !== 'number' &&
-      typeof concurrency !== 'boolean'
-    ) {
-      throw new TypeError(
-        'The "options.concurrency" property must be a number or a boolean.'
+    // Inherited, and the subtests of the root always run one at a time
+    this.concurrency = parent?.concurrency ?? 1
+    if (typeof concurrency === 'number') {
+      validateConcurrency(concurrency)
+      this.concurrency = concurrency
+    } else if (typeof concurrency === 'boolean') {
+      this.concurrency = concurrency ? Number.POSITIVE_INFINITY : 1
+    } else if (concurrency != null) {
+      throw invalidArg(
+        'ERR_INVALID_ARG_TYPE',
+        `The "options.concurrency" property must be one of type boolean or number. Received ${describeReceived(concurrency)}`
       )
     }
 
@@ -913,9 +987,9 @@ class Test {
     const hook = new TestHook(name, fn, options)
     if (name === 'before' && this.startTime !== null) {
       // Already started, run the hook immediately
-      hook.run(this.getRunArgs()).then(() => {
-        if (hook.error != null) {
-          this.fail(hook.error)
+      hook.run(this.getRunArgs(), this).then((error) => {
+        if (error !== null) {
+          this.fail(error)
         }
       })
     }
@@ -945,18 +1019,104 @@ class Test {
   start(): Promise<void> {
     this.applyFilters()
     const parent = this.parent as Test
+    // Subtests start in the order they're declared
+    parent.assignReportOrder(this)
 
     if (this.filtered) {
       return this.filteredRun()
     }
 
     parent.addUnfinished(this)
-    if (parent.active) {
+    if (!parent.hasConcurrency()) {
       const { promise, resolve } = deferred()
       parent.pendingSubtests.push({ test: this, resolve })
       return promise
     }
     return this.run()
+  }
+
+  hasConcurrency() {
+    return this.concurrency > this.activeSubtests
+  }
+
+  /** Count it in the subtests of its parent that run. */
+  takeSlot() {
+    const parent = this.parent as Test
+    if (!this.holdsSlot) {
+      this.holdsSlot = true
+      parent.activeSubtests++
+    }
+  }
+
+  releaseSlot() {
+    const parent = this.parent as Test
+    if (this.holdsSlot) {
+      this.holdsSlot = false
+      parent.activeSubtests--
+    }
+  }
+
+  assignReportOrder(subtest: Test) {
+    if (subtest.reportOrder === 0) {
+      subtest.reportOrder = this.nextReportOrder++
+    }
+  }
+
+  addReadySubtest(subtest: Test) {
+    this.assignReportOrder(subtest)
+    this.readySubtests.set(subtest.reportOrder, subtest)
+    if (
+      this.unfinishedSubtests.delete(subtest) &&
+      this.unfinishedSubtests.size === 0
+    ) {
+      this.subtestsPromise?.resolve()
+    }
+  }
+
+  /**
+   * Report the finished subtests whose turn it is. Only when it's the turn of
+   * this test too, or `canSend` says so.
+   */
+  processReadySubtestRange(canSend: boolean) {
+    const start = this.waitingOn
+    const end = start + this.readySubtests.size
+    for (let i = start; i < end; i++) {
+      const subtest = this.readySubtests.get(i)
+      if (subtest === undefined) {
+        return
+      }
+      canSend ||= this.isClearToSend()
+      if (!canSend) {
+        return
+      }
+      subtest.finalize()
+      this.readySubtests.delete(i)
+    }
+  }
+
+  isClearToSend(): boolean {
+    return (
+      this.parent === null ||
+      (this.parent.waitingOn === this.reportOrder &&
+        this.parent.isClearToSend())
+    )
+  }
+
+  /**
+   * Report it, once it and everything inside of it finished, and it's its turn.
+   */
+  finalize() {
+    // All the subtests have finished, whatever is left can be reported
+    this.processReadySubtestRange(true)
+    if (!this.filtered) {
+      try {
+        this.report()
+      } catch (err) {
+        // The next tests wait for this one, and a run with no report would pass
+        rootError(err)
+      }
+    }
+    ;(this.parent as Test).waitingOn++
   }
 
   addUnfinished(subtest: Test) {
@@ -967,7 +1127,7 @@ class Test {
   }
 
   async processPendingSubtests() {
-    while (this.pendingSubtests.length > 0 && !this.active) {
+    while (this.pendingSubtests.length > 0 && this.hasConcurrency()) {
       const next = this.pendingSubtests.shift() as {
         test: Test
         resolve: () => void
@@ -986,15 +1146,19 @@ class Test {
     return { ctx: this.getCtx() }
   }
 
+  /**
+   * @param owner - the test that runs them, it's what's running while they do
+   */
   async runHook(
     name: 'before' | 'after' | 'beforeEach' | 'afterEach',
-    args: { ctx: TestContext | SuiteContext }
+    args: { ctx: TestContext | SuiteContext },
+    owner: Test
   ) {
     try {
       for (const hook of this.hooks[name]) {
-        await hook.run(args)
-        if (hook.error) {
-          throw hook.error
+        const error = await hook.run(args, owner)
+        if (error) {
+          throw error
         }
       }
     } catch (err) {
@@ -1012,26 +1176,21 @@ class Test {
   }
 
   /**
-   * Make this test the parent of global `test()` and hook calls.
+   * It's running, see {@link findCurrent}.
    */
   enter() {
-    this.previous = current
-    current = this
+    running.add(this)
   }
 
   leave() {
-    // A cancelled test can get here while a next one is already running.
-    if (current === this && this.previous !== null) {
-      current = this.previous
-    }
+    running.delete(this)
   }
 
   async run() {
     const parent = this.parent as Test
-    parent.active = true
+    this.takeSlot()
     this.computeInheritedHooks()
     this.startTime = hrtime()
-    this.errorsAtStart = counters.errors.length
     this.enter()
 
     if (this.shouldAbort()) {
@@ -1046,12 +1205,12 @@ class Test {
     const wasSkippedBeforeRun = this.skipped
     const after = async () => {
       if (this.hooks.after.length > 0) {
-        await this.runHook('after', hookArgs)
+        await this.runHook('after', hookArgs, this)
       }
     }
     const afterEach = runOnce(async () => {
       if (parent.hooks.afterEach.length > 0 && !wasSkippedBeforeRun) {
-        await parent.runHook('afterEach', hookArgs)
+        await parent.runHook('afterEach', hookArgs, this)
       }
     })
 
@@ -1062,15 +1221,15 @@ class Test {
         ctx.plan(this.expectedAssertions)
       }
       if (parent.hooks.before.length > 0) {
-        await parent.runHook('before', parent.getRunArgs())
+        await parent.runHook('before', parent.getRunArgs(), this)
       }
       if (parent.hooks.beforeEach.length > 0 && !this.skipped) {
-        await parent.runHook('beforeEach', hookArgs)
+        await parent.runHook('beforeEach', hookArgs, this)
       }
       stop = stopTest(this.timeout, this.signal)
 
       await Promise.race([
-        invoke(this.fn, ctx, (err) => this.fail(err)),
+        invoke(this.fn, ctx, (err) => this.fail(err), this),
         stop.promise,
       ])
 
@@ -1136,6 +1295,9 @@ class Test {
       return
     }
     this.finished = true
+    this.duration = this.startTime?.() ?? 0
+    // A cancelled test can still be running, but it's not what runs anymore
+    this.leave()
 
     // The test has run, so recursively cancel any outstanding subtests and
     // mark this test as failed if any subtests failed.
@@ -1164,22 +1326,9 @@ class Test {
     this.mock?.reset()
 
     const parent = this.parent as Test
-    if (!this.filtered) {
-      try {
-        this.report()
-      } catch (err) {
-        // The next tests wait for this one, and a run with no report would pass
-        rootError(err)
-      }
-      parent.active = false
-    }
-
-    if (
-      parent.unfinishedSubtests.delete(this) &&
-      parent.unfinishedSubtests.size === 0
-    ) {
-      parent.subtestsPromise?.resolve()
-    }
+    this.releaseSlot()
+    parent.addReadySubtest(this)
+    parent.processReadySubtestRange(false)
     this.done.resolve()
     parent.processPendingSubtests()
   }
@@ -1224,7 +1373,7 @@ class Test {
       skip: this.skipped,
       todo: this.isTodo,
       message: this.message,
-      time: this.startTime?.() ?? 0,
+      time: this.duration,
     }
 
     this.count()
@@ -1244,7 +1393,7 @@ class Test {
       // What failed in the subtests is already there
       ((this.error as { failureType?: unknown } | undefined)?.failureType ===
         kSubtestsFailed &&
-        counters.errors.length !== this.errorsAtStart)
+        this.reportedErrors > 0)
     ) {
       return
     }
@@ -1253,6 +1402,9 @@ class Test {
       counters.failures++
     }
     counters.errors.push(formatFailure(result, this.error))
+    for (let t = this.parent; t !== null; t = t.parent) {
+      t.reportedErrors++
+    }
   }
 }
 
@@ -1287,12 +1439,11 @@ class Suite extends Test {
     const parent = this.parent as Test
     this.computeInheritedHooks()
     const hookArgs = this.getRunArgs()
-    this.errorsAtStart = counters.errors.length
 
-    const after = runOnce(() => this.runHook('after', hookArgs))
+    const after = runOnce(() => this.runHook('after', hookArgs, this))
     let stop: ReturnType<typeof stopTest> | undefined
     try {
-      parent.active = true
+      this.takeSlot()
       await this.buildPromise
       if (
         config.namePatterns !== null &&
@@ -1300,7 +1451,7 @@ class Suite extends Test {
         !(await hasNameMatch(this))
       ) {
         this.filtered = true
-        parent.active = false
+        this.releaseSlot()
         return this.filteredRun()
       }
       this.startTime = hrtime()
@@ -1314,10 +1465,10 @@ class Suite extends Test {
       }
 
       if (parent.hooks.before.length > 0) {
-        await parent.runHook('before', parent.getRunArgs())
+        await parent.runHook('before', parent.getRunArgs(), this)
       }
 
-      await this.runHook('before', hookArgs)
+      await this.runHook('before', hookArgs, this)
 
       stop = stopTest(this.timeout, this.signal)
       const subtests = this.skipped || this.error ? [] : this.subtests
@@ -1351,6 +1502,8 @@ class Suite extends Test {
 
 /** The suite with an async body that hasn't settled yet. */
 let building: Suite | null = null
+/** It, once the code after the `describe()` call that started it has run. */
+let buildingCurrent: Suite | null = null
 const buildQueue: Array<() => void> = []
 
 /**
@@ -1372,24 +1525,20 @@ function scheduleBuild(suite: Suite): Promise<void> {
     }
 
     const job = () => {
-      const previous = current
-
       // Queued before the body runs, so it's ahead of the continuation of the
       // first `await` in the body and behind the sync code after `describe()`.
       queueMicrotask(() => {
         if (building === suite) {
-          current = suite
+          buildingCurrent = suite
         }
       })
 
-      current = suite
       let ret: unknown
       try {
-        ret = fn.call(ctx, ctx)
+        ret = callAs(suite, () => fn.call(ctx, ctx))
       } catch (err) {
         fail(err)
       }
-      current = previous
 
       if (
         typeof (ret as PromiseLike<unknown> | null | undefined)?.then !==
@@ -1404,16 +1553,7 @@ function scheduleBuild(suite: Suite): Promise<void> {
         .catch(fail)
         .then(() => {
           building = null
-          if (current === suite) {
-            // A suite around this one with a sync body has been built by now.
-            current = previous
-            while (
-              current.parent &&
-              (current.buildFinished || current.finished)
-            ) {
-              current = current.parent
-            }
-          }
+          buildingCurrent = null
           finish()
           while (building === null && buildQueue.length > 0) {
             buildQueue.shift()?.()
@@ -1485,8 +1625,103 @@ let counters = newCounters()
 const root = new Test({ name: '<root>' })
 root.startTime = hrtime()
 
-/** The parent of global `test()` and hook calls. */
-let current: Test = root
+/** The tests and suites that run, without those that finished. */
+const running: Set<Test> = new Set()
+/** The tests of the functions that run right now, the last one is the innermost. */
+const callStack: Test[] = []
+
+/**
+ * Async context, where there's one: in Node.js and in workerd. Browsers don't
+ * have it.
+ */
+const asyncContext = (() => {
+  try {
+    const AsyncLocalStorage = (
+      globalThis.process as
+        | {
+            getBuiltinModule?: (id: string) => typeof import('node:async_hooks')
+          }
+        | undefined
+    )?.getBuiltinModule?.('node:async_hooks')?.AsyncLocalStorage
+    return AsyncLocalStorage ? new AsyncLocalStorage<Test>() : undefined
+  } catch {
+    return undefined
+  }
+})()
+
+/**
+ * Call a function of a test, a hook or the body of a suite: what it runs,
+ * right now and with async context after it awaits, belongs to that test.
+ */
+function callAs<T>(test: Test, fn: () => T): T {
+  callStack.push(test)
+  try {
+    return asyncContext ? asyncContext.run(test, fn) : fn()
+  } finally {
+    callStack.pop()
+  }
+}
+
+/**
+ * The test that global `test()` and hook calls, `getTestContext()` and uncaught
+ * errors belong to. With async context that's known, like in Node.js, and what
+ * runs outside of any test belongs to the root. Without it's the one whose
+ * function runs right now, or the suite whose async body is being built, so its
+ * declarations after an `await` land in it, or the innermost of what runs. When
+ * the `concurrency` option has more than one of those at once, it's not
+ * possible to tell, and they're all returned.
+ *
+ * @param error - for an uncaught error, which could also come from a test that
+ * runs while the suite is being built
+ */
+function findCurrent(error = false): Test | Test[] {
+  const called = callStack.at(-1)
+  if (called !== undefined) {
+    return called
+  }
+  if (asyncContext) {
+    return asyncContext.getStore() ?? root
+  }
+  if (buildingCurrent !== null && !error) {
+    return buildingCurrent
+  }
+  const innermost = innermostOf(
+    buildingCurrent === null ? [...running] : [...running, buildingCurrent]
+  )
+  if (innermost.length === 0) {
+    return root
+  }
+  return innermost.length === 1 ? innermost[0] : innermost
+}
+
+/** What isn't the parent of another one of them. */
+function innermostOf(tests: Test[]) {
+  const parents = new Set<Test>()
+  for (const test of tests) {
+    for (let t = test.parent; t !== null && !parents.has(t); t = t.parent) {
+      parents.add(t)
+    }
+  }
+  return tests.filter((test) => !parents.has(test))
+}
+
+function quoteNames(tests: Test[]) {
+  return tests.map((test) => `"${getFullName(test)}"`).join(', ')
+}
+
+/**
+ * The test a global `test()` or hook call belongs to.
+ */
+function currentParent(call: string): Test {
+  const current = findCurrent()
+  if (Array.isArray(current)) {
+    throw new Error(
+      `${call} can't tell which test it belongs to, these run at the same time: ${quoteNames(current)}. Call it before the first await of the test, or use the context of the test, like t.test().`
+    )
+  }
+  return current
+}
+
 let rootFinished = false
 /** Index of the next top level test to run */
 let next = 0
@@ -1505,12 +1740,34 @@ function rootError(err: unknown) {
  */
 function onUncaught(err: unknown, type: string) {
   const failure = new TestFailure(err, type)
+  let current = findCurrent(true)
+  if (Array.isArray(current)) {
+    // The closest test around all of them, which cancels the others
+    const tests = current
+    let parent = tests[0].parent as Test
+    while (!tests.every((test) => isInside(test, parent))) {
+      parent = parent.parent as Test
+    }
+    parent.diagnostics.push(
+      `${type === kUnhandledRejection ? 'An unhandled rejection' : 'An uncaught error'} happened while ${quoteNames(tests)} ran at the same time, it can't be told which one it came from`
+    )
+    current = parent
+  }
   if (current !== root && !current.finished) {
     current.fail(failure)
     current.abortController.abort()
   } else {
     rootError(failure)
   }
+}
+
+function isInside(test: Test, parent: Test) {
+  for (let t = test.parent; t !== null; t = t.parent) {
+    if (t === parent) {
+      return true
+    }
+  }
+  return false
 }
 
 const onUncaughtException = (err: unknown) =>
@@ -1668,7 +1925,7 @@ async function runRoot() {
         await Promise.race([
           (async () => {
             await Promise.all(root.hooks.before.map((hook) => hook.promise))
-            await root.runHook('after', args)
+            await root.runHook('after', args, root)
           })(),
           exiting.promise,
         ])
@@ -1712,7 +1969,7 @@ function runInContext(
   fn?: unknown,
   overrides?: TestOptions
 ) {
-  const parent = current
+  const parent = currentParent(`${Factory === Suite ? 'describe' : 'test'}()`)
   const test = parent.createSubtest(Factory, name, options, fn, overrides)
   return parent instanceof Suite
     ? Promise.resolve()
@@ -1735,7 +1992,7 @@ function createApi(Factory: typeof Test) {
 
 function createHookApi(name: HookType) {
   return (fn: unknown, options?: HookOptions) => {
-    current.createHook(name, fn, options)
+    currentParent(`${name}()`).createHook(name, fn, options)
   }
 }
 
@@ -1776,8 +2033,9 @@ export const assert: typeof import('node:test').assert = {
  * The context of the running test, if there's one.
  */
 export function getTestContext(): NodeTestContext | undefined {
+  const current = findCurrent()
   // The context of `node:test`, without what only Node.js has
-  return current === root
+  return current === root || Array.isArray(current)
     ? undefined
     : (current.getCtx() as unknown as NodeTestContext)
 }
